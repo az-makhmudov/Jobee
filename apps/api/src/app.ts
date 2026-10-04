@@ -1,0 +1,186 @@
+import fastify, { FastifyInstance } from 'fastify';
+import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
+import { z } from 'zod';
+import {
+  AppError,
+  ErrorCodes,
+  createLogger,
+  Logger,
+  MAX_DOCUMENT_FILE_SIZE_BYTES,
+  type FileStorageProvider,
+} from '@job-agent/shared';
+import type { AppConfig } from '@job-agent/config';
+import { getDb, type Database } from '@job-agent/database';
+import { healthRoutes } from './routes/health.js';
+import { createReadyRoutes } from './routes/ready.js';
+import { createCandidateRoutes } from './routes/candidate.js';
+import { CandidateService } from './services/candidate-service.js';
+import { LocalStorageProvider } from './storage/local-storage.js';
+
+export interface AppOptions {
+  config: AppConfig;
+  logger?: Logger;
+  db?: Database;
+  storage?: FileStorageProvider;
+  candidateService?: CandidateService;
+}
+
+export function buildApp(options: AppOptions): FastifyInstance {
+  const { config } = options;
+  const logger =
+    options.logger ??
+    createLogger({
+      service: 'api',
+      level: config.LOG_LEVEL,
+      environment: config.NODE_ENV,
+    });
+
+  const app = fastify({
+    logger: false, // We use our structured logger integration
+  });
+
+  // Enable CORS
+  app.register(cors, {
+    origin: [config.WEB_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true,
+  });
+
+  // Enable Multipart file uploads
+  app.register(multipart, {
+    limits: {
+      fileSize: MAX_DOCUMENT_FILE_SIZE_BYTES,
+    },
+  });
+
+  // Request logging hook
+  app.addHook('onRequest', async (req) => {
+    logger.debug(`Incoming request: ${req.method} ${req.url}`, {
+      method: req.method,
+      url: req.url,
+      ip: req.ip,
+    });
+  });
+
+  // Register baseline routes
+  app.register(healthRoutes);
+  app.register(createReadyRoutes(config));
+
+  // Initialize and register Candidate Brain routes
+  let candidateService = options.candidateService;
+  if (!candidateService) {
+    const db = options.db ?? (config.DATABASE_URL ? getDb(config.DATABASE_URL) : null);
+    if (db) {
+      const storage = options.storage ?? new LocalStorageProvider();
+      candidateService = new CandidateService(db, storage);
+    }
+  }
+
+  if (candidateService) {
+    app.register(createCandidateRoutes(candidateService), { prefix: '/api' });
+    // Also register at root /candidate/* for direct calls
+    app.register(createCandidateRoutes(candidateService));
+  }
+
+  // Custom 404 Not Found handler
+  app.setNotFoundHandler(async (req, reply) => {
+    logger.warn(`Route not found: ${req.method} ${req.url}`, {
+      method: req.method,
+      url: req.url,
+    });
+
+    reply.status(404).send({
+      status: 'error',
+      error: {
+        code: ErrorCodes.NOT_FOUND,
+        message: `Route ${req.method} ${req.url} not found`,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Centralized error handler
+  app.setErrorHandler(async (error: unknown, req, reply) => {
+    if (error instanceof AppError) {
+      if (error.statusCode >= 500) {
+        logger.error(
+          `Application error: ${error.message}`,
+          { code: error.code, url: req.url },
+          error,
+        );
+      } else {
+        logger.warn(`Client operational error: ${error.message}`, {
+          code: error.code,
+          url: req.url,
+        });
+      }
+
+      reply.status(error.statusCode).send({
+        status: 'error',
+        error: error.toJSON(),
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    if (error instanceof z.ZodError) {
+      logger.warn(`Validation error on ${req.method} ${req.url}`, {
+        issues: error.issues,
+      });
+      reply.status(400).send({
+        status: 'error',
+        error: {
+          code: ErrorCodes.VALIDATION_ERROR,
+          message: error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join(', '),
+          details: error.format(),
+        },
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    const errObj = error instanceof Error ? error : new Error(String(error));
+    const isObject = typeof error === 'object' && error !== null;
+    const hasValidation = isObject && 'validation' in error;
+
+    // Fastify schema validation errors
+    if (hasValidation) {
+      const validationDetails = (error as { validation: unknown }).validation;
+      logger.warn(`Validation error on ${req.method} ${req.url}`, {
+        validation: validationDetails,
+      });
+      reply.status(400).send({
+        status: 'error',
+        error: {
+          code: ErrorCodes.VALIDATION_ERROR,
+          message: errObj.message,
+          details: validationDetails,
+        },
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    // Unexpected internal errors: hide stack and internal details from client
+    logger.error(
+      `Unhandled internal error on ${req.method} ${req.url}: ${errObj.message}`,
+      { url: req.url },
+      errObj,
+    );
+
+    reply.status(500).send({
+      status: 'error',
+      error: {
+        code: ErrorCodes.INTERNAL_ERROR,
+        message:
+          config.NODE_ENV === 'production'
+            ? 'An unexpected internal error occurred'
+            : errObj.message,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  return app;
+}

@@ -1,0 +1,77 @@
+import { describe, it, expect } from 'vitest';
+import { buildApp } from './app.js';
+import type { AppConfig } from '@job-agent/config';
+import { AppError } from '@job-agent/shared';
+
+const testConfig: AppConfig = {
+  NODE_ENV: 'test',
+  API_HOST: '127.0.0.1',
+  API_PORT: 3000,
+  WEB_ORIGIN: 'http://localhost:5173',
+  LOG_LEVEL: 'fatal', // silence logs in tests
+  WORKER_POLL_INTERVAL_MS: 5000,
+  DATABASE_URL: undefined,
+};
+
+describe('API Foundation', () => {
+  it('GET /health returns 200 and health payload', async () => {
+    const app = buildApp({ config: testConfig });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/health',
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.status).toBe('ok');
+    expect(body.service).toBe('api');
+    expect(body.version).toBe('0.1.0');
+    expect(body.uptimeSeconds).toBeTypeOf('number');
+  });
+
+  it('GET /ready returns readiness payload with unconfigured database in test', async () => {
+    const app = buildApp({ config: testConfig });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/ready',
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = JSON.parse(response.body);
+    expect(body.status).toBe('degraded');
+    expect(body.checks.database.status).toBe('unconfigured');
+  });
+
+  it('GET /unknown-route returns 404 with standardized error JSON', async () => {
+    const app = buildApp({ config: testConfig });
+    const response = await app.inject({
+      method: 'GET',
+      url: '/random-missing-route',
+    });
+
+    expect(response.statusCode).toBe(404);
+    const body = JSON.parse(response.body);
+    expect(body.status).toBe('error');
+    expect(body.error.code).toBe('NOT_FOUND');
+    expect(body.error.message).toContain('/random-missing-route');
+  });
+
+  it('handles operational AppError thrown inside routes', async () => {
+    const app = buildApp({ config: testConfig });
+    app.get('/test-error', async () => {
+      throw AppError.badRequest('Custom bad request detail', { foo: 'bar' });
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/test-error',
+    });
+
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.status).toBe('error');
+    expect(body.error.code).toBe('BAD_REQUEST');
+    expect(body.error.message).toBe('Custom bad request detail');
+    expect(body.error.details).toEqual({ foo: 'bar' });
+  });
+});

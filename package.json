@@ -1,0 +1,36 @@
+{
+  "name": "ai-job-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Single-user personal AI job-search and application platform",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"api,worker,web\" -c \"blue,green,magenta\" \"npm run dev:api\" \"npm run dev:worker\" \"npm run dev:web\"",
+    "dev:web": "npm run --workspace=@job-agent/web dev",
+    "dev:api": "npm run --workspace=@job-agent/api dev",
+    "dev:worker": "npm run --workspace=@job-agent/worker dev",
+    "build": "npm run --workspaces --if-present build",
+    "typecheck": "npm run --workspaces --if-present typecheck",
+    "lint": "eslint .",
+    "format": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
+    "format:write": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:generate": "npm run --workspace=@job-agent/database db:generate",
+    "db:migrate": "npm run --workspace=@job-agent/database db:migrate",
+    "db:check": "npm run --workspace=@job-agent/database db:check"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.21.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.25.0",
+    "vitest": "^3.0.8"
+  }
+}
