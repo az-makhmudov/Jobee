@@ -90,6 +90,20 @@ The Candidate Brain is the authoritative structured truth source that all future
 
 ---
 
+## Job Ingestion, Normalization & Inbox (`JOB-P2-T01`)
+
+The Job Ingestion subsystem provides safe, deterministic ingestion and canonical storage for all prospective job postings:
+
+- **Safe HTTP Retrieval**: Defensive `HttpRetrievalService` with comprehensive SSRF protection (blocks loopback, RFC1918 private subnets, carrier-grade NAT, cloud metadata 169.254.169.254, validates all DNS IPs, manual redirect hop inspection, 8s timeout, 2MB size cap).
+- **Specialized ATS Extractors**: Dedicated extractors for Greenhouse, Lever, Ashby, Schema.org `JobPosting` JSON-LD, and LinkedIn auth-wall recognition, plus unstructured manual text extraction.
+- **Conservative Normalization**: Deterministic URL canonicalization (stripping tracking query tags), workplace mode classification, employment types, seniority levels, locations, and salary ranges.
+- **Requirement Model Hardening**: Strict separation between requirement category (`SKILL`, `EXPERIENCE`, `EDUCATION`, etc.) and requirement strength (`MANDATORY`, `PREFERRED`, `UNKNOWN`). Responsibilities are preserved in structured sections and excluded from mandatory hiring requirements. Each requirement links to its provenance via `source_id` and `source_section`.
+- **Tri-Level Deduplication**: SHA-256 content fingerprinting (`contentHash`), canonical URLs, and provider external IDs. Idempotent re-ingestion appends duplicate provenance records with zero duplicate job proliferation while safely preserving similar-but-distinct positions.
+- **Raw HTML Discard Policy & Provenance**: Raw HTML payloads are discarded (`raw_payload = null`) on successful extraction to minimize attack surface and storage bloat. Normalized `raw_text`, source headers, and parsed sections are immutably archived. Manual corrections update normalized columns while keeping source truth auditable.
+- **Job Inbox & UI**: Responsive Job Inbox with status and provider filters, search, metrics ribbon, Add Job modal (URL import and pasted text), and Job Detail view (with categorized requirements, strength badges, and source section pills).
+
+---
+
 ## Database & Migrations
 
 ```bash
@@ -114,6 +128,6 @@ npm run format      # Check code formatting with Prettier
 
 ## Current Status
 
-- **Macro-Task**: `JOB-P1-T02 — Candidate Brain, Documents, Answer Library & Preferences` (COMPLETED).
-- **Milestone Reached**: Complete Phase 1 Platform & Candidate Brain foundation operational.
-- **Next Milestone**: `JOB-P2-T01 — Job Ingestion, Parsing, Normalization & Job Inbox`.
+- **Macro-Task**: `JOB-P2-T01 — Job Ingestion, Parsing, Normalization & Job Inbox` (COMPLETED).
+- **Milestone Reached**: Complete Phase 2 Job Ingestion, SSRF protection, normalization, deduplication, and Job Inbox operational.
+- **Next Milestone**: `JOB-P2-T02 — Requirement Analysis, Matching & Policy Decision Engine`.

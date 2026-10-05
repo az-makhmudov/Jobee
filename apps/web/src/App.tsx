@@ -6,6 +6,8 @@ import { AnswerLibraryView } from './components/AnswerLibraryView.js';
 import { PreferencesView } from './components/PreferencesView.js';
 import { ActivityView } from './components/ActivityView.js';
 import { SettingsView } from './components/SettingsView.js';
+import { JobInboxView } from './components/JobInboxView.js';
+import { JobDetailView } from './components/JobDetailView.js';
 
 export type NavSection =
   | 'dashboard'
@@ -23,12 +25,15 @@ export type NavSection =
 export default function App() {
   const [currentSection, setCurrentSection] = useState<NavSection>('dashboard');
   const [profileTab, setProfileTab] = useState<string | undefined>(undefined);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [, setRefreshKey] = useState<number>(0);
 
-  const handleNavigate = (section: string, tab?: string) => {
+  const handleNavigate = (section: string, tabOrId?: string) => {
     setCurrentSection(section as NavSection);
-    if (tab) {
-      setProfileTab(tab);
+    if (section === 'profile' && tabOrId) {
+      setProfileTab(tabOrId);
+    } else if (section === 'jobs') {
+      setSelectedJobId(tabOrId || null);
     }
   };
 
@@ -38,8 +43,8 @@ export default function App() {
     { id: 'documents', label: 'Document Vault', tag: 'Files' },
     { id: 'answers', label: 'Answer Library', tag: 'Rules' },
     { id: 'preferences', label: 'Preferences & Policy', tag: 'Safety' },
+    { id: 'jobs', label: 'Job Inbox', tag: 'Active' },
     { id: 'activity', label: 'Audit Log' },
-    { id: 'jobs', label: 'Jobs', tag: 'P2' },
     { id: 'applications', label: 'Applications', tag: 'P3' },
     { id: 'approvals', label: 'Approvals', tag: 'P3' },
     { id: 'interviews', label: 'Interviews', tag: 'P4' },
@@ -64,6 +69,7 @@ export default function App() {
                 onClick={() => {
                   setCurrentSection(item.id);
                   if (item.id === 'profile') setProfileTab(undefined);
+                  if (item.id === 'jobs') setSelectedJobId(null);
                 }}
               >
                 <span>{item.label}</span>
@@ -96,9 +102,21 @@ export default function App() {
 
         {currentSection === 'activity' && <ActivityView />}
 
+        {/* Phase 2: Job Inbox and Detail */}
+        {currentSection === 'jobs' &&
+          (selectedJobId ? (
+            <JobDetailView
+              jobId={selectedJobId}
+              onBack={() => setSelectedJobId(null)}
+              onJobUpdated={() => setRefreshKey((k) => k + 1)}
+            />
+          ) : (
+            <JobInboxView onSelectJob={(id) => setSelectedJobId(id)} />
+          ))}
+
         {currentSection === 'settings' && <SettingsView />}
 
-        {['jobs', 'applications', 'approvals', 'interviews'].includes(currentSection) && (
+        {['applications', 'approvals', 'interviews'].includes(currentSection) && (
           <div>
             <header className="page-header">
               <h1 className="page-title">{navItems.find((n) => n.id === currentSection)?.label}</h1>
@@ -108,7 +126,7 @@ export default function App() {
               <h3>Phase Roadmap Enforced</h3>
               <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                 This section will be activated in upcoming development phases according to the
-                official macro-task roadmap (Phases 2–5).
+                official macro-task roadmap (Phases 3–5).
               </p>
             </div>
           </div>

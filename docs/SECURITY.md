@@ -76,7 +76,50 @@ The system must never submit an application or contact an external party autonom
 
 ---
 
+---
+
 ## 7. Network and Process Security
 
 - **CORS Restriction**: The Fastify API configures strict CORS origins restricting browser access to configured frontend hosts (`WEB_ORIGIN`).
 - **Worker Isolation**: Scrapers and future headless browser automation (Playwright) will execute in separate processes with isolated network sandbox configurations.
+
+---
+
+## 8. Server-Side Request Forgery (SSRF) Defense (`JOB-P2-T01`)
+
+Fetching arbitrary external URLs provided by users or parsed from listings poses significant SSRF risks (e.g. hitting internal microservices, AWS/GCP/Azure instance metadata APIs, local database ports). The `HttpRetrievalService` implements deterministic defense-in-depth:
+
+1. **Protocol Strictness**: Only standard `http:` and `https:` schemes are allowed. Schemes such as `file:`, `ftp:`, `gopher:`, `data:`, and `javascript:` are rejected immediately.
+2. **IP & Hostname Blacklisting**:
+   - Loopback addresses (`127.0.0.0/8`, `::1`).
+   - RFC1918 private IPv4 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`).
+   - Carrier-grade NAT (`100.64.0.0/10`).
+   - Cloud metadata endpoints (`169.254.169.254`, `metadata.google.internal`, `instance-data`).
+   - Link-local and Unique Local IPv6 subnets (`fe80::/10`, `fc00::/7`).
+   - Hostnames matching `localhost`, `*.localhost`.
+3. **Pre-Flight DNS Resolution Check**: Hostnames are resolved through DNS _before_ making HTTP requests. If any returned IP address falls within a restricted or private range, the request is blocked with `400 Bad Request`.
+4. **Manual Redirect Inspection**: Standard automated redirect following is disabled (`redirect: 'manual'`). Each intermediate redirect hop (`Location` header) is parsed and validated against the SSRF checker before proceeding, capping redirects at 3 hops.
+5. **Denial-of-Service Defense**:
+   - Request timeout: 8,000 ms.
+   - Max response size: 2 MB (`2 * 1024 * 1024` bytes).
+   - Content-type validation: Only HTML and text MIME types are permitted; binary downloads are halted before buffering.
+
+---
+
+## 9. Stored XSS Prevention & HTML Sanitization (`JOB-P2-T01`)
+
+Job descriptions from external job boards contain HTML formatting. To prevent Stored Cross-Site Scripting (XSS) when rendering job details in the browser:
+
+1. **Defensive Tag Allowlist**: The sanitizer (`sanitizeJobHtml` in `@job-agent/shared`) allows only safe typographical markup (`<p>`, `<h1>`-`<h6>`, `<ul>`, `<ol>`, `<li>`, `<strong>`, `<em>`, `<b>`, `<i>`, `<br>`, `<span>`, `<div>`, `<blockquote>`).
+2. **Strict Attribute Stripping**: All event handler attributes (`onclick`, `onload`, `onerror`), script tags, iframe elements, embed tags, object tags, and inline style blocks are stripped out.
+3. **Safe Link Attributes**: Any anchor tag must have safe protocols (`http`, `https`) and automatically gains `rel="noopener noreferrer"`. All `javascript:` links are removed.
+
+---
+
+## 10. Raw HTML Discard Policy & Attack Surface Reduction (`JOB-P2-T01`)
+
+To protect against persistent secondary injection, data leakage, and database bloat:
+
+1. **Discard on Success**: The raw downloaded HTML payload (`raw_payload`) is set to `null` in PostgreSQL `job_sources` upon successful extraction and normalization.
+2. **Preservation of Safe Text & URLs**: The normalized `raw_text`, parsed job sections, categorized requirements, and canonical URL are preserved for auditing and manual corrections, but untrusted raw DOM payloads are never permanently retained in the database.
+3. **Audit Log Hygiene**: Job audit events (`job_events`) log operational metadata without storing raw HTML payloads.

@@ -150,7 +150,80 @@ The Candidate Brain is the authoritative structured truth repository for the can
 
 ---
 
-## 5. Future Architecture Isolation (Playwright Browser Worker)
+## 5. Job Ingestion & Normalization Subsystem (`JOB-P2-T01`)
+
+The Job Ingestion subsystem provides the entry point for all job postings into AI Job Agent. It handles input from pasted text or public URLs, safely fetches web pages with comprehensive SSRF defenses, extracts structured data via ATS-specific and generic parsers, normalizes values into a canonical internal model, and enforces strict idempotency and deduplication without generative AI hallucinations.
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                   Job Ingestion & Inbox Subsystem                      │
+├──────────────────────────┬─────────────────────────────────────────────┤
+│  Ingestion Sources       │  Safe HTTP Retrieval Service                │
+│  - Pasted Job Text       │  - SSRF Defense (RFC1918, metadata, loopback│
+│  - Public Job URL        │  - Manual Redirect Hop Validation           │
+│  - Manual corrections    │  - 8s Timeout & 2MB Max Payload Cap         │
+├──────────────────────────┼─────────────────────────────────────────────┤
+│  Extractor Registry      │  Job Normalizer & Deduplication             │
+│  - Greenhouse Extractor  │  - URL Canonicalization (strip tracking)    │
+│  - Lever Extractor       │  - Canonical Workplace, Type, Seniority     │
+│  - Ashby Extractor       │  - Deterministic SHA-256 contentHash        │
+│  - LinkedIn (Auth Wall)  │  - Tri-Level Deduplication Engine           │
+│  - Generic JSON-LD / HTML│  - Provenance & Job Event Audit Log         │
+└──────────────────────────┴─────────────────────────────────────────────┘
+```
+
+### 5.1. Prime Invariants & Design Principles
+
+- **No LLM Dependency**: Extraction, normalization, and deduplication operate deterministically using DOM parsers, regex heuristics, and JSON-LD schema models. Ingestion does not fail when external LLM APIs are offline.
+- **Truthful Fact Extraction**: Ingestion never invents qualifications, salaries, or requirements. If a field is missing in the source, it remains `null` or `UNKNOWN`.
+- **Requirement Type & Strength Separation**: The requirement model cleanly separates semantic category (`SKILL`, `EXPERIENCE`, `EDUCATION`, `LANGUAGE`, `CERTIFICATION`, `LOCATION`, `WORK_AUTHORIZATION`, `RESPONSIBILITY`, `OTHER`) from requirement strength (`MANDATORY`, `PREFERRED`, `UNKNOWN`).
+- **Responsibility Isolation**: Day-to-day responsibilities and tasks are preserved in `job_sections` (under section type `RESPONSIBILITIES`) and are NOT falsely classified as mandatory hiring requirements. If any responsibility is captured in requirements, its strength is set to `UNKNOWN` (never `MANDATORY`).
+- **Requirement Source Context**: Every extracted requirement links back to its provenance via `source_id` (foreign key to `job_sources.id`) and `source_section` (text indicating the source section, e.g. "Required Qualifications", "Minimum Requirements").
+- **Raw HTML Discard Policy**: On successful extraction and normalization, raw HTML payloads (`raw_payload`) are set to `null` in PostgreSQL `job_sources` to reduce attack surface and storage bloat while keeping normalized `raw_text` and source URLs.
+- **Full Provenance Preservation**: The original raw source text, retrieval metadata, and HTTP headers are immutably archived in `job_sources`. Manual corrections update the normalized presentation columns in `jobs` while keeping the original source data intact.
+- **Strict Phase Boundary**: Job ingestion does NOT evaluate candidate fit or perform match scoring. Fit analysis and compatibility scoring are explicitly deferred to `JOB-P2-T02`.
+
+### 5.2. SSRF Protection & Safe Web Fetching
+
+The `HttpRetrievalService` implements defense-in-depth against Server-Side Request Forgery:
+
+1. **Protocol Restriction**: Only `http:` and `https:` schemes are permitted. File, FTP, gopher, and data schemes are blocked.
+2. **Host & IP Address Validation**: Blocks localhost, loopback addresses (`127.0.0.0/8`, `::1`), RFC1918 private IPv4 subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), Carrier-grade NAT (`100.64.0.0/10`), link-local / cloud metadata services (`169.254.169.254`, `metadata.google.internal`), and unique local / link-local IPv6 addresses (`fc00::/7`, `fe80::/10`).
+3. **DNS Lookup Inspection**: Resolves hostnames via DNS lookup and evaluates _all_ returned IP addresses before initiating connections.
+4. **Manual Redirect Inspection**: Disables automatic redirect following. Each redirect hop (`Location` header) is parsed and validated against the SSRF checker before following (maximum 3 redirects).
+5. **Resource Limits**: Enforces an 8-second request timeout and a 2MB maximum payload limit to protect against slowloris attacks and memory exhaustion.
+
+### 5.3. Extractor Hierarchy
+
+The `ExtractorRegistry` matches target pages to specialized parsers:
+
+- **`GreenhouseExtractor`**: Extracts job ID from URL (`gh_jid` or `/jobs/<id>`), company token, JSON-LD, or Greenhouse DOM selectors.
+- **`LeverExtractor`**: Extracts posting ID, commitment, workplace type, and structured section wrapper lists (iterates all `.section-wrapper` elements to ensure full section and bullet extraction).
+- **`AshbyExtractor`**: Extracts Ashby job UUID, schema.org `JobPosting`, or embedded `__NEXT_DATA__`.
+- **`LinkedInExtractor`**: Detects public LinkedIn job URLs and extracts numeric job IDs. Detects login/auth-walls and gracefully flags `needsManualText: true` with explanatory guidance rather than crashing.
+- **`GenericExtractor`**: Parses standard Schema.org `JobPosting` JSON-LD blocks, OpenGraph meta tags, and semantic HTML (`<main>`, `<article>`, `<h1>`).
+- **`ManualTextExtractor`**: Parses unstructured pasted job postings using label heuristics, salary ranges, bullet point extractors, and section classifiers.
+
+### 5.4. Normalization Engine & Deduplication
+
+- **URL Canonicalization**: Strips UTM tracking queries, referral tags, and trailing slashes.
+- **Deterministic Content Fingerprint**: Computes a SHA-256 `contentHash` across normalized title, company, location, and description snippet.
+- **Tri-Level Deduplication**:
+  1. Provider + External Job ID (`provider` + `source_external_id`)
+  2. Canonical URL (`canonical_url`)
+  3. Content Fingerprint (`content_hash`)
+- **Idempotent Handling**: Ingesting a duplicate job returns the existing job record with `isDuplicate: true`, records an audit event (`JOB_DUPLICATE_DETECTED`), and appends a `job_sources` row with `ingestionStatus: 'DUPLICATE'`.
+- **Preservation of Distinct Roles**: Similar-but-distinct positions (e.g. "Project Coordinator" vs "Senior Project Coordinator", or different cities) yield distinct content hashes and persist as separate jobs.
+
+### 5.5. Job Inbox & Detail Views
+
+- **Job Inbox (`apps/web`)**: Paginated table with search, status filters (NEW, INGESTED, NEEDS_REVIEW, ARCHIVED), provider filters, workplace badges, and direct detail navigation.
+- **Add Job Modal**: Clean tabbed interface supporting SSRF-protected URL import and pasted text ingestion with duplicate notifications.
+- **Job Detail View**: Comprehensive inspector displaying full job description, categorized extracted requirements (with category pills, strength badges, and source section attribution), structured sections, provenance timeline, and manual correction form.
+
+---
+
+## 6. Future Architecture Isolation (Playwright Browser Worker)
 
 When browser automation (JOB-P5-T01 / JOB-P5-T02) is implemented:
 

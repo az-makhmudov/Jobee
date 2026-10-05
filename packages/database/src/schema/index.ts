@@ -13,3 +13,8 @@ export * from './answer-library.js';
 export * from './job-preferences.js';
 export * from './application-policy.js';
 export * from './candidate-audit-events.js';
+export * from './jobs.js';
+export * from './job-sources.js';
+export * from './job-requirements.js';
+export * from './job-sections.js';
+export * from './job-events.js';

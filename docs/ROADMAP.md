@@ -17,12 +17,12 @@ This document defines the authoritative macro-task roadmap for AI Job Agent, dir
 
 ### `JOB-P1-T01 — Workspace, Database & Core Platform Foundation`
 
-- **Status**: IN PROGRESS — FINALIZATION
+- **Status**: COMPLETED
 - **Scope**: TypeScript monorepo bootstrap, web/API/worker boundaries, PostgreSQL/Drizzle ORM setup, migration workflow, environment configuration, shared types, structured logging, error handling, app shell, health/readiness endpoints, test suite, and CI quality gates.
 
 ### `JOB-P1-T02 — Candidate Brain, Documents, Answer Library & Preferences`
 
-- **Status**: PENDING (Next Task)
+- **Status**: COMPLETED
 - **Scope**: Candidate data model (experience, education, projects, skills, languages, certifications, verified facts), CV/document metadata, master profile and role-oriented CV variants, answer library, job preferences, application policy configuration, profile UI, and audit-aware updates.
 
 ---
@@ -31,7 +31,7 @@ This document defines the authoritative macro-task roadmap for AI Job Agent, dir
 
 ### `JOB-P2-T01 — Job Ingestion, Parsing, Normalization & Job Inbox`
 
-- **Status**: PENDING
+- **Status**: COMPLETED
 - **Scope**: Canonical Job model, manual URL/text ingestion, source/provider detection, job content extraction, normalized fields, requirement storage, deduplication, ingestion retry/error states, and Job Inbox UI.
 
 ### `JOB-P2-T02 — Requirement Analysis, Matching & Policy Decision Engine`

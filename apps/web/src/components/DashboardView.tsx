@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { candidateApi } from '../api/candidate-client.js';
-import type { CandidateOverviewDto } from '@job-agent/shared';
+import { jobApi } from '../api/job-client.js';
+import type { CandidateOverviewDto, JobDashboardMetricsDto } from '@job-agent/shared';
 
 interface Props {
   onNavigate: (section: string, tab?: string) => void;
@@ -8,6 +9,7 @@ interface Props {
 
 export function DashboardView({ onNavigate }: Props) {
   const [overview, setOverview] = useState<CandidateOverviewDto | null>(null);
+  const [jobMetrics, setJobMetrics] = useState<JobDashboardMetricsDto | null>(null);
   const [auditEvents, setAuditEvents] = useState<
     Array<{
       id: string;
@@ -23,12 +25,14 @@ export function DashboardView({ onNavigate }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const [overviewData, eventsData] = await Promise.all([
+      const [overviewData, eventsData, metricsData] = await Promise.all([
         candidateApi.getOverview(),
         candidateApi.getAuditEvents(),
+        jobApi.getMetrics().catch(() => null),
       ]);
       setOverview(overviewData);
       setAuditEvents(eventsData.slice(0, 10)); // Top 10 recent
+      setJobMetrics(metricsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
@@ -293,6 +297,139 @@ export function DashboardView({ onNavigate }: Props) {
             Pre-approved application answers
           </div>
         </div>
+      </div>
+
+      {/* Job Ingestion & Inbox Pipeline (Phase 2) */}
+      <div className="card">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1rem',
+          }}
+        >
+          <div>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>
+              Job Ingestion & Inbox (Phase 2)
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              Normalized candidate job search inbox with SSRF protection and deterministic
+              deduplication
+            </p>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => onNavigate('jobs')}>
+            Go to Job Inbox →
+          </button>
+        </div>
+
+        <div
+          className="status-grid"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            marginBottom: '1.25rem',
+          }}
+        >
+          <div
+            className="status-item"
+            onClick={() => onNavigate('jobs')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Total Jobs</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{jobMetrics?.totalJobs ?? 0}</div>
+            <div className="status-item-meta">In local database</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('jobs')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Ingested & Normalized</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#34d399' }}>
+              {jobMetrics?.ingestedJobs ?? 0}
+            </div>
+            <div className="status-item-meta">Ready for Phase 2 matching</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('jobs')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Needs Review</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fbbf24' }}>
+              {jobMetrics?.needsReviewJobs ?? 0}
+            </div>
+            <div className="status-item-meta">Requires manual attention</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('jobs')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Archived</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+              {jobMetrics?.archivedJobs ?? 0}
+            </div>
+            <div className="status-item-meta">Closed or declined</div>
+          </div>
+        </div>
+
+        {jobMetrics && jobMetrics.recentJobs && jobMetrics.recentJobs.length > 0 && (
+          <div>
+            <div
+              style={{
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                color: 'var(--text-secondary)',
+                marginBottom: '0.5rem',
+              }}
+            >
+              RECENTLY INGESTED JOBS
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              {jobMetrics.recentJobs.slice(0, 4).map((j) => (
+                <div
+                  key={j.id}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '0.6rem 0.8rem',
+                    backgroundColor: 'rgba(15, 23, 42, 0.4)',
+                    borderRadius: '4px',
+                    border: '1px solid var(--surface-border)',
+                    cursor: 'pointer',
+                  }}
+                  onClick={() => onNavigate('jobs', j.id)}
+                >
+                  <div>
+                    <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{j.title}</span>
+                    <span
+                      style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.8rem',
+                        marginLeft: '0.5rem',
+                      }}
+                    >
+                      at {j.company}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <span className="nav-tag" style={{ fontSize: '0.7rem' }}>
+                      {j.provider}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {new Date(j.discoveredDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Recent Activity Audit */}

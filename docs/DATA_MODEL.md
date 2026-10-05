@@ -130,14 +130,152 @@ Immutable, privacy-preserving event log of modifications across Candidate Brain 
 
 ---
 
-## 4. Deferred Domain Schemas
+---
+
+## 4. Job Ingestion Subsystem Schemas (`JOB-P2-T01`)
+
+The Job Ingestion subsystem introduces 5 PostgreSQL tables under Drizzle ORM representing canonical normalized postings, raw source provenance, extracted requirements, detected sections, and lifecycle audit events.
+
+### 4.1. `jobs` (Canonical Normalized Postings)
+
+Represents the deduplicated, normalized representation of an ingested job posting.
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `user_id`: UUID (Foreign Key -> `users.id`, CASCADE delete)
+- `state`: TEXT NOT NULL (Default: `'NEW'`) — `'NEW' | 'INGESTED' | 'NEEDS_REVIEW' | 'INVALID' | 'DUPLICATE' | 'ARCHIVED'`
+- `title`: TEXT NOT NULL
+- `company`: TEXT NOT NULL
+- `company_url`: TEXT
+- `description`: TEXT NOT NULL (Plain text or markdown)
+- `description_html`: TEXT (Sanitized HTML)
+- `location_text`: TEXT
+- `city`: TEXT
+- `region`: TEXT
+- `country`: TEXT
+- `workplace_type`: TEXT NOT NULL (Default: `'UNKNOWN'`) — `'REMOTE' | 'HYBRID' | 'ONSITE' | 'UNKNOWN'`
+- `employment_type`: TEXT NOT NULL (Default: `'UNKNOWN'`) — `'FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'INTERNSHIP' | 'TEMPORARY' | 'APPRENTICESHIP' | 'VOLUNTEER' | 'OTHER' | 'UNKNOWN'`
+- `seniority`: TEXT NOT NULL (Default: `'UNKNOWN'`) — `'INTERNSHIP' | 'ENTRY' | 'JUNIOR' | 'MID' | 'SENIOR' | 'LEAD' | 'MANAGER' | 'DIRECTOR' | 'EXECUTIVE' | 'UNKNOWN'`
+- `department`: TEXT
+- `min_salary`: INTEGER
+- `max_salary`: INTEGER
+- `currency`: TEXT (ISO 4217 code)
+- `pay_period`: TEXT — `'YEAR' | 'MONTH' | 'HOUR' | 'WEEK' | 'DAY' | 'UNKNOWN'`
+- `compensation_raw`: TEXT
+- `posted_date`: TIMESTAMPTZ
+- `expiration_date`: TIMESTAMPTZ
+- `discovered_date`: TIMESTAMPTZ NOT NULL (Default: now())
+- `last_checked_date`: TIMESTAMPTZ
+- `original_url`: TEXT
+- `canonical_url`: TEXT
+- `application_url`: TEXT
+- `provider`: TEXT NOT NULL (Default: `'GENERIC'`) — `'GREENHOUSE' | 'LEVER' | 'ASHBY' | 'LINKEDIN' | 'GENERIC' | 'MANUAL'`
+- `source_external_id`: TEXT
+- `source_company_id`: TEXT
+- `content_hash`: TEXT NOT NULL (SHA-256 fingerprint)
+- `is_duplicate`: BOOLEAN NOT NULL (Default: false)
+- `duplicate_of_id`: UUID (Self-reference foreign key)
+- `has_manual_edits`: BOOLEAN NOT NULL (Default: false)
+- `manual_edit_fields`: JSONB NOT NULL (Default: `[]`)
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `jobs_user_state_idx` on `(user_id, state)`
+- `jobs_user_company_idx` on `(user_id, company)`
+- `jobs_user_provider_idx` on `(user_id, provider)`
+- `jobs_user_content_hash_idx` on `(user_id, content_hash)`
+- `jobs_canonical_url_idx` on `(canonical_url)`
+- `jobs_provider_external_id_idx` on `(provider, source_external_id)`
+
+### 4.2. `job_sources` (Raw Provenance & Ingestion History)
+
+Immutably archives the raw HTML, plain text, and provider metadata for every retrieval attempt.
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `job_id`: UUID NOT NULL (Foreign Key -> `jobs.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `provider`: TEXT NOT NULL — `'GREENHOUSE' | 'LEVER' | 'ASHBY' | 'LINKEDIN' | 'GENERIC' | 'MANUAL'`
+- `ingestion_method`: TEXT NOT NULL — `'PASTE_TEXT' | 'URL_IMPORT' | 'API'`
+- `source_url`: TEXT
+- `canonical_url`: TEXT
+- `external_job_id`: TEXT
+- `raw_title`: TEXT
+- `raw_company`: TEXT
+- `raw_location`: TEXT
+- `raw_description`: TEXT NOT NULL (Clean plain-text extraction)
+- `raw_metadata`: JSONB (Parsed schema.org metadata or structured payload properties)
+- `raw_payload`: TEXT (Nullable diagnostic snippet only; full raw HTML payload is discarded upon extraction)
+- `content_hash`: TEXT NOT NULL (SHA-256 fingerprint)
+- `ingestion_status`: TEXT NOT NULL — `'COMPLETED' | 'DUPLICATE' | 'NEEDS_REVIEW' | 'FAILED' | 'NEEDS_MANUAL_TEXT'`
+- `parser_version`: TEXT NOT NULL (Default: `'1.0.0'`)
+- `error_message`: TEXT
+- `retrieved_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+> **Raw-Source Retention Policy**: PostgreSQL is strictly not used as a permanent third-party webpage archive. Temporary HTML is ingested, parsed into structured fields, plain text, and metadata, and discarded immediately (`raw_payload = null`).
+
+### 4.3. `job_requirements` (Structured Extracted Requirements)
+
+Discrete hiring requirements parsed conservatively from qualifications sections:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `job_id`: UUID NOT NULL (Foreign Key -> `jobs.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `source_id`: UUID (Foreign Key -> `job_sources.id`, SET NULL on delete)
+- `source_section`: TEXT (Section header where requirement originated, e.g. `'Required Qualifications'`)
+- `raw_text`: TEXT NOT NULL
+- `normalized_text`: TEXT
+- `category` (Requirement Semantic Type): TEXT NOT NULL (Default: `'OTHER'`) — `'EXPERIENCE' | 'SKILL' | 'EDUCATION' | 'LANGUAGE' | 'LOCATION' | 'WORK_AUTHORIZATION' | 'CERTIFICATION' | 'RESPONSIBILITY' | 'OTHER'`
+- `requirement_strength` (Requirement Strength): TEXT NOT NULL (Default: `'UNKNOWN'`) — `'MANDATORY' | 'PREFERRED' | 'UNKNOWN'`
+- `display_order`: INTEGER NOT NULL (Default: 0)
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+> **Requirement Type vs. Strength Invariant**: Semantic category (`category`) and necessity level (`requirement_strength`) are strictly orthogonal. Sections with explicit requirement headings ("Required Qualifications", "Minimum Qualifications") yield `MANDATORY`. Explicit preference sections ("Nice to have", "Preferred Qualifications") yield `PREFERRED`. Ambiguous sections ("Qualifications", "What you bring") yield `UNKNOWN` unless bullet text explicitly states necessity.
+>
+> **Responsibility Separation**: Routine workplace responsibilities are preserved in `job_sections` (`section_type = 'RESPONSIBILITIES'`) and are excluded from `job_requirements` to ensure future matching in `JOB-P2-T02` does not misinterpret job duties as mandatory hiring requirements.
+
+### 4.4. `job_sections` (Structured Content Sections)
+
+Preserves semantic sections detected in job descriptions.
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `job_id`: UUID NOT NULL (Foreign Key -> `jobs.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `section_type`: TEXT NOT NULL (Default: `'OTHER'`) — `'RESPONSIBILITIES' | 'QUALIFICATIONS' | 'PREFERRED_QUALIFICATIONS' | 'BENEFITS' | 'ABOUT_COMPANY' | 'OTHER'`
+- `title`: TEXT NOT NULL
+- `content`: TEXT NOT NULL
+- `display_order`: INTEGER NOT NULL (Default: 0)
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+### 4.5. `job_events` (Job Lifecycle & Mutation Audit Log)
+
+Provides complete auditable history of ingestion, deduplication, updates, and archival.
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `job_id`: UUID NOT NULL (Foreign Key -> `jobs.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `event_type`: TEXT NOT NULL — `'JOB_INGESTED' | 'JOB_NORMALIZED' | 'JOB_UPDATED' | 'JOB_ARCHIVED' | 'JOB_DUPLICATE_DETECTED'`
+- `changed_fields`: JSONB NOT NULL (Default: `[]`)
+- `metadata`: JSONB
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+### 4.6. Deduplication Strategy & Precedence
+
+To guarantee idempotent ingestion across repeated URL fetches or text pastes:
+
+1. **Provider + External Job ID**: Primary identity for ATS jobs (`GREENHOUSE`, `LEVER`, `ASHBY`, `LINKEDIN`).
+2. **Canonical URL**: URL normalized without tracking parameters (`utm_*`, `ref`, `source`, `gclid`).
+3. **Content Fingerprint (`content_hash`)**: SHA-256 hash of normalized title, company, location, and description snippet.
+4. **Similar-but-Distinct Jobs**: Different titles (e.g. "Project Coordinator" vs. "Senior Project Coordinator") or distinct locations/descriptions remain strictly separate jobs.
+
+---
+
+## 5. Deferred Domain Schemas
 
 The following entities are explicitly deferred until their respective macro-tasks:
 
-- **Job Intelligence (`JOB-P2-T01` / `JOB-P2-T02`)**:
-  - `jobs`
-  - `job_sources`
-  - `job_requirements`
+- **Matching & Decision Engine (`JOB-P2-T02`)**:
   - `job_scores`
   - `job_decisions`
 - **Application Workflow (`JOB-P3-T01` / `JOB-P3-T02`)**:
@@ -153,7 +291,7 @@ The following entities are explicitly deferred until their respective macro-task
 
 ---
 
-## 5. Migration Strategy
+## 6. Migration Strategy
 
 1. **Generator**: Drizzle Kit inspects TypeScript schemas in `packages/database/src/schema/` and outputs pure SQL migration files into `packages/database/drizzle/`.
    - Command: `npm run db:generate`
@@ -170,3 +308,5 @@ The following entities are explicitly deferred until their respective macro-task
 - `0000_magenta_daimon_hellstrom.sql`: Baseline core platform schema (`users`).
 - `0001_tidy_darkstar.sql`: Comprehensive Candidate Brain schema (13 tables: profiles, experiences, education, projects, skills, languages, certifications, links, facts, documents, answer library, job preferences, application policy, candidate audit events).
 - `0002_audit_privacy.sql`: Candidate audit privacy refactor — replaces broad `details` snapshot column with `changed_fields` string array and safe operational `metadata` JSONB.
+- `0003_jobs_foundation.sql`: Job Ingestion, parsing, normalization, and provenance schema (`jobs`, `job_sources`, `job_requirements`, `job_sections`, `job_events`).
+- `0004_job_requirements_source_context.sql`: Additive hardening for job requirements (`source_id` foreign key to `job_sources.id` and `source_section` text column for provenance tracking).

@@ -16,6 +16,8 @@ import { healthRoutes } from './routes/health.js';
 import { createReadyRoutes } from './routes/ready.js';
 import { createCandidateRoutes } from './routes/candidate.js';
 import { CandidateService } from './services/candidate-service.js';
+import { createJobRoutes } from './routes/job-routes.js';
+import { JobService } from './services/job-service.js';
 import { LocalStorageProvider } from './storage/local-storage.js';
 
 export interface AppOptions {
@@ -24,6 +26,7 @@ export interface AppOptions {
   db?: Database;
   storage?: FileStorageProvider;
   candidateService?: CandidateService;
+  jobService?: JobService;
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -81,6 +84,20 @@ export function buildApp(options: AppOptions): FastifyInstance {
     app.register(createCandidateRoutes(candidateService), { prefix: '/api' });
     // Also register at root /candidate/* for direct calls
     app.register(createCandidateRoutes(candidateService));
+  }
+
+  // Initialize and register Job Ingestion routes
+  let jobService = options.jobService;
+  if (!jobService) {
+    const db = options.db ?? (config.DATABASE_URL ? getDb(config.DATABASE_URL) : null);
+    if (db) {
+      jobService = new JobService(db);
+    }
+  }
+
+  if (jobService) {
+    app.register(createJobRoutes(jobService), { prefix: '/api' });
+    app.register(createJobRoutes(jobService));
   }
 
   // Custom 404 Not Found handler
