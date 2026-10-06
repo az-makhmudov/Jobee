@@ -75,3 +75,61 @@ Every write operation (creation, update, deletion) on Candidate Brain profiles, 
 - Safe non-PII operational context (`metadata`)
 
 To prevent accidental accumulation or leakage of historical sensitive data (such as phone numbers, personal addresses, salary expectations, or legal declarations), full state diff snapshots are strictly excluded from audit persistence.
+
+---
+
+## 6. Application CRM Lifecycle, Transitions & Submission Provenance (`JOB-P3-T02`)
+
+The Application CRM enforces strict deterministic lifecycle progression, terminal protection, and submission provenance:
+
+### A. Exact 17 Canonical Lifecycle States & Deterministic Transitions
+
+1. **Discovery & Intelligence**:
+   - `DISCOVERED`: Discovered opportunity queued for consideration or analysis.
+   - `ANALYZED`: Role parsed, structured, and requirement-analyzed.
+   - `MATCHED`: Candidate profile and preferences match the position.
+   - `SKIPPED`: Candidate or hard policy decided not to pursue (non-terminal, can be reopened).
+
+2. **Preparation & Readiness**:
+   - `READY_TO_APPLY`: Application materials generated, questions resolved, and fully ready.
+   - `NEEDS_REVIEW`: Application package has unresolved questions or pending human approvals.
+
+3. **Submission Execution**:
+   - `APPLYING`: Human or assistant currently submitting application materials.
+   - `APPLIED`: Application submitted to employer.
+   - `CONFIRMATION_RECEIVED`: Formal acknowledgement of application receipt from employer.
+
+4. **Active Pipeline**:
+   - `SCREENING`: Recruiter phone screen or initial review in progress.
+   - `ASSESSMENT`: Take-home project, coding challenge, or test in progress.
+   - `INTERVIEW`: Technical or team interview round underway.
+   - `FINAL_INTERVIEW`: Executive, hiring manager, or final decision loop underway.
+   - `OFFER`: Formal job offer received.
+
+5. **Terminal States**:
+   - `REJECTED`: Employer declined the candidacy.
+   - `WITHDRAWN`: Candidate voluntarily withdrew application.
+   - `EXPIRED`: Posting closed, cancelled, or ghosted past reasonable response window.
+
+6. **Soft Archiving Protection**:
+   - Deleting applications from active board views sets `is_archived: true` and `archived_at: timestamp`.
+   - All historical lifecycle events, notes, recruiter contacts, and frozen submission provenance remain intact.
+   - Restoring via unarchive re-enables active pipeline tracking. Deliberate GDPR erasure uses explicit hard purge.
+
+7. **Realistic Stage Skipping**:
+   - The state machine permits realistic stage skipping (e.g. `APPLIED` → `INTERVIEW` when screening is bypassed) without requiring artificial intermediate transitions.
+
+### B. Submission Provenance Invariant
+
+- Transitioning to `APPLIED` requires capturing the submission timestamp (`applied_at`).
+- When submitted via Application Studio, the exact package version and artifact IDs (`submitted_package_version_id`, `submitted_cv_artifact_id`, `submitted_cover_letter_artifact_id`) are permanently frozen onto the application record.
+- Historical submissions remain immutable reference points even if subsequent package versions are regenerated.
+- Manual package-less submissions are permitted, leaving artifact IDs null without creating synthetic associations.
+
+### C. Terminal State Protection & Correction Overrides
+
+- Applications in terminal states (`REJECTED`, `WITHDRAWN`, `EXPIRED`) cannot be transitioned casually.
+- Any transition out of a terminal state or backwards in the pipeline requires an explicit correction override:
+  - `isCorrection: true`
+  - Non-empty `correctionReason` explaining why the correction was necessary (e.g. "Recruiter reopened role after budget approval").
+- Every state transition appends an immutable record to `application_lifecycle_events`.

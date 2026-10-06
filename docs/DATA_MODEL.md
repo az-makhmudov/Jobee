@@ -498,22 +498,190 @@ Immutable audit log tracking the lifecycle and mutations of application packages
 
 ---
 
-## 7. Deferred Domain Schemas
+## 7. Application CRM & Personal ATS Entities (`JOB-P3-T02`)
 
-The following entities are explicitly deferred until their respective macro-tasks:
+The Application CRM subsystem persists the full post-selection lifecycle, submission provenance, recruiter relationships, and pipeline progress:
 
-- **Application CRM & Lifecycle (`JOB-P3-T02`)**:
-  - `applications`
-  - `application_lifecycle_events`
-- **Communication & Interviews (`JOB-P4-T01` / `JOB-P4-T02`)**:
-  - `email_messages` / `email_links`
-  - `interviews`
-- **Controlled Automation (`JOB-P5-T01` / `JOB-P5-T02`)**:
-  - `agent_actions`
+### 7.1. `applications` (Core Application Record)
+
+The root tracking entity linking a candidate and job to lifecycle progress:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `job_id`: UUID NOT NULL (Foreign Key -> `jobs.id`, CASCADE delete)
+- `package_id`: UUID (Foreign Key -> `application_packages.id`, SET NULL delete)
+- `status`: TEXT NOT NULL (Default: `'DISCOVERED'`) — Exact 17 canonical statuses:
+  - Discovery & Intelligence: `DISCOVERED`, `ANALYZED`, `MATCHED`, `SKIPPED`
+  - Preparation & Readiness: `READY_TO_APPLY`, `NEEDS_REVIEW`
+  - Submission Execution: `APPLYING`, `APPLIED`, `CONFIRMATION_RECEIVED`
+  - Active Pipeline: `SCREENING`, `ASSESSMENT`, `INTERVIEW`, `FINAL_INTERVIEW`, `OFFER`
+  - Terminal Outcomes: `REJECTED`, `WITHDRAWN`, `EXPIRED`
+- `is_archived`: BOOLEAN NOT NULL (Default: false)
+- `archived_at`: TIMESTAMPTZ (Soft archiving timestamp to preserve history and prevent accidental destruction)
+- `applied_at`: TIMESTAMPTZ (Frozen timestamp of submission)
+- `submission_channel`: TEXT — `'PORTAL' | 'EMAIL' | 'EASY_APPLY' | 'REFERRAL' | 'DIRECT' | 'MANUAL' | 'OTHER'`
+- `external_reference`: TEXT (Employer application confirmation number / URL)
+- `submitted_package_version_id`: UUID (Foreign Key -> `application_package_versions.id`, SET NULL delete)
+- `submitted_cv_artifact_id`: UUID (Foreign Key -> `application_artifacts.id`, SET NULL delete)
+- `submitted_cover_letter_artifact_id`: UUID (Foreign Key -> `application_artifacts.id`, SET NULL delete)
+- `notes`: TEXT (General application overview notes)
+- `next_action`: TEXT (Immediate next task, e.g. "Prepare presentation for Round 2")
+- `next_action_due_at`: TIMESTAMPTZ (Deadline for next action)
+- `last_activity_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes & Constraints**:
+
+- `applications_user_job_idx` on `(user_id, job_id)` UNIQUE constraint (one tracking record per job)
+- `applications_user_status_idx` on `(user_id, status)`
+- `applications_job_idx` on `(job_id)`
+- `applications_package_idx` on `(package_id)`
+- `applications_next_action_due_idx` on `(next_action_due_at)`
+
+### 7.2. `application_lifecycle_events` (Audit Event Timeline)
+
+Append-only audit trail capturing every state change, submission event, and correction:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `application_id`: UUID NOT NULL (Foreign Key -> `applications.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `from_status`: TEXT
+- `to_status`: TEXT NOT NULL
+- `trigger`: TEXT NOT NULL — `'MANUAL' | 'AUTOMATED' | 'EMAIL_SYNC' | 'SYSTEM'`
+- `actor`: TEXT NOT NULL — `'USER' | 'AGENT' | 'SYSTEM'`
+- `reason`: TEXT
+- `metadata`: JSONB NOT NULL (Default: `{}`)
+- `occurred_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `application_lifecycle_events_app_idx` on `(application_id)`
+- `application_lifecycle_events_occurred_idx` on `(occurred_at)`
+
+### 7.3. `application_notes` (Candidate Log Notes)
+
+Chronological context, recruiter impressions, and prep notes:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `application_id`: UUID NOT NULL (Foreign Key -> `applications.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `content`: TEXT NOT NULL
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `application_notes_app_idx` on `(application_id)`
+
+### 7.4. `application_contacts` (Recruiter & Interviewer Directory)
+
+Structured stakeholder profiles associated with the opportunity:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `application_id`: UUID NOT NULL (Foreign Key -> `applications.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `name`: TEXT NOT NULL
+- `role`: TEXT — `'RECRUITER' | 'HIRING_MANAGER' | 'INTERVIEWER' | 'REFERRAL' | 'OTHER'`
+- `email`: TEXT
+- `phone`: TEXT
+- `linkedin_url`: TEXT
+- `notes`: TEXT
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `application_contacts_app_idx` on `(application_id)`
+
+### 7.5. `application_assessments` (Technical & Cognitive Assessments)
+
+Take-home assignments, coding challenges, and tests:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `application_id`: UUID NOT NULL (Foreign Key -> `applications.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `title`: TEXT NOT NULL
+- `status`: TEXT NOT NULL (Default: `'PENDING'`) — `'PENDING' | 'IN_PROGRESS' | 'SUBMITTED' | 'PASSED' | 'FAILED' | 'EXPIRED'`
+- `due_at`: TIMESTAMPTZ
+- `completed_at`: TIMESTAMPTZ
+- `platform`: TEXT
+- `score`: TEXT
+- `instructions`: TEXT
+- `notes`: TEXT
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `application_assessments_app_idx` on `(application_id)`
+
+### 7.6. `application_interviews` (Interview Rounds)
+
+Scheduled phone screens, technical interviews, and onsite loops:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `application_id`: UUID NOT NULL (Foreign Key -> `applications.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `round_number`: INTEGER NOT NULL (Default: 1)
+- `title`: TEXT NOT NULL
+- `format`: TEXT — `'PHONE' | 'VIDEO' | 'ONSITE' | 'ASYNC' | 'OTHER'`
+- `scheduled_at`: TIMESTAMPTZ NOT NULL
+- `duration_minutes`: INTEGER
+- `status`: TEXT NOT NULL (Default: `'SCHEDULED'`) — `'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'RESCHEDULED'`
+- `interviewer_names`: JSONB NOT NULL (Default: `[]`)
+- `meeting_link`: TEXT
+- `feedback`: TEXT
+- `notes`: TEXT
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `application_interviews_app_idx` on `(application_id)`
+- `application_interviews_scheduled_idx` on `(scheduled_at)`
+
+### 7.7. `application_offers` (Compensation & Package Details)
+
+Job offers received, terms, compensation packages, and candidate responses:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `application_id`: UUID NOT NULL (Foreign Key -> `applications.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `status`: TEXT NOT NULL (Default: `'PENDING'`) — `'PENDING' | 'ACCEPTED' | 'DECLINED' | 'NEGOTIATING' | 'RESCINDED'`
+- `base_salary`: NUMERIC(12, 2)
+- `currency`: VARCHAR(10) (Default: `'EUR'`)
+- `bonus`: NUMERIC(12, 2)
+- `equity`: TEXT
+- `benefits_summary`: TEXT
+- `offer_date`: TIMESTAMPTZ NOT NULL (Default: now())
+- `deadline`: TIMESTAMPTZ
+- `decision_date`: TIMESTAMPTZ
+- `notes`: TEXT
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `application_offers_app_idx` on `(application_id)`
 
 ---
 
-## 8. Migration Strategy
+## 8. Deferred Domain Schemas
+
+The following entities are explicitly deferred until their respective macro-tasks:
+
+- **Communication & Interviews (`JOB-P4-T01` / `JOB-P4-T02`)**:
+  - `email_messages` / `email_links`
+  - Automated calendar sync integrations
+- **Controlled Automation (`JOB-P5-T01` / `JOB-P5-T02`)**:
+  - `agent_actions`
+  - Browser automation trace logs
+
+---
+
+## 9. Migration Strategy
 
 1. **Generator**: Drizzle Kit inspects TypeScript schemas in `packages/database/src/schema/` and outputs pure SQL migration files into `packages/database/drizzle/`.
    - Command: `npm run db:generate`
@@ -534,3 +702,5 @@ The following entities are explicitly deferred until their respective macro-task
 - `0004_job_requirements_source_context.sql`: Additive hardening for job requirements (`source_id` foreign key to `job_sources.id` and `source_section` text column for provenance tracking).
 - `0005_matching_intelligence.sql`: Additive schema for Requirement Analysis, Matching & Policy Decision Engine (`job_match_analyses`, `job_match_dimensions`, `job_requirement_evaluations`).
 - `0006_application_studio.sql`: Additive schema for Application Studio, Tailored Materials & Human Approval (`application_packages`, `application_package_versions`, `application_artifacts`, `application_questions`, `approval_requests`, `application_package_events`).
+- `0007_application_crm.sql`: Additive schema for Application CRM, Lifecycle, Audit Timeline & Analytics (`applications`, `application_lifecycle_events`, `application_notes`, `application_contacts`, `application_assessments`, `application_interviews`, `application_offers`).
+- `0008_application_lifecycle_canonicalization.sql`: Canonical lifecycle migration adding `archived_at` timestamp column and index `applications_archived_at_idx`, plus safe state transition queries reconciling legacy statuses to canonical states.

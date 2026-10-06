@@ -428,7 +428,94 @@ Resolves job application questions through an auditable, conservative hierarchy:
 
 ---
 
-## 8. Future Architecture Isolation (Playwright Browser Worker)
+## 8. Application CRM, Lifecycle & Personal ATS Architecture (`JOB-P3-T02`)
+
+The Application CRM provides the persistent lifecycle orchestration, audit tracking, recruiter contact management, and funnel analytics that transform the platform into a complete personal Applicant Tracking System:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                      Job Lifecycle Flow                     │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Preparation & Application Studio               │
+│  - DISCOVERED / ANALYZED / MATCHED / SKIPPED               │
+│  - READY_TO_APPLY / NEEDS_REVIEW                            │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼ [Manual / Assisted Apply]
+┌─────────────────────────────────────────────────────────────┐
+│                     Submission Handshake                    │
+│  - Transition to APPLYING -> APPLIED -> CONFIRMATION_RECEIVED│
+│  - Freezes: submitted_package_version_id                    │
+│             submitted_cv_artifact_id                        │
+│             submitted_cover_letter_artifact_id              │
+│  - Appends to application_lifecycle_events                  │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+        ┌──────────────────────┴──────────────────────┐
+        ▼                                             ▼
+┌───────────────────────────────┐       ┌─────────────────────────────┐
+│      Active Pipeline          │       │      Terminal Outcomes      │
+│  - SCREENING                  │       │  - REJECTED                 │
+│  - ASSESSMENT                 │       │  - WITHDRAWN                │
+│  - INTERVIEW                  │       │  - EXPIRED                  │
+│  - FINAL_INTERVIEW            │       │                             │
+│  - OFFER                      │       │  (Reopen requires explicit  │
+│  (Contacts, Rounds, Notes)    │       │   correction override)      │
+└───────────────────────────────┘       └─────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│                Application Analytics Engine                 │
+│  - Conversion rates across pipeline stages                  │
+│  - 0-denominator safe calculation (rate: null)              │
+│  - Time-to-stage average durations                          │
+│  - Source attribution breakdown                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 8.1. Deterministic State Machine (`ApplicationStateMachine`)
+
+- **Exact 17 Canonical States**:
+  - Discovery & Intelligence: `DISCOVERED`, `ANALYZED`, `MATCHED`, `SKIPPED`
+  - Preparation & Readiness: `READY_TO_APPLY`, `NEEDS_REVIEW`
+  - Submission Execution: `APPLYING`, `APPLIED`, `CONFIRMATION_RECEIVED`
+  - Active Pipeline: `SCREENING`, `ASSESSMENT`, `INTERVIEW`, `FINAL_INTERVIEW`, `OFFER`
+  - Terminal Outcomes: `REJECTED`, `WITHDRAWN`, `EXPIRED`
+- **Soft Archiving vs Hard Purge**: Applications support soft archiving (`is_archived: true`, `archived_at: timestamp`) which hides opportunities from active Kanban/pipeline views without deleting historical audit timeline events or frozen submission provenance. Deliberate destruction is separated into explicit `DELETE /api/applications/:id/purge`.
+- **Realistic Progression & Skipping**: The state machine allows realistic fast-track transitions (e.g. `APPLIED` skipping directly to `INTERVIEW` when screening is bypassed by the recruiter, or direct transition to `APPLIED` for manual submissions).
+- **Terminal State Protection & Correction Overrides**: Once in a terminal state (`REJECTED`, `WITHDRAWN`, `EXPIRED`), normal forward transitions are blocked. If a recruiter follows up on a previously rejected role or an accidental status change was made, the state machine requires an explicit correction override (`isCorrection: true` and a non-empty `correctionReason`), which logs a `STATUS_CORRECTION` audit event.
+
+### 8.2. Frozen Submission Provenance Model
+
+- When marking an application as `APPLIED`, the system captures and freezes the exact package version ID and artifact IDs (`submitted_package_version_id`, `submitted_cv_artifact_id`, `submitted_cover_letter_artifact_id`).
+- Even if the candidate later generates Version $N + 1$ in the Application Studio, the CRM record retains an immutable historical link to the exact documents that were actually sent to the employer.
+- Supports direct, manual application recording without requiring an Application Studio package (package fields remain nullable).
+
+### 8.3. Sub-Entities & Recruiter Management
+
+- **Notes (`application_notes`)**: Chronological candidate notes, interview prep insights, and context logs.
+- **Contacts (`application_contacts`)**: Recruiter, hiring manager, and interviewer profiles with titles, email, phone, and LinkedIn URLs.
+- **Assessments (`application_assessments`)**: Online tests, take-home projects, status tracking, deadline monitoring, and result evaluations.
+- **Interviews (`application_interviews`)**: Multi-round interview tracking with format, scheduled timestamps, interviewer names, and feedback notes.
+- **Offers (`application_offers`)**: Compensation details (currency, base salary, bonus, equity), expiration deadlines, and candidate response tracking (`PENDING`, `ACCEPTED`, `DECLINED`, `NEGOTIATING`, `RESCINDED`).
+
+### 8.4. Append-Only Lifecycle Event Timeline (`application_lifecycle_events`)
+
+- Every status change, manual submission note, correction override, or package linkage appends an immutable event to `application_lifecycle_events`.
+- Events capture `previous_status`, `new_status`, `trigger` (`MANUAL`, `AUTOMATED`, `EMAIL_SYNC`, `SYSTEM`), `actor` (`USER`, `AGENT`, `SYSTEM`), and reason details.
+
+### 8.5. Funnel Analytics Engine (`ApplicationAnalyticsEngine`)
+
+- Computes pipeline metrics across core funnel stages (`TOTAL`, `APPLIED`, `SCREENING`, `INTERVIEW`, `OFFER`).
+- Implements zero-denominator division safeguards (`rate: null` when denominator is 0) to avoid `NaN` anomalies.
+- Calculates average duration metrics (days from applied to screening, interview, and offer) and source attribution distribution.
+
+---
+
+## 9. Future Architecture Isolation (Playwright Browser Worker)
 
 When browser automation (JOB-P5-T01 / JOB-P5-T02) is implemented:
 

@@ -3,17 +3,21 @@ import {
   applicationPackageClient,
   type PackageDetailResponse,
 } from '../api/application-package-client.js';
-import type {
-  TailoredCv,
-  QuestionCategory,
-  QuestionType,
-  ApplicationQuestionDto,
+import { ApplicationCrmClient } from '../api/application-crm-client.js';
+import {
+  ApplicationLifecycleStatus,
+  type TailoredCv,
+  type QuestionCategory,
+  type QuestionType,
+  type ApplicationQuestionDto,
+  type ApplicationSummaryDto,
 } from '@job-agent/shared';
 
 interface ApplicationStudioViewProps {
   packageId: string;
   onBack: () => void;
   onNavigateToJob?: (jobId: string) => void;
+  onNavigateToApplication?: (applicationId: string) => void;
 }
 
 type StudioTab = 'overview' | 'cv' | 'coverLetter' | 'questions' | 'approvals' | 'evidence';
@@ -22,8 +26,10 @@ export function ApplicationStudioView({
   packageId,
   onBack,
   onNavigateToJob,
+  onNavigateToApplication,
 }: ApplicationStudioViewProps) {
   const [data, setData] = useState<PackageDetailResponse | null>(null);
+  const [crmApp, setCrmApp] = useState<ApplicationSummaryDto | null>(null);
   const [activeTab, setActiveTab] = useState<StudioTab>('overview');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -61,6 +67,12 @@ export function ApplicationStudioView({
       }
       if (res.currentVersion?.coverLetterContent) {
         setCoverLetterDraft(res.currentVersion.coverLetterContent);
+      }
+      try {
+        const appRes = await ApplicationCrmClient.getApplicationForJob(res.package.jobId);
+        setCrmApp(appRes);
+      } catch {
+        setCrmApp(null);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load application package');
@@ -230,6 +242,55 @@ export function ApplicationStudioView({
     }
   };
 
+  const handleTrackInCrm = async () => {
+    if (!data) return;
+    try {
+      setActionLoading(true);
+      const res = await ApplicationCrmClient.createApplication({
+        jobId: data.package.jobId,
+        packageId: data.package.id,
+        status: ApplicationLifecycleStatus.READY_TO_APPLY,
+      });
+      setCrmApp(res.application);
+      if (onNavigateToApplication) {
+        onNavigateToApplication(res.application.id);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to track in CRM');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkAppliedInCrm = async () => {
+    if (!data) return;
+    try {
+      setActionLoading(true);
+      let appId = crmApp?.id;
+      if (!appId) {
+        const created = await ApplicationCrmClient.createApplication({
+          jobId: data.package.jobId,
+          packageId: data.package.id,
+        });
+        appId = created.application.id;
+      }
+      const updated = await ApplicationCrmClient.markApplied(appId, {
+        submissionMethod: 'COMPANY_SITE',
+        packageVersionId: data.currentVersion?.id,
+        cvArtifactId: cvArtifact?.id,
+        coverLetterArtifactId: clArtifact?.id,
+      });
+      setCrmApp(updated);
+      if (onNavigateToApplication) {
+        onNavigateToApplication(updated.id);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to record application in CRM');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return (
     <div
       className="application-studio-container"
@@ -325,6 +386,36 @@ export function ApplicationStudioView({
             >
               🔄 Regenerate (v{pkg.currentVersionNumber + 1})
             </button>
+
+            {/* CRM Lifecycle Action Button */}
+            {crmApp ? (
+              <button
+                className="button button-primary"
+                onClick={() => onNavigateToApplication?.(crmApp.id)}
+                title="View application lifecycle, timeline and follow-ups in CRM"
+              >
+                📋 View in CRM ({crmApp.status}) →
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <button
+                  className="button button-secondary"
+                  onClick={handleTrackInCrm}
+                  disabled={actionLoading}
+                >
+                  Track in CRM
+                </button>
+                {readiness.status === 'READY' && (
+                  <button
+                    className="button button-primary"
+                    onClick={handleMarkAppliedInCrm}
+                    disabled={actionLoading}
+                  >
+                    ✓ Mark Applied in CRM →
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>

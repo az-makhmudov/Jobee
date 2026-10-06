@@ -1,17 +1,31 @@
 import { useState, useEffect } from 'react';
 import { jobApi } from '../api/job-client.js';
 import { applicationPackageClient } from '../api/application-package-client.js';
-import type { JobDto, UpdateJobRequest, JobMatchAnalysisDto } from '@job-agent/shared';
+import { ApplicationCrmClient } from '../api/application-crm-client.js';
+import type {
+  JobDto,
+  UpdateJobRequest,
+  JobMatchAnalysisDto,
+  ApplicationSummaryDto,
+} from '@job-agent/shared';
 
 interface Props {
   jobId: string;
   onBack: () => void;
   onJobUpdated?: () => void;
   onPrepareApplication?: (packageId: string) => void;
+  onViewApplicationInCrm?: (applicationId: string) => void;
 }
 
-export function JobDetailView({ jobId, onBack, onJobUpdated, onPrepareApplication }: Props) {
+export function JobDetailView({
+  jobId,
+  onBack,
+  onJobUpdated,
+  onPrepareApplication,
+  onViewApplicationInCrm,
+}: Props) {
   const [job, setJob] = useState<JobDto | null>(null);
+  const [crmApp, setCrmApp] = useState<ApplicationSummaryDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
@@ -78,10 +92,28 @@ export function JobDetailView({ jobId, onBack, onJobUpdated, onPrepareApplicatio
         maxSalary: data.maxSalary || undefined,
         currency: data.currency || undefined,
       });
+
+      try {
+        const appData = await ApplicationCrmClient.getApplicationForJob(jobId);
+        setCrmApp(appData);
+      } catch {
+        setCrmApp(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load job details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTrackInCrm = async () => {
+    if (!job) return;
+    try {
+      const res = await ApplicationCrmClient.createApplication({ jobId: job.id });
+      setCrmApp(res.application);
+      onViewApplicationInCrm?.(res.application.id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to track in CRM');
     }
   };
 
@@ -185,14 +217,33 @@ export function JobDetailView({ jobId, onBack, onJobUpdated, onPrepareApplicatio
         <button className="btn btn-secondary btn-sm" onClick={onBack}>
           ← Back to Job Inbox
         </button>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          {crmApp ? (
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => onViewApplicationInCrm?.(crmApp.id)}
+              style={{ fontWeight: 600, borderColor: 'var(--color-primary)' }}
+            >
+              📋 View in CRM ({crmApp.status}) →
+            </button>
+          ) : (
+            job.state !== 'ARCHIVED' && (
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={handleTrackInCrm}
+                title="Track this job in Application CRM pipeline"
+              >
+                + Track in CRM
+              </button>
+            )
+          )}
           {job.state !== 'ARCHIVED' && onPrepareApplication && (
             <button
               className="btn btn-primary btn-sm"
               onClick={handlePrepareApplication}
               disabled={preparingApp}
             >
-              {preparingApp ? '⏳ Preparing...' : '🚀 Prepare Application'}
+              {preparingApp ? '⏳ Preparing...' : '🚀 Prepare Studio Package'}
             </button>
           )}
           <button

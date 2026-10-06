@@ -166,3 +166,55 @@ This document tracks execution history and verification state for all official m
   - `npm run db:check`: PASSED (PostgreSQL connectivity verified)
   - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0006 applied cleanly)
   - Live End-to-End Verification: PASSED (Automated 10-stage live test against PostgreSQL `ai_job_agent_dev` executing profile/evidence seeding, job ingestion & match analysis, package v1 creation, DOCX artifact SHA-256 validation, truthfulness invariant & metric safeguard checks, 4-level question resolution, human approval queue resolution with candidate edits, deterministic transition to READY, dynamic staleness detection on candidate profile mutation, v2 regeneration with carry-forward, and 100% clean teardown with zero orphaned records).
+
+---
+
+### `JOB-P3-T02` — Application CRM, Lifecycle, Audit Timeline & Analytics
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-06
+- **Milestone**: **Personal ATS MVP achieved at JOB-P3-T02**
+- **Scope**:
+  - Additive PostgreSQL schema for Application CRM:
+    - `applications`: tracks application lifecycle state across 17 canonical statuses, source attribution, submission method, external reference ID, application URL, applied timestamp, closed timestamp, terminal reason and stage, next action text, type, and follow-up date, notes, and frozen submission provenance (`submitted_package_version_id`, `submitted_cv_artifact_id`, `submitted_cover_letter_artifact_id`). Enforces unique index on `(user_id, job_id)` for idempotent tracking.
+    - `application_lifecycle_events`: immutable audit timeline recording status changes, submissions, notes, contacts, assessments, interviews, offers, and correction overrides with actor, previous and new status, notes, and safe metadata.
+    - `application_notes`: candidate notes and observations with author and timestamps.
+    - `application_contacts`: recruiter and interviewer network directory (name, email, phone, title, company, LinkedIn URL, primary contact flag, notes).
+    - `application_assessments`: technical/coding assessments, take-homes, and tests (title, type, provider, status, received/due/completed dates, URL, score, notes).
+    - `application_interviews`: interview rounds (round title, type, status, scheduled timestamp, duration, timezone, location/meeting URL, interviewer name, linked contact ID, notes, feedback).
+    - `application_offers`: job offers (base salary, total compensation, currency, employment type, proposed start date, decision deadline, status `PENDING`/`ACCEPTED`/`DECLINED`/`NEGOTIATING`/`RESCINDED`, notes).
+  - Additive migrations `0007_application_crm.sql` and `0008_application_lifecycle_canonicalization.sql` generated and applied to PostgreSQL `ai_job_agent_dev`.
+  - Shared domain contracts and DTOs in `packages/shared/src/types/application-crm.ts`.
+  - Application State Machine (`ApplicationStateMachine`):
+    - Enforces valid lifecycle transitions across all 17 canonical statuses: `DISCOVERED`, `ANALYZED`, `MATCHED`, `SKIPPED`, `READY_TO_APPLY`, `NEEDS_REVIEW`, `APPLYING`, `APPLIED`, `CONFIRMATION_RECEIVED`, `SCREENING`, `ASSESSMENT`, `INTERVIEW`, `FINAL_INTERVIEW`, `OFFER`, `REJECTED`, `WITHDRAWN`, `EXPIRED`.
+    - Allows realistic stage skipping (e.g., jumping from `APPLIED` directly to `INTERVIEW`).
+    - Safeguards terminal states (`REJECTED`, `WITHDRAWN`, `EXPIRED`): transitions out of terminal states are strictly rejected unless an explicit correction override (`isCorrection: true`) and human rationale (`correctionReason`) are provided.
+    - Soft archiving pattern (`is_archived: true`, `archived_at: timestamp`) with archive/unarchive endpoints preserving historical timeline and frozen provenance, paired with deliberate hard purge endpoint (`DELETE /api/applications/:id/purge`).
+  - Frozen Submission Provenance:
+    - Submitting an application freezes the exact package version and artifact IDs (`submitted_package_version_id`, `submitted_cv_artifact_id`, `submitted_cover_letter_artifact_id`). Subsequent package regenerations in Studio do not alter past historical submissions.
+    - Full support for manual, package-less applications recorded directly in CRM.
+  - Personal ATS Funnel Analytics Engine (`ApplicationAnalyticsEngine`):
+    - Multi-stage funnel counts (`totalApplications`, `readyToApply`, `applied`, `screening`, `interview`, `offer`).
+    - Stage conversion rates (`appliedToScreening`, `appliedToInterview`, `appliedToOffer`, `interviewToOffer`) with safe zero-denominator handling (`rate: null` when denominator is 0).
+    - Duration metrics (average days to first response, average days to interview, average days to outcome, active process aging days, with sample size tracking).
+    - Source distribution percentages.
+  - Application CRM Service (`ApplicationCrmService`):
+    - Single orchestrator handling idempotent application tracking, status transitions, submission recording, next actions, archiving/unarchiving, notes, contacts, assessments, interviews, offers, metrics, and analytics.
+  - Fastify REST API (`apps/api/src/routes/application-crm-routes.ts`):
+    - 24 endpoints covering full application CRUD, status transitions, submission marking, archiving, unarchiving, purging, next action updates, metrics, analytics, contacts, notes, assessments, interviews, and offers.
+    - Registered in Fastify application entrypoint `apps/api/src/app.ts`.
+  - React 19 Frontend:
+    - `ApplicationsCrmView`: Dual-mode interface featuring Kanban Stage Board and Filterable Table List views, full-text search, status and source filters, archived applications filter toggle, "Record Existing Application" modal, and quick mark-applied action.
+    - `ApplicationDetailView`: Comprehensive application view with stage transition action toolbar, archiving controls, frozen submission artifacts, next action editor, timeline stream, contacts, assessments, interviews, offers, and notes.
+    - `ApplicationAnalyticsModal`: Rich modal surfacing funnel conversion bars, duration metrics, and source attribution breakdown.
+    - Two-way cross-navigation: seamless navigation between Job Detail ("View in CRM" / "Track in CRM"), Application Studio ("View in CRM" / "Mark Applied in CRM"), Application Packages, and Dashboard.
+    - `DashboardView`: Dedicated "Application Lifecycle CRM & ATS Pipeline (Phase 3 MVP)" card surfacing live active pipeline, total applied, interview counts, offers, and follow-ups due/overdue.
+- **Verification Records**:
+  - `npm run lint`: PASSED (ESLint 9, 0 errors)
+  - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors)
+  - `npm run test`: PASSED (Vitest, 20 test files, 156/156 tests passed: 7 state machine tests, 3 analytics engine tests, 5 CRM routes integration tests, and 141 existing platform tests)
+  - `npm run build`: PASSED (All 6 workspaces built and Vite web bundle compiled in 1.49s)
+  - `npm run format`: PASSED (Prettier checked across entire repository)
+  - `npm run db:check`: PASSED (Database connectivity verified)
+  - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0008 applied cleanly)
+  - Live End-to-End Verification: PASSED (Automated test `scripts/verify-crm-lifecycle.ts` against PostgreSQL `ai_job_agent_dev` executing Scenarios A-F + Creation Paths + Soft Archiving + Sub-Entities & Analytics + 100% clean teardown with zero database orphans).

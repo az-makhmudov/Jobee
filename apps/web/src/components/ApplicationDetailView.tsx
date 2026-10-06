@@ -1,0 +1,1951 @@
+import { useState, useEffect } from 'react';
+import { ApplicationCrmClient } from '../api/application-crm-client.js';
+import { formatStatusLabel } from './ApplicationsCrmView.js';
+import {
+  ApplicationLifecycleStatus,
+  SubmissionMethod,
+  NextActionType,
+  AssessmentType,
+  InterviewType,
+  type ApplicationDetailDto,
+} from '@job-agent/shared';
+
+interface Props {
+  applicationId: string;
+  onBack: () => void;
+  onOpenStudio?: (packageId: string) => void;
+  onNavigateToJob?: (jobId: string) => void;
+}
+
+export function ApplicationDetailView({
+  applicationId,
+  onBack,
+  onOpenStudio,
+  onNavigateToJob,
+}: Props) {
+  const [detail, setDetail] = useState<ApplicationDetailDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Modals state
+  const [showMarkAppliedModal, setShowMarkAppliedModal] = useState(false);
+  const [showTransitionModal, setShowTransitionModal] = useState(false);
+  const [transitionTarget, setTransitionTarget] = useState<ApplicationLifecycleStatus | null>(null);
+  const [transitionNote, setTransitionNote] = useState('');
+  const [isCorrection, setIsCorrection] = useState(false);
+  const [correctionReason, setCorrectionReason] = useState('');
+
+  // Mark applied inputs
+  const [markMethod, setMarkMethod] = useState<string>('COMPANY_SITE');
+  const [markRef, setMarkRef] = useState('');
+  const [markUrl, setMarkUrl] = useState('');
+  const [markNotes, setMarkNotes] = useState('');
+
+  // Next action edit state
+  const [isEditingNextAction, setIsEditingNextAction] = useState(false);
+  const [nextActionText, setNextActionText] = useState('');
+  const [nextActionType, setNextActionType] = useState<string>('FOLLOW_UP');
+  const [followUpDate, setFollowUpDate] = useState('');
+
+  // Add sub-entity states
+  const [showAddNoteModal, setShowAddNoteModal] = useState(false);
+  const [noteContent, setNoteContent] = useState('');
+
+  const [showAddContactModal, setShowAddContactModal] = useState(false);
+  const [contactName, setContactName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactTitle, setContactTitle] = useState('');
+  const [contactCompany, setContactCompany] = useState('');
+  const [contactLinkedin, setContactLinkedin] = useState('');
+  const [contactIsPrimary, setContactIsPrimary] = useState(false);
+
+  const [showAddAssessmentModal, setShowAddAssessmentModal] = useState(false);
+  const [assessTitle, setAssessTitle] = useState('');
+  const [assessType, setAssessType] = useState<string>('CODING_CHALLENGE');
+  const [assessProvider, setAssessProvider] = useState('');
+  const [assessDue, setAssessDue] = useState('');
+  const [assessUrl, setAssessUrl] = useState('');
+
+  const [showAddInterviewModal, setShowAddInterviewModal] = useState(false);
+  const [interviewTitle, setInterviewTitle] = useState('');
+  const [interviewType, setInterviewType] = useState<string>('TECHNICAL');
+  const [interviewDate, setInterviewDate] = useState('');
+  const [interviewLocation, setInterviewLocation] = useState('');
+  const [interviewInterviewer, setInterviewInterviewer] = useState('');
+
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [offerBase, setOfferBase] = useState('');
+  const [offerTotal, setOfferTotal] = useState('');
+  const [offerCurrency, setOfferCurrency] = useState('USD');
+  const [offerStatus, setOfferStatus] = useState('PENDING');
+  const [offerDeadline, setOfferDeadline] = useState('');
+  const [offerNotes, setOfferNotes] = useState('');
+
+  const loadDetail = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await ApplicationCrmClient.getApplicationDetail(applicationId);
+      setDetail(data);
+      setNextActionText(data.application.nextAction || '');
+      setNextActionType(data.application.nextActionType || 'FOLLOW_UP');
+      setFollowUpDate(data.application.followUpAt ? data.application.followUpAt.slice(0, 16) : '');
+      if (data.offer) {
+        setOfferBase(data.offer.baseSalary ? String(data.offer.baseSalary) : '');
+        setOfferTotal(data.offer.totalComp ? String(data.offer.totalComp) : '');
+        setOfferCurrency(data.offer.currency || 'USD');
+        setOfferStatus(data.offer.status || 'PENDING');
+        setOfferDeadline(data.offer.deadlineAt ? data.offer.deadlineAt.slice(0, 16) : '');
+        setOfferNotes(data.offer.notes || '');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDetail();
+  }, [applicationId]);
+
+  const handleMarkApplied = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await ApplicationCrmClient.markApplied(applicationId, {
+        submissionMethod: markMethod,
+        externalReferenceId: markRef || undefined,
+        applicationUrl: markUrl || undefined,
+        notes: markNotes || undefined,
+      });
+      setShowMarkAppliedModal(false);
+      await loadDetail();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleExecuteTransition = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transitionTarget) return;
+    try {
+      await ApplicationCrmClient.transitionStatus(applicationId, {
+        targetStatus: transitionTarget,
+        note: transitionNote || undefined,
+        isCorrection,
+        correctionReason: isCorrection ? correctionReason : undefined,
+      });
+      setShowTransitionModal(false);
+      setTransitionTarget(null);
+      setTransitionNote('');
+      setIsCorrection(false);
+      setCorrectionReason('');
+      await loadDetail();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const openTransition = (target: ApplicationLifecycleStatus, correction = false) => {
+    setTransitionTarget(target);
+    setIsCorrection(correction);
+    setShowTransitionModal(true);
+  };
+
+  const handleSaveNextAction = async () => {
+    try {
+      await ApplicationCrmClient.updateNextAction(applicationId, {
+        nextAction: nextActionText || null,
+        nextActionType: nextActionType || null,
+        followUpAt: followUpDate ? new Date(followUpDate).toISOString() : null,
+      });
+      setIsEditingNextAction(false);
+      await loadDetail();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleAddNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!noteContent.trim()) return;
+    try {
+      await ApplicationCrmClient.addNote(applicationId, { content: noteContent });
+      setNoteContent('');
+      setShowAddNoteModal(false);
+      await loadDetail();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!confirm('Are you sure you want to delete this note?')) return;
+    try {
+      await ApplicationCrmClient.deleteNote(applicationId, noteId);
+      await loadDetail();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleAddContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactName.trim()) return;
+    try {
+      await ApplicationCrmClient.addContact(applicationId, {
+        name: contactName,
+        email: contactEmail || undefined,
+        phone: contactPhone || undefined,
+        title: contactTitle || undefined,
+        company: contactCompany || undefined,
+        linkedinUrl: contactLinkedin || undefined,
+        isPrimary: contactIsPrimary,
+      });
+      setContactName('');
+      setContactEmail('');
+      setContactPhone('');
+      setContactTitle('');
+      setContactCompany('');
+      setContactLinkedin('');
+      setContactIsPrimary(false);
+      setShowAddContactModal(false);
+      await loadDetail();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleDeleteContact = async (contactId: string) => {
+    if (!confirm('Are you sure you want to delete this contact?')) return;
+    try {
+      await ApplicationCrmClient.deleteContact(applicationId, contactId);
+      await loadDetail();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleAddAssessment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assessTitle.trim()) return;
+    try {
+      await ApplicationCrmClient.addAssessment(applicationId, {
+        title: assessTitle,
+        assessmentType: assessType,
+        provider: assessProvider || undefined,
+        dueAt: assessDue ? new Date(assessDue).toISOString() : undefined,
+        url: assessUrl || undefined,
+      });
+      setAssessTitle('');
+      setAssessProvider('');
+      setAssessDue('');
+      setAssessUrl('');
+      setShowAddAssessmentModal(false);
+      await loadDetail();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleAddInterview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!interviewTitle.trim() || !interviewDate) return;
+    try {
+      await ApplicationCrmClient.addInterview(applicationId, {
+        roundTitle: interviewTitle,
+        interviewType,
+        scheduledAt: new Date(interviewDate).toISOString(),
+        locationOrUrl: interviewLocation || undefined,
+        interviewerName: interviewInterviewer || undefined,
+      });
+      setInterviewTitle('');
+      setInterviewDate('');
+      setInterviewLocation('');
+      setInterviewInterviewer('');
+      setShowAddInterviewModal(false);
+      await loadDetail();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleSaveOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await ApplicationCrmClient.updateOffer(applicationId, {
+        baseSalary: offerBase ? Number(offerBase) : null,
+        totalComp: offerTotal ? Number(offerTotal) : null,
+        currency: offerCurrency,
+        status: offerStatus,
+        deadlineAt: offerDeadline ? new Date(offerDeadline).toISOString() : null,
+        notes: offerNotes || null,
+      });
+      setShowOfferModal(false);
+      await loadDetail();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleArchive = async () => {
+    if (
+      !confirm(
+        'Archive this application? It will be hidden from the active pipeline board while preserving all history, timeline events, and submission provenance.',
+      )
+    )
+      return;
+    try {
+      await ApplicationCrmClient.archiveApplication(applicationId);
+      await loadDetail();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleUnarchive = async () => {
+    try {
+      await ApplicationCrmClient.unarchiveApplication(applicationId);
+      await loadDetail();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'DISCOVERED':
+      case 'ANALYZED':
+        return '#64748b';
+      case 'MATCHED':
+        return '#6366f1';
+      case 'NEEDS_REVIEW':
+        return '#f97316';
+      case 'READY_TO_APPLY':
+        return '#3b82f6';
+      case 'APPLYING':
+        return '#06b6d4';
+      case 'APPLIED':
+        return '#10b981';
+      case 'CONFIRMATION_RECEIVED':
+        return '#0d9488';
+      case 'SCREENING':
+        return '#f59e0b';
+      case 'ASSESSMENT':
+        return '#d97706';
+      case 'INTERVIEW':
+      case 'FINAL_INTERVIEW':
+        return '#8b5cf6';
+      case 'OFFER':
+        return '#059669';
+      case 'REJECTED':
+        return '#ef4444';
+      case 'WITHDRAWN':
+      case 'EXPIRED':
+      case 'SKIPPED':
+        return '#6b7280';
+      default:
+        return 'var(--text-secondary)';
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '3rem' }}>
+        <div className="spinner" />
+        <p style={{ marginTop: '1rem', color: 'var(--text-secondary)' }}>
+          Loading application details...
+        </p>
+      </div>
+    );
+  }
+
+  if (error || !detail) {
+    return (
+      <div>
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={onBack}
+          style={{ marginBottom: '1rem' }}
+        >
+          ← Back to Applications
+        </button>
+        <div className="banner banner-error">{error || 'Application not found'}</div>
+      </div>
+    );
+  }
+
+  const { application, job, matchAnalysis, submittedPackage, currentPackage, events } = detail;
+  const isTerminal = ['REJECTED', 'WITHDRAWN', 'EXPIRED'].includes(application.status);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '3rem' }}>
+      {/* Top Navigation & Actions */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <button className="btn btn-secondary btn-sm" onClick={onBack}>
+          ← Back to Applications CRM
+        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {currentPackage && onOpenStudio && (
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => onOpenStudio(currentPackage.packageId)}
+            >
+              🎨 Open in Application Studio
+            </button>
+          )}
+          {onNavigateToJob && (
+            <button className="btn btn-outline btn-sm" onClick={() => onNavigateToJob(job.id)}>
+              💼 View Job Listing
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Main Header Card */}
+      <header className="card" style={{ padding: '1.5rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            flexWrap: 'wrap',
+            gap: '1rem',
+          }}
+        >
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <h1 style={{ fontSize: '1.6rem', margin: 0 }}>{job.title}</h1>
+              <span
+                style={{
+                  background: getStatusColor(application.status),
+                  color: '#fff',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '12px',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                }}
+              >
+                {formatStatusLabel(application.status)}
+              </span>
+              {application.isArchived && <span className="badge badge-secondary">📦 Archived</span>}
+              {application.isFollowUpOverdue && (
+                <span className="badge badge-error">⚠️ Follow-up Overdue</span>
+              )}
+              {application.isFollowUpDue && !application.isFollowUpOverdue && (
+                <span className="badge badge-warning">⏰ Follow-up Due Today</span>
+              )}
+            </div>
+
+            <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', margin: 0 }}>
+              <strong>{job.company}</strong>
+              {job.location ? ` • ${job.location}` : ''}
+              {job.workplaceType ? ` • ${job.workplaceType}` : ''}
+            </p>
+          </div>
+
+          {/* Quick Metrics Badge */}
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+            {matchAnalysis && (
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  AI Match Fit
+                </div>
+                <div
+                  style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--color-primary)' }}
+                >
+                  {matchAnalysis.overallScore}% ({matchAnalysis.decision})
+                </div>
+              </div>
+            )}
+            {application.appliedAt && (
+              <div
+                style={{
+                  textAlign: 'right',
+                  borderLeft: '1px solid var(--border-color)',
+                  paddingLeft: '1rem',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Applied On
+                </div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>
+                  {new Date(application.appliedAt).toLocaleDateString()}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* State Machine Transition Action Toolbar */}
+        <div
+          style={{
+            marginTop: '1.25rem',
+            paddingTop: '1rem',
+            borderTop: '1px solid var(--border-color)',
+            display: 'flex',
+            gap: '0.5rem',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+          }}
+        >
+          <span
+            style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}
+          >
+            Available Transitions:
+          </span>
+
+          {/* Pre-Application Actions */}
+          {application.status === 'DISCOVERED' && (
+            <>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.ANALYZED)}
+              >
+                🔍 Mark Analyzed
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.MATCHED)}
+              >
+                🎯 Mark Matched
+              </button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
+              >
+                ⚡ Ready to Apply
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
+              >
+                ⏭️ Skip
+              </button>
+            </>
+          )}
+
+          {application.status === 'ANALYZED' && (
+            <>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.MATCHED)}
+              >
+                🎯 Mark Matched
+              </button>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
+              >
+                ⚡ Ready to Apply
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
+              >
+                ⏭️ Skip
+              </button>
+            </>
+          )}
+
+          {application.status === 'MATCHED' && (
+            <>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
+              >
+                ⚡ Ready to Apply
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.NEEDS_REVIEW)}
+              >
+                ⚠️ Needs Review
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
+              >
+                ⏭️ Skip
+              </button>
+            </>
+          )}
+
+          {application.status === 'NEEDS_REVIEW' && (
+            <>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
+              >
+                ⚡ Ready to Apply
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
+              >
+                ⏭️ Skip
+              </button>
+            </>
+          )}
+
+          {application.status === 'READY_TO_APPLY' && (
+            <>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowMarkAppliedModal(true)}
+              >
+                🚀 Mark as Applied
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.APPLYING)}
+              >
+                ⏳ Move to Applying
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
+              >
+                ⏭️ Skip
+              </button>
+            </>
+          )}
+
+          {application.status === 'APPLYING' && (
+            <>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowMarkAppliedModal(true)}
+              >
+                🚀 Complete Application (Mark Applied)
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
+              >
+                ↩️ Back to Ready
+              </button>
+            </>
+          )}
+
+          {application.status === 'SKIPPED' && (
+            <>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
+              >
+                ⚡ Reopen (Ready to Apply)
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.MATCHED)}
+              >
+                🎯 Move to Matched
+              </button>
+            </>
+          )}
+
+          {application.status === 'APPLIED' && (
+            <>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.CONFIRMATION_RECEIVED)}
+              >
+                📩 Confirmation Received
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.SCREENING)}
+              >
+                📞 Move to Screening
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.INTERVIEW)}
+              >
+                🎙️ Move to Interview
+              </button>
+            </>
+          )}
+
+          {(application.status === 'CONFIRMATION_RECEIVED' ||
+            application.status === 'SCREENING' ||
+            application.status === 'ASSESSMENT') && (
+            <>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.ASSESSMENT)}
+              >
+                📝 Assessment Received
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.INTERVIEW)}
+              >
+                🎙️ Move to Interview
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.OFFER)}
+              >
+                🎉 Offer Received
+              </button>
+            </>
+          )}
+
+          {(application.status === 'INTERVIEW' || application.status === 'FINAL_INTERVIEW') && (
+            <>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.FINAL_INTERVIEW)}
+              >
+                🎯 Final Interview
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.OFFER)}
+              >
+                🎉 Offer Received
+              </button>
+            </>
+          )}
+
+          {/* Terminal Actions */}
+          {!isTerminal && application.status !== 'SKIPPED' && (
+            <>
+              <button
+                className="btn btn-secondary btn-sm"
+                style={{ color: '#ef4444' }}
+                onClick={() => openTransition(ApplicationLifecycleStatus.REJECTED)}
+              >
+                ✕ Rejected
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.WITHDRAWN)}
+              >
+                Withdraw
+              </button>
+            </>
+          )}
+
+          {/* Correction Reopen Action for Terminal States */}
+          {isTerminal && (
+            <button
+              className="btn btn-warning btn-sm"
+              onClick={() => openTransition(ApplicationLifecycleStatus.INTERVIEW, true)}
+            >
+              🔄 Reopen Process (Correction)
+            </button>
+          )}
+
+          {/* Archive / Unarchive Action */}
+          <div style={{ marginLeft: 'auto' }}>
+            {application.isArchived ? (
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={handleUnarchive}
+                title="Restore application to active pipeline"
+              >
+                📂 Unarchive
+              </button>
+            ) : (
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={handleArchive}
+                title="Soft-hide from active pipeline while preserving all history and provenance"
+              >
+                📦 Archive Application
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Grid: Left Column (Next Action & Materials) | Right Column (Timeline & Notes) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+          gap: '1.5rem',
+        }}
+      >
+        {/* Left Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Next Action & Follow-up Card */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Next Action & Follow-up</h3>
+              {!isEditingNextAction ? (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setIsEditingNextAction(true)}
+                >
+                  Edit
+                </button>
+              ) : (
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setIsEditingNextAction(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button className="btn btn-primary btn-sm" onClick={handleSaveNextAction}>
+                    Save
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {!isEditingNextAction ? (
+              <div>
+                <p style={{ margin: '0 0 0.5rem 0', fontWeight: 500 }}>
+                  {application.nextAction || (
+                    <span style={{ color: 'var(--text-secondary)' }}>No next action set</span>
+                  )}
+                </p>
+                {application.followUpAt && (
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Target follow-up:{' '}
+                    <strong>{new Date(application.followUpAt).toLocaleString()}</strong>
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. Follow up with recruiter on phone screen"
+                  value={nextActionText}
+                  onChange={(e) => setNextActionText(e.target.value)}
+                />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                  <select
+                    className="input"
+                    value={nextActionType}
+                    onChange={(e) => setNextActionType(e.target.value)}
+                  >
+                    {Object.values(NextActionType).map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="datetime-local"
+                    className="input"
+                    value={followUpDate}
+                    onChange={(e) => setFollowUpDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Submission Materials & Provenance Card */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem' }}>
+              Submission Provenance & Frozen Materials
+            </h3>
+
+            {submittedPackage ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.75rem',
+                  fontSize: '0.85rem',
+                }}
+              >
+                <div>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    Submitted Package Version:{' '}
+                  </span>
+                  <strong>Version {submittedPackage.versionNumber}</strong>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-secondary)' }}>Submission Method: </span>
+                  <strong>{submittedPackage.submissionMethod || 'Direct / External'}</strong>
+                </div>
+                {submittedPackage.externalReferenceId && (
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>External Ref ID: </span>
+                    <code>{submittedPackage.externalReferenceId}</code>
+                  </div>
+                )}
+
+                {/* Artifact Links */}
+                <div
+                  style={{
+                    marginTop: '0.5rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem',
+                  }}
+                >
+                  {submittedPackage.cvArtifact && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: 'var(--bg-secondary)',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      <span>
+                        📄 <strong>Tailored CV (DOCX)</strong>
+                      </span>
+                      <a
+                        href={submittedPackage.cvArtifact.downloadUrl}
+                        download
+                        className="btn btn-outline btn-sm"
+                      >
+                        Download
+                      </a>
+                    </div>
+                  )}
+
+                  {submittedPackage.coverLetterArtifact && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: 'var(--bg-secondary)',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: '6px',
+                      }}
+                    >
+                      <span>
+                        ✉️ <strong>Cover Letter (DOCX)</strong>
+                      </span>
+                      <a
+                        href={submittedPackage.coverLetterArtifact.downloadUrl}
+                        download
+                        className="btn btn-outline btn-sm"
+                      >
+                        Download
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                {application.status === 'READY_TO_APPLY'
+                  ? 'Application is ready to submit. Click "Mark as Applied" when sent.'
+                  : 'Submitted externally without a frozen studio package.'}
+              </p>
+            )}
+          </div>
+
+          {/* Offer & Compensation Card */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Offer & Compensation</h3>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowOfferModal(true)}>
+                {detail.offer ? 'Edit Offer' : '+ Record Offer'}
+              </button>
+            </div>
+
+            {detail.offer ? (
+              <div style={{ fontSize: '0.9rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    marginBottom: '0.5rem',
+                  }}
+                >
+                  <span style={{ color: 'var(--text-secondary)' }}>Status:</span>
+                  <strong>{detail.offer.status}</strong>
+                </div>
+                {detail.offer.baseSalary && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-secondary)' }}>Base Salary:</span>
+                    <strong>
+                      {detail.offer.currency} {detail.offer.baseSalary.toLocaleString()}
+                    </strong>
+                  </div>
+                )}
+                {detail.offer.totalComp && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-secondary)' }}>Total Compensation:</span>
+                    <strong>
+                      {detail.offer.currency} {detail.offer.totalComp.toLocaleString()}
+                    </strong>
+                  </div>
+                )}
+                {detail.offer.deadlineAt && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-secondary)' }}>Deadline:</span>
+                    <span>{new Date(detail.offer.deadlineAt).toLocaleDateString()}</span>
+                  </div>
+                )}
+                {detail.offer.notes && (
+                  <p
+                    style={{
+                      margin: '0.5rem 0 0 0',
+                      fontSize: '0.85rem',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    {detail.offer.notes}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                No offer recorded yet.
+              </p>
+            )}
+          </div>
+
+          {/* Recruiter Contacts Card */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <h3 style={{ fontSize: '1.05rem', margin: 0 }}>
+                Recruiter & Contacts ({detail.contacts.length})
+              </h3>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowAddContactModal(true)}
+              >
+                + Add Contact
+              </button>
+            </div>
+
+            {detail.contacts.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                No recruiters or contacts linked.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {detail.contacts.map((c) => (
+                  <div
+                    key={c.id}
+                    style={{
+                      background: 'var(--bg-secondary)',
+                      padding: '0.75rem',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <div>
+                      <strong>{c.name}</strong>
+                      {c.isPrimary && (
+                        <span className="badge badge-primary" style={{ marginLeft: '0.5rem' }}>
+                          Primary
+                        </span>
+                      )}
+                      {c.title && <div style={{ color: 'var(--text-secondary)' }}>{c.title}</div>}
+                      {c.email && (
+                        <div>
+                          <a href={`mailto:${c.email}`}>{c.email}</a>
+                        </div>
+                      )}
+                      {c.phone && <div>{c.phone}</div>}
+                    </div>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      style={{ color: '#ef4444' }}
+                      onClick={() => handleDeleteContact(c.id)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: Timeline, Interviews, Assessments & Notes */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Interviews & Assessments Row */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Interviews & Assessments</h3>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowAddInterviewModal(true)}
+                >
+                  + Interview
+                </button>
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowAddAssessmentModal(true)}
+                >
+                  + Assessment
+                </button>
+              </div>
+            </div>
+
+            {/* Interviews List */}
+            {detail.interviews.length > 0 && (
+              <div style={{ marginBottom: '1rem' }}>
+                <div
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem',
+                  }}
+                >
+                  INTERVIEWS
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {detail.interviews.map((int) => (
+                    <div
+                      key={int.id}
+                      style={{
+                        background: 'var(--bg-secondary)',
+                        padding: '0.75rem',
+                        borderRadius: '6px',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <span>🎙️ {int.roundTitle}</span>
+                        <span>{new Date(int.scheduledAt).toLocaleString()}</span>
+                      </div>
+                      {int.interviewerName && (
+                        <div style={{ color: 'var(--text-secondary)' }}>
+                          Interviewer: {int.interviewerName}
+                        </div>
+                      )}
+                      {int.locationOrUrl && (
+                        <div style={{ color: 'var(--text-secondary)' }}>
+                          Location: {int.locationOrUrl}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Assessments List */}
+            {detail.assessments.length > 0 && (
+              <div>
+                <div
+                  style={{
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    marginBottom: '0.5rem',
+                  }}
+                >
+                  ASSESSMENTS & TESTS
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {detail.assessments.map((a) => (
+                    <div
+                      key={a.id}
+                      style={{
+                        background: 'var(--bg-secondary)',
+                        padding: '0.75rem',
+                        borderRadius: '6px',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <span>📝 {a.title}</span>
+                        <span className="badge badge-outline">{a.status}</span>
+                      </div>
+                      {a.dueAt && (
+                        <div style={{ color: 'var(--text-secondary)' }}>
+                          Due: {new Date(a.dueAt).toLocaleDateString()}
+                        </div>
+                      )}
+                      {a.url && (
+                        <div>
+                          <a href={a.url} target="_blank" rel="noopener noreferrer">
+                            Open Assessment Link ↗
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {detail.interviews.length === 0 && detail.assessments.length === 0 && (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                No interview rounds or technical assessments recorded.
+              </p>
+            )}
+          </div>
+
+          {/* CRM User Notes */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <h3 style={{ fontSize: '1.05rem', margin: 0 }}>
+                Candidate Notes ({detail.notes.length})
+              </h3>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowAddNoteModal(true)}
+              >
+                + Add Note
+              </button>
+            </div>
+
+            {detail.notes.length === 0 ? (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                No notes logged for this application yet.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {detail.notes.map((n) => (
+                  <div
+                    key={n.id}
+                    style={{
+                      background: 'var(--bg-secondary)',
+                      padding: '0.75rem',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.75rem',
+                        marginBottom: '0.25rem',
+                      }}
+                    >
+                      <span>{new Date(n.createdAt).toLocaleString()}</span>
+                      <button
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#ef4444',
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                        onClick={() => handleDeleteNote(n.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                    <div style={{ whiteSpace: 'pre-wrap' }}>{n.content}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Append-only Lifecycle Event Timeline */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem' }}>
+              Audit Timeline ({events.length} events)
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {events.map((ev) => (
+                <div
+                  key={ev.id}
+                  style={{
+                    display: 'flex',
+                    gap: '0.75rem',
+                    fontSize: '0.85rem',
+                    borderLeft: '2px solid var(--border-color)',
+                    paddingLeft: '0.75rem',
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <strong>{ev.eventType}</strong>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                        {new Date(ev.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    {ev.previousStatus && ev.newStatus && (
+                      <div style={{ color: 'var(--text-secondary)', marginTop: '0.1rem' }}>
+                        {ev.previousStatus} → <strong>{ev.newStatus}</strong>
+                      </div>
+                    )}
+                    {ev.note && (
+                      <div style={{ marginTop: '0.25rem', color: 'var(--text-primary)' }}>
+                        {ev.note}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* --- MODALS --- */}
+
+      {/* Mark Applied Modal */}
+      {showMarkAppliedModal && (
+        <div className="modal-backdrop">
+          <div className="modal-container" style={{ maxWidth: '500px' }}>
+            <header className="modal-header">
+              <h2 className="modal-title">Mark Application as Applied</h2>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowMarkAppliedModal(false)}
+              >
+                ✕
+              </button>
+            </header>
+            <form
+              onSubmit={handleMarkApplied}
+              className="modal-body"
+              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            >
+              <div>
+                <label className="label">Submission Method / Platform</label>
+                <select
+                  className="input"
+                  value={markMethod}
+                  onChange={(e) => setMarkMethod(e.target.value)}
+                >
+                  {Object.values(SubmissionMethod).map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="label">External Confirmation / Reference ID</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. APP-94819"
+                  value={markRef}
+                  onChange={(e) => setMarkRef(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="label">Application Portal URL</label>
+                <input
+                  type="url"
+                  className="input"
+                  placeholder="https://..."
+                  value={markUrl}
+                  onChange={(e) => setMarkUrl(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="label">Submission Notes</label>
+                <textarea
+                  className="input"
+                  rows={2}
+                  placeholder="e.g. Submitted through official careers form"
+                  value={markNotes}
+                  onChange={(e) => setMarkNotes(e.target.value)}
+                />
+              </div>
+
+              <footer
+                className="modal-footer"
+                style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowMarkAppliedModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Confirm Mark Applied
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Transition Modal */}
+      {showTransitionModal && (
+        <div className="modal-backdrop">
+          <div className="modal-container" style={{ maxWidth: '500px' }}>
+            <header className="modal-header">
+              <h2 className="modal-title">
+                {isCorrection
+                  ? 'Reopen Status (Correction Override)'
+                  : `Transition Status to ${transitionTarget}`}
+              </h2>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowTransitionModal(false)}
+              >
+                ✕
+              </button>
+            </header>
+            <form
+              onSubmit={handleExecuteTransition}
+              className="modal-body"
+              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            >
+              {isCorrection && (
+                <div>
+                  <label className="label">Correction Reason (Required)</label>
+                  <input
+                    type="text"
+                    className="input"
+                    required
+                    placeholder="e.g. Recruiter reopened position"
+                    value={correctionReason}
+                    onChange={(e) => setCorrectionReason(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="label">Event / Activity Note</label>
+                <textarea
+                  className="input"
+                  rows={3}
+                  placeholder="Optional detail about this transition"
+                  value={transitionNote}
+                  onChange={(e) => setTransitionNote(e.target.value)}
+                />
+              </div>
+
+              <footer
+                className="modal-footer"
+                style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowTransitionModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Confirm Transition
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Note Modal */}
+      {showAddNoteModal && (
+        <div className="modal-backdrop">
+          <div className="modal-container" style={{ maxWidth: '500px' }}>
+            <header className="modal-header">
+              <h2 className="modal-title">Add Application Note</h2>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowAddNoteModal(false)}
+              >
+                ✕
+              </button>
+            </header>
+            <form
+              onSubmit={handleAddNote}
+              className="modal-body"
+              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            >
+              <div>
+                <label className="label">Note Content</label>
+                <textarea
+                  className="input"
+                  rows={4}
+                  required
+                  placeholder="e.g. Recruiter confirmed team lead will review CV by Friday"
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                />
+              </div>
+              <footer
+                className="modal-footer"
+                style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowAddNoteModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save Note
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Contact Modal */}
+      {showAddContactModal && (
+        <div className="modal-backdrop">
+          <div className="modal-container" style={{ maxWidth: '500px' }}>
+            <header className="modal-header">
+              <h2 className="modal-title">Add Recruiter / Contact</h2>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowAddContactModal(false)}
+              >
+                ✕
+              </button>
+            </header>
+            <form
+              onSubmit={handleAddContact}
+              className="modal-body"
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+            >
+              <div>
+                <label className="label">Name (Required)</label>
+                <input
+                  type="text"
+                  className="input"
+                  required
+                  placeholder="e.g. Jane Smith"
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Title / Role</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. Technical Recruiter"
+                  value={contactTitle}
+                  onChange={(e) => setContactTitle(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Email</label>
+                <input
+                  type="email"
+                  className="input"
+                  placeholder="jane@company.com"
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Phone</label>
+                <input
+                  type="tel"
+                  className="input"
+                  placeholder="+1 (555) 000-0000"
+                  value={contactPhone}
+                  onChange={(e) => setContactPhone(e.target.value)}
+                />
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  marginTop: '0.25rem',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  id="isPrimary"
+                  checked={contactIsPrimary}
+                  onChange={(e) => setContactIsPrimary(e.target.checked)}
+                />
+                <label htmlFor="isPrimary" style={{ fontSize: '0.85rem' }}>
+                  Primary recruiter for this application
+                </label>
+              </div>
+              <footer
+                className="modal-footer"
+                style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowAddContactModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save Contact
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Assessment Modal */}
+      {showAddAssessmentModal && (
+        <div className="modal-backdrop">
+          <div className="modal-container" style={{ maxWidth: '500px' }}>
+            <header className="modal-header">
+              <h2 className="modal-title">Track Technical Assessment</h2>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowAddAssessmentModal(false)}
+              >
+                ✕
+              </button>
+            </header>
+            <form
+              onSubmit={handleAddAssessment}
+              className="modal-body"
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+            >
+              <div>
+                <label className="label">Assessment Title</label>
+                <input
+                  type="text"
+                  className="input"
+                  required
+                  placeholder="e.g. Frontend Coding Challenge"
+                  value={assessTitle}
+                  onChange={(e) => setAssessTitle(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Type</label>
+                <select
+                  className="input"
+                  value={assessType}
+                  onChange={(e) => setAssessType(e.target.value)}
+                >
+                  {Object.values(AssessmentType).map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Platform / Provider</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. HackerRank, CodeSignal"
+                  value={assessProvider}
+                  onChange={(e) => setAssessProvider(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Due Date</label>
+                <input
+                  type="datetime-local"
+                  className="input"
+                  value={assessDue}
+                  onChange={(e) => setAssessDue(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Assessment Link</label>
+                <input
+                  type="url"
+                  className="input"
+                  placeholder="https://..."
+                  value={assessUrl}
+                  onChange={(e) => setAssessUrl(e.target.value)}
+                />
+              </div>
+              <footer
+                className="modal-footer"
+                style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowAddAssessmentModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save Assessment
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Interview Modal */}
+      {showAddInterviewModal && (
+        <div className="modal-backdrop">
+          <div className="modal-container" style={{ maxWidth: '500px' }}>
+            <header className="modal-header">
+              <h2 className="modal-title">Schedule Interview Round</h2>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowAddInterviewModal(false)}
+              >
+                ✕
+              </button>
+            </header>
+            <form
+              onSubmit={handleAddInterview}
+              className="modal-body"
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+            >
+              <div>
+                <label className="label">Round Title</label>
+                <input
+                  type="text"
+                  className="input"
+                  required
+                  placeholder="e.g. Technical Architecture Deep-dive"
+                  value={interviewTitle}
+                  onChange={(e) => setInterviewTitle(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Type</label>
+                <select
+                  className="input"
+                  value={interviewType}
+                  onChange={(e) => setInterviewType(e.target.value)}
+                >
+                  {Object.values(InterviewType).map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Date & Time (Required)</label>
+                <input
+                  type="datetime-local"
+                  className="input"
+                  required
+                  value={interviewDate}
+                  onChange={(e) => setInterviewDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Interviewer Name</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="e.g. John Doe, VP Engineering"
+                  value={interviewInterviewer}
+                  onChange={(e) => setInterviewInterviewer(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Location or Video Link</label>
+                <input
+                  type="text"
+                  className="input"
+                  placeholder="Google Meet / Zoom URL"
+                  value={interviewLocation}
+                  onChange={(e) => setInterviewLocation(e.target.value)}
+                />
+              </div>
+              <footer
+                className="modal-footer"
+                style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowAddInterviewModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save Interview
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Offer Modal */}
+      {showOfferModal && (
+        <div className="modal-backdrop">
+          <div className="modal-container" style={{ maxWidth: '500px' }}>
+            <header className="modal-header">
+              <h2 className="modal-title">Record Offer Details</h2>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowOfferModal(false)}>
+                ✕
+              </button>
+            </header>
+            <form
+              onSubmit={handleSaveOffer}
+              className="modal-body"
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+            >
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label className="label">Base Salary</label>
+                  <input
+                    type="number"
+                    className="input"
+                    placeholder="e.g. 175000"
+                    value={offerBase}
+                    onChange={(e) => setOfferBase(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="label">Currency</label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={offerCurrency}
+                    onChange={(e) => setOfferCurrency(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="label">Total Compensation (Annual)</label>
+                <input
+                  type="number"
+                  className="input"
+                  placeholder="e.g. 210000"
+                  value={offerTotal}
+                  onChange={(e) => setOfferTotal(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Offer Status</label>
+                <select
+                  className="input"
+                  value={offerStatus}
+                  onChange={(e) => setOfferStatus(e.target.value)}
+                >
+                  <option value="PENDING">PENDING</option>
+                  <option value="ACCEPTED">ACCEPTED</option>
+                  <option value="DECLINED">DECLINED</option>
+                  <option value="NEGOTIATING">NEGOTIATING</option>
+                  <option value="RESCINDED">RESCINDED</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Decision Deadline</label>
+                <input
+                  type="datetime-local"
+                  className="input"
+                  value={offerDeadline}
+                  onChange={(e) => setOfferDeadline(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Offer Notes & Terms</label>
+                <textarea
+                  className="input"
+                  rows={2}
+                  placeholder="Sign-on bonus, equity terms, start date..."
+                  value={offerNotes}
+                  onChange={(e) => setOfferNotes(e.target.value)}
+                />
+              </div>
+              <footer
+                className="modal-footer"
+                style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowOfferModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Save Offer
+                </button>
+              </footer>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -50,6 +50,20 @@
       "when": 1791134000000,
       "tag": "0006_application_studio",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791136000000,
+      "tag": "0007_application_crm",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791138000000,
+      "tag": "0008_application_lifecycle_canonicalization",
+      "breakpoints": true
     }
   ]
 }

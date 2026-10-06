@@ -50,9 +50,9 @@ This document defines the authoritative macro-task roadmap for AI Job Agent, dir
 
 ### `JOB-P3-T02 — Application CRM, Lifecycle, Audit Timeline & Analytics`
 
-- **Status**: PENDING
-- **Scope**: Application entity, state machine lifecycle, submission metadata, event timeline, recruiter linkage, manual submission logging, outcome tracking, audit history, funnel metrics, and Application Dashboard.
-- **Milestone**: **MVP Milestone** — Completion of `JOB-P3-T02` produces the first complete personal job-application management MVP.
+- **Status**: COMPLETED
+- **Scope**: Application entity, state machine lifecycle with 17 canonical states, frozen submission provenance, event timeline, recruiter linkage, manual submission logging, outcome tracking, sub-entities (notes, contacts, assessments, interviews, offers), funnel metrics, conversion analytics, and Personal ATS Kanban & Table Dashboard.
+- **Milestone**: **MVP Milestone** — Completion of `JOB-P3-T02` achieves the first complete **Personal ATS MVP milestone**.
 
 ---
 

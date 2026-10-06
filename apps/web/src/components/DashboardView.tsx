@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { candidateApi } from '../api/candidate-client.js';
 import { jobApi } from '../api/job-client.js';
 import { applicationPackageClient } from '../api/application-package-client.js';
+import { ApplicationCrmClient } from '../api/application-crm-client.js';
 import type {
   CandidateOverviewDto,
   JobDashboardMetricsDto,
   ApplicationStudioMetricsDto,
+  ApplicationCrmMetricsDto,
 } from '@job-agent/shared';
 
 interface Props {
@@ -16,6 +18,7 @@ export function DashboardView({ onNavigate }: Props) {
   const [overview, setOverview] = useState<CandidateOverviewDto | null>(null);
   const [jobMetrics, setJobMetrics] = useState<JobDashboardMetricsDto | null>(null);
   const [packageMetrics, setPackageMetrics] = useState<ApplicationStudioMetricsDto | null>(null);
+  const [crmMetrics, setCrmMetrics] = useState<ApplicationCrmMetricsDto | null>(null);
   const [auditEvents, setAuditEvents] = useState<
     Array<{
       id: string;
@@ -31,16 +34,19 @@ export function DashboardView({ onNavigate }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const [overviewData, eventsData, metricsData, packageMetricsData] = await Promise.all([
-        candidateApi.getOverview(),
-        candidateApi.getAuditEvents(),
-        jobApi.getMetrics().catch(() => null),
-        applicationPackageClient.getMetrics().catch(() => null),
-      ]);
+      const [overviewData, eventsData, metricsData, packageMetricsData, crmMetricsData] =
+        await Promise.all([
+          candidateApi.getOverview(),
+          candidateApi.getAuditEvents(),
+          jobApi.getMetrics().catch(() => null),
+          applicationPackageClient.getMetrics().catch(() => null),
+          ApplicationCrmClient.getMetrics().catch(() => null),
+        ]);
       setOverview(overviewData);
       setAuditEvents(eventsData.slice(0, 10)); // Top 10 recent
       setJobMetrics(metricsData);
       setPackageMetrics(packageMetricsData);
+      setCrmMetrics(crmMetricsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
@@ -558,6 +564,122 @@ export function DashboardView({ onNavigate }: Props) {
               {packageMetrics?.pendingApprovals ?? 0}
             </div>
             <div className="status-item-meta">Sensitive declarations queue</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Application Lifecycle CRM & Personal ATS (Phase 3 MVP) */}
+      <div className="card">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1rem',
+          }}
+        >
+          <div>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>
+              Application Lifecycle CRM & ATS Pipeline (Phase 3 MVP)
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              Personal ATS state machine, submission audit provenance, interview tracking, offers,
+              and analytics
+            </p>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => onNavigate('applications')}>
+            Open CRM Board →
+          </button>
+        </div>
+
+        <div
+          className="status-grid"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          }}
+        >
+          <div
+            className="status-item"
+            onClick={() => onNavigate('applications')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Active Processes</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#60a5fa' }}>
+              {crmMetrics?.activeProcesses ?? 0}
+            </div>
+            <div className="status-item-meta">Active candidate pipeline</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('applications')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Total Applied</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{crmMetrics?.applied ?? 0}</div>
+            <div className="status-item-meta">Outbound submissions</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('applications')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">In Interview</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#38bdf8' }}>
+              {crmMetrics?.interviews ?? 0}
+            </div>
+            <div className="status-item-meta">Screenings & tech rounds</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('applications')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Offers Received</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#34d399' }}>
+              {crmMetrics?.offers ?? 0}
+            </div>
+            <div className="status-item-meta">Target compensation</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('applications')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Follow-ups Due</div>
+            <div
+              style={{
+                fontSize: '1.4rem',
+                fontWeight: 700,
+                color:
+                  (crmMetrics?.pendingFollowUps ?? 0) > 0 ? '#fbbf24' : 'var(--text-secondary)',
+              }}
+            >
+              {crmMetrics?.pendingFollowUps ?? 0}
+            </div>
+            <div className="status-item-meta">Action required</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('applications')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Follow-ups Overdue</div>
+            <div
+              style={{
+                fontSize: '1.4rem',
+                fontWeight: 700,
+                color:
+                  (crmMetrics?.overdueFollowUps ?? 0) > 0 ? '#f87171' : 'var(--text-secondary)',
+              }}
+            >
+              {crmMetrics?.overdueFollowUps ?? 0}
+            </div>
+            <div className="status-item-meta">Past follow-up date</div>
           </div>
         </div>
       </div>

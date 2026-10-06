@@ -29,3 +29,4 @@ This policy governs the behavior, responsibilities, and operational bounds of AI
    - `npm run typecheck`
    - `npm run test`
    - `npm run build`
+7. **CRM Lifecycle & Provenance Invariants**: Never mutate application lifecycle status or submission provenance arbitrarily; adhere strictly to deterministic state machine rules, frozen submission provenance, and append-only lifecycle event logging.

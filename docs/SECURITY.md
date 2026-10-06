@@ -179,3 +179,32 @@ The Application Studio operationalizes material generation while enforcing rigid
    - Regenerating a package into Version $N + 1$ never overwrites Version $N$; previous documents and questions remain preserved for auditability.
    - Version carry-forward preserves human-approved answers and custom edits into subsequent iterations.
    - Every creation, approval, resolution, regeneration, and export is recorded in `application_package_events`.
+
+---
+
+## 13. Application CRM, Frozen Provenance & Compensation Privacy Boundaries (`JOB-P3-T02`)
+
+The Application CRM manages downstream hiring pipeline records, submission histories, recruiter contacts, and compensation offers while enforcing privacy and immutability controls:
+
+1. **Frozen Submission Provenance**:
+   - Marking an application as `APPLIED` captures and locks `submitted_package_version_id`, `submitted_cv_artifact_id`, and `submitted_cover_letter_artifact_id`.
+   - Even if the candidate later regenerates or modifies the package in the Application Studio, the CRM record retains an immutable historical link to the exact artifacts submitted to the employer.
+   - Direct manual applications without an Application Studio package leave submission artifact references as null without failing or forcing synthetic associations.
+
+2. **Terminal State Protection & Controlled Correction Overrides**:
+   - Terminal outcomes (`REJECTED`, `WITHDRAWN`, `EXPIRED`) cannot be bypassed casually.
+   - Reopening an application or transitioning backwards requires an explicit correction override with `isCorrection: true` and a mandatory `correctionReason`.
+   - Every status mutation is permanently recorded in the append-only `application_lifecycle_events` audit table, capturing previous and new statuses, actor, trigger source, and rationale.
+
+3. **Compensation & Offer Privacy Isolation**:
+   - Sensitive financial compensation details (base salary, bonus, equity, benefits) in `application_offers` are strictly scoped to the primary candidate context.
+   - Compensation offers are never exposed to external crawlers or third-party tracking scripts.
+   - Recruiter and interviewer contact details (`application_contacts`) reside strictly within the local database boundaries.
+
+4. **Multi-Tab & Concurrency Idempotency**:
+   - The database enforces a unique constraint on `(user_id, job_id)` in the `applications` table.
+   - Concurrent requests to track a job return the existing application record (`isExisting: true`), preventing race conditions, orphaned CRM entries, or duplicate tracking rows.
+
+5. **Soft Archiving Protection vs Hard Purge Security Boundary**:
+   - Standard application removals execute soft archiving (`is_archived: true, archived_at: timestamp`), ensuring timeline events, interview notes, and submission provenance remain historically intact and auditable.
+   - Hard deletion (`DELETE /api/applications/:id/purge`) is guarded as a distinct, deliberate operational action reserved exclusively for GDPR/right-to-be-forgotten erasure.

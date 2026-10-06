@@ -134,6 +134,22 @@ The Application Studio orchestrates the generation, tailoring, screening questio
 
 ---
 
+## Application CRM, Lifecycle, Audit Timeline & Analytics (`JOB-P3-T02`)
+
+The Application CRM provides the persistent tracking and management layer for the job application lifecycle—achieving the **Personal ATS MVP milestone**:
+
+- **17 Canonical Lifecycle States**: Full stage tracking across discovery (`DISCOVERED`, `ANALYZED`, `MATCHED`, `SKIPPED`), readiness (`READY_TO_APPLY`, `NEEDS_REVIEW`), submission (`APPLYING`, `APPLIED`, `CONFIRMATION_RECEIVED`), active progression (`SCREENING`, `ASSESSMENT`, `INTERVIEW`, `FINAL_INTERVIEW`, `OFFER`), and terminal states (`REJECTED`, `WITHDRAWN`, `EXPIRED`).
+- **Soft Archiving Protection**: Safe deletion pattern via `is_archived` and `archived_at` preserving historical timeline events and frozen submission provenance without accidental data destruction. Hard purge (`DELETE /api/applications/:id/purge`) is reserved for deliberate privacy erasure.
+- **Deterministic State Machine**: Strictly validated transitions with realistic stage progression and skipping (e.g. `APPLIED` → `INTERVIEW`). Terminal states are protected; accidental terminal transitions require controlled correction overrides with mandatory justification (`isCorrection: true`, `correctionReason`).
+- **Frozen Submission Provenance**: When marking an application as `APPLIED`, the exact package version and generated artifact IDs (`submitted_package_version_id`, `submitted_cv_artifact_id`, `submitted_cover_letter_artifact_id`) are frozen onto the record. Historical submissions remain permanently anchored to the exact documents dispatched even if newer package versions are subsequently generated.
+- **Direct & Manual Application Recording**: Fully supports direct tracking of applications submitted outside the system or without an Application Studio package.
+- **CRM Sub-Entities**: Structured management of candidate notes, recruiter contacts (with roles and contact information), interview rounds, assessments, and compensation offers (with status, base, bonus, and equity details).
+- **Immutable Lifecycle Event Timeline**: Every state change, submission, or correction generates an append-only audit event in `application_lifecycle_events` capturing previous and new statuses, actors, triggers, and reason codes.
+- **Application Funnel Analytics Engine**: Computes conversion metrics across funnel stages with zero-denominator safety (`rate: null`), average time-to-stage durations, and source distribution breakdowns.
+- **Personal ATS User Interface**: Interactive Kanban stage board (`ApplicationsCrmView`) with status grouping, search, filters, and quick mark-applied actions; comprehensive Application Detail inspector (`ApplicationDetailView`) with stage transition toolbar, next action reminders, and sub-entity tabs; and Funnel Analytics modal (`ApplicationAnalyticsModal`).
+
+---
+
 ## Database & Migrations
 
 ```bash
@@ -158,6 +174,6 @@ npm run format      # Check code formatting with Prettier
 
 ## Current Status
 
-- **Macro-Task**: `JOB-P3-T01 — Application Studio, Tailored Materials & Human Approval` (COMPLETED).
-- **Milestone Reached**: Phase 3 Application Studio fully implemented and verified against live PostgreSQL database. Tailored ATS-safe materials, 4-level question resolution, human approval queue, and package readiness state machine are operational.
-- **Next Milestone**: `JOB-P3-T02 — Application CRM, Lifecycle, Audit Timeline & Analytics`.
+- **Macro-Task**: `JOB-P3-T02 — Application CRM, Lifecycle, Audit Timeline & Analytics` (COMPLETED).
+- **Milestone Reached**: **Personal ATS MVP achieved at JOB-P3-T02**. Full application lifecycle tracking, submission provenance, Kanban board, sub-entity management, and funnel analytics operational and verified.
+- **Next Milestone**: `JOB-P4-T01 — Email Intelligence, Job Alerts & Application Status Synchronization`.

@@ -8,6 +8,8 @@ import { ActivityView } from './components/ActivityView.js';
 import { SettingsView } from './components/SettingsView.js';
 import { JobInboxView } from './components/JobInboxView.js';
 import { JobDetailView } from './components/JobDetailView.js';
+import { ApplicationsCrmView } from './components/ApplicationsCrmView.js';
+import { ApplicationDetailView } from './components/ApplicationDetailView.js';
 import { ApplicationPackagesListView } from './components/ApplicationPackagesListView.js';
 import { ApplicationStudioView } from './components/ApplicationStudioView.js';
 import { ApprovalsInboxView } from './components/ApprovalsInboxView.js';
@@ -30,6 +32,8 @@ export default function App() {
   const [profileTab, setProfileTab] = useState<string | undefined>(undefined);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
+  const [applicationsSubView, setApplicationsSubView] = useState<'crm' | 'packages'>('crm');
   const [, setRefreshKey] = useState<number>(0);
 
   const handleNavigate = (section: string, tabOrId?: string) => {
@@ -39,7 +43,13 @@ export default function App() {
     } else if (section === 'jobs') {
       setSelectedJobId(tabOrId || null);
     } else if (section === 'applications') {
-      setSelectedPackageId(tabOrId || null);
+      if (tabOrId) {
+        setSelectedApplicationId(tabOrId);
+        setSelectedPackageId(null);
+      } else {
+        setSelectedApplicationId(null);
+        setSelectedPackageId(null);
+      }
     }
   };
 
@@ -50,7 +60,7 @@ export default function App() {
     { id: 'answers', label: 'Answer Library', tag: 'Rules' },
     { id: 'preferences', label: 'Preferences & Policy', tag: 'Safety' },
     { id: 'jobs', label: 'Job Inbox', tag: 'Active' },
-    { id: 'applications', label: 'Applications', tag: 'Studio' },
+    { id: 'applications', label: 'Applications', tag: 'CRM' },
     { id: 'approvals', label: 'Approvals', tag: 'Review' },
     { id: 'activity', label: 'Audit Log' },
     { id: 'interviews', label: 'Interviews', tag: 'P4' },
@@ -76,7 +86,10 @@ export default function App() {
                   setCurrentSection(item.id);
                   if (item.id === 'profile') setProfileTab(undefined);
                   if (item.id === 'jobs') setSelectedJobId(null);
-                  if (item.id === 'applications') setSelectedPackageId(null);
+                  if (item.id === 'applications') {
+                    setSelectedPackageId(null);
+                    setSelectedApplicationId(null);
+                  }
                 }}
               >
                 <span>{item.label}</span>
@@ -118,6 +131,12 @@ export default function App() {
               onJobUpdated={() => setRefreshKey((k) => k + 1)}
               onPrepareApplication={(pkgId) => {
                 setSelectedPackageId(pkgId);
+                setSelectedApplicationId(null);
+                setCurrentSection('applications');
+              }}
+              onViewApplicationInCrm={(appId) => {
+                setSelectedApplicationId(appId);
+                setSelectedPackageId(null);
                 setCurrentSection('applications');
               }}
             />
@@ -125,9 +144,22 @@ export default function App() {
             <JobInboxView onSelectJob={(id) => setSelectedJobId(id)} />
           ))}
 
-        {/* Phase 3: Application Studio */}
+        {/* Phase 3: Application CRM & Studio */}
         {currentSection === 'applications' &&
-          (selectedPackageId ? (
+          (selectedApplicationId ? (
+            <ApplicationDetailView
+              applicationId={selectedApplicationId}
+              onBack={() => setSelectedApplicationId(null)}
+              onOpenStudio={(pkgId) => {
+                setSelectedPackageId(pkgId);
+                setSelectedApplicationId(null);
+              }}
+              onNavigateToJob={(jId) => {
+                setSelectedJobId(jId);
+                setCurrentSection('jobs');
+              }}
+            />
+          ) : selectedPackageId ? (
             <ApplicationStudioView
               packageId={selectedPackageId}
               onBack={() => setSelectedPackageId(null)}
@@ -135,11 +167,22 @@ export default function App() {
                 setSelectedJobId(jId);
                 setCurrentSection('jobs');
               }}
+              onNavigateToApplication={(appId) => {
+                setSelectedApplicationId(appId);
+                setSelectedPackageId(null);
+              }}
             />
-          ) : (
+          ) : applicationsSubView === 'packages' ? (
             <ApplicationPackagesListView
               onOpenPackage={(pkgId) => setSelectedPackageId(pkgId)}
               onNavigateToJobs={() => setCurrentSection('jobs')}
+              onNavigateToCrm={() => setApplicationsSubView('crm')}
+            />
+          ) : (
+            <ApplicationsCrmView
+              onSelectApplication={(id) => setSelectedApplicationId(id)}
+              onOpenStudio={(pkgId) => setSelectedPackageId(pkgId)}
+              onNavigateToStudioList={() => setApplicationsSubView('packages')}
             />
           ))}
 
@@ -148,6 +191,7 @@ export default function App() {
           <ApprovalsInboxView
             onOpenPackage={(pkgId) => {
               setSelectedPackageId(pkgId);
+              setSelectedApplicationId(null);
               setCurrentSection('applications');
             }}
           />

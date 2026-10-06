@@ -5,9 +5,14 @@ import type { ApplicationPackageDto } from '@job-agent/shared';
 interface Props {
   onOpenPackage: (packageId: string) => void;
   onNavigateToJobs: () => void;
+  onNavigateToCrm?: () => void;
 }
 
-export function ApplicationPackagesListView({ onOpenPackage, onNavigateToJobs }: Props) {
+export function ApplicationPackagesListView({
+  onOpenPackage,
+  onNavigateToJobs,
+  onNavigateToCrm,
+}: Props) {
   const [packages, setPackages] = useState<ApplicationPackageDto[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
@@ -45,15 +50,22 @@ export function ApplicationPackagesListView({ onOpenPackage, onNavigateToJobs }:
           }}
         >
           <div>
-            <h1 className="page-title">Application Packages</h1>
+            <h1 className="page-title">Application Studio Packages</h1>
             <p className="page-subtitle">
               Versioned, grounded application materials, tailored CVs, cover letters, and approval
               states.
             </p>
           </div>
-          <button className="btn btn-primary" onClick={onNavigateToJobs}>
-            + Prepare from Job Inbox
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            {onNavigateToCrm && (
+              <button className="btn btn-secondary" onClick={onNavigateToCrm}>
+                📋 Switch to Application CRM Board
+              </button>
+            )}
+            <button className="btn btn-primary" onClick={onNavigateToJobs}>
+              + Prepare from Job Inbox
+            </button>
+          </div>
         </div>
 
         {/* Filter Pills */}
