@@ -299,7 +299,7 @@ export function DashboardView({ onNavigate }: Props) {
         </div>
       </div>
 
-      {/* Job Ingestion & Inbox Pipeline (Phase 2) */}
+      {/* Job Ingestion & Match Intelligence (Phase 2) */}
       <div className="card">
         <div
           style={{
@@ -311,11 +311,11 @@ export function DashboardView({ onNavigate }: Props) {
         >
           <div>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>
-              Job Ingestion & Inbox (Phase 2)
+              Job Ingestion & Match Intelligence (Phase 2)
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Normalized candidate job search inbox with SSRF protection and deterministic
-              deduplication
+              Normalized job inbox, grounded requirement evaluations, and deterministic policy
+              authorization
             </p>
           </div>
           <button className="btn btn-primary btn-sm" onClick={() => onNavigate('jobs')}>
@@ -326,7 +326,7 @@ export function DashboardView({ onNavigate }: Props) {
         <div
           className="status-grid"
           style={{
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
             marginBottom: '1.25rem',
           }}
         >
@@ -345,11 +345,23 @@ export function DashboardView({ onNavigate }: Props) {
             onClick={() => onNavigate('jobs')}
             style={{ cursor: 'pointer' }}
           >
-            <div className="status-item-label">Ingested & Normalized</div>
+            <div className="status-item-label">Analyzed</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#60a5fa' }}>
+              {jobMetrics?.totalAnalyzed ?? 0}
+            </div>
+            <div className="status-item-meta">Avg: {jobMetrics?.averageMatchScore ?? 0}%</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('jobs')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Matches</div>
             <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#34d399' }}>
-              {jobMetrics?.ingestedJobs ?? 0}
+              {jobMetrics?.matchCount ?? 0}
             </div>
-            <div className="status-item-meta">Ready for Phase 2 matching</div>
+            <div className="status-item-meta">Ready for application</div>
           </div>
 
           <div
@@ -357,11 +369,11 @@ export function DashboardView({ onNavigate }: Props) {
             onClick={() => onNavigate('jobs')}
             style={{ cursor: 'pointer' }}
           >
-            <div className="status-item-label">Needs Review</div>
+            <div className="status-item-label">Review Needed</div>
             <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fbbf24' }}>
-              {jobMetrics?.needsReviewJobs ?? 0}
+              {jobMetrics?.reviewCount ?? 0}
             </div>
-            <div className="status-item-meta">Requires manual attention</div>
+            <div className="status-item-meta">Gaps or unknowns</div>
           </div>
 
           <div
@@ -369,11 +381,11 @@ export function DashboardView({ onNavigate }: Props) {
             onClick={() => onNavigate('jobs')}
             style={{ cursor: 'pointer' }}
           >
-            <div className="status-item-label">Archived</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-              {jobMetrics?.archivedJobs ?? 0}
+            <div className="status-item-label">Policy Skips</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#f87171' }}>
+              {jobMetrics?.skipCount ?? 0}
             </div>
-            <div className="status-item-meta">Closed or declined</div>
+            <div className="status-item-meta">Hard policy blocked</div>
           </div>
         </div>
 
@@ -387,10 +399,10 @@ export function DashboardView({ onNavigate }: Props) {
                 marginBottom: '0.5rem',
               }}
             >
-              RECENTLY INGESTED JOBS
+              RECENT JOBS & MATCH STATUS
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              {jobMetrics.recentJobs.slice(0, 4).map((j) => (
+              {jobMetrics.recentJobs.slice(0, 5).map((j) => (
                 <div
                   key={j.id}
                   style={{
@@ -418,6 +430,24 @@ export function DashboardView({ onNavigate }: Props) {
                     </span>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    {j.matchSummary ? (
+                      <span
+                        className={`status-badge ${
+                          j.matchSummary.decision === 'MATCH'
+                            ? 'ok'
+                            : j.matchSummary.decision === 'REVIEW'
+                              ? 'degraded'
+                              : 'disconnected'
+                        }`}
+                        style={{ fontSize: '0.7rem' }}
+                      >
+                        {j.matchSummary.decision} ({j.matchSummary.overallScore}%)
+                      </span>
+                    ) : (
+                      <span className="nav-tag" style={{ fontSize: '0.7rem' }}>
+                        Unanalyzed
+                      </span>
+                    )}
                     <span className="nav-tag" style={{ fontSize: '0.7rem' }}>
                       {j.provider}
                     </span>

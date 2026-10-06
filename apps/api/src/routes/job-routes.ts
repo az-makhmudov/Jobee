@@ -1,13 +1,20 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { JobService } from '../services/job-service.js';
+import type { MatchService } from '../services/match-service.js';
+import { AppError } from '@job-agent/shared';
 import {
   ingestTextSchema,
   ingestUrlSchema,
   updateJobSchema,
   jobListQuerySchema,
+  analyzeJobSchema,
+  batchAnalyzeSchema,
 } from './job-schemas.js';
 
-export function createJobRoutes(service: JobService): FastifyPluginAsync {
+export function createJobRoutes(
+  service: JobService,
+  matchService?: MatchService,
+): FastifyPluginAsync {
   return async (app) => {
     const getUserId = async () => service.getPrimaryUserId();
 
@@ -53,7 +60,7 @@ export function createJobRoutes(service: JobService): FastifyPluginAsync {
     app.post('/jobs/ingest/url', handleIngestUrl);
     app.post('/jobs/url', handleIngestUrl);
 
-    // --- Dashboard Ingestion Metrics ---
+    // --- Dashboard Ingestion & Matching Metrics ---
     app.get('/jobs/metrics', async () => {
       const userId = await getUserId();
       const metrics = await service.getDashboardMetrics(userId);
@@ -65,6 +72,15 @@ export function createJobRoutes(service: JobService): FastifyPluginAsync {
       const userId = await getUserId();
       const query = jobListQuerySchema.parse(req.query);
       const result = await service.getJobs(userId, query);
+      return { status: 'ok', data: result, timestamp: new Date().toISOString() };
+    });
+
+    // --- Batch Analyze Jobs ---
+    app.post<{ Body?: unknown }>('/jobs/analyze', async (req) => {
+      if (!matchService) throw AppError.internal('Match service is not initialized');
+      const userId = await getUserId();
+      const body = batchAnalyzeSchema.parse(req.body ?? {});
+      const result = await matchService.batchAnalyzeJobs(userId, body);
       return { status: 'ok', data: result, timestamp: new Date().toISOString() };
     });
 
@@ -93,6 +109,31 @@ export function createJobRoutes(service: JobService): FastifyPluginAsync {
         return { status: 'ok', data: archived, timestamp: new Date().toISOString() };
       },
     );
+
+    // --- Match Intelligence: Analyze Single Job ---
+    app.post<{ Params: { id: string }; Body?: { force?: boolean } }>(
+      '/jobs/:id/analyze',
+      async (req) => {
+        if (!matchService) throw AppError.internal('Match service is not initialized');
+        const userId = await getUserId();
+        const body = analyzeJobSchema.parse(req.body ?? {});
+        const analysis = await matchService.analyzeJob(req.params.id, userId, {
+          force: body.force,
+        });
+        return { status: 'ok', data: analysis, timestamp: new Date().toISOString() };
+      },
+    );
+
+    // --- Match Intelligence: Get Latest Job Analysis ---
+    app.get<{ Params: { id: string } }>('/jobs/:id/analysis', async (req) => {
+      if (!matchService) throw AppError.internal('Match service is not initialized');
+      const userId = await getUserId();
+      const analysis = await matchService.getJobAnalysis(req.params.id, userId);
+      if (!analysis) {
+        throw AppError.notFound(`No match analysis found for job ${req.params.id}`);
+      }
+      return { status: 'ok', data: analysis, timestamp: new Date().toISOString() };
+    });
 
     // --- Provenance & Sources ---
     app.get<{ Params: { id: string } }>('/jobs/:id/sources', async (req) => {

@@ -223,7 +223,110 @@ The `ExtractorRegistry` matches target pages to specialized parsers:
 
 ---
 
-## 6. Future Architecture Isolation (Playwright Browser Worker)
+## 6. Requirement Analysis, Matching & Policy Decision Engine (`JOB-P2-T02`)
+
+The matching engine evaluates job suitability against the Candidate Brain using deterministic policy rules, grounded evidence resolution, and dimensional scoring, with optional AI semantic enrichment.
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                        Candidate Brain & Job Data                      │
+│   (Verified Facts only, allowAiUse=true, Preferences, Policy, Job)     │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                       MatchingContextBuilder
+                      (State Hashing & Evidence Map)
+                                    │
+                                    ├───> HardPolicyEngine (Deterministic Blockers)
+                                    │     - Excluded Companies / Keywords
+                                    │     - Work Mode / Location Mismatch
+                                    │     - Unpaid Roles / Salary Thresholds
+                                    │     - Sponsorship / Sensitive Policies
+                                    │
+                                    ├───> CandidateEvidenceResolver (Grounded Mapping)
+                                    │     - Skills (exact, alias, fuzzy)
+                                    │     - Languages (CEFR ranks A1-C2)
+                                    │     - Experience duration aggregation
+                                    │     - Education & Certifications
+                                    │
+                                    ├───> [Optional] AI Provider Abstraction
+                                    │     - GeminiAiProvider / MockAiProvider
+                                    │     - validator.ts: Strips hallucinated IDs
+                                    │
+                                    ▼
+                        MatchingScoringEngine (v1.0.0)
+     ┌──────────────────────────────────────────────────────────────┐
+     │ - 8 Dimensions: Role, Skills, Exp, Edu, Loc, Lang, Comp, Auth│
+     │ - Dynamic Re-weighting for UNKNOWN/N/A dimensions             │
+     │ - Mandatory requirement penalties                            │
+     │ - Composite Score (0-100) & Confidence Score (0-100)         │
+     │ - Deterministic Decision: MATCH / REVIEW / SKIP              │
+     │ - Preliminary Auto-Apply Eligibility Check (never auto-fires)│
+     └──────────────────────────────┬───────────────────────────────┘
+                                    │
+                               MatchService
+                (Transactional Persistence & Staleness Tracking)
+                                    │
+     ┌──────────────────────────────┴───────────────────────────────┐
+     ▼                                                             ▼
+job_match_analyses                              job_requirement_evaluations
+(overallScore, confidence, decision,             (status: MET/PARTIAL/NOT_MET,
+ autoApplyEligible, fingerprint, isStale)         grounded evidenceIds, reason)
+```
+
+### 6.1. Core Invariant & Grounded Evidence Resolution
+
+- **Prime Invariant Enforced**: AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable.
+- **Zero Hallucinated Candidate Facts**: LLM responses cannot invent qualifications. The `validator.ts` module checks every evidence ID returned by the AI against the pre-compiled `candidateContext` evidence whitelist. Any invalid or invented evidence ID is stripped; if an AI claims `MET` with zero valid evidence, the evaluation is automatically demoted to `UNKNOWN`.
+- **Deterministic Evidence Mapping**: Candidate evidence items (`candidate_skill:<id>`, `candidate_experience:<id>`, `candidate_language:<id>`, `candidate_education:<id>`, `candidate_certification:<id>`) are tracked with clear types and human-readable labels and displayed as evidence pills in the UI.
+
+### 6.2. Deterministic Hard Policy Engine
+
+- **Automated SKIP**: Evaluates deterministic rules that immediately disqualify a job from application:
+  - `EXCLUDED_COMPANY`: Direct or substring match with candidate's excluded company list.
+  - `EXCLUDED_KEYWORD`: Prohibited keywords found in title or description.
+  - `WORK_MODE_NOT_ALLOWED`: Job workplace mode (e.g. ONSITE) not in candidate's allowed modes (when relocation is not accepted).
+  - `UNPAID_ROLE_REJECTED`: Unpaid or volunteer roles rejected when `acceptUnpaid: false`.
+  - `SALARY_BELOW_MINIMUM`: Maximum posted salary is below candidate's minimum required threshold.
+  - `SPONSORSHIP_CONFLICT`: Job forbids sponsorship when candidate explicitly requires it.
+- **Unknown-Sensitive Escalation**: When critical policy data is missing or ambiguous (e.g. unknown relocation willingness, unstated clearance, or unverified sensitive facts), the policy engine flags `POLICY_INFORMATION_MISSING` and forces a `REVIEW` decision rather than guessing.
+
+### 6.3. Versioned Dimensional Scoring Engine (`1.0.0`)
+
+- **8 Core Dimensions**:
+  1. `ROLE_FIT` (default weight: 25)
+  2. `SKILLS_FIT` (default weight: 25)
+  3. `EXPERIENCE_FIT` (default weight: 20)
+  4. `EDUCATION_FIT` (default weight: 10)
+  5. `LOCATION_FIT` (default weight: 10)
+  6. `LANGUAGE_FIT` (default weight: 10)
+  7. `COMPENSATION_FIT` (default weight: 15)
+  8. `WORK_AUTHORIZATION_FIT` (default weight: 20)
+- **Dynamic Re-Weighting**: When a dimension is unstated or unknown (e.g. unlisted salary in `COMPENSATION_FIT`), its weight is omitted from the denominator so that known dimensions re-normalize to 100% without penalizing the candidate.
+- **Mandatory Penalty**: If any mandatory job requirement is `NOT_MET`, a penalty (-20 points) is applied, capping the score and preventing false positives.
+- **Confidence Scoring**: Computed (0-100) based on requirement evaluation completeness, scored dimension ratio, profile completeness, and job description depth.
+- **Decision Thresholds**:
+  - `SKIP`: Hard policy blocker present, or overall score < `minScoreForReview` with confidence >= 50.
+  - `REVIEW`: Fit score between review and match threshold, low confidence (< 60), unmet mandatory requirements, or missing sensitive policy info.
+  - `MATCH`: Overall score >= `autoApplyMinScore`, confidence >= 60, zero hard blockers, zero unmet mandatory requirements.
+- **Preliminary Auto-Apply Eligibility**: Conservative check requiring `autoApplyEnabled = true`, `decision === 'MATCH'`, score >= threshold, confidence >= 70, zero blockers. Serves purely as a eligibility gate; auto-apply never submits automatically.
+
+### 6.4. State Fingerprinting & Staleness Detection
+
+- **SHA-256 Input Fingerprint**: Hashes candidate profile, preferences, policy, verified credentials, and job posting data.
+- **Reactive Staleness Invalidation**: When candidate credentials or preferences are updated, or when job fields are corrected via `PUT /api/jobs/:id`, existing analyses are marked `isStale: true` and surfaced with a warning banner and re-analyze prompt in the UI.
+
+### 6.5. AI Provider Abstraction
+
+- **`AiProvider` Interface**: Defines `isAvailable(): boolean` and `analyzeMatch(context: AiMatchContext): Promise<AiMatchResult>`.
+- **Implementations**:
+  - `DisabledAiProvider`: Safe fallback when no provider is configured (`AI_PROVIDER=disabled`).
+  - `MockAiProvider`: Deterministic provider for automated test suites.
+  - `GeminiAiProvider`: Native REST integration with Gemini API, enforcing strict timeouts, error recovery, and Zod output parsing.
+- **Privacy Boundary**: Only verified candidate facts with `allowAiUse: true` are shared with the AI provider.
+
+---
+
+## 7. Future Architecture Isolation (Playwright Browser Worker)
 
 When browser automation (JOB-P5-T01 / JOB-P5-T02) is implemented:
 

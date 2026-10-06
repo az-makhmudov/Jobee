@@ -18,3 +18,6 @@ export * from './job-sources.js';
 export * from './job-requirements.js';
 export * from './job-sections.js';
 export * from './job-events.js';
+export * from './job-match-analyses.js';
+export * from './job-requirement-evaluations.js';
+export * from './job-match-dimensions.js';

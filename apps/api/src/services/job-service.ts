@@ -1,4 +1,4 @@
-import { eq, desc, and, or, ilike, count, sql } from 'drizzle-orm';
+import { eq, desc, and, or, ilike, count, sql, inArray } from 'drizzle-orm';
 import type { Database } from '@job-agent/database';
 import {
   jobs,
@@ -6,6 +6,7 @@ import {
   jobRequirements,
   jobSections,
   jobEvents,
+  jobMatchAnalyses,
   type Job,
   type NewJob,
 } from '@job-agent/database';
@@ -13,6 +14,7 @@ import {
   AppError,
   type JobDto,
   type JobSummaryDto,
+  type JobMatchSummaryDto,
   type JobListQuery,
   type JobPaginationResult,
   type IngestJobTextRequest,
@@ -490,50 +492,136 @@ export class JobService {
 
     const whereClause = and(...conditions);
 
-    // Count total
-    const [countRow] = await this.db.select({ val: count() }).from(jobs).where(whereClause);
-    const total = Number(countRow?.val || 0);
-
-    // Query paginated items
-    const rows = await this.db.query.jobs.findMany({
+    // Query all matching jobs
+    const allMatchingJobs = await this.db.query.jobs.findMany({
       where: whereClause,
       orderBy: [desc(jobs.discoveredDate)],
-      limit,
-      offset,
     });
 
-    const items: JobSummaryDto[] = await Promise.all(
-      rows.map(async (r) => {
-        const [reqCount] = await this.db
-          .select({ val: count() })
-          .from(jobRequirements)
-          .where(eq(jobRequirements.jobId, r.id));
+    // Fetch latest match analysis for all returned jobs
+    const allJobIds = allMatchingJobs.map((j) => j.id);
+    const analyses =
+      allJobIds.length > 0
+        ? await this.db.query.jobMatchAnalyses.findMany({
+            where: and(
+              eq(jobMatchAnalyses.userId, userId),
+              inArray(jobMatchAnalyses.jobId, allJobIds),
+            ),
+            orderBy: [desc(jobMatchAnalyses.createdAt)],
+          })
+        : [];
 
-        return {
-          id: r.id,
-          state: r.state as JobState,
-          title: r.title,
-          company: r.company,
-          locationText: r.locationText,
-          city: r.city,
-          country: r.country,
-          workplaceType: r.workplaceType as WorkplaceType,
-          employmentType: r.employmentType as EmploymentType,
-          seniority: r.seniority as SeniorityLevel,
-          provider: r.provider as JobProvider,
-          department: r.department,
-          minSalary: r.minSalary,
-          maxSalary: r.maxSalary,
-          currency: r.currency,
-          payPeriod: r.payPeriod as PayPeriod | null,
-          originalUrl: r.originalUrl,
-          discoveredDate: r.discoveredDate.toISOString(),
-          isDuplicate: r.isDuplicate,
-          hasManualEdits: r.hasManualEdits,
-          requirementCount: Number(reqCount?.val || 0),
-        };
-      }),
-    );
+    const latestAnalysisMap = new Map<string, (typeof analyses)[0]>();
+    for (const a of analyses) {
+      if (!latestAnalysisMap.has(a.jobId)) {
+        latestAnalysisMap.set(a.jobId, a);
+      }
+    }
+
+    // Filter by match intelligence if requested
+    const filteredJobs = allMatchingJobs.filter((r) => {
+      const match = latestAnalysisMap.get(r.id);
+
+      if (query.decision) {
+        if (query.decision === 'UNANALYZED') {
+          if (match) return false;
+        } else {
+          if (!match || match.decision !== query.decision) return false;
+        }
+      }
+
+      if (query.minScore !== undefined) {
+        if (!match || match.overallScore < query.minScore) return false;
+      }
+
+      if (query.maxScore !== undefined) {
+        if (!match || match.overallScore > query.maxScore) return false;
+      }
+
+      if (query.minConfidence !== undefined) {
+        if (!match || match.confidenceScore < query.minConfidence) return false;
+      }
+
+      if (query.isStale !== undefined) {
+        if (!match || match.isStale !== query.isStale) return false;
+      }
+
+      return true;
+    });
+
+    // Sort
+    const sortOrder = query.sortOrder === 'asc' ? 1 : -1;
+    if (query.sortBy === 'score') {
+      filteredJobs.sort((a, b) => {
+        const scoreA = latestAnalysisMap.get(a.id)?.overallScore ?? -1;
+        const scoreB = latestAnalysisMap.get(b.id)?.overallScore ?? -1;
+        return (scoreA - scoreB) * sortOrder;
+      });
+    } else if (query.sortBy === 'confidence') {
+      filteredJobs.sort((a, b) => {
+        const confA = latestAnalysisMap.get(a.id)?.confidenceScore ?? -1;
+        const confB = latestAnalysisMap.get(b.id)?.confidenceScore ?? -1;
+        return (confA - confB) * sortOrder;
+      });
+    } else if (query.sortBy === 'title') {
+      filteredJobs.sort((a, b) => a.title.localeCompare(b.title) * sortOrder);
+    } else if (query.sortBy === 'company') {
+      filteredJobs.sort((a, b) => a.company.localeCompare(b.company) * sortOrder);
+    }
+
+    const total = filteredJobs.length;
+    const paginated = filteredJobs.slice(offset, offset + limit);
+
+    // Get requirement counts
+    const paginatedIds = paginated.map((p) => p.id);
+    const reqCounts =
+      paginatedIds.length > 0
+        ? await this.db
+            .select({ jobId: jobRequirements.jobId, val: count() })
+            .from(jobRequirements)
+            .where(inArray(jobRequirements.jobId, paginatedIds))
+            .groupBy(jobRequirements.jobId)
+        : [];
+    const reqCountMap = new Map(reqCounts.map((rc) => [rc.jobId, Number(rc.val)]));
+
+    const items: JobSummaryDto[] = paginated.map((r) => {
+      const match = latestAnalysisMap.get(r.id);
+      const matchSummary: JobMatchSummaryDto | null = match
+        ? {
+            overallScore: match.overallScore,
+            confidenceScore: match.confidenceScore,
+            decision: match.decision as any,
+            isStale: match.isStale,
+            analysisMode: match.analysisMode as any,
+            analyzedAt: match.createdAt.toISOString(),
+          }
+        : null;
+
+      return {
+        id: r.id,
+        state: r.state as JobState,
+        title: r.title,
+        company: r.company,
+        locationText: r.locationText,
+        city: r.city,
+        country: r.country,
+        workplaceType: r.workplaceType as WorkplaceType,
+        employmentType: r.employmentType as EmploymentType,
+        seniority: r.seniority as SeniorityLevel,
+        provider: r.provider as JobProvider,
+        department: r.department,
+        minSalary: r.minSalary,
+        maxSalary: r.maxSalary,
+        currency: r.currency,
+        payPeriod: r.payPeriod as PayPeriod | null,
+        originalUrl: r.originalUrl,
+        discoveredDate: r.discoveredDate.toISOString(),
+        isDuplicate: r.isDuplicate,
+        hasManualEdits: r.hasManualEdits,
+        requirementCount: reqCountMap.get(r.id) ?? 0,
+        matchSummary,
+      };
+    });
 
     return {
       items,
@@ -694,8 +782,17 @@ export class JobService {
       .set(updateData)
       .where(and(eq(jobs.id, id), eq(jobs.userId, userId)));
 
+    // Invalidate match analysis if job content changed
+    await this.db
+      .update(jobMatchAnalyses)
+      .set({ isStale: true })
+      .where(and(eq(jobMatchAnalyses.jobId, id), eq(jobMatchAnalyses.userId, userId)));
+
     await this.recordJobEvent(userId, id, 'JOB_UPDATED', changedKeys as string[], {
       manualEdit: true,
+    });
+    await this.recordJobEvent(userId, id, 'JOB_ANALYSIS_STALE', ['manualEdit'], {
+      reason: 'Manual edits modified job content',
     });
 
     return this.getJobById(userId, id);
@@ -721,7 +818,7 @@ export class JobService {
     return this.getJobById(userId, id);
   }
 
-  // --- Dashboard Ingestion Metrics ---
+  // --- Dashboard Ingestion & Matching Metrics ---
   public async getDashboardMetrics(userId: string): Promise<JobDashboardMetricsDto> {
     const allJobs = await this.db.query.jobs.findMany({
       where: eq(jobs.userId, userId),
@@ -748,6 +845,38 @@ export class JobService {
       workplaceCounts[j.workplaceType] = (workplaceCounts[j.workplaceType] || 0) + 1;
     }
 
+    // Query matching metrics
+    const allAnalyses = await this.db.query.jobMatchAnalyses.findMany({
+      where: eq(jobMatchAnalyses.userId, userId),
+      orderBy: [desc(jobMatchAnalyses.createdAt)],
+    });
+
+    const latestAnalysisByJob = new Map<string, (typeof allAnalyses)[0]>();
+    for (const a of allAnalyses) {
+      if (!latestAnalysisByJob.has(a.jobId)) {
+        latestAnalysisByJob.set(a.jobId, a);
+      }
+    }
+
+    let totalAnalyzed = 0;
+    let matchCount = 0;
+    let reviewCount = 0;
+    let skipCount = 0;
+    let totalScore = 0;
+    let staleAnalysisCount = 0;
+
+    for (const a of latestAnalysisByJob.values()) {
+      totalAnalyzed++;
+      if (a.decision === 'MATCH') matchCount++;
+      else if (a.decision === 'REVIEW') reviewCount++;
+      else if (a.decision === 'SKIP') skipCount++;
+
+      totalScore += a.overallScore;
+      if (a.isStale) staleAnalysisCount++;
+    }
+
+    const averageMatchScore = totalAnalyzed > 0 ? Math.round(totalScore / totalAnalyzed) : 0;
+
     const recent = await this.getJobs(userId, { limit: 5, includeArchived: true });
 
     return {
@@ -757,6 +886,12 @@ export class JobService {
       needsReviewJobs,
       failedIngestions,
       archivedJobs,
+      totalAnalyzed,
+      matchCount,
+      reviewCount,
+      skipCount,
+      averageMatchScore,
+      staleAnalysisCount,
       providerCounts,
       workplaceCounts,
       recentJobs: recent.items,

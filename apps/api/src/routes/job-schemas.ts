@@ -78,4 +78,25 @@ export const jobListQuerySchema = z.object({
   company: z.string().trim().optional(),
   search: z.string().trim().optional(),
   includeArchived: z.coerce.boolean().optional().default(false),
+  decision: z.enum(['MATCH', 'REVIEW', 'SKIP', 'UNANALYZED']).optional(),
+  minScore: z.coerce.number().int().min(0).max(100).optional(),
+  maxScore: z.coerce.number().int().min(0).max(100).optional(),
+  minConfidence: z.coerce.number().int().min(0).max(100).optional(),
+  isStale: z.coerce.boolean().optional(),
+  sortBy: z
+    .enum(['discoveredDate', 'score', 'confidence', 'title', 'company'])
+    .optional()
+    .default('discoveredDate'),
+  sortOrder: z.enum(['asc', 'desc']).optional().default('desc'),
+});
+
+export const analyzeJobSchema = z.object({
+  force: z.boolean().optional().default(false),
+});
+
+export const batchAnalyzeSchema = z.object({
+  jobIds: z.array(z.string().uuid()).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(10),
+  force: z.boolean().optional().default(false),
+  unanalyzedOnly: z.boolean().optional().default(false),
 });

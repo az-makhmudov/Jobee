@@ -7,6 +7,9 @@ import type {
   IngestJobUrlRequest,
   UpdateJobRequest,
   JobDashboardMetricsDto,
+  JobMatchAnalysisDto,
+  BatchAnalysisRequest,
+  BatchAnalysisResultDto,
 } from '@job-agent/shared';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -93,6 +96,14 @@ export const jobApi = {
     if (query?.company) params.append('company', query.company);
     if (query?.search) params.append('search', query.search);
     if (query?.includeArchived) params.append('includeArchived', 'true');
+    if (query?.decision) params.append('decision', query.decision);
+    if (query?.minScore !== undefined) params.append('minScore', String(query.minScore));
+    if (query?.maxScore !== undefined) params.append('maxScore', String(query.maxScore));
+    if (query?.minConfidence !== undefined)
+      params.append('minConfidence', String(query.minConfidence));
+    if (query?.isStale !== undefined) params.append('isStale', String(query.isStale));
+    if (query?.sortBy) params.append('sortBy', query.sortBy);
+    if (query?.sortOrder) params.append('sortOrder', query.sortOrder);
 
     const qs = params.toString();
     const endpoint = `/jobs${qs ? `?${qs}` : ''}`;
@@ -123,5 +134,26 @@ export const jobApi = {
   // Get dashboard ingestion metrics
   getMetrics: async (): Promise<JobDashboardMetricsDto> => {
     return request<JobDashboardMetricsDto>('/jobs/metrics');
+  },
+
+  // Run match analysis for a job
+  analyzeJob: async (id: string, force?: boolean): Promise<JobMatchAnalysisDto> => {
+    return request<JobMatchAnalysisDto>(`/jobs/${id}/analyze`, {
+      method: 'POST',
+      body: JSON.stringify({ force }),
+    });
+  },
+
+  // Get match analysis for a job
+  getJobAnalysis: async (id: string): Promise<JobMatchAnalysisDto> => {
+    return request<JobMatchAnalysisDto>(`/jobs/${id}/analysis`);
+  },
+
+  // Batch analyze jobs
+  batchAnalyzeJobs: async (data: BatchAnalysisRequest): Promise<BatchAnalysisResultDto> => {
+    return request<BatchAnalysisResultDto>('/jobs/analyze', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 };

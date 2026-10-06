@@ -30,6 +30,10 @@ export const envSchema = z
     WEB_ORIGIN: z.string().default('http://localhost:5173'),
     LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'fatal']).default('info'),
     WORKER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
+    AI_PROVIDER: z.enum(['disabled', 'gemini', 'openai']).default('disabled'),
+    AI_API_KEY: z.string().optional(),
+    GEMINI_API_KEY: z.string().optional(),
+    AI_MODEL: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production' && (!data.DATABASE_URL || data.DATABASE_URL.trim() === '')) {

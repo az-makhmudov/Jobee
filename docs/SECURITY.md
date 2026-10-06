@@ -123,3 +123,23 @@ To protect against persistent secondary injection, data leakage, and database bl
 1. **Discard on Success**: The raw downloaded HTML payload (`raw_payload`) is set to `null` in PostgreSQL `job_sources` upon successful extraction and normalization.
 2. **Preservation of Safe Text & URLs**: The normalized `raw_text`, parsed job sections, categorized requirements, and canonical URL are preserved for auditing and manual corrections, but untrusted raw DOM payloads are never permanently retained in the database.
 3. **Audit Log Hygiene**: Job audit events (`job_events`) log operational metadata without storing raw HTML payloads.
+
+---
+
+## 11. Matching Intelligence & Grounded Evidence Security (`JOB-P2-T02`)
+
+The requirement analysis and matching engine introduces strict security and anti-hallucination controls:
+
+1. **Anti-Hallucination Ground-Truth Verification**:
+   - The AI provider response validator (`validator.ts`) compiles an immutable whitelist of verified candidate evidence IDs (`candidate_skill:<id>`, `candidate_experience:<id>`, `candidate_education:<id>`, `candidate_language:<id>`, `candidate_certification:<id>`, `candidate_fact:<id>`).
+   - Any evidence ID returned by an AI provider that does not exist in this whitelist is immediately stripped.
+   - If an AI provider marks a requirement as `MET` or `PARTIAL` based entirely on hallucinated or unverifiable evidence IDs, the evaluation status is automatically demoted to `UNKNOWN`, and an audit note is appended.
+2. **Privacy-Minimized Context Extraction**:
+   - Before compiling the AI context, `MatchingContextBuilder` filters candidate facts strictly gating on `verificationStatus = 'VERIFIED'` and `allowAiUse = true`. Unverified or non-consented candidate facts are completely excluded from AI prompts.
+3. **Deterministic Authorization Gate**:
+   - Under no circumstances does an LLM authorize a job decision or submission. The hard policy engine and versioned scoring engine govern decisions (`MATCH`, `REVIEW`, `SKIP`).
+   - Preliminary auto-apply eligibility requires strict deterministic rule satisfaction (`autoApplyEnabled = true`, `decision === 'MATCH'`, score >= threshold, confidence >= 70, zero hard blockers, zero unmet mandatory requirements) and serves only as an eligibility gate. It never triggers automated submission without human confirmation.
+4. **Bounded Batch Resource Defense**:
+   - Batch analysis requests (`POST /api/jobs/analyze`) enforce a bounded limit (default 10, maximum 50) and per-job error isolation, preventing process denial-of-service, memory spikes, or cascading failures across job postings.
+5. **Deterministic State Fingerprinting**:
+   - Computes SHA-256 `inputFingerprint` over candidate profile state + job data. Any modification to candidate facts, preferences, or job fields reactively flags stored analyses as `isStale: true` to prevent decision-making on out-of-date intelligence.

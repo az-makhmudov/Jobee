@@ -271,13 +271,93 @@ To guarantee idempotent ingestion across repeated URL fetches or text pastes:
 
 ---
 
-## 5. Deferred Domain Schemas
+## 5. Requirement Analysis, Matching & Policy Decision Engine (`JOB-P2-T02`)
+
+Implements the intelligence and policy authorization layer evaluating job suitability against Candidate Brain credentials and preferences.
+
+### 5.1. `job_match_analyses` (Overall Match Analyses)
+
+Records versioned composite match analyses, policy decisions, and state hashes:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `job_id`: UUID NOT NULL (Foreign Key -> `jobs.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `overall_score`: INTEGER NOT NULL (Composite score 0-100)
+- `confidence_score`: INTEGER NOT NULL (Confidence score 0-100)
+- `decision`: TEXT NOT NULL — `'MATCH' | 'REVIEW' | 'SKIP'`
+- `auto_apply_eligible`: BOOLEAN NOT NULL (Default: false — preliminary eligibility only, never auto-submitted)
+- `analysis_mode`: TEXT NOT NULL (Default: `'DETERMINISTIC_ONLY'`) — `'DETERMINISTIC_ONLY' | 'AI_ENRICHED'`
+- `algorithm_version`: TEXT NOT NULL (Default: `'1.0.0'`)
+- `input_fingerprint`: TEXT NOT NULL (SHA-256 state hash of candidate + job data)
+- `is_stale`: BOOLEAN NOT NULL (Default: false)
+- `ai_provider`: TEXT (Nullable, e.g. `'gemini' | 'mock'`)
+- `ai_model`: TEXT (Nullable, e.g. `'gemini-1.5-flash'`)
+- `strengths`: JSONB NOT NULL (Default: `[]` — string array of key strengths)
+- `gaps`: JSONB NOT NULL (Default: `[]` — string array of identified gaps)
+- `unknowns`: JSONB NOT NULL (Default: `[]` — string array of unstated/missing criteria)
+- `warnings`: JSONB NOT NULL (Default: `[]` — string array of warnings)
+- `hard_blockers`: JSONB NOT NULL (Default: `[]` — string array of policy violations)
+- `reason_codes`: JSONB NOT NULL (Default: `[]` — string array of decision reason codes)
+- `summary_explanation`: TEXT NOT NULL
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `job_match_analyses_user_decision_idx` on `(user_id, decision)`
+- `job_match_analyses_job_user_idx` on `(job_id, user_id)`
+- `job_match_analyses_fingerprint_idx` on `(input_fingerprint)`
+- `job_match_analyses_stale_idx` on `(is_stale)`
+
+### 5.2. `job_match_dimensions` (Dimensional Fit Breakdown)
+
+Breaks down compatibility across 8 discrete dimensions:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `analysis_id`: UUID NOT NULL (Foreign Key -> `job_match_analyses.id`, CASCADE delete)
+- `job_id`: UUID NOT NULL (Foreign Key -> `jobs.id`, CASCADE delete)
+- `dimension`: TEXT NOT NULL — `'ROLE_FIT' | 'SKILLS_FIT' | 'EXPERIENCE_FIT' | 'EDUCATION_FIT' | 'LOCATION_FIT' | 'LANGUAGE_FIT' | 'COMPENSATION_FIT' | 'WORK_AUTHORIZATION_FIT'`
+- `score`: INTEGER (Nullable, 0-100; null if unknown or not applicable)
+- `weight`: INTEGER NOT NULL (Nominal dimension weight, e.g. 25, 20, 15, 10)
+- `status`: TEXT NOT NULL (Default: `'SCORED'`) — `'SCORED' | 'UNKNOWN' | 'NOT_APPLICABLE'`
+- `reason`: TEXT NOT NULL
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `job_match_dimensions_analysis_idx` on `(analysis_id)`
+- `job_match_dimensions_job_dimension_idx` on `(job_id, dimension)`
+
+### 5.3. `job_requirement_evaluations` (Grounded Requirement Evaluations)
+
+Maps individual job requirements deterministically to candidate evidence:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `analysis_id`: UUID NOT NULL (Foreign Key -> `job_match_analyses.id`, CASCADE delete)
+- `job_requirement_id`: UUID NOT NULL (Foreign Key -> `job_requirements.id`, CASCADE delete)
+- `job_id`: UUID NOT NULL (Foreign Key -> `jobs.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `status`: TEXT NOT NULL — `'MET' | 'PARTIAL' | 'NOT_MET' | 'UNKNOWN' | 'NOT_APPLICABLE'`
+- `source`: TEXT NOT NULL (Default: `'DETERMINISTIC'`) — `'DETERMINISTIC' | 'AI_ENRICHED'`
+- `evidence_ids`: JSONB NOT NULL (Default: `[]` — array of candidate evidence IDs, e.g. `['candidate_skill:uuid']`)
+- `evidence_items`: JSONB NOT NULL (Default: `[]` — array of structured evidence objects with `id`, `type`, `label`)
+- `reason`: TEXT NOT NULL
+- `confidence`: INTEGER NOT NULL (Default: 50, range 0-100)
+- `contributes_to_blocker`: BOOLEAN NOT NULL (Default: false)
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `job_requirement_evals_analysis_idx` on `(analysis_id)`
+- `job_requirement_evals_job_req_idx` on `(job_id, job_requirement_id)`
+- `job_requirement_evals_status_idx` on `(status)`
+
+---
+
+## 6. Deferred Domain Schemas
 
 The following entities are explicitly deferred until their respective macro-tasks:
 
-- **Matching & Decision Engine (`JOB-P2-T02`)**:
-  - `job_scores`
-  - `job_decisions`
 - **Application Workflow (`JOB-P3-T01` / `JOB-P3-T02`)**:
   - `applications`
   - `application_packages`
@@ -291,7 +371,7 @@ The following entities are explicitly deferred until their respective macro-task
 
 ---
 
-## 6. Migration Strategy
+## 7. Migration Strategy
 
 1. **Generator**: Drizzle Kit inspects TypeScript schemas in `packages/database/src/schema/` and outputs pure SQL migration files into `packages/database/drizzle/`.
    - Command: `npm run db:generate`
@@ -310,3 +390,4 @@ The following entities are explicitly deferred until their respective macro-task
 - `0002_audit_privacy.sql`: Candidate audit privacy refactor — replaces broad `details` snapshot column with `changed_fields` string array and safe operational `metadata` JSONB.
 - `0003_jobs_foundation.sql`: Job Ingestion, parsing, normalization, and provenance schema (`jobs`, `job_sources`, `job_requirements`, `job_sections`, `job_events`).
 - `0004_job_requirements_source_context.sql`: Additive hardening for job requirements (`source_id` foreign key to `job_sources.id` and `source_section` text column for provenance tracking).
+- `0005_matching_intelligence.sql`: Additive schema for Requirement Analysis, Matching & Policy Decision Engine (`job_match_analyses`, `job_match_dimensions`, `job_requirement_evaluations`).

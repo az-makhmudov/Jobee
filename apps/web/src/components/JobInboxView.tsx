@@ -6,6 +6,7 @@ import type {
   JobState,
   JobProvider,
   JobDashboardMetricsDto,
+  MatchDecision,
 } from '@job-agent/shared';
 
 interface Props {
@@ -17,11 +18,20 @@ export function JobInboxView({ onSelectJob }: Props) {
   const [metrics, setMetrics] = useState<JobDashboardMetricsDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [analyzingJobId, setAnalyzingJobId] = useState<string | null>(null);
+  const [batchAnalyzing, setBatchAnalyzing] = useState(false);
+  const [batchNotice, setBatchNotice] = useState<string | null>(null);
 
   // Filters
   const [search, setSearch] = useState('');
   const [stateFilter, setStateFilter] = useState<JobState | ''>('');
   const [providerFilter, setProviderFilter] = useState<JobProvider | ''>('');
+  const [decisionFilter, setDecisionFilter] = useState<MatchDecision | 'UNANALYZED' | ''>('');
+  const [staleFilter, setStaleFilter] = useState<string>('');
+  const [sortBy, setSortBy] = useState<
+    'discoveredDate' | 'score' | 'confidence' | 'title' | 'company'
+  >('discoveredDate');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
@@ -41,6 +51,10 @@ export function JobInboxView({ onSelectJob }: Props) {
           state: (stateFilter as JobState) || undefined,
           provider: (providerFilter as JobProvider) || undefined,
           includeArchived: stateFilter === 'ARCHIVED',
+          decision: decisionFilter || undefined,
+          isStale: staleFilter === 'stale' ? true : staleFilter === 'fresh' ? false : undefined,
+          sortBy,
+          sortOrder,
         }),
         jobApi.getMetrics(),
       ]);
@@ -58,12 +72,43 @@ export function JobInboxView({ onSelectJob }: Props) {
 
   useEffect(() => {
     loadData();
-  }, [page, stateFilter, providerFilter]);
+  }, [page, stateFilter, providerFilter, decisionFilter, staleFilter, sortBy, sortOrder]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setPage(1);
     loadData();
+  };
+
+  const handleAnalyzeJob = async (jobId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAnalyzingJobId(jobId);
+    setError(null);
+    try {
+      await jobApi.analyzeJob(jobId, true);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to analyze job');
+    } finally {
+      setAnalyzingJobId(null);
+    }
+  };
+
+  const handleBatchAnalyze = async () => {
+    setBatchAnalyzing(true);
+    setBatchNotice(null);
+    setError(null);
+    try {
+      const res = await jobApi.batchAnalyzeJobs({ limit: 10, unanalyzedOnly: true });
+      setBatchNotice(
+        `Batch complete: ${res.succeeded} analyzed successfully, ${res.failed} failed, ${res.skipped} skipped.`,
+      );
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to run batch analysis');
+    } finally {
+      setBatchAnalyzing(false);
+    }
   };
 
   return (
@@ -80,12 +125,21 @@ export function JobInboxView({ onSelectJob }: Props) {
         }}
       >
         <div>
-          <h1 className="page-title">Job Inbox</h1>
+          <h1 className="page-title">Job Inbox & Match Intelligence</h1>
           <p className="page-subtitle">
-            Central repository of ingested, parsed, and normalized job postings
+            Normalized job postings with deterministic policy authorization & grounded requirement
+            matching
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={handleBatchAnalyze}
+            disabled={batchAnalyzing || loading}
+            title="Analyze unanalyzed jobs in batch (up to 10)"
+          >
+            {batchAnalyzing ? '⏳ Analyzing...' : '⚡ Batch Analyze Unanalyzed'}
+          </button>
           <button className="btn btn-secondary btn-sm" onClick={loadData} disabled={loading}>
             🔄 Refresh
           </button>
@@ -95,13 +149,37 @@ export function JobInboxView({ onSelectJob }: Props) {
         </div>
       </div>
 
+      {batchNotice && (
+        <div
+          className="card"
+          style={{
+            borderColor: 'var(--success)',
+            color: 'var(--success)',
+            marginBottom: '1.5rem',
+            padding: '0.75rem 1rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <span>✅ {batchNotice}</span>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setBatchNotice(null)}
+            style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* Metrics Ribbon */}
       {metrics && (
         <div
           className="status-grid"
           style={{
             marginBottom: '1.5rem',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
           }}
         >
           <div className="status-item">
@@ -109,29 +187,45 @@ export function JobInboxView({ onSelectJob }: Props) {
             <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
               {metrics.totalJobs}
             </div>
-            <div className="status-item-meta">Across all providers</div>
+            <div className="status-item-meta">In inbox</div>
           </div>
           <div className="status-item">
-            <div className="status-item-label">Ingested</div>
+            <div className="status-item-label">Analyzed</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#60a5fa' }}>
+              {metrics.totalAnalyzed ?? 0}
+            </div>
+            <div className="status-item-meta">Avg: {metrics.averageMatchScore ?? 0}%</div>
+          </div>
+          <div className="status-item">
+            <div className="status-item-label">Matches</div>
             <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#34d399' }}>
-              {metrics.ingestedJobs}
+              {metrics.matchCount ?? 0}
             </div>
-            <div className="status-item-meta">Ready for matching</div>
+            <div className="status-item-meta">Eligible roles</div>
           </div>
           <div className="status-item">
-            <div className="status-item-label">Needs Review</div>
+            <div className="status-item-label">Review Needed</div>
             <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fbbf24' }}>
-              {metrics.needsReviewJobs}
+              {metrics.reviewCount ?? 0}
             </div>
-            <div className="status-item-meta">Incomplete / auth wall</div>
+            <div className="status-item-meta">Gaps or unknowns</div>
           </div>
           <div className="status-item">
-            <div className="status-item-label">Archived</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-              {metrics.archivedJobs}
+            <div className="status-item-label">Policy Skips</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#f87171' }}>
+              {metrics.skipCount ?? 0}
             </div>
-            <div className="status-item-meta">Closed or declined</div>
+            <div className="status-item-meta">Hard policy blocked</div>
           </div>
+          {metrics.staleAnalysisCount > 0 && (
+            <div className="status-item" style={{ borderLeft: '3px solid #fbbf24' }}>
+              <div className="status-item-label">Stale Analyses</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fbbf24' }}>
+                {metrics.staleAnalysisCount}
+              </div>
+              <div className="status-item-meta">Profile changed</div>
+            </div>
+          )}
         </div>
       )}
 
@@ -141,7 +235,7 @@ export function JobInboxView({ onSelectJob }: Props) {
           onSubmit={handleSearchSubmit}
           style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}
         >
-          <div style={{ flex: '1 1 240px' }}>
+          <div style={{ flex: '1 1 200px' }}>
             <input
               type="text"
               className="form-input"
@@ -152,7 +246,39 @@ export function JobInboxView({ onSelectJob }: Props) {
             />
           </div>
 
-          <div style={{ flex: '0 0 auto', display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ flex: '0 0 auto', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <select
+              className="form-input"
+              value={decisionFilter}
+              onChange={(e) => {
+                setDecisionFilter(e.target.value as any);
+                setPage(1);
+              }}
+              style={{ minWidth: '130px' }}
+              title="Filter by match policy decision"
+            >
+              <option value="">All Decisions</option>
+              <option value="MATCH">MATCH Only</option>
+              <option value="REVIEW">REVIEW Only</option>
+              <option value="SKIP">SKIP Only</option>
+              <option value="UNANALYZED">Unanalyzed Only</option>
+            </select>
+
+            <select
+              className="form-input"
+              value={staleFilter}
+              onChange={(e) => {
+                setStaleFilter(e.target.value);
+                setPage(1);
+              }}
+              style={{ minWidth: '120px' }}
+              title="Filter by analysis staleness"
+            >
+              <option value="">All Freshness</option>
+              <option value="stale">Stale Only</option>
+              <option value="fresh">Fresh Only</option>
+            </select>
+
             <select
               className="form-input"
               value={stateFilter}
@@ -160,7 +286,7 @@ export function JobInboxView({ onSelectJob }: Props) {
                 setStateFilter(e.target.value as any);
                 setPage(1);
               }}
-              style={{ minWidth: '130px' }}
+              style={{ minWidth: '120px' }}
             >
               <option value="">All States</option>
               <option value="INGESTED">Ingested</option>
@@ -176,7 +302,7 @@ export function JobInboxView({ onSelectJob }: Props) {
                 setProviderFilter(e.target.value as any);
                 setPage(1);
               }}
-              style={{ minWidth: '130px' }}
+              style={{ minWidth: '120px' }}
             >
               <option value="">All Providers</option>
               <option value="GREENHOUSE">Greenhouse</option>
@@ -185,6 +311,27 @@ export function JobInboxView({ onSelectJob }: Props) {
               <option value="LINKEDIN">LinkedIn</option>
               <option value="GENERIC">Generic</option>
               <option value="MANUAL">Pasted / Manual</option>
+            </select>
+
+            <select
+              className="form-input"
+              value={`${sortBy}:${sortOrder}`}
+              onChange={(e) => {
+                const [sb, so] = e.target.value.split(':');
+                setSortBy(sb as any);
+                setSortOrder(so as any);
+                setPage(1);
+              }}
+              style={{ minWidth: '140px' }}
+              title="Sort jobs by"
+            >
+              <option value="discoveredDate:desc">Newest First</option>
+              <option value="discoveredDate:asc">Oldest First</option>
+              <option value="score:desc">Highest Match Score</option>
+              <option value="score:asc">Lowest Match Score</option>
+              <option value="confidence:desc">Highest Confidence</option>
+              <option value="title:asc">Title (A-Z)</option>
+              <option value="company:asc">Company (A-Z)</option>
             </select>
 
             <button type="submit" className="btn btn-secondary btn-sm">
@@ -248,9 +395,10 @@ export function JobInboxView({ onSelectJob }: Props) {
                     <th style={{ padding: '0.85rem 1rem' }}>Location</th>
                     <th style={{ padding: '0.85rem 1rem' }}>Provider</th>
                     <th style={{ padding: '0.85rem 1rem' }}>Requirements</th>
+                    <th style={{ padding: '0.85rem 1rem' }}>Match Decision</th>
                     <th style={{ padding: '0.85rem 1rem' }}>State</th>
                     <th style={{ padding: '0.85rem 1rem' }}>Discovered</th>
-                    <th style={{ padding: '0.85rem 1.25rem', textAlign: 'right' }}>Action</th>
+                    <th style={{ padding: '0.85rem 1.25rem', textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -300,6 +448,54 @@ export function JobInboxView({ onSelectJob }: Props) {
                         </span>
                       </td>
                       <td style={{ padding: '1rem' }}>
+                        {job.matchSummary ? (
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.4rem',
+                                flexWrap: 'wrap',
+                              }}
+                            >
+                              <span
+                                className={`status-badge ${
+                                  job.matchSummary.decision === 'MATCH'
+                                    ? 'ok'
+                                    : job.matchSummary.decision === 'REVIEW'
+                                      ? 'degraded'
+                                      : 'disconnected'
+                                }`}
+                                style={{ fontSize: '0.75rem', fontWeight: 600 }}
+                              >
+                                {job.matchSummary.decision}
+                              </span>
+                              <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>
+                                {job.matchSummary.overallScore}%
+                              </span>
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '0.72rem',
+                                color: 'var(--text-secondary)',
+                                marginTop: '0.2rem',
+                              }}
+                            >
+                              Conf: {job.matchSummary.confidenceScore}%
+                              {job.matchSummary.isStale && (
+                                <span style={{ color: '#fbbf24', marginLeft: '0.35rem' }}>
+                                  ⚠️ Stale
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                            Unanalyzed
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '1rem' }}>
                         <span
                           className={`status-badge ${
                             job.state === 'INGESTED'
@@ -323,15 +519,27 @@ export function JobInboxView({ onSelectJob }: Props) {
                         {new Date(job.discoveredDate).toLocaleDateString()}
                       </td>
                       <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSelectJob(job.id);
-                          }}
-                        >
-                          View Details →
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            disabled={analyzingJobId === job.id}
+                            onClick={(e) => handleAnalyzeJob(job.id, e)}
+                            title="Analyze match suitability against Candidate Brain"
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                          >
+                            {analyzingJobId === job.id ? '⏳' : '⚡ Analyze'}
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectJob(job.id);
+                            }}
+                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                          >
+                            View →
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

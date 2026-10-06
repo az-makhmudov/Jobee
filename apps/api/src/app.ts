@@ -18,6 +18,8 @@ import { createCandidateRoutes } from './routes/candidate.js';
 import { CandidateService } from './services/candidate-service.js';
 import { createJobRoutes } from './routes/job-routes.js';
 import { JobService } from './services/job-service.js';
+import { MatchService } from './services/match-service.js';
+import { createAiProvider, type AiProvider } from './ai/index.js';
 import { LocalStorageProvider } from './storage/local-storage.js';
 
 export interface AppOptions {
@@ -27,6 +29,8 @@ export interface AppOptions {
   storage?: FileStorageProvider;
   candidateService?: CandidateService;
   jobService?: JobService;
+  matchService?: MatchService;
+  aiProvider?: AiProvider;
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -86,18 +90,23 @@ export function buildApp(options: AppOptions): FastifyInstance {
     app.register(createCandidateRoutes(candidateService));
   }
 
-  // Initialize and register Job Ingestion routes
+  // Initialize and register Job Ingestion & Match Intelligence routes
   let jobService = options.jobService;
-  if (!jobService) {
-    const db = options.db ?? (config.DATABASE_URL ? getDb(config.DATABASE_URL) : null);
-    if (db) {
-      jobService = new JobService(db);
-    }
+  let matchService = options.matchService;
+  const db = options.db ?? (config.DATABASE_URL ? getDb(config.DATABASE_URL) : null);
+
+  if (!jobService && db) {
+    jobService = new JobService(db);
+  }
+
+  if (!matchService && db) {
+    const aiProvider = options.aiProvider ?? createAiProvider(config);
+    matchService = new MatchService(db, aiProvider);
   }
 
   if (jobService) {
-    app.register(createJobRoutes(jobService), { prefix: '/api' });
-    app.register(createJobRoutes(jobService));
+    app.register(createJobRoutes(jobService, matchService), { prefix: '/api' });
+    app.register(createJobRoutes(jobService, matchService));
   }
 
   // Custom 404 Not Found handler

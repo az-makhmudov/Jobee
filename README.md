@@ -104,6 +104,21 @@ The Job Ingestion subsystem provides safe, deterministic ingestion and canonical
 
 ---
 
+## Requirement Analysis, Matching & Policy Decision Engine (`JOB-P2-T02`)
+
+The matching engine provides the intelligence and authorization layer that evaluates job postings against the Candidate Brain:
+
+- **Strict Prime Invariant**: AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable. Zero hallucinated candidate facts are permitted.
+- **Grounded Evidence Resolution**: Maps requirements deterministically to verified candidate skills, language CEFR rankings, cumulative experience durations, degrees, and certifications.
+- **Deterministic Hard Policy Engine**: Enforces mandatory blockers (excluded companies, excluded keywords, prohibited workplace modes, unpaid roles, below-minimum compensation, sponsorship conflicts) with automated `SKIP` decisions, and flags missing sensitive policy data for human `REVIEW`.
+- **Dimensional Scoring Engine (`v1.0.0`)**: Computes fit across 8 dimensions (`ROLE_FIT`, `SKILLS_FIT`, `EXPERIENCE_FIT`, `EDUCATION_FIT`, `LOCATION_FIT`, `LANGUAGE_FIT`, `COMPENSATION_FIT`, `WORK_AUTHORIZATION_FIT`) with dynamic re-weighting for unknown dimensions, mandatory requirement penalties, confidence scoring (0-100), and preliminary auto-apply eligibility (never auto-fires).
+- **Anti-Hallucination AI Provider Abstraction**: Pluggable provider interface (`DisabledAiProvider`, `MockAiProvider`, `GeminiAiProvider`) with a strict validation guard that strips invented evidence IDs and demotes ungrounded claims to `UNKNOWN`.
+- **Reactive Staleness Engine**: SHA-256 input fingerprinting invalidates match analyses whenever candidate credentials or job data change.
+- **Bounded Batch Processing**: Bounded 1-50 batch execution with failure isolation.
+- **User Interface**: Full Match Analysis inspector in `JobDetailView` (KPI ribbon, hard blocker alerts, strengths/gaps/unknowns, dimension cards, grounded requirement table with evidence pills), matching filters and quick analyze in `JobInboxView`, and matching metrics in `DashboardView`.
+
+---
+
 ## Database & Migrations
 
 ```bash
@@ -128,6 +143,6 @@ npm run format      # Check code formatting with Prettier
 
 ## Current Status
 
-- **Macro-Task**: `JOB-P2-T01 — Job Ingestion, Parsing, Normalization & Job Inbox` (COMPLETED).
-- **Milestone Reached**: Complete Phase 2 Job Ingestion, SSRF protection, normalization, deduplication, and Job Inbox operational.
-- **Next Milestone**: `JOB-P2-T02 — Requirement Analysis, Matching & Policy Decision Engine`.
+- **Macro-Task**: `JOB-P2-T02 — Requirement Analysis, Matching & Policy Decision Engine` (COMPLETED).
+- **Milestone Reached**: Phase 2 fully completed. Robust, grounded, and versioned matching intelligence operational across backend, database, and frontend.
+- **Next Milestone**: `JOB-P3-T01 — Application Studio, Tailored Materials & Human Approval`.

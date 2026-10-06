@@ -11,6 +11,7 @@ const testConfig: AppConfig = {
   LOG_LEVEL: 'fatal',
   WORKER_POLL_INTERVAL_MS: 10000,
   DATABASE_URL: undefined,
+  AI_PROVIDER: 'disabled',
 };
 
 describe('WorkerService', () => {

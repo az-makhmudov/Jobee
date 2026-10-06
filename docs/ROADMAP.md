@@ -36,8 +36,8 @@ This document defines the authoritative macro-task roadmap for AI Job Agent, dir
 
 ### `JOB-P2-T02 — Requirement Analysis, Matching & Policy Decision Engine`
 
-- **Status**: PENDING
-- **Scope**: Mandatory vs. preferred requirement analysis, fit evaluation across role/skills/experience/location, hard blockers, semantic match scoring with explainable components, deterministic policy engine (MATCH, REVIEW, SKIP, AUTO_APPLY eligibility), and ranked job view.
+- **Status**: COMPLETED
+- **Scope**: Mandatory vs. preferred requirement analysis, grounded evidence resolution, 8-dimension scoring with dynamic re-weighting, hard policy engine (blockers vs. soft gaps), AI semantic provider abstraction with anti-hallucination validation guard, deterministic policy decisions (MATCH, REVIEW, SKIP, AUTO_APPLY preliminary eligibility), state fingerprinting staleness invalidation, bounded batch analysis, and ranked Job Inbox & Detail UI.
 
 ---
 

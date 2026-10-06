@@ -11,6 +11,7 @@ const testConfig: AppConfig = {
   LOG_LEVEL: 'fatal', // silence logs in tests
   WORKER_POLL_INTERVAL_MS: 5000,
   DATABASE_URL: undefined,
+  AI_PROVIDER: 'disabled',
 };
 
 describe('API Foundation', () => {

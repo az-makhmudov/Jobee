@@ -69,7 +69,12 @@ export type JobEventType =
   | 'JOB_DUPLICATE_DETECTED'
   | 'JOB_UPDATED'
   | 'JOB_ARCHIVED'
-  | 'INGESTION_FAILED';
+  | 'INGESTION_FAILED'
+  | 'JOB_ANALYSIS_STARTED'
+  | 'JOB_ANALYSIS_COMPLETED'
+  | 'JOB_ANALYSIS_FAILED'
+  | 'JOB_ANALYSIS_STALE'
+  | 'JOB_DECISION_CHANGED';
 
 export interface JobRequirementDto {
   id: string;
@@ -193,6 +198,7 @@ export interface JobSummaryDto {
   isDuplicate: boolean;
   hasManualEdits: boolean;
   requirementCount: number;
+  matchSummary?: JobMatchSummaryDto | null;
 }
 
 export interface JobListQuery {
@@ -205,6 +211,13 @@ export interface JobListQuery {
   company?: string;
   search?: string;
   includeArchived?: boolean;
+  decision?: MatchDecision | 'UNANALYZED';
+  minScore?: number;
+  maxScore?: number;
+  minConfidence?: number;
+  isStale?: boolean;
+  sortBy?: 'discoveredDate' | 'score' | 'confidence' | 'title' | 'company';
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface JobPaginationResult<T> {
@@ -254,7 +267,165 @@ export interface JobDashboardMetricsDto {
   needsReviewJobs: number;
   failedIngestions: number;
   archivedJobs: number;
+  totalAnalyzed: number;
+  matchCount: number;
+  reviewCount: number;
+  skipCount: number;
+  averageMatchScore: number;
+  staleAnalysisCount: number;
   providerCounts: Record<string, number>;
   workplaceCounts: Record<string, number>;
   recentJobs: JobSummaryDto[];
+}
+
+// -------------------------------------------------------------
+// Match Intelligence & Policy Decision Engine Types (JOB-P2-T02)
+// -------------------------------------------------------------
+
+export type MatchDecision = 'MATCH' | 'REVIEW' | 'SKIP';
+
+export type RequirementEvaluationStatus =
+  'MET' | 'PARTIAL' | 'NOT_MET' | 'UNKNOWN' | 'NOT_APPLICABLE';
+
+export type EvaluationSource = 'DETERMINISTIC' | 'AI_ENRICHED';
+
+export type DimensionType =
+  | 'ROLE_FIT'
+  | 'SKILLS_FIT'
+  | 'EXPERIENCE_FIT'
+  | 'EDUCATION_FIT'
+  | 'LOCATION_FIT'
+  | 'LANGUAGE_FIT'
+  | 'COMPENSATION_FIT'
+  | 'WORK_AUTHORIZATION_FIT';
+
+export type DimensionStatus = 'SCORED' | 'UNKNOWN' | 'NOT_APPLICABLE';
+
+export type MatchAnalysisMode = 'DETERMINISTIC_ONLY' | 'AI_ENRICHED';
+
+export const MATCH_ALGORITHM_VERSION = '1.0.0';
+
+export const DIMENSION_DEFAULT_WEIGHTS: Record<DimensionType, number> = {
+  ROLE_FIT: 25,
+  SKILLS_FIT: 25,
+  EXPERIENCE_FIT: 20,
+  EDUCATION_FIT: 10,
+  LOCATION_FIT: 10,
+  LANGUAGE_FIT: 10,
+  COMPENSATION_FIT: 15,
+  WORK_AUTHORIZATION_FIT: 20,
+};
+
+export const DecisionReasonCodes = {
+  LOCATION_NOT_ALLOWED: 'LOCATION_NOT_ALLOWED',
+  WORK_MODE_NOT_ALLOWED: 'WORK_MODE_NOT_ALLOWED',
+  UNPAID_ROLE_REJECTED: 'UNPAID_ROLE_REJECTED',
+  EXCLUDED_COMPANY: 'EXCLUDED_COMPANY',
+  EXCLUDED_KEYWORD: 'EXCLUDED_KEYWORD',
+  EMPLOYMENT_TYPE_NOT_ALLOWED: 'EMPLOYMENT_TYPE_NOT_ALLOWED',
+  SALARY_BELOW_MINIMUM: 'SALARY_BELOW_MINIMUM',
+  LANGUAGE_REQUIREMENT_NOT_MET: 'LANGUAGE_REQUIREMENT_NOT_MET',
+  SPONSORSHIP_CONFLICT: 'SPONSORSHIP_CONFLICT',
+  POLICY_INFORMATION_MISSING: 'POLICY_INFORMATION_MISSING',
+  UNKNOWN_SENSITIVE_FACTS: 'UNKNOWN_SENSITIVE_FACTS',
+  UNMET_MANDATORY_REQUIREMENTS: 'UNMET_MANDATORY_REQUIREMENTS',
+  LOW_MATCH_SCORE: 'LOW_MATCH_SCORE',
+  LOW_CONFIDENCE: 'LOW_CONFIDENCE',
+  MATCH_THRESHOLD_MET: 'MATCH_THRESHOLD_MET',
+  REVIEW_THRESHOLD_MET: 'REVIEW_THRESHOLD_MET',
+} as const;
+
+export type DecisionReasonCode = (typeof DecisionReasonCodes)[keyof typeof DecisionReasonCodes];
+
+export interface CandidateEvidenceItemDto {
+  id: string;
+  type: string; // 'skill' | 'experience' | 'education' | 'language' | 'certification' | 'project' | 'fact'
+  label: string; // E.g. "Skill — TypeScript (Advanced)"
+}
+
+export interface JobRequirementEvaluationDto {
+  id: string;
+  analysisId: string;
+  jobRequirementId: string;
+  jobId: string;
+  userId: string;
+  status: RequirementEvaluationStatus;
+  source: EvaluationSource;
+  evidenceIds: string[];
+  evidenceItems: CandidateEvidenceItemDto[];
+  reason: string;
+  confidence: number;
+  contributesToBlocker: boolean;
+  createdAt: string;
+  requirement?: JobRequirementDto;
+}
+
+export interface JobMatchDimensionDto {
+  id: string;
+  analysisId: string;
+  jobId: string;
+  dimension: DimensionType;
+  score: number | null;
+  weight: number;
+  status: DimensionStatus;
+  reason: string;
+  createdAt: string;
+}
+
+export interface JobMatchAnalysisDto {
+  id: string;
+  jobId: string;
+  userId: string;
+  overallScore: number;
+  confidenceScore: number;
+  decision: MatchDecision;
+  autoApplyEligible: boolean;
+  analysisMode: MatchAnalysisMode;
+  algorithmVersion: string;
+  inputFingerprint: string;
+  isStale: boolean;
+  aiProvider: string | null;
+  aiModel: string | null;
+  strengths: string[];
+  gaps: string[];
+  unknowns: string[];
+  warnings: string[];
+  hardBlockers: string[];
+  reasonCodes: string[];
+  summaryExplanation: string;
+  dimensions?: JobMatchDimensionDto[];
+  evaluations?: JobRequirementEvaluationDto[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface JobMatchSummaryDto {
+  overallScore: number;
+  confidenceScore: number;
+  decision: MatchDecision;
+  isStale: boolean;
+  analysisMode: MatchAnalysisMode;
+  analyzedAt: string;
+}
+
+export interface BatchAnalysisRequest {
+  jobIds?: string[];
+  limit?: number;
+  force?: boolean;
+  unanalyzedOnly?: boolean;
+}
+
+export interface BatchAnalysisResultDto {
+  totalRequested: number;
+  processed: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  results: {
+    jobId: string;
+    success: boolean;
+    decision?: MatchDecision;
+    score?: number;
+    error?: string;
+  }[];
 }
