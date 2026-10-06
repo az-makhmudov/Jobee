@@ -119,6 +119,21 @@ The matching engine provides the intelligence and authorization layer that evalu
 
 ---
 
+## Application Studio, Tailored Materials & Human Approval (`JOB-P3-T01`)
+
+The Application Studio orchestrates the generation, tailoring, screening question resolution, and human sign-off for prospective job applications:
+
+- **Versioned Application Packages**: Full lifecycle package management (`DRAFT`, `NEEDS_REVIEW`, `READY`) with immutable numbered versions (`application_package_versions`) tracking tailored CVs, cover letters, readiness scores, and validation issues.
+- **ATS-Safe Single-Column DOCX Documents**: Programmatic generation of ATS-friendly `.docx` files using the `docx` engine, avoiding complex tables or columns that break applicant tracking parsers. Automatically produces companion plain `.txt` files with SHA-256 checksums.
+- **Truthful CV Tailoring & Metric Safeguards**: Factual history (dates, employers, titles, degrees) is strictly immutable. Relevant bullet points are reordered and highlighted based on match evidence (`evidenceIds`). Quantitative figures and metrics are cross-checked against Candidate Brain achievements to prevent exaggeration.
+- **Grounded Cover Letter Engine**: Concise, professional cover letters composed directly from candidate facts, articulating clear alignment to the job role without synthetic claims.
+- **4-Level Question Resolution Hierarchy**: Application questions resolve through `AUTO` (exact Answer Library match), `REVIEW` (inferred/draft response), `MANUAL` (prompts candidate for input), or `UNRESOLVED` (blocking). Sensitive categories (`WORK_AUTHORIZATION`, `SPONSORSHIP`, `SALARY`) unconditionally require explicit human sign-off.
+- **Human Approvals Queue**: Global approval queue (`/approvals`) allowing candidates to review, edit, or reject sensitive declarations and answers before any package reaches `READY`.
+- **Dynamic Staleness & Version Carry-Forward**: Fingerprint-based staleness invalidates packages when candidate credentials or job data change. Regenerating into Version $N + 1$ carries forward previously approved answers to prevent duplicate human review.
+- **User Interface**: Complete Application Studio (`ApplicationStudioView`) with readiness dashboard, live CV preview, cover letter editor, question manager, approvals tab, and evidence inspector; Global Approvals Inbox (`ApprovalsInboxView`); and Packages List (`ApplicationPackagesListView`).
+
+---
+
 ## Database & Migrations
 
 ```bash
@@ -143,6 +158,6 @@ npm run format      # Check code formatting with Prettier
 
 ## Current Status
 
-- **Macro-Task**: `JOB-P2-T02 — Requirement Analysis, Matching & Policy Decision Engine` (COMPLETED).
-- **Milestone Reached**: Phase 2 fully completed. Robust, grounded, and versioned matching intelligence operational across backend, database, and frontend.
-- **Next Milestone**: `JOB-P3-T01 — Application Studio, Tailored Materials & Human Approval`.
+- **Macro-Task**: `JOB-P3-T01 — Application Studio, Tailored Materials & Human Approval` (COMPLETED).
+- **Milestone Reached**: Phase 3 Application Studio fully implemented and verified against live PostgreSQL database. Tailored ATS-safe materials, 4-level question resolution, human approval queue, and package readiness state machine are operational.
+- **Next Milestone**: `JOB-P3-T02 — Application CRM, Lifecycle, Audit Timeline & Analytics`.

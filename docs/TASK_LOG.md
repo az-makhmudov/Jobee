@@ -125,3 +125,44 @@ This document tracks execution history and verification state for all official m
   - `npm run db:check`: PASSED (Database connectivity verified)
   - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0005 applied cleanly)
   - Live End-to-End Verification: PASSED (Live PostgreSQL verification passing Scenarios A-G: strong MATCH with grounded evidence, REVIEW on unknown-sensitive facts, SKIP with hard blocker override and calculated score retention, bounded batch analysis with error isolation, three-way staleness detection on candidate/job/algorithm-version mutations, non-overlapping experience interval union, conservative non-operational auto-apply boundary, and complete cleanup with 0 database orphans).
+
+---
+
+### `JOB-P3-T01` — Application Studio, Tailored Materials & Human Approval
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-06
+- **Crash Recovery**: Resumed seamlessly from unexpected runtime crash. Re-verified schema migration `0006_application_studio.sql`, database journal `_journal.json`, shared types, backend services, Fastify API routes, frontend components, and live PostgreSQL verification scripts.
+- **Scope**:
+  - Additive PostgreSQL schema for Application Studio: `application_packages` (lifecycle status `DRAFT`, `NEEDS_REVIEW`, `READY`, target role, company, staleness), `application_package_versions` (immutable snapshots, tailored CV JSON, cover letter text, readiness score, validation issues), `application_artifacts` (generated DOCX and TXT files, MIME types, storage paths, SHA-256 checksums), `application_questions` (ingested/inferred questions, answer sources, resolution status, candidate edits), `approval_requests` (sensitive screening approvals, risk levels, human decision history), and `application_package_events` (audit log).
+  - Additive migration `0006_application_studio.sql` generated and applied to PostgreSQL `ai_job_agent_dev`.
+  - Shared domain contracts and DTOs in `packages/shared/src/types/application-package.ts`.
+  - Base CV selection priority hierarchy (`CvBaseSelector`): manual override document > active role-specific CV > active master CV > direct Candidate Brain structured profile compilation.
+  - ATS-safe single-column DOCX document generator (`DocxGeneratorService`) utilizing `docx` library with clean typographic hierarchy, executive summary, verified work history, education, skills, and single-column cover letter formatting.
+  - Truthful CV tailoring engine (`TailoringEngine`): preserves immutable core facts (employer, job title, employment dates, degrees, certifications), reorders and highlights relevant bullet points, attaches grounded `evidenceIds` provenance, and executes metric safeguard (cross-checking numeric metrics and percentages against Candidate Brain, flagging unverified metrics).
+  - Grounded cover letter composer (`CoverLetterEngine`): professional, concise narrative grounded in candidate facts, linking candidate experience to job requirements with zero invented accomplishments.
+  - 4-level application question resolution hierarchy (`ApplicationQuestionEngine`):
+    - `AUTO`: High-confidence exact or keyword match from Answer Library for non-sensitive categories.
+    - `REVIEW`: Inferred/low-confidence draft requiring human confirmation before submission.
+    - `MANUAL`: Prompts candidate for new input when no suitable answer exists.
+    - `UNRESOLVED`: Flagged question blocking package readiness until addressed.
+    - Mandatory sensitive category screening: questions in `WORK_AUTHORIZATION`, `SPONSORSHIP`, and `SALARY` strictly generate approval requests regardless of automation level.
+  - Human Approvals Queue and Package Readiness Engine (`PackageReadinessEngine`): evaluates blocking approval requests, unresolved questions, and validation issues to determine if package status is `DRAFT`, `NEEDS_REVIEW`, or `READY`.
+  - Application package lifecycle orchestrator (`ApplicationPackageService`): handles package generation, artifact streaming, version carry-forward (carrying forward approved answers into regenerated versions), dynamic staleness detection, and event auditing.
+  - 15 Fastify REST endpoints in `apps/api/src/routes/application-package-routes.ts` covering packages, versions, artifacts, questions, approvals, and metrics.
+  - React 19 Frontend:
+    - `ApplicationStudioView`: Multi-tab studio interface (Overview & Readiness, Tailored CV Preview, Cover Letter, Application Questions, Approvals, Evidence).
+    - `ApprovalsInboxView`: Global human approvals queue with status filters and approve/reject actions with custom candidate answer input.
+    - `ApplicationPackagesListView`: Comprehensive list of prepared packages with status filters and quick studio access.
+    - `JobDetailView`: "Prepare Application" button and navigation hook.
+    - `DashboardView`: Application Studio metrics section (packages in prep, needing review, ready, pending approvals) with quick links.
+    - `App.tsx`: Wired navigation tabs for `applications` and `approvals`.
+- **Verification Records**:
+  - `npm run lint`: PASSED (ESLint 9, 0 errors, 86 warnings)
+  - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors)
+  - `npm run test`: PASSED (Vitest, 17 test suites, 141/141 tests passed: 7 application package route integration tests, 23 matching unit tests, 6 match route tests, 11 SSRF tests, 15 extractor tests, 10 normalizer tests, 13 job route tests, 34 candidate/platform tests)
+  - `npm run build`: PASSED (All 6 workspaces and Vite web application compiled cleanly)
+  - `npm run format`: PASSED (Prettier checked across entire repository)
+  - `npm run db:check`: PASSED (PostgreSQL connectivity verified)
+  - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0006 applied cleanly)
+  - Live End-to-End Verification: PASSED (Automated 10-stage live test against PostgreSQL `ai_job_agent_dev` executing profile/evidence seeding, job ingestion & match analysis, package v1 creation, DOCX artifact SHA-256 validation, truthfulness invariant & metric safeguard checks, 4-level question resolution, human approval queue resolution with candidate edits, deterministic transition to READY, dynamic staleness detection on candidate profile mutation, v2 regeneration with carry-forward, and 100% clean teardown with zero orphaned records).

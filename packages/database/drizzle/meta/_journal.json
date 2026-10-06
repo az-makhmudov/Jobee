@@ -43,6 +43,13 @@
       "when": 1791132000000,
       "tag": "0005_matching_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791134000000,
+      "tag": "0006_application_studio",
+      "breakpoints": true
     }
   ]
 }

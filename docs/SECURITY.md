@@ -143,3 +143,39 @@ The requirement analysis and matching engine introduces strict security and anti
    - Batch analysis requests (`POST /api/jobs/analyze`) enforce a bounded limit (default 10, maximum 50) and per-job error isolation, preventing process denial-of-service, memory spikes, or cascading failures across job postings.
 5. **Deterministic State Fingerprinting**:
    - Computes SHA-256 `inputFingerprint` over candidate profile state + job data. Any modification to candidate facts, preferences, or job fields reactively flags stored analyses as `isStale: true` to prevent decision-making on out-of-date intelligence.
+
+---
+
+## 12. Application Studio, Tailored Materials & Approval Safeguards (`JOB-P3-T01`)
+
+The Application Studio operationalizes material generation while enforcing rigid factual and authorization guardrails:
+
+1. **Truthfulness Invariant & Immutable Employment History**:
+   - Tailored CVs and cover letters are strictly derived from verified candidate records.
+   - Core factual history—organization names, job titles, start/end dates, degrees, institutions, and certifications—is strictly immutable. The generation engines are prohibited from modifying or omitting chronologically binding historical records.
+   - Bullet points retain explicit provenance IDs (`evidenceIds`) mapping each claim directly to Candidate Brain achievements or verified facts.
+
+2. **Quantitative Metric Safeguards**:
+   - Exaggeration of achievements (e.g. inventing "\$10M ARR" or "10x throughput") is mitigated through a deterministic metric scanner.
+   - All quantitative figures (percentages, currencies, multipliers, scale metrics) extracted from tailored bullet points are cross-referenced against the candidate's verified achievements.
+   - Any quantitative figure lacking ground-truth verification is flagged with a validation warning (`UNVERIFIED_METRIC`), requiring explicit candidate confirmation before reaching `READY`.
+
+3. **Mandatory Sensitive Screening Approval Interlocks**:
+   - Questions falling under `WORK_AUTHORIZATION`, `SPONSORSHIP`, and `SALARY` categories **never** silently auto-fill or auto-approve, even if matching Answer Library items exist.
+   - The engine automatically routes these declarations into `approval_requests` with appropriate risk levels (`HIGH` or `MEDIUM`).
+   - A package cannot transition from `NEEDS_REVIEW` to `READY` until all pending approval requests have been explicitly signed off or edited by the human candidate.
+
+4. **Safe ATS-Safe OpenXML Document Generation**:
+   - Document artifacts are generated programmatically using the pure JavaScript `docx` engine, constructing standard OpenXML markup from structured data.
+   - No external templates, Word macros (`.docm`), embedded scripts, or dynamic external object linking are utilized.
+   - Formatting strictly conforms to single-column layouts with standard margins and typographic hierarchy, preventing document corruption and ensuring clean text extraction by applicant tracking systems.
+
+5. **Cryptographic Artifact Integrity**:
+   - Generated DOCX and TXT artifacts compute SHA-256 cryptographic hashes immediately upon creation, persisted in `application_artifacts.sha256_checksum`.
+   - File storage paths are validated via `path.resolve` inside `uploads/`, preventing directory traversal attempts.
+
+6. **Immutable Historical Versions & Audit Logging**:
+   - Package iterations are persisted as immutable numbered versions (`application_package_versions`).
+   - Regenerating a package into Version $N + 1$ never overwrites Version $N$; previous documents and questions remain preserved for auditability.
+   - Version carry-forward preserves human-approved answers and custom edits into subsequent iterations.
+   - Every creation, approval, resolution, regeneration, and export is recorded in `application_package_events`.

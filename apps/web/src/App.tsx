@@ -8,6 +8,9 @@ import { ActivityView } from './components/ActivityView.js';
 import { SettingsView } from './components/SettingsView.js';
 import { JobInboxView } from './components/JobInboxView.js';
 import { JobDetailView } from './components/JobDetailView.js';
+import { ApplicationPackagesListView } from './components/ApplicationPackagesListView.js';
+import { ApplicationStudioView } from './components/ApplicationStudioView.js';
+import { ApprovalsInboxView } from './components/ApprovalsInboxView.js';
 
 export type NavSection =
   | 'dashboard'
@@ -26,6 +29,7 @@ export default function App() {
   const [currentSection, setCurrentSection] = useState<NavSection>('dashboard');
   const [profileTab, setProfileTab] = useState<string | undefined>(undefined);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [, setRefreshKey] = useState<number>(0);
 
   const handleNavigate = (section: string, tabOrId?: string) => {
@@ -34,6 +38,8 @@ export default function App() {
       setProfileTab(tabOrId);
     } else if (section === 'jobs') {
       setSelectedJobId(tabOrId || null);
+    } else if (section === 'applications') {
+      setSelectedPackageId(tabOrId || null);
     }
   };
 
@@ -44,9 +50,9 @@ export default function App() {
     { id: 'answers', label: 'Answer Library', tag: 'Rules' },
     { id: 'preferences', label: 'Preferences & Policy', tag: 'Safety' },
     { id: 'jobs', label: 'Job Inbox', tag: 'Active' },
+    { id: 'applications', label: 'Applications', tag: 'Studio' },
+    { id: 'approvals', label: 'Approvals', tag: 'Review' },
     { id: 'activity', label: 'Audit Log' },
-    { id: 'applications', label: 'Applications', tag: 'P3' },
-    { id: 'approvals', label: 'Approvals', tag: 'P3' },
     { id: 'interviews', label: 'Interviews', tag: 'P4' },
     { id: 'settings', label: 'Platform Settings' },
   ];
@@ -70,6 +76,7 @@ export default function App() {
                   setCurrentSection(item.id);
                   if (item.id === 'profile') setProfileTab(undefined);
                   if (item.id === 'jobs') setSelectedJobId(null);
+                  if (item.id === 'applications') setSelectedPackageId(null);
                 }}
               >
                 <span>{item.label}</span>
@@ -109,24 +116,56 @@ export default function App() {
               jobId={selectedJobId}
               onBack={() => setSelectedJobId(null)}
               onJobUpdated={() => setRefreshKey((k) => k + 1)}
+              onPrepareApplication={(pkgId) => {
+                setSelectedPackageId(pkgId);
+                setCurrentSection('applications');
+              }}
             />
           ) : (
             <JobInboxView onSelectJob={(id) => setSelectedJobId(id)} />
           ))}
 
+        {/* Phase 3: Application Studio */}
+        {currentSection === 'applications' &&
+          (selectedPackageId ? (
+            <ApplicationStudioView
+              packageId={selectedPackageId}
+              onBack={() => setSelectedPackageId(null)}
+              onNavigateToJob={(jId) => {
+                setSelectedJobId(jId);
+                setCurrentSection('jobs');
+              }}
+            />
+          ) : (
+            <ApplicationPackagesListView
+              onOpenPackage={(pkgId) => setSelectedPackageId(pkgId)}
+              onNavigateToJobs={() => setCurrentSection('jobs')}
+            />
+          ))}
+
+        {/* Phase 3: Approvals Inbox */}
+        {currentSection === 'approvals' && (
+          <ApprovalsInboxView
+            onOpenPackage={(pkgId) => {
+              setSelectedPackageId(pkgId);
+              setCurrentSection('applications');
+            }}
+          />
+        )}
+
         {currentSection === 'settings' && <SettingsView />}
 
-        {['applications', 'approvals', 'interviews'].includes(currentSection) && (
+        {currentSection === 'interviews' && (
           <div>
             <header className="page-header">
-              <h1 className="page-title">{navItems.find((n) => n.id === currentSection)?.label}</h1>
+              <h1 className="page-title">Interviews & Follow-ups</h1>
               <p className="page-subtitle">Module scheduled for future development phases</p>
             </header>
             <div className="card placeholder-view">
               <h3>Phase Roadmap Enforced</h3>
               <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                 This section will be activated in upcoming development phases according to the
-                official macro-task roadmap (Phases 3–5).
+                official macro-task roadmap (Phase 4).
               </p>
             </div>
           </div>

@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { jobApi } from '../api/job-client.js';
+import { applicationPackageClient } from '../api/application-package-client.js';
 import type { JobDto, UpdateJobRequest, JobMatchAnalysisDto } from '@job-agent/shared';
 
 interface Props {
   jobId: string;
   onBack: () => void;
   onJobUpdated?: () => void;
+  onPrepareApplication?: (packageId: string) => void;
 }
 
-export function JobDetailView({ jobId, onBack, onJobUpdated }: Props) {
+export function JobDetailView({ jobId, onBack, onJobUpdated, onPrepareApplication }: Props) {
   const [job, setJob] = useState<JobDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +34,27 @@ export function JobDetailView({ jobId, onBack, onJobUpdated }: Props) {
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [archiveReason, setArchiveReason] = useState('');
   const [archiving, setArchiving] = useState(false);
+
+  // Application preparation state
+  const [preparingApp, setPreparingApp] = useState(false);
+
+  const handlePrepareApplication = async () => {
+    if (!job) return;
+    setPreparingApp(true);
+    try {
+      const existing = await applicationPackageClient.listPackages({ jobId: job.id });
+      if (existing.length > 0) {
+        onPrepareApplication?.(existing[0].id);
+        return;
+      }
+      const res = await applicationPackageClient.createPackage(job.id);
+      onPrepareApplication?.(res.package.id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to prepare application');
+    } finally {
+      setPreparingApp(false);
+    }
+  };
 
   const loadJob = async () => {
     setLoading(true);
@@ -163,6 +186,15 @@ export function JobDetailView({ jobId, onBack, onJobUpdated }: Props) {
           ← Back to Job Inbox
         </button>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {job.state !== 'ARCHIVED' && onPrepareApplication && (
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handlePrepareApplication}
+              disabled={preparingApp}
+            >
+              {preparingApp ? '⏳ Preparing...' : '🚀 Prepare Application'}
+            </button>
+          )}
           <button
             className="btn btn-secondary btn-sm"
             onClick={() => setIsEditing(true)}

@@ -6,4 +6,5 @@ export * from './types/storage.js';
 export * from './candidate/completeness.js';
 export * from './logger/logger.js';
 export * from './types/job.js';
+export * from './types/application-package.js';
 export * from './utils/html-sanitizer.js';

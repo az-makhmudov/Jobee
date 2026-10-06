@@ -19,6 +19,8 @@ import { CandidateService } from './services/candidate-service.js';
 import { createJobRoutes } from './routes/job-routes.js';
 import { JobService } from './services/job-service.js';
 import { MatchService } from './services/match-service.js';
+import { createApplicationPackageRoutes } from './routes/application-package-routes.js';
+import { ApplicationPackageService } from './services/application-package-service.js';
 import { createAiProvider, type AiProvider } from './ai/index.js';
 import { LocalStorageProvider } from './storage/local-storage.js';
 
@@ -30,6 +32,7 @@ export interface AppOptions {
   candidateService?: CandidateService;
   jobService?: JobService;
   matchService?: MatchService;
+  packageService?: ApplicationPackageService;
   aiProvider?: AiProvider;
 }
 
@@ -107,6 +110,20 @@ export function buildApp(options: AppOptions): FastifyInstance {
   if (jobService) {
     app.register(createJobRoutes(jobService, matchService), { prefix: '/api' });
     app.register(createJobRoutes(jobService, matchService));
+  }
+
+  // Initialize and register Application Studio & Human Approval routes
+  let packageService = options.packageService;
+  if (!packageService && db) {
+    const storage = options.storage ?? new LocalStorageProvider();
+    packageService = new ApplicationPackageService(db, storage);
+  }
+
+  if (packageService && candidateService) {
+    app.register(createApplicationPackageRoutes(packageService, candidateService), {
+      prefix: '/api',
+    });
+    app.register(createApplicationPackageRoutes(packageService, candidateService));
   }
 
   // Custom 404 Not Found handler

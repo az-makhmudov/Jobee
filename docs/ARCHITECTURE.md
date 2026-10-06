@@ -326,7 +326,109 @@ job_match_analyses                              job_requirement_evaluations
 
 ---
 
-## 7. Future Architecture Isolation (Playwright Browser Worker)
+## 7. Application Studio & Tailored Materials Architecture (`JOB-P3-T01`)
+
+The Application Studio bridges the Candidate Brain, Job Ingestion, and Matching Intelligence subsystems into prepared, versioned, and auditable application packages.
+
+```text
+┌────────────────────────┐      ┌────────────────────────┐      ┌────────────────────────┐
+│     Candidate Brain    │      │    Ingested Job &      │      │     Match Analysis     │
+│   (Facts, Experiences, │      │      Requirements      │      │  (Dimension Scores,    │
+│    Answer Library)     │      │   (jobs, requirements) │      │   Evaluated Evidence)  │
+└───────────┬────────────┘      └───────────┬────────────┘      └───────────┬────────────┘
+            │                               │                               │
+            └───────────────────────┬───────┴───────────────────────────────┘
+                                    │
+                                    ▼
+                      ApplicationPackageService
+       ┌─────────────────────────────────────────────────────────────┐
+       │ - Orchestrates package creation, versions, and regenerations │
+       │ - Dynamic staleness detection on candidate/job mutations    │
+       │ - Version carry-forward of approved answers                 │
+       └────────────────────────────┬────────────────────────────────┘
+                                    │
+    ┌───────────────────────────────┼───────────────────────────────┐
+    │                               │                               │
+    ▼                               ▼                               ▼
+CvBaseSelector &              CoverLetterEngine           ApplicationQuestionEngine
+TailoringEngine               - Professional letter       - 4-Level Resolution Hierarchy
+- Base CV Priority              grounded in facts           (AUTO / REVIEW / MANUAL /
+- Truthful bullet ranking     - Links candidate gaps        UNRESOLVED)
+- Metric Safeguard              to strengths              - Sensitive category interlock
+- Immutable core history      - Zero synthetic claims       (WORK_AUTH, SPONSORSHIP,
+                                                            SALARY -> Mandatory Approval)
+    │                               │                               │
+    └───────────────────────────────┼───────────────────────────────┘
+                                    │
+                                    ▼
+                         DocxGeneratorService
+       ┌─────────────────────────────────────────────────────────────┐
+       │ - Clean ATS-safe single-column DOCX generation (`docx`)     │
+       │ - Single-column layout (no parsing breakage in ATS tools)   │
+       │ - Tailored CV (.docx, .txt) & Cover Letter (.docx, .txt)   │
+       │ - Cryptographic SHA-256 artifact checksum verification       │
+       └────────────────────────────┬────────────────────────────────┘
+                                    │
+                                    ▼
+                       PackageReadinessEngine
+       ┌─────────────────────────────────────────────────────────────┐
+       │ - Evaluates blocking approval requests                      │
+       │ - Evaluates unresolved questions and validation issues       │
+       │ - Computes readiness score (0-100)                          │
+       │ - Deterministic State: DRAFT -> NEEDS_REVIEW -> READY       │
+       └────────────────────────────┬────────────────────────────────┘
+                                    │
+                                    ▼
+       ┌─────────────────────────────────────────────────────────────┐
+       │                   Human Approvals Queue                     │
+       │ - Candidate signs off or modifies sensitive declarations    │
+       │ - Package cannot reach READY until all approvals resolved   │
+       └─────────────────────────────────────────────────────────────┘
+```
+
+### 7.1. Base CV Selection Priority Hierarchy (`CvBaseSelector`)
+
+Selects the initial base document or structured source using a deterministic 4-stage fallback hierarchy:
+
+1. **Manual Override Document**: Explicit candidate document ID provided at package generation time.
+2. **Active Role-Specific CV**: Document in `candidate_documents` matching `roleFocus` of the target job (`isActive = true`).
+3. **Active Master CV**: Active baseline document (`isMaster = true`, `isActive = true`).
+4. **Candidate Brain Direct Compilation**: Fallback structured compilation directly from normalized candidate tables (`candidate_profiles`, `candidate_experiences`, `candidate_education`, `candidate_skills`).
+
+### 7.2. Factual Truthfulness Invariant & Metric Safeguards (`TailoringEngine`)
+
+- **Immutable Core History**: Organization names, job positions, employment dates, educational institutions, degrees, and certifications are immutable. The tailoring engine is strictly prohibited from altering chronological truth.
+- **Bullet Prioritization & Grounding**: Bullet points are reordered and selected based on relevance to evaluated job requirements. Every tailored bullet retains provenance references in `evidenceIds`.
+- **Metric Safeguards**: A deterministic scanner cross-checks all quantitative claims (percentages, dollar amounts, scale numbers) in tailored bullets against verified Candidate Brain achievements. If an unverified numeric claim is detected, it is flagged as a validation issue (`UNVERIFIED_METRIC`) to prevent exaggeration.
+
+### 7.3. ATS-Safe Single-Column DOCX Generation (`DocxGeneratorService`)
+
+- **Single-Column Standard**: Uses the `docx` library to construct single-column OpenXML documents with standardized typography, clear section headers, bullet lists, and standard margin hierarchy. Multi-column tables and complex text frames (which reliably break ATS parsers) are strictly avoided.
+- **Artifact Pipeline**: Each package version generates companion `.docx` and plain `.txt` files for both Tailored CV and Cover Letter, stored via `FileStorageProvider` with SHA-256 cryptographic checksums.
+
+### 7.4. 4-Level Application Question Resolution Hierarchy (`ApplicationQuestionEngine`)
+
+Resolves job application questions through an auditable, conservative hierarchy:
+
+1. **`AUTO`**: Exact or high-confidence keyword match against candidate's Answer Library (`automationLevel: AUTO`) for non-sensitive categories.
+2. **`REVIEW`**: Medium-confidence inference from Candidate Brain or Answer Library marked `REVIEW`. Pre-fills the draft answer but requires candidate verification.
+3. **`MANUAL`**: Prompts the candidate for direct manual input when no relevant Answer Library entry exists.
+4. **`UNRESOLVED`**: Flagged question missing critical input, blocking package readiness.
+
+- **Sensitive Category Interlock**: Questions in categories `WORK_AUTHORIZATION`, `SPONSORSHIP`, and `SALARY` can **never** be silently auto-approved. They automatically generate an `approval_requests` entry requiring explicit candidate sign-off, even if matching Answer Library items exist.
+
+### 7.5. Human Approvals Queue & Package Readiness State Machine
+
+- **Readiness State Machine**:
+  - `DRAFT`: Package is being prepared; version 1 generation in progress.
+  - `NEEDS_REVIEW`: Generated version has pending approval requests, unconfirmed `REVIEW` questions, or validation issues.
+  - `READY`: All questions resolved, all approval requests approved, zero blockers, readiness score 100%. Package is ready for human download or future export.
+- **Version Carry-Forward**: When regenerating a package into Version $N + 1$, the service carries forward previously approved answers and user modifications, preserving human work while generating updated materials.
+- **Dynamic Staleness Tracking**: Detects mutations to candidate profile, experiences, answer library, or job details, marking packages as stale (`isStale: true`) and alerting the candidate in the UI.
+
+---
+
+## 8. Future Architecture Isolation (Playwright Browser Worker)
 
 When browser automation (JOB-P5-T01 / JOB-P5-T02) is implemented:
 

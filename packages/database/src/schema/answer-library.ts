@@ -45,4 +45,5 @@ export const answerLibrary = pgTable('answer_library', {
 });
 
 export type AnswerLibraryEntry = typeof answerLibrary.$inferSelect;
+export type AnswerLibrary = AnswerLibraryEntry;
 export type NewAnswerLibraryEntry = typeof answerLibrary.$inferInsert;

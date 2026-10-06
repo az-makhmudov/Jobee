@@ -1,0 +1,87 @@
+import type {
+  ApplicationPackage,
+  ApplicationPackageVersion,
+  ApplicationArtifact,
+  ApplicationQuestion,
+  ApprovalRequest,
+} from '@job-agent/database';
+import type { PackageReadinessResult } from '@job-agent/shared';
+
+export class PackageReadinessEngine {
+  /**
+   * Deterministically evaluates package readiness for submission.
+   */
+  public static evaluateReadiness(params: {
+    pkg: ApplicationPackage;
+    version: ApplicationPackageVersion;
+    artifacts: ApplicationArtifact[];
+    questions: ApplicationQuestion[];
+    approvals: ApprovalRequest[];
+  }): PackageReadinessResult {
+    const reasons: string[] = [];
+    const blockingIssues: string[] = [];
+
+    // 1. CV Artifact check
+    const cvArtifact = params.artifacts.find((a) => a.artifactType === 'TAILORED_CV');
+    if (!cvArtifact) {
+      blockingIssues.push('Tailored CV document artifact has not been generated');
+    } else {
+      reasons.push('Tailored CV DOCX artifact successfully generated and stored');
+    }
+
+    // 2. Policy Blocker check
+    if (params.pkg.hasPolicyBlocker && !params.pkg.blockerOverridden) {
+      blockingIssues.push(
+        'Job matching has active hard policy blockers that have not been overridden by candidate',
+      );
+    } else if (params.pkg.hasPolicyBlocker && params.pkg.blockerOverridden) {
+      reasons.push(
+        `Hard policy blocker overridden with auditable justification: "${params.pkg.blockerOverrideReason}"`,
+      );
+    }
+
+    // 3. Application Questions check
+    const requiredQuestions = params.questions.filter((q) => q.isRequired);
+    const unresolvedQuestions = requiredQuestions.filter(
+      (q) => q.approvalState !== 'APPROVED' && q.approvalState !== 'RESOLVED',
+    );
+    if (unresolvedQuestions.length > 0) {
+      blockingIssues.push(
+        `${unresolvedQuestions.length} required application question(s) are unresolved or require candidate approval`,
+      );
+    } else if (requiredQuestions.length > 0) {
+      reasons.push(
+        `All ${requiredQuestions.length} required application question(s) resolved and approved`,
+      );
+    }
+
+    // 4. Pending Approvals check
+    const pendingApprovals = params.approvals.filter((a) => a.status === 'PENDING');
+    if (pendingApprovals.length > 0) {
+      blockingIssues.push(
+        `${pendingApprovals.length} pending approval request(s) require human review and authorization`,
+      );
+    } else if (params.approvals.length > 0) {
+      reasons.push(`All ${params.approvals.length} approval request(s) have been resolved`);
+    }
+
+    // 5. Staleness check
+    if (params.pkg.isStale) {
+      blockingIssues.push(
+        'Application package inputs have changed since last generation (package is stale)',
+      );
+    }
+
+    const isReady = blockingIssues.length === 0;
+    const status = isReady ? 'READY' : 'NEEDS_REVIEW';
+
+    return {
+      status,
+      isReady,
+      reasons,
+      blockingIssues,
+      pendingApprovalsCount: pendingApprovals.length,
+      unresolvedQuestionsCount: unresolvedQuestions.length,
+    };
+  }
+}

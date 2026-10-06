@@ -45,7 +45,7 @@ This document defines the authoritative macro-task roadmap for AI Job Agent, dir
 
 ### `JOB-P3-T01 — Application Studio, Tailored Materials & Human Approval`
 
-- **Status**: PENDING
+- **Status**: COMPLETED
 - **Scope**: Application package model, CV base selection, truthful CV tailoring, cover letter drafting, question interpretation, answer library matching, approval request generation, safe handling of legal/salary unknowns, Application Review UI, and document versioning.
 
 ### `JOB-P3-T02 — Application CRM, Lifecycle, Audit Timeline & Analytics`

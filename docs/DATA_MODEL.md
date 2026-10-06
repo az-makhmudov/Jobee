@@ -354,15 +354,157 @@ Maps individual job requirements deterministically to candidate evidence:
 
 ---
 
-## 6. Deferred Domain Schemas
+---
+
+## 6. Application Studio Entities (`JOB-P3-T01`)
+
+The Application Studio manages versioned, auditable application packages, tailored materials, question responses, and human approval requests.
+
+### 6.1. `application_packages` (Package Entity)
+
+The top-level container binding a candidate, target job, and match analysis into an application package:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `job_id`: UUID NOT NULL (Foreign Key -> `jobs.id`, CASCADE delete)
+- `match_analysis_id`: UUID (Foreign Key -> `job_match_analyses.id`, SET NULL delete)
+- `target_role`: TEXT NOT NULL
+- `company_name`: TEXT NOT NULL
+- `status`: TEXT NOT NULL (Default: `'DRAFT'`) — `'DRAFT' | 'NEEDS_REVIEW' | 'READY'`
+- `current_version_number`: INTEGER NOT NULL (Default: 0)
+- `input_fingerprint`: VARCHAR(64) NOT NULL
+- `is_stale`: BOOLEAN NOT NULL (Default: false)
+- `metadata`: JSONB NOT NULL (Default: `{}`)
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `application_packages_user_status_idx` on `(user_id, status)`
+- `application_packages_job_user_idx` on `(job_id, user_id)`
+- `application_packages_stale_idx` on `(is_stale)`
+
+### 6.2. `application_package_versions` (Immutable Version Snapshots)
+
+Immutable snapshots for each generated package iteration:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `package_id`: UUID NOT NULL (Foreign Key -> `application_packages.id`, CASCADE delete)
+- `version_number`: INTEGER NOT NULL
+- `base_cv_document_id`: UUID (Foreign Key -> `candidate_documents.id`, SET NULL delete)
+- `base_cv_mode`: TEXT NOT NULL — `'DOCUMENT_OVERRIDE' | 'ACTIVE_ROLE_CV' | 'ACTIVE_MASTER_CV' | 'CANDIDATE_BRAIN_DIRECT'`
+- `tailored_cv_structured`: JSONB NOT NULL (Structured JSON of tailored CV sections, contact, summary, experiences, education, skills)
+- `cover_letter_text`: TEXT NOT NULL
+- `readiness_score`: INTEGER NOT NULL (Default: 0, range 0-100)
+- `validation_issues`: JSONB NOT NULL (Default: `[]` — array of validation warnings/blockers)
+- `input_fingerprint`: VARCHAR(64) NOT NULL
+- `change_summary`: TEXT
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `app_pkg_versions_pkg_version_idx` on `(package_id, version_number)` (UNIQUE)
+- `app_pkg_versions_package_idx` on `(package_id)`
+
+### 6.3. `application_artifacts` (Generated Documents)
+
+Persisted binary (DOCX) and text artifacts generated for each package version:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `package_version_id`: UUID NOT NULL (Foreign Key -> `application_package_versions.id`, CASCADE delete)
+- `artifact_type`: TEXT NOT NULL — `'TAILORED_CV_DOCX' | 'TAILORED_CV_TXT' | 'COVER_LETTER_DOCX' | 'COVER_LETTER_TXT'`
+- `file_name`: TEXT NOT NULL
+- `mime_type`: VARCHAR(100) NOT NULL
+- `size_bytes`: INTEGER NOT NULL
+- `storage_path`: TEXT NOT NULL
+- `sha256_checksum`: VARCHAR(64) NOT NULL
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `application_artifacts_version_idx` on `(package_version_id)`
+- `application_artifacts_type_idx` on `(artifact_type)`
+
+### 6.4. `application_questions` (Screening Questions & Responses)
+
+Screening and application questions associated with a package version:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `package_version_id`: UUID NOT NULL (Foreign Key -> `application_package_versions.id`, CASCADE delete)
+- `question_text`: TEXT NOT NULL
+- `question_type`: TEXT NOT NULL — `'SHORT_TEXT' | 'LONG_TEXT' | 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'BOOLEAN' | 'NUMERIC' | 'FILE_UPLOAD'`
+- `category`: TEXT NOT NULL — `'EXPERIENCE' | 'SKILLS' | 'EDUCATION' | 'WORK_AUTHORIZATION' | 'SPONSORSHIP' | 'SALARY' | 'AVAILABILITY' | 'DIVERSITY' | 'GENERAL'`
+- `is_required`: BOOLEAN NOT NULL (Default: true)
+- `is_sensitive`: BOOLEAN NOT NULL (Default: false)
+- `answer_source`: TEXT NOT NULL — `'ANSWER_LIBRARY' | 'CANDIDATE_FACT' | 'MANUAL_ENTRY' | 'UNRESOLVED'`
+- `answer_source_id`: UUID (Nullable reference to source entity)
+- `suggested_answer`: TEXT
+- `final_answer`: TEXT
+- `resolution_status`: TEXT NOT NULL (Default: `'UNRESOLVED'`) — `'AUTO' | 'REVIEW' | 'MANUAL' | 'UNRESOLVED'`
+- `confidence`: INTEGER NOT NULL (Default: 50, range 0-100)
+- `user_notes`: TEXT
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `application_questions_version_idx` on `(package_version_id)`
+- `application_questions_category_idx` on `(category)`
+- `application_questions_resolution_idx` on `(resolution_status)`
+
+### 6.5. `approval_requests` (Human Approval Queue)
+
+Sensitive or ambiguous declarations requiring explicit human sign-off:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `package_version_id`: UUID NOT NULL (Foreign Key -> `application_package_versions.id`, CASCADE delete)
+- `question_id`: UUID (Foreign Key -> `application_questions.id`, SET NULL delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `title`: TEXT NOT NULL
+- `description`: TEXT NOT NULL
+- `category`: TEXT NOT NULL
+- `risk_level`: TEXT NOT NULL (Default: `'MEDIUM'`) — `'LOW' | 'MEDIUM' | 'HIGH'`
+- `status`: TEXT NOT NULL (Default: `'PENDING'`) — `'PENDING' | 'APPROVED' | 'REJECTED'`
+- `suggested_value`: TEXT
+- `resolved_value`: TEXT
+- `rejection_reason`: TEXT
+- `resolved_at`: TIMESTAMPTZ
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `approval_requests_user_status_idx` on `(user_id, status)`
+- `approval_requests_version_idx` on `(package_version_id)`
+- `approval_requests_risk_idx` on `(risk_level)`
+
+### 6.6. `application_package_events` (Audit Event Timeline)
+
+Immutable audit log tracking the lifecycle and mutations of application packages:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `package_id`: UUID NOT NULL (Foreign Key -> `application_packages.id`, CASCADE delete)
+- `version_id`: UUID (Foreign Key -> `application_package_versions.id`, SET NULL delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `event_type`: TEXT NOT NULL — `'PACKAGE_CREATED' | 'VERSION_GENERATED' | 'APPROVAL_REQUESTED' | 'APPROVAL_RESOLVED' | 'QUESTION_RESOLVED' | 'STATUS_CHANGED' | 'STALENESS_DETECTED' | 'ARTIFACT_EXPORTED'`
+- `description`: TEXT NOT NULL
+- `metadata`: JSONB NOT NULL (Default: `{}`)
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `application_package_events_pkg_idx` on `(package_id)`
+- `application_package_events_type_idx` on `(event_type)`
+
+---
+
+## 7. Deferred Domain Schemas
 
 The following entities are explicitly deferred until their respective macro-tasks:
 
-- **Application Workflow (`JOB-P3-T01` / `JOB-P3-T02`)**:
+- **Application CRM & Lifecycle (`JOB-P3-T02`)**:
   - `applications`
-  - `application_packages`
-  - `application_events`
-  - `approval_requests`
+  - `application_lifecycle_events`
 - **Communication & Interviews (`JOB-P4-T01` / `JOB-P4-T02`)**:
   - `email_messages` / `email_links`
   - `interviews`
@@ -371,7 +513,7 @@ The following entities are explicitly deferred until their respective macro-task
 
 ---
 
-## 7. Migration Strategy
+## 8. Migration Strategy
 
 1. **Generator**: Drizzle Kit inspects TypeScript schemas in `packages/database/src/schema/` and outputs pure SQL migration files into `packages/database/drizzle/`.
    - Command: `npm run db:generate`
@@ -391,3 +533,4 @@ The following entities are explicitly deferred until their respective macro-task
 - `0003_jobs_foundation.sql`: Job Ingestion, parsing, normalization, and provenance schema (`jobs`, `job_sources`, `job_requirements`, `job_sections`, `job_events`).
 - `0004_job_requirements_source_context.sql`: Additive hardening for job requirements (`source_id` foreign key to `job_sources.id` and `source_section` text column for provenance tracking).
 - `0005_matching_intelligence.sql`: Additive schema for Requirement Analysis, Matching & Policy Decision Engine (`job_match_analyses`, `job_match_dimensions`, `job_requirement_evaluations`).
+- `0006_application_studio.sql`: Additive schema for Application Studio, Tailored Materials & Human Approval (`application_packages`, `application_package_versions`, `application_artifacts`, `application_questions`, `approval_requests`, `application_package_events`).

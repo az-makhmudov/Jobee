@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react';
 import { candidateApi } from '../api/candidate-client.js';
 import { jobApi } from '../api/job-client.js';
-import type { CandidateOverviewDto, JobDashboardMetricsDto } from '@job-agent/shared';
+import { applicationPackageClient } from '../api/application-package-client.js';
+import type {
+  CandidateOverviewDto,
+  JobDashboardMetricsDto,
+  ApplicationStudioMetricsDto,
+} from '@job-agent/shared';
 
 interface Props {
   onNavigate: (section: string, tab?: string) => void;
@@ -10,6 +15,7 @@ interface Props {
 export function DashboardView({ onNavigate }: Props) {
   const [overview, setOverview] = useState<CandidateOverviewDto | null>(null);
   const [jobMetrics, setJobMetrics] = useState<JobDashboardMetricsDto | null>(null);
+  const [packageMetrics, setPackageMetrics] = useState<ApplicationStudioMetricsDto | null>(null);
   const [auditEvents, setAuditEvents] = useState<
     Array<{
       id: string;
@@ -25,14 +31,16 @@ export function DashboardView({ onNavigate }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const [overviewData, eventsData, metricsData] = await Promise.all([
+      const [overviewData, eventsData, metricsData, packageMetricsData] = await Promise.all([
         candidateApi.getOverview(),
         candidateApi.getAuditEvents(),
         jobApi.getMetrics().catch(() => null),
+        applicationPackageClient.getMetrics().catch(() => null),
       ]);
       setOverview(overviewData);
       setAuditEvents(eventsData.slice(0, 10)); // Top 10 recent
       setJobMetrics(metricsData);
+      setPackageMetrics(packageMetricsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
@@ -460,6 +468,98 @@ export function DashboardView({ onNavigate }: Props) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* Application Studio & Materials (Phase 3) */}
+      <div className="card">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1rem',
+          }}
+        >
+          <div>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>
+              Application Studio & Prepared Materials (Phase 3)
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              Versioned application packages, ATS-safe tailored CVs, grounded cover letters, and
+              human approvals
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('approvals')}>
+              Approvals Queue ({packageMetrics?.pendingApprovals ?? 0})
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={() => onNavigate('applications')}>
+              View Applications →
+            </button>
+          </div>
+        </div>
+
+        <div
+          className="status-grid"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          }}
+        >
+          <div
+            className="status-item"
+            onClick={() => onNavigate('applications')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">In Preparation</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>
+              {packageMetrics?.packagesInPreparation ?? 0}
+            </div>
+            <div className="status-item-meta">Packages being authored</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('applications')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Ready for Submission</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#34d399' }}>
+              {packageMetrics?.packagesReady ?? 0}
+            </div>
+            <div className="status-item-meta">All requirements satisfied</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('applications')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Needs Review</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fbbf24' }}>
+              {packageMetrics?.packagesNeedingReview ?? 0}
+            </div>
+            <div className="status-item-meta">Pending answer or approval</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('approvals')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Pending Approvals</div>
+            <div
+              style={{
+                fontSize: '1.4rem',
+                fontWeight: 700,
+                color:
+                  (packageMetrics?.pendingApprovals ?? 0) > 0 ? '#f87171' : 'var(--text-secondary)',
+              }}
+            >
+              {packageMetrics?.pendingApprovals ?? 0}
+            </div>
+            <div className="status-item-meta">Sensitive declarations queue</div>
+          </div>
+        </div>
       </div>
 
       {/* Recent Activity Audit */}
