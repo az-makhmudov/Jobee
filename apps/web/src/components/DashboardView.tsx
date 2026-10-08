@@ -3,11 +3,13 @@ import { candidateApi } from '../api/candidate-client.js';
 import { jobApi } from '../api/job-client.js';
 import { applicationPackageClient } from '../api/application-package-client.js';
 import { ApplicationCrmClient } from '../api/application-crm-client.js';
+import { emailClient } from '../api/email-client.js';
 import type {
   CandidateOverviewDto,
   JobDashboardMetricsDto,
   ApplicationStudioMetricsDto,
   ApplicationCrmMetricsDto,
+  EmailSyncStatsDto,
 } from '@job-agent/shared';
 
 interface Props {
@@ -19,6 +21,7 @@ export function DashboardView({ onNavigate }: Props) {
   const [jobMetrics, setJobMetrics] = useState<JobDashboardMetricsDto | null>(null);
   const [packageMetrics, setPackageMetrics] = useState<ApplicationStudioMetricsDto | null>(null);
   const [crmMetrics, setCrmMetrics] = useState<ApplicationCrmMetricsDto | null>(null);
+  const [emailStats, setEmailStats] = useState<EmailSyncStatsDto | null>(null);
   const [auditEvents, setAuditEvents] = useState<
     Array<{
       id: string;
@@ -34,19 +37,27 @@ export function DashboardView({ onNavigate }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const [overviewData, eventsData, metricsData, packageMetricsData, crmMetricsData] =
-        await Promise.all([
-          candidateApi.getOverview(),
-          candidateApi.getAuditEvents(),
-          jobApi.getMetrics().catch(() => null),
-          applicationPackageClient.getMetrics().catch(() => null),
-          ApplicationCrmClient.getMetrics().catch(() => null),
-        ]);
+      const [
+        overviewData,
+        eventsData,
+        metricsData,
+        packageMetricsData,
+        crmMetricsData,
+        emailStatsData,
+      ] = await Promise.all([
+        candidateApi.getOverview(),
+        candidateApi.getAuditEvents(),
+        jobApi.getMetrics().catch(() => null),
+        applicationPackageClient.getMetrics().catch(() => null),
+        ApplicationCrmClient.getMetrics().catch(() => null),
+        emailClient.getStats().catch(() => null),
+      ]);
       setOverview(overviewData);
       setAuditEvents(eventsData.slice(0, 10)); // Top 10 recent
       setJobMetrics(metricsData);
       setPackageMetrics(packageMetricsData);
       setCrmMetrics(crmMetricsData);
+      setEmailStats(emailStatsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
@@ -680,6 +691,108 @@ export function DashboardView({ onNavigate }: Props) {
               {crmMetrics?.overdueFollowUps ?? 0}
             </div>
             <div className="status-item-meta">Past follow-up date</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Email Intelligence & Application Status Synchronization (Phase 4) */}
+      <div className="card">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1rem',
+          }}
+        >
+          <div>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 600 }}>
+              Email Intelligence & Status Sync (Phase 4)
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              Autonomous recruitment inbox monitoring, job alert ingestion, and deterministic CRM
+              state synchronization
+            </p>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => onNavigate('emails')}>
+            Go to Email Intelligence →
+          </button>
+        </div>
+
+        <div
+          className="status-grid"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            marginBottom: '1.25rem',
+          }}
+        >
+          <div
+            className="status-item"
+            onClick={() => onNavigate('emails')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Connected Inboxes</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>
+              {emailStats?.connectedAccountsCount ?? 0}
+            </div>
+            <div className="status-item-meta">OAuth & fixture inboxes</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('emails')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Messages Ingested</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#60a5fa' }}>
+              {emailStats?.totalMessagesIngested ?? 0}
+            </div>
+            <div className="status-item-meta">Classified & normalized</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('emails')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Auto-Synced Updates</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#34d399' }}>
+              {emailStats?.autoSyncedUpdatesCount ?? 0}
+            </div>
+            <div className="status-item-meta">Grounded transitions</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('emails')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Jobs Discovered</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#a78bfa' }}>
+              {emailStats?.jobsDiscoveredCount ?? 0}
+            </div>
+            <div className="status-item-meta">From alert newsletters</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('emails')}
+            style={{
+              cursor: 'pointer',
+              borderColor: (emailStats?.pendingReviewCount ?? 0) > 0 ? '#fbbf24' : undefined,
+            }}
+          >
+            <div className="status-item-label">Pending Review</div>
+            <div
+              style={{
+                fontSize: '1.4rem',
+                fontWeight: 700,
+                color: (emailStats?.pendingReviewCount ?? 0) > 0 ? '#fbbf24' : 'inherit',
+              }}
+            >
+              {emailStats?.pendingReviewCount ?? 0}
+            </div>
+            <div className="status-item-meta">Uncertainty escalated</div>
           </div>
         </div>
       </div>

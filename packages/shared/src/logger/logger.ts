@@ -44,10 +44,8 @@ const SENSITIVE_KEY_PATTERNS = [
   /cookie/i,
 ];
 
-const SENSITIVE_VALUE_PATTERNS = [
-  /postgres(ql)?:\/\/[^:]+:[^@]+@/i, // connection strings with passwords
-  /bearer\s+[a-zA-Z0-9_\-.]+/i,
-];
+const CONNECTION_STRING_PATTERN = /postgres(ql)?:\/\/[^:]+:[^@]+@/gi;
+const BEARER_TOKEN_PATTERN = /bearer\s+[a-zA-Z0-9_\-.]+/gi;
 
 export function redactSensitiveData(data: unknown): unknown {
   if (data === null || data === undefined) {
@@ -56,9 +54,8 @@ export function redactSensitiveData(data: unknown): unknown {
 
   if (typeof data === 'string') {
     let sanitized = data;
-    for (const pattern of SENSITIVE_VALUE_PATTERNS) {
-      sanitized = sanitized.replace(pattern, 'postgres://[REDACTED]@[REDACTED]/');
-    }
+    sanitized = sanitized.replace(CONNECTION_STRING_PATTERN, 'postgres://[REDACTED]@[REDACTED]/');
+    sanitized = sanitized.replace(BEARER_TOKEN_PATTERN, 'Bearer [REDACTED]');
     return sanitized;
   }
 
@@ -107,7 +104,7 @@ export class Logger {
       level,
       service: this.service,
       environment: this.environment,
-      message,
+      message: typeof message === 'string' ? (redactSensitiveData(message) as string) : message,
     };
 
     if (context && Object.keys(context).length > 0) {
@@ -118,16 +115,18 @@ export class Logger {
       if (err instanceof Error) {
         entry.error = {
           name: err.name,
-          message: err.message,
+          message: redactSensitiveData(err.message) as string,
           ...('code' in err && typeof (err as { code: unknown }).code === 'string'
             ? { code: (err as { code: string }).code }
             : {}),
-          ...(this.environment !== 'production' ? { stack: err.stack } : {}),
+          ...(this.environment !== 'production'
+            ? { stack: redactSensitiveData(err.stack) as string }
+            : {}),
         };
       } else {
         entry.error = {
           name: 'NonError',
-          message: String(err),
+          message: redactSensitiveData(String(err)) as string,
         };
       }
     }

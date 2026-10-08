@@ -150,6 +150,23 @@ The Application CRM provides the persistent tracking and management layer for th
 
 ---
 
+## Email Intelligence, Job Alerts & Application Status Synchronization (`JOB-P4-T01`)
+
+The Email Intelligence subsystem serves as the platform's external communication and synchronization layer:
+
+- **Provider Abstraction & Offline Fixtures**: Pluggable provider interface (`EmailProvider`) supporting Google OAuth 2.0 (`GmailProvider`) and a complete offline simulator (`FixtureEmailProvider`) covering all 11 recruitment email archetypes.
+- **Cryptographic Token Protection**: Sensitive OAuth access and refresh tokens are encrypted at rest with authenticated AES-256-GCM using versioned envelopes (`v1:primary:<iv>:<tag>:<ciphertext>`) and SHA-256 key derivation with startup entropy validation.
+- **Persistent CSRF & Replay Defense**: Restart-resilient OAuth state verification backed by PostgreSQL table `oauth_states`, featuring atomic consumption queries and HMAC-SHA256 signatures with 15-minute validity windows.
+- **Atomic Sync Concurrency Mutex**: Database-backed concurrency lock on `email_accounts.is_syncing` with 5-minute timeout window rejecting overlapping sync requests with HTTP 409 Conflict.
+- **Safe MIME Sanitization**: Cleans inbound headers, strips quoted thread histories and legal disclaimers, sanitizes HTML to plain text discarding script and tracking elements, and generates deterministic SHA-256 content hashes.
+- **13-Category Classification**: High-precision deterministic regex classifier paired with structured Gemini AI fallback classifying messages into confirmations, rejections, interview invitations, screening requests, assessments, offers, job alerts, and outreach.
+- **Deterministic CRM Synchronization**: Enforces the Prime Directive by auto-transitioning application stages only under high-confidence deterministic rules (`APPLIED` → `CONFIRMATION_RECEIVED`, `SCREENING`, `ASSESSMENT`, `INTERVIEW`) while preserving idempotency.
+- **Conservative Rejection & Human Review Queue**: High-consequence rejections require >= 0.95 confidence and exact entity matches; ambiguous updates or job offers unconditionally route to `email_review_items` for human sign-off.
+- **Job Alert Digest Ingestion**: Automatically extracts discrete opportunities from alert emails and ingests them into canonical `JobService` with deduplication.
+- **Safe Disconnection vs. Hard Purge**: Neutralizes credentials and marks account `DISCONNECTED` while preserving normalized intelligence history unless explicitly purged with `?purge=true`.
+
+---
+
 ## Database & Migrations
 
 ```bash
@@ -174,6 +191,6 @@ npm run format      # Check code formatting with Prettier
 
 ## Current Status
 
-- **Macro-Task**: `JOB-P3-T02 — Application CRM, Lifecycle, Audit Timeline & Analytics` (COMPLETED).
-- **Milestone Reached**: **Personal ATS MVP achieved at JOB-P3-T02**. Full application lifecycle tracking, submission provenance, Kanban board, sub-entity management, and funnel analytics operational and verified.
-- **Next Milestone**: `JOB-P4-T01 — Email Intelligence, Job Alerts & Application Status Synchronization`.
+- **Macro-Task**: `JOB-P4-T01 — Email Intelligence, Job Alerts & Application Status Synchronization` (COMPLETED).
+- **Milestone Reached**: Phase 4 external communication intelligence layer fully operational with versioned token cryptography, persistent OAuth replay defense, all 11 archetype fixtures, sync concurrency mutex, and deterministic CRM synchronization.
+- **Next Milestone**: `JOB-P4-T02 — Calendar, Interview Scheduling & Interview Preparation`.

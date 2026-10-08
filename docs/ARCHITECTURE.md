@@ -515,7 +515,128 @@ The Application CRM provides the persistent lifecycle orchestration, audit track
 
 ---
 
-## 9. Future Architecture Isolation (Playwright Browser Worker)
+## 9. Email Intelligence & Communication Layer Architecture (`JOB-P4-T01`)
+
+The Email Intelligence subsystem forms the system's external sensory organ, connecting inbound email communications with the Application CRM, Candidate Brain, and Job Ingestion pipelines.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│                    Inbound Email Flow                        │
+├──────────────────────────────────────────────────────────────┤
+│ 1. OAuth Provider (GmailProvider / FixtureEmailProvider)     │
+│    - Minimal read-only scope (gmail.readonly)                │
+│    - AES-256-GCM token encryption with SHA-256 derived key   │
+│    - HMAC-SHA256 CSRF state token with 15-minute TTL         │
+├──────────────────────────────────────────────────────────────┤
+│ 2. Safe MIME Parsing & Sanitization (MimeParser)             │
+│    - Strips quote history & legal disclaimers                │
+│    - Cheerio-based HTML to plain text extraction             │
+│    - Computes SHA-256 message content hash                   │
+├──────────────────────────────────────────────────────────────┤
+│ 3. Dual Classification Engine                                │
+│    - High-precision deterministic regex & heuristics         │
+│    - Fallback: Structured Gemini AI prompt with Zod schema   │
+│    - 13 canonical categories (CONFIRMATION, REJECTION, etc.) │
+├──────────────────────────────────────────────────────────────┤
+│ 4. Multi-Stage Entity Resolution (EmailEntityResolver)       │
+│    - Stage 1: External Reference ID / ATS URLs               │
+│    - Stage 2: Thread Memory (email_thread_links)             │
+│    - Stage 3: Recruiter Contact Email (application_contacts) │
+│    - Stage 4: Exact/Fuzzy Company & Job Title Matching       │
+├──────────────────────────────────────────────────────────────┤
+│ 5. Job Alert Ingestion (JobAlertParser)                      │
+│    - Extracts structured listings (title, company, URL)      │
+│    - Ingests into canonical JobService with deduplication    │
+├──────────────────────────────────────────────────────────────┤
+│ 6. Deterministic Policy & CRM Synchronization                │
+│    - Conservative thresholds (CONFIRMATION >= 0.90,          │
+│      ASSESSMENT >= 0.90, INTERVIEW >= 0.90)                  │
+│    - Conservative Rejection Invariant (>= 0.95 + EXACT MATCH)│
+│    - State mutations execute via ApplicationStateMachine     │
+│    - Audit events appended to application_lifecycle_events   │
+├──────────────────────────────────────────────────────────────┤
+│ 7. Human Review Queue (EmailReviewService)                   │
+│    - High-stakes events (OFFER_LETTER) route to human review │
+│    - Ambiguous or low-confidence matches flagged             │
+│    - Resolutions: APPROVE (updates CRM & thread link),       │
+│      DISMISS, or REJECT                                      │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### 9.1. Provider Abstraction & Cryptographic Security
+
+- **`EmailProvider` Contract**: Common interface (`getAuthorizationUrl`, `exchangeCodeForTokens`, `refreshTokens`, `fetchMessages`, `fetchMessageDetail`) implemented by `GmailProvider` and `FixtureEmailProvider`.
+- **At-Rest Token Encryption (`TokenCryptoService`)**:
+  - Encrypts access, refresh, and ID tokens using authenticated AES-256-GCM with a 96-bit random IV and 128-bit authentication tag.
+  - Encryption key is validated on startup for minimum length (>= 32 chars) and entropy (>= 8 unique characters), derived deterministically via SHA-256 from `EMAIL_TOKEN_ENCRYPTION_KEY`.
+  - Serialized as versioned envelope: `v1:primary:<ivBase64url>:<tagBase64url>:<ciphertextBase64url>`. Key rotation is supported via explicit key ID tags. Plaintext tokens are never stored in PostgreSQL or logged.
+  - Decryptor validates version prefixes and rejects unsupported envelopes (`v2:`) while maintaining backwards-compatible support for legacy JSON envelopes.
+- **Persistent CSRF State Defense (`OAuthStateService` & `oauth_states`)**:
+  - Signs OAuth state parameters using HMAC-SHA256 (`{ userId, nonce, expiresAt, provider }`).
+  - Enforces a 15-minute maximum time-to-live.
+  - Nonce hashes are persisted in PostgreSQL table `oauth_states` and consumed atomically (`UPDATE ... WHERE consumed_at IS NULL ... RETURNING *`), defeating state replay and injection attacks even across API restarts.
+- **Sync Concurrency Control & Mutex**:
+  - Prevents race conditions during email polling via atomic lock on `email_accounts.is_syncing` and `sync_locked_at` with a 5-minute stale-lock threshold.
+  - Rejects overlapping sync invocations with HTTP 409 Conflict (`AppError.conflict`).
+- **Safe Account Disconnect**:
+  - `DELETE /api/email/accounts/:id` neutralizes credentials and marks the account `DISCONNECTED` while preserving normalized message records (`email_messages`), sync runs (`email_sync_runs`), and review queue history. Hard deletion is reserved for explicit `?purge=true`.
+
+### 9.2. Safe MIME Parsing & Ingestion Hygiene
+
+- **MimeParser (`MimeParser`)**:
+  - Decodes base64/quoted-printable MIME payloads.
+  - Normalizes headers (`Subject`, `From`, `To`, `Date`, `Message-ID`, `In-Reply-To`, `References`).
+  - Strips reply quotes (`On ... wrote:`, `> ...`) and corporate disclaimer footers.
+  - Sanitizes HTML bodies via `cheerio` to extract clean textual content while neutralizing script tags, tracking pixels, and malicious markup.
+  - Computes SHA-256 `content_hash` over body text for idempotent storage.
+
+### 9.3. 13-Category Classification Engine
+
+- Evaluates emails against an explicit 13-category taxonomy:
+  `APPLICATION_CONFIRMATION`, `APPLICATION_REJECTION`, `INTERVIEW_INVITATION`, `ASSESSMENT_INVITATION`, `OFFER_LETTER`, `RECRUITER_OUTREACH`, `STATUS_UPDATE`, `ACTION_REQUIRED`, `JOB_ALERT`, `NEWSLETTER_OR_MARKETING`, `REJECTION_FOLLOWUP`, `WITHDRAWAL_CONFIRMATION`, `SPAM_OR_IRRELEVANT`.
+- **Hybrid Pipeline (`EmailClassificationEngine`)**:
+  - Deterministic classifier (`DeterministicEmailClassifier`) executes first using high-precision regular expressions and ATS headers.
+  - When deterministic confidence is insufficient (< 0.85), falls back to structured LLM classification (`AiEmailClassifier`) powered by Gemini with Zod output validation.
+
+### 9.4. Multi-Stage Entity Resolution & Thread Memory
+
+- Resolves which application, job, or recruiter contact an inbound email belongs to via hierarchical matching stages (`EmailEntityResolver`):
+  1. `EXTERNAL_REF`: ATS requisition IDs, portal application URLs, or reference numbers.
+  2. `THREAD_LINK`: Matches existing `email_thread_links` created by previous messages or human approvals.
+  3. `CONTACT_EMAIL`: Sender email matches a recorded `application_contacts` record.
+  4. `COMPANY_AND_ROLE`: Normalized company and job title token matching against active applications.
+  5. `COMPANY_ONLY` / `UNKNOWN`: Weaker matches flagged for review.
+
+### 9.5. Conservative State Synchronization & Policy Guardrails
+
+- Enforces the Prime Directive: **AI evaluates and prepares. Rules authorize. Humans handle uncertainty.**
+- **Safe Auto-Sync**:
+  - `APPLICATION_CONFIRMATION` (confidence >= 0.90) transitions `APPLIED` → `CONFIRMATION_RECEIVED`.
+  - `ASSESSMENT_INVITATION` (confidence >= 0.90) transitions to `ASSESSMENT`.
+  - `INTERVIEW_INVITATION` (confidence >= 0.90) transitions to `INTERVIEW`.
+- **Conservative Rejection Invariant**:
+  - Rejections require confidence >= 0.95 AND an exact match (`EXTERNAL_REF` or `COMPANY_AND_ROLE`).
+  - Any rejection with lower confidence or fuzzy match is routed to `email_review_items` with `riskLevel: 'HIGH'`. Automatic rejection is never executed on ambiguous data.
+- **High-Stakes Offers**:
+  - `OFFER_LETTER` events are always routed to the review queue for human confirmation.
+- **Audit Preservation**:
+  - All status mutations execute through `ApplicationStateMachine` and append an immutable event to `application_lifecycle_events` with trigger `EMAIL_SYNC` and actor `SYSTEM`.
+
+### 9.6. Job Alert Ingestion
+
+- `JobAlertParser` parses job boards and aggregator digests (e.g. LinkedIn, Indeed, Otta, Arbeitnow).
+- Ingests opportunities directly into canonical `JobService` with source attribution and deduplication against existing postings.
+
+### 9.7. Review Queue & Thread Memory Linking
+
+- Unresolved, low-confidence, or high-risk emails produce `email_review_items`.
+- When a human user approves a review item (`POST /api/emails/review/:id/resolve` with action `APPROVE`):
+  - The suggested status transition is applied to the application.
+  - An entry in `email_thread_links` is created/updated so that all future emails in that thread automatically resolve to the application without manual intervention.
+
+---
+
+## 10. Future Architecture Isolation (Playwright Browser Worker)
 
 When browser automation (JOB-P5-T01 / JOB-P5-T02) is implemented:
 

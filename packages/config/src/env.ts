@@ -34,14 +34,47 @@ export const envSchema = z
     AI_API_KEY: z.string().optional(),
     GEMINI_API_KEY: z.string().optional(),
     AI_MODEL: z.string().optional(),
+    EMAIL_TOKEN_ENCRYPTION_KEY: z
+      .string()
+      .min(32, 'EMAIL_TOKEN_ENCRYPTION_KEY must be at least 32 characters')
+      .refine(
+        (val) => {
+          const uniqueChars = new Set(val);
+          return uniqueChars.size >= 8;
+        },
+        {
+          message:
+            'EMAIL_TOKEN_ENCRYPTION_KEY has insufficient entropy (must contain at least 8 distinct characters)',
+        },
+      )
+      .default('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
+    GMAIL_CLIENT_ID: z.string().optional(),
+    GMAIL_CLIENT_SECRET: z.string().optional(),
+    GMAIL_REDIRECT_URI: z
+      .string()
+      .default('http://127.0.0.1:3000/api/email/accounts/gmail/callback'),
   })
   .superRefine((data, ctx) => {
-    if (data.NODE_ENV === 'production' && (!data.DATABASE_URL || data.DATABASE_URL.trim() === '')) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'DATABASE_URL is required in production environment',
-        path: ['DATABASE_URL'],
-      });
+    if (data.NODE_ENV === 'production') {
+      if (!data.DATABASE_URL || data.DATABASE_URL.trim() === '') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'DATABASE_URL is required in production environment',
+          path: ['DATABASE_URL'],
+        });
+      }
+      if (
+        !data.EMAIL_TOKEN_ENCRYPTION_KEY ||
+        data.EMAIL_TOKEN_ENCRYPTION_KEY ===
+          '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'A secure non-default EMAIL_TOKEN_ENCRYPTION_KEY is required in production environment',
+          path: ['EMAIL_TOKEN_ENCRYPTION_KEY'],
+        });
+      }
     }
   });
 

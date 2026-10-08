@@ -668,20 +668,169 @@ Job offers received, terms, compensation packages, and candidate responses:
 
 ---
 
-## 8. Deferred Domain Schemas
+## 8. Email Intelligence & Status Synchronization Entities (`JOB-P4-T01`)
+
+The Email Intelligence subsystem enables automated ingestion of recruitment communications, job alerts, and state synchronization while maintaining cryptographic safety and deterministic rules.
+
+### 8.1. `email_accounts` (Connected Mail Accounts)
+
+OAuth connection metadata, encrypted tokens, and sync state:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `provider`: TEXT NOT NULL — `'GMAIL' | 'OUTLOOK' | 'IMAP' | 'FIXTURE'`
+- `email_address`: TEXT NOT NULL
+- `encrypted_access_token`: TEXT NOT NULL (AES-256-GCM envelope `iv:tag:ciphertext`)
+- `encrypted_refresh_token`: TEXT (AES-256-GCM envelope)
+- `token_expires_at`: TIMESTAMPTZ
+- `scope`: TEXT NOT NULL (Default: `'https://www.googleapis.com/auth/gmail.readonly'`)
+- `sync_cursor`: TEXT
+- `last_synced_at`: TIMESTAMPTZ
+- `is_syncing`: BOOLEAN NOT NULL (Default: false — atomic sync concurrency locking)
+- `sync_locked_at`: TIMESTAMPTZ (Lock timestamp with 5-minute timeout window)
+- `status`: TEXT NOT NULL (Default: `'CONNECTED'`) — `'CONNECTED' | 'DISCONNECTED' | 'REAUTH_REQUIRED' | 'ERROR' | 'REVOKED'`
+- `status_message`: TEXT
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `email_accounts_user_idx` on `(user_id)`
+- Unique constraint `email_accounts_user_email_unique` on `(user_id, email_address)`
+
+### 8.2. `email_messages` (Inbound Normalized Messages)
+
+Headers, cleaned message text, SHA-256 checksums, and classification metadata:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `account_id`: UUID NOT NULL (Foreign Key -> `email_accounts.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `provider_message_id`: TEXT NOT NULL
+- `provider_thread_id`: TEXT NOT NULL
+- `subject`: TEXT NOT NULL
+- `from_name`: TEXT
+- `from_email`: TEXT NOT NULL
+- `to_emails`: JSONB NOT NULL
+- `received_at`: TIMESTAMPTZ NOT NULL
+- `snippet`: TEXT
+- `body_text`: TEXT NOT NULL
+- `content_hash`: TEXT NOT NULL (SHA-256 checksum of normalized body)
+- `classification`: TEXT — 13 canonical categories
+- `confidence`: NUMERIC(4, 3) (0.000 to 1.000)
+- `classification_reasons`: JSONB (Array of rule or AI reasons)
+- `detected_entities`: JSONB (Company, role, external reference, ATS links)
+- `processing_status`: TEXT NOT NULL (Default: `'PROCESSED'`) — `'PENDING' | 'PROCESSED' | 'REVIEW_REQUIRED' | 'FAILED' | 'IGNORED'`
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `email_messages_user_idx` on `(user_id)`
+- Unique constraint `email_messages_account_provider_msg_unique` on `(account_id, provider_message_id)`
+- `email_messages_provider_thread_idx` on `(provider_thread_id)`
+- `email_messages_received_idx` on `(received_at)`
+- `email_messages_classification_idx` on `(classification)`
+
+### 8.3. `email_thread_links` (Thread Memory Links)
+
+Persistent links between email provider thread IDs and CRM application records:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `application_id`: UUID NOT NULL (Foreign Key -> `applications.id`, CASCADE delete)
+- `provider_thread_id`: TEXT NOT NULL
+- `source`: TEXT NOT NULL (Default: `'AUTO'`) — `'AUTO' | 'MANUAL_REVIEW' | 'HEADER_MATCH'`
+- `confidence`: NUMERIC(4, 3) NOT NULL (Default: `1.000`)
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `email_thread_links_user_idx` on `(user_id)`
+- `email_thread_links_app_idx` on `(application_id)`
+- Unique constraint `email_thread_links_user_thread_unique` on `(user_id, provider_thread_id)`
+
+### 8.4. `email_review_items` (Human Review Queue)
+
+Uncertain classifications, ambiguous entity links, or high-stakes actions:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `message_id`: UUID NOT NULL (Foreign Key -> `email_messages.id`, CASCADE delete)
+- `application_id`: UUID (Foreign Key -> `applications.id`, SET NULL)
+- `job_id`: UUID (Foreign Key -> `jobs.id`, SET NULL)
+- `proposed_status`: TEXT (Suggested application state machine status)
+- `suggested_action`: TEXT NOT NULL
+- `risk_level`: TEXT NOT NULL (Default: `'MEDIUM'`) — `'LOW' | 'MEDIUM' | 'HIGH'`
+- `reason`: TEXT NOT NULL
+- `resolution_status`: TEXT NOT NULL (Default: `'PENDING'`) — `'PENDING' | 'APPROVED' | 'DISMISSED' | 'REJECTED'`
+- `resolved_at`: TIMESTAMPTZ
+- `resolution_notes`: TEXT
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+- `updated_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `email_review_items_user_idx` on `(user_id)`
+- `email_review_items_message_idx` on `(message_id)`
+- `email_review_items_resolution_idx` on `(resolution_status)`
+- `email_review_items_risk_idx` on `(risk_level)`
+
+### 8.5. `email_sync_runs` (Sync Execution Audit Log)
+
+Execution audit and metric tracking for mail sync runs:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `account_id`: UUID NOT NULL (Foreign Key -> `email_accounts.id`, CASCADE delete)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `started_at`: TIMESTAMPTZ NOT NULL
+- `completed_at`: TIMESTAMPTZ
+- `status`: TEXT NOT NULL — `'RUNNING' | 'SUCCESS' | 'PARTIAL' | 'FAILED'`
+- `messages_found`: INTEGER NOT NULL (Default: 0)
+- `messages_processed`: INTEGER NOT NULL (Default: 0)
+- `reviews_created`: INTEGER NOT NULL (Default: 0)
+- `auto_transitions_applied`: INTEGER NOT NULL (Default: 0)
+- `error_message`: TEXT
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `email_sync_runs_account_idx` on `(account_id)`
+- `email_sync_runs_user_idx` on `(user_id)`
+
+### 8.6. `oauth_states` (Persistent OAuth Replay & CSRF State Defense)
+
+Persistent, restart-resilient OAuth state replay defense and CSRF protection:
+
+- `id`: UUID (Primary Key, defaultRandom)
+- `state_hash`: TEXT NOT NULL (SHA-256 hash of random 128-bit cryptographic nonce)
+- `user_id`: UUID NOT NULL (Foreign Key -> `users.id`, CASCADE delete)
+- `provider`: TEXT NOT NULL (Default: `'GMAIL'`) — `'GMAIL' | 'OUTLOOK' | 'FIXTURE'`
+- `expires_at`: TIMESTAMPTZ NOT NULL (15-minute validity window)
+- `consumed_at`: TIMESTAMPTZ (Atomic consumption timestamp; NULL when unconsumed)
+- `created_at`: TIMESTAMPTZ NOT NULL (Default: now())
+
+**Indexes**:
+
+- `oauth_states_state_hash_idx` on `(state_hash)`
+- `oauth_states_user_idx` on `(user_id)`
+- `oauth_states_expires_at_idx` on `(expires_at)`
+
+---
+
+## 9. Deferred Domain Schemas
 
 The following entities are explicitly deferred until their respective macro-tasks:
 
-- **Communication & Interviews (`JOB-P4-T01` / `JOB-P4-T02`)**:
-  - `email_messages` / `email_links`
-  - Automated calendar sync integrations
+- **Calendar & Interview Scheduling (`JOB-P4-T02`)**:
+  - Automated calendar sync integrations and busy-slot cache
 - **Controlled Automation (`JOB-P5-T01` / `JOB-P5-T02`)**:
   - `agent_actions`
   - Browser automation trace logs
 
 ---
 
-## 9. Migration Strategy
+## 10. Migration Strategy
 
 1. **Generator**: Drizzle Kit inspects TypeScript schemas in `packages/database/src/schema/` and outputs pure SQL migration files into `packages/database/drizzle/`.
    - Command: `npm run db:generate`
@@ -704,3 +853,5 @@ The following entities are explicitly deferred until their respective macro-task
 - `0006_application_studio.sql`: Additive schema for Application Studio, Tailored Materials & Human Approval (`application_packages`, `application_package_versions`, `application_artifacts`, `application_questions`, `approval_requests`, `application_package_events`).
 - `0007_application_crm.sql`: Additive schema for Application CRM, Lifecycle, Audit Timeline & Analytics (`applications`, `application_lifecycle_events`, `application_notes`, `application_contacts`, `application_assessments`, `application_interviews`, `application_offers`).
 - `0008_application_lifecycle_canonicalization.sql`: Canonical lifecycle migration adding `archived_at` timestamp column and index `applications_archived_at_idx`, plus safe state transition queries reconciling legacy statuses to canonical states.
+- `0009_email_intelligence.sql`: Additive schema for Email Intelligence, Job Alerts & Application Status Synchronization (`email_accounts`, `email_messages`, `email_thread_links`, `email_review_items`, `email_sync_runs`).
+- `0010_oauth_state_persistence.sql`: Additive schema for persistent OAuth state replay defense and sync concurrency locking (`oauth_states` table, `is_syncing` and `sync_locked_at` columns on `email_accounts`).

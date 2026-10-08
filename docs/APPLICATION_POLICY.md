@@ -133,3 +133,63 @@ The Application CRM enforces strict deterministic lifecycle progression, termina
   - `isCorrection: true`
   - Non-empty `correctionReason` explaining why the correction was necessary (e.g. "Recruiter reopened role after budget approval").
 - Every state transition appends an immutable record to `application_lifecycle_events`.
+
+---
+
+## 7. Inbound Communication Intelligence & Status Synchronization Policy (`JOB-P4-T01`)
+
+The email synchronization subsystem operates under the Prime Invariant:
+
+> **AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable.**
+>
+> _An email classifier may suggest what happened. Deterministic rules authorize whether CRM state changes automatically._
+
+### A. Autonomy Boundaries & Confidence Thresholds
+
+1. **`APPLICATION_CONFIRMATION` (Threshold: >= 0.90)**:
+   - Authorized automatic transition: `APPLIED` -> `CONFIRMATION_RECEIVED`.
+   - Captures confirmation timestamp and updates application record.
+2. **`SCREENING_REQUEST` (Threshold: >= 0.90)**:
+   - Authorized automatic transition: Active application status -> `SCREENING`.
+   - Idempotent: Does not re-transition if application is already at or past `SCREENING`.
+3. **`ASSESSMENT_INVITATION` (Threshold: >= 0.90)**:
+   - Authorized automatic transition: Active application status -> `ASSESSMENT`.
+   - Creates or updates assessment tracking item. Idempotent against repeat notifications.
+4. **`INTERVIEW_INVITATION` & `INTERVIEW_CONFIRMATION` (Threshold: >= 0.90)**:
+   - Authorized automatic transition: Active application status -> `INTERVIEW`.
+   - Flags application for interview preparation and scheduling. Idempotent against repeat confirmations.
+5. **`APPLICATION_REJECTION` (Conservative Rejection Guardrail: Threshold: >= 0.95 + Exact Match)**:
+   - High-consequence negative transition: Active application status -> `REJECTED`.
+   - **Mandatory Interlock**: Auto-rejection is authorized ONLY when confidence is >= 0.95 AND entity resolution is exact (`EXTERNAL_REF` or `COMPANY_AND_ROLE`).
+   - If confidence is < 0.95 or matching was fuzzy/thread-only, the system MUST route the rejection to `email_review_items` with `riskLevel: 'HIGH'` and `suggestedAction: 'REVIEW_REJECTION'`.
+   - The system must never automatically discard a candidate's active application on ambiguous or speculative evidence.
+6. **`OFFER_LETTER` (High-Stakes Gate: Human Review Always Required)**:
+   - Job offers carry critical legal and career implications.
+   - The engine **never** auto-transitions to `OFFER` autonomously.
+   - Always creates an `email_review_items` entry with `riskLevel: 'HIGH'` and `suggestedAction: 'REVIEW_OFFER'`, alerting the candidate to verify terms, compensation, and deadlines.
+7. **`APPLICATION_UPDATE` & `UNKNOWN` (Safe Non-Destructive Review Routing)**:
+   - Ambiguous portal updates or unknown message types route safely to `email_review_items` with `riskLevel: 'LOW'`, `proposedAction: 'NONE'`, and zero destructive CRM mutations.
+8. **Token Invalidation & Reauthentication (`REAUTH_REQUIRED`)**:
+   - If provider tokens are revoked or encounter `invalid_grant`, the account transitions to `REAUTH_REQUIRED`.
+   - Historical normalized messages, sync runs, and CRM links are strictly preserved.
+
+### B. Job Alert Ingestion Policy
+
+- Job alerts and aggregator digests (e.g. LinkedIn, Otta) are parsed to extract discrete listings.
+- Extracted opportunities are ingested via canonical `JobService`, running URL/company/title deduplication.
+- Ingestion is purely additive to the job catalog; it never modifies candidate preferences, profile, or active applications.
+
+### C. Human Review Queue & Escalation Rules
+
+Any inbound message exhibiting the following conditions is quarantined into `email_review_items`:
+
+1. Low classification confidence (< 0.85 or < 0.90 for state-mutating events).
+2. Ambiguous entity resolution (multiple candidate applications for the same company, or fuzzy company-only match).
+3. High-stakes outcomes (`OFFER_LETTER`, or rejection below strict threshold).
+4. Unknown senders or unlinked threads.
+
+**Resolution Outcomes**:
+
+- `APPROVE`: Deterministic rules execute the proposed state transition through `ApplicationStateMachine`, append an audit lifecycle event, and establish a permanent thread link in `email_thread_links`.
+- `DISMISS`: Marks the review item as dismissed without altering application state.
+- `REJECT`: Rejects the proposed action; application state remains untouched.

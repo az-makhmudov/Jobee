@@ -64,6 +64,20 @@
       "when": 1791138000000,
       "tag": "0008_application_lifecycle_canonicalization",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791140000000,
+      "tag": "0009_email_intelligence",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791142000000,
+      "tag": "0010_oauth_state_persistence",
+      "breakpoints": true
     }
   ]
 }

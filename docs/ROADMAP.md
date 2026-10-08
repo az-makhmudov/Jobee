@@ -60,7 +60,7 @@ This document defines the authoritative macro-task roadmap for AI Job Agent, dir
 
 ### `JOB-P4-T01 — Email Intelligence, Job Alerts & Application Status Synchronization`
 
-- **Status**: PENDING
+- **Status**: COMPLETED
 - **Scope**: Email integration abstraction, OAuth/token handling, job-alert ingestion, confirmation/rejection/offer detection, recruiter-thread matching, automatic CRM status updates where permitted by policy, and ambiguous-email review queue.
 
 ### `JOB-P4-T02 — Calendar, Interview Scheduling & Interview Preparation`

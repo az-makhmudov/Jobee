@@ -23,14 +23,19 @@ describe('validateEnv', () => {
     ).toThrow(AppError);
   });
 
-  it('succeeds in production when DATABASE_URL is provided', () => {
+  it('succeeds in production when DATABASE_URL and production encryption key are provided', () => {
     const config = validateEnv({
       NODE_ENV: 'production',
       DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/testdb',
+      EMAIL_TOKEN_ENCRYPTION_KEY:
+        'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
     });
 
     expect(config.NODE_ENV).toBe('production');
     expect(config.DATABASE_URL).toBe('postgresql://postgres:secret@localhost:5432/testdb');
+    expect(config.EMAIL_TOKEN_ENCRYPTION_KEY).toBe(
+      'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
+    );
   });
 
   it('fails if API_PORT is invalid', () => {
@@ -39,5 +44,32 @@ describe('validateEnv', () => {
         API_PORT: '-10',
       }),
     ).toThrow();
+  });
+
+  it('fails if EMAIL_TOKEN_ENCRYPTION_KEY is shorter than 32 characters', () => {
+    expect(() =>
+      validateEnv({
+        EMAIL_TOKEN_ENCRYPTION_KEY: 'short_key_12345',
+      }),
+    ).toThrow(/at least 32 characters/);
+  });
+
+  it('fails if EMAIL_TOKEN_ENCRYPTION_KEY has insufficient character entropy', () => {
+    expect(() =>
+      validateEnv({
+        EMAIL_TOKEN_ENCRYPTION_KEY: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      }),
+    ).toThrow(/insufficient entropy/);
+  });
+
+  it('fails in production if default EMAIL_TOKEN_ENCRYPTION_KEY is used', () => {
+    expect(() =>
+      validateEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/testdb',
+        EMAIL_TOKEN_ENCRYPTION_KEY:
+          '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      }),
+    ).toThrow(/secure non-default EMAIL_TOKEN_ENCRYPTION_KEY/);
   });
 });

@@ -12,6 +12,8 @@ const testConfig: AppConfig = {
   WORKER_POLL_INTERVAL_MS: 10000,
   DATABASE_URL: undefined,
   AI_PROVIDER: 'disabled',
+  EMAIL_TOKEN_ENCRYPTION_KEY: 'test-encryption-key-for-unit-testing-purposes-min-32-chars',
+  GMAIL_REDIRECT_URI: 'http://localhost:3000/api/email/oauth/callback',
 };
 
 describe('WorkerService', () => {

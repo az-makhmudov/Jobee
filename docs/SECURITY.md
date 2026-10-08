@@ -208,3 +208,51 @@ The Application CRM manages downstream hiring pipeline records, submission histo
 5. **Soft Archiving Protection vs Hard Purge Security Boundary**:
    - Standard application removals execute soft archiving (`is_archived: true, archived_at: timestamp`), ensuring timeline events, interview notes, and submission provenance remain historically intact and auditable.
    - Hard deletion (`DELETE /api/applications/:id/purge`) is guarded as a distinct, deliberate operational action reserved exclusively for GDPR/right-to-be-forgotten erasure.
+
+---
+
+## 14. Email Intelligence, Cryptography & OAuth Security (`JOB-P4-T01`)
+
+The Email Intelligence subsystem integrates with external email providers (e.g. Gmail) while maintaining rigorous cryptographic protection, minimal privileges, and strict safety guardrails:
+
+1. **At-Rest Token Encryption (AES-256-GCM) with Versioned Envelopes**:
+   - Access tokens, refresh tokens, and ID tokens are **never** stored in plaintext within the database.
+   - Tokens are encrypted using authenticated AES-256-GCM with a 96-bit (12-byte) random initialization vector (IV) and a 128-bit (16-byte) authentication tag.
+   - The encryption key is validated on startup for minimum length (>= 32 chars) and entropy (>= 8 unique characters), derived deterministically via SHA-256 from `EMAIL_TOKEN_ENCRYPTION_KEY`.
+   - Serialized format: `v1:primary:<ivBase64url>:<tagBase64url>:<ciphertextBase64url>`. Key rotation is supported via explicit key ID tags. Any modification, bit flipping, or invalid key immediately triggers an authentication error, preventing tampered ciphertext from being processed.
+   - Decryptor strictly validates version prefixes and rejects unsupported future envelopes (`v2:`) while maintaining backwards-compatible decryption for legacy JSON envelopes.
+
+2. **Strictly Read-Only OAuth Scope Isolation**:
+   - OAuth permission scopes are permanently restricted to `https://www.googleapis.com/auth/gmail.readonly`.
+   - The application does not request, hold, or utilize write, send, delete, or mailbox management permissions.
+   - Outbound email sending and automated replies are strictly prohibited in this phase.
+
+3. **Persistent OAuth CSRF State Protection (`OAuthStateService` & `oauth_states`)**:
+   - State tokens prevent cross-site request forgery during OAuth callback handoffs.
+   - Signed with HMAC-SHA256 over `{ userId, nonce, expiresAt, provider }`.
+   - 15-minute validity window is enforced.
+   - State hashes are stored in the PostgreSQL `oauth_states` table and consumed atomically via `UPDATE oauth_states SET consumed_at = NOW() WHERE state_hash = $1 AND provider = $2 AND consumed_at IS NULL AND expires_at > NOW() RETURNING *`.
+   - Replay protection survives application restarts and multi-instance restarts.
+
+4. **Sync Concurrency Control & Atomic Mutex**:
+   - Concurrent sync requests on the same account are prevented via atomic database claim on `email_accounts.is_syncing` and `sync_locked_at`.
+   - Competing requests are rejected immediately with HTTP 409 Conflict (`AppError.conflict`).
+   - Stale locks expire automatically after 5 minutes to prevent deadlock on unhandled process aborts.
+   - Bounded sync lookback is capped between 30 (default) and 60 (maximum) days to avoid unbounded API ingestion loads.
+
+5. **Safe Account Disconnection vs. Hard Purge**:
+   - Disconnecting an account (`DELETE /api/email/accounts/:id`) sets `status = 'DISCONNECTED'` and overwrites token material with neutralized revoked data.
+   - Historical normalized messages (`email_messages`), audit runs (`email_sync_runs`), and review items (`email_review_items`) are preserved for candidate record integrity.
+   - Hard deletion (`?purge=true`) is a deliberate administrative action that cascades to erase historical data for compliance (e.g., GDPR).
+
+6. **Inbound Content Sanitization & Safe MIME Parsing**:
+   - MIME payloads are normalized to strip reply histories (`On ... wrote:`, `> ...`) and legal disclaimers.
+   - Raw HTML bodies are converted to plain text using `cheerio` parser; all `<script>`, `<iframe>`, `style`, and tracking pixels are completely discarded before storage.
+   - Normalized text bodies compute SHA-256 cryptographic hashes (`content_hash`) to ensure tamper detection, deduplication, and forensic audit integrity.
+
+7. **Conservative CRM State Synchronization Rules**:
+   - Follows the Prime Directive: **AI evaluates and prepares. Rules authorize. Humans handle uncertainty.**
+   - Auto-transitions require high deterministic confidence (>= 0.90 for confirmations, assessments, and interviews).
+   - Conservative Rejection Invariant: Automatic rejection transitions require confidence >= 0.95 AND exact entity resolution (`EXTERNAL_REF` or `COMPANY_AND_ROLE`). Fuzzy matches or lower confidence rejections must route to `email_review_items` with `riskLevel: 'HIGH'`.
+   - High-stakes events (`OFFER_LETTER`) never auto-transition CRM state; they are flagged for human sign-off in the review queue.
+   - All state transitions execute through `ApplicationStateMachine` and append an immutable event to `application_lifecycle_events` with trigger `EMAIL_SYNC` and actor `SYSTEM`.

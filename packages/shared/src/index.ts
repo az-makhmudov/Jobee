@@ -8,4 +8,5 @@ export * from './logger/logger.js';
 export * from './types/job.js';
 export * from './types/application-package.js';
 export * from './types/application-crm.js';
+export * from './types/email-intelligence.js';
 export * from './utils/html-sanitizer.js';

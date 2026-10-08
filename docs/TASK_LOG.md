@@ -218,3 +218,58 @@ This document tracks execution history and verification state for all official m
   - `npm run db:check`: PASSED (Database connectivity verified)
   - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0008 applied cleanly)
   - Live End-to-End Verification: PASSED (Automated test `scripts/verify-crm-lifecycle.ts` against PostgreSQL `ai_job_agent_dev` executing Scenarios A-F + Creation Paths + Soft Archiving + Sub-Entities & Analytics + 100% clean teardown with zero database orphans).
+
+---
+
+### `JOB-P4-T01` — Email Intelligence, Job Alerts & Application Status Synchronization
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-08
+- **Scope**:
+  - Additive PostgreSQL schema for Email Intelligence:
+    - `email_accounts`: connected provider accounts (provider `GMAIL` | `FIXTURE`, email address, AES-256-GCM encrypted tokens, granted scopes, status, sync cursor, last synced timestamp, token expiry, error messages).
+    - `email_messages`: ingested normalized messages (provider message ID, provider thread ID, sender/recipient, subject, received timestamp, snippet, sanitized plain text body, 13-category classification, confidence, processing status, linked job/application/contact, deterministic content hash, raw metadata).
+    - `email_thread_links`: thread memory associations linking email threads to applications/jobs, confirmed automatically or by human users.
+    - `email_review_items`: human review queue for ambiguous or sensitive email classifications (risk level, classification, confidence, proposed action, proposed target status, explanation, extracted details, status, resolution note, resolved timestamp).
+    - `email_sync_runs`: audit log of email synchronization runs (trigger, status, messages found/ingested, auto-synced updates count, review items created, jobs discovered, start/complete timestamps, error messages).
+    - Additive migrations `0009_email_intelligence.sql` and `0010_oauth_state_persistence.sql` generated and applied to PostgreSQL `ai_job_agent_dev`.
+    - Migration 0010 adds `oauth_states` table for restart-resilient OAuth CSRF and replay defense, and adds `is_syncing` (boolean) and `sync_locked_at` (timestamptz) to `email_accounts` for atomic sync mutex concurrency control.
+  - Security & Cryptography Hardening:
+    - Versioned authenticated AES-256-GCM token encryption envelope: `v1:primary:<ivBase64url>:<tagBase64url>:<ciphertextBase64url>` via `TokenCryptoService`.
+    - Key rotation readiness with explicit key identifiers.
+    - Token encryption key entropy validation on startup (>= 32 chars, >= 8 unique chars; rejection of development defaults in production).
+    - Forward-compatibility envelope checks (unsupported future versions like `v2:` safely rejected) with backwards-compatible support for legacy JSON envelopes.
+    - Persistent OAuth CSRF state manager via `OAuthStateService` backed by PostgreSQL `oauth_states` table: atomic consumption query (`UPDATE oauth_states SET consumed_at = NOW() WHERE ... RETURNING *`) provides multi-instance and restart-resilient single-use replay defense.
+    - Strict read-only OAuth scope enforcement (`https://www.googleapis.com/auth/gmail.readonly`). Outbound sending strictly prohibited.
+    - Structured logger string sanitizer redacting Bearer tokens (`Bearer [REDACTED]`) and connection string passwords across all log messages, context objects, and errors.
+  - Providers & MIME Normalization:
+    - `EmailProvider` abstraction implemented by `GmailProvider` (Google OAuth 2.0 REST client) and `FixtureEmailProvider` (deterministic offline simulator covering all 11 recruitment archetypes).
+    - `MimeParser`: header parsing, address normalization, reply quotation marker stripping, HTML sanitization via cheerio, and SHA-256 content hashing.
+  - Classification & Entity Resolution:
+    - 13-category taxonomy (`JOB_ALERT`, `APPLICATION_CONFIRMATION`, `APPLICATION_REJECTION`, `RECRUITER_OUTREACH`, `SCREENING_REQUEST`, `ASSESSMENT_REQUEST`, `INTERVIEW_REQUEST`, `INTERVIEW_CONFIRMATION`, `OFFER_RELATED`, `APPLICATION_UPDATE`, `OTHER_JOB_RELATED`, `IRRELEVANT`, `UNKNOWN`).
+    - High-precision `DeterministicEmailClassifier` paired with Gemini `AiEmailClassifier` fallback.
+    - `EmailEntityResolver`: multi-strategy matching using external reference IDs, thread memory, contact email, and fuzzy company & role matching against candidate's CRM applications.
+    - `JobAlertParser`: parsing and canonical ingestion of job alert listings into `JobService`.
+  - Deterministic CRM State Synchronization & Conservative Guardrails:
+    - Prime Invariant enforced: deterministic state authorization via `ApplicationCrmService.transitionStatus` with system actor provenance.
+    - High confidence (>= 0.85) auto-transitions for application confirmations (`APPLIED` -> `CONFIRMATION_RECEIVED`), screening requests (`SCREENING`), assessments (`ASSESSMENT`), and interview notices (`INTERVIEW`).
+    - Idempotent stage transitions: screening, assessment, and interview confirmations do not duplicate transitions if the application is already at or past that stage.
+    - Safe non-destructive review queue routing: `APPLICATION_UPDATE` and `UNKNOWN` route to review queue with `riskLevel: 'LOW'`, `proposedAction: 'NONE'`, and zero destructive CRM mutations.
+    - Conservative rejection guardrail: rejections require >= 0.95 confidence and exact entity match; otherwise escalated to `EmailReviewQueue` with `riskLevel: 'HIGH'`. Offers always route to human review.
+    - Sync concurrency lock: atomic database claim on `email_accounts.is_syncing` with 5-minute timeout window; competing sync requests rejected with HTTP 409 Conflict.
+    - Safe account disconnect: `DELETE /api/email/accounts/:id` neutralizes credentials and marks account `DISCONNECTED` while preserving normalized intelligence history and review items. Hard purge requires `?purge=true`.
+    - Token invalidation handling: expired/revoked tokens mark account `REAUTH_REQUIRED` without losing historical data.
+  - Fastify REST API & Web UI:
+    - REST endpoints registered in Fastify API covering accounts, OAuth connect/callbacks, sync runs, message logs, review queue, resolution actions, and disconnect.
+    - `EmailIntelligenceView`: comprehensive Web UI with KPI metrics, account connection management, review queue resolution cards, and message logs.
+    - Dashboard card integration in `DashboardView.tsx`.
+- **Verification Records**:
+  - Canonical Master Context Check: `MASTER_CONTEXT_IN_SYNC` verified via byte-for-byte comparison (`cmp -s AI_JOB_AGENT_MASTER_CONTEXT.md docs/MASTER_CONTEXT.md`, exit code 0).
+  - `npm run lint`: PASSED (ESLint 9, 0 errors)
+  - `npm run typecheck`: PASSED (TypeScript 5.8 across all monorepo workspaces, 0 errors)
+  - `npm run test`: PASSED (Vitest, 24 test files, 187/187 tests passed: versioned crypto tests, persistent oauth replay tests, concurrency conflict tests, safe disconnect tests, mime parser tests, classification tests, and all platform tests)
+  - `npm run build`: PASSED (All 6 workspaces built and Vite web bundle compiled cleanly)
+  - `npm run format`: PASSED (Prettier checked across entire repository)
+  - `npm run db:check`: PASSED (Database connectivity verified)
+  - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0010 applied cleanly)
+  - Live End-to-End Verification: PASSED (Automated script `scripts/verify-job-p4-t01.ts` executed against real local PostgreSQL `ai_job_agent_dev`, verifying Sections 1–9: versioned token encryption, persistent OAuth state replay refusal surviving service restart, MIME normalization, all 11 email archetypes, live CRM auto-transitions, sync concurrency lock rejection with 409 Conflict, human review queue resolution, safe account disconnect preserving normalized intelligence, and 100% clean teardown with zero database orphans).

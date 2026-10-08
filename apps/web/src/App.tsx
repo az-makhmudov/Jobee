@@ -13,6 +13,7 @@ import { ApplicationDetailView } from './components/ApplicationDetailView.js';
 import { ApplicationPackagesListView } from './components/ApplicationPackagesListView.js';
 import { ApplicationStudioView } from './components/ApplicationStudioView.js';
 import { ApprovalsInboxView } from './components/ApprovalsInboxView.js';
+import { EmailIntelligenceView } from './components/EmailIntelligenceView.js';
 
 export type NavSection =
   | 'dashboard'
@@ -24,6 +25,7 @@ export type NavSection =
   | 'jobs'
   | 'applications'
   | 'approvals'
+  | 'emails'
   | 'interviews'
   | 'settings';
 
@@ -62,6 +64,7 @@ export default function App() {
     { id: 'jobs', label: 'Job Inbox', tag: 'Active' },
     { id: 'applications', label: 'Applications', tag: 'CRM' },
     { id: 'approvals', label: 'Approvals', tag: 'Review' },
+    { id: 'emails', label: 'Email Intelligence', tag: 'P4' },
     { id: 'activity', label: 'Audit Log' },
     { id: 'interviews', label: 'Interviews', tag: 'P4' },
     { id: 'settings', label: 'Platform Settings' },
@@ -196,6 +199,9 @@ export default function App() {
             }}
           />
         )}
+
+        {/* Phase 4: Email Intelligence & Status Sync */}
+        {currentSection === 'emails' && <EmailIntelligenceView />}
 
         {currentSection === 'settings' && <SettingsView />}
 

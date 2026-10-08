@@ -24,6 +24,12 @@ import { createApplicationCrmRoutes } from './routes/application-crm-routes.js';
 import { ApplicationPackageService } from './services/application-package-service.js';
 import { createAiProvider, type AiProvider } from './ai/index.js';
 import { LocalStorageProvider } from './storage/local-storage.js';
+import { createEmailRoutes } from './routes/email-routes.js';
+import { EmailSyncService } from './services/email/email-sync-service.js';
+import { EmailReviewService } from './services/email/email-review-service.js';
+import { OAuthStateService } from './services/email/oauth-state-service.js';
+import { TokenCryptoService } from './services/email/token-crypto-service.js';
+import { FixtureEmailProvider } from './services/email/fixture-email-provider.js';
 
 export interface AppOptions {
   config: AppConfig;
@@ -35,6 +41,9 @@ export interface AppOptions {
   matchService?: MatchService;
   packageService?: ApplicationPackageService;
   aiProvider?: AiProvider;
+  emailSyncService?: EmailSyncService;
+  emailReviewService?: EmailReviewService;
+  fixtureEmailProvider?: FixtureEmailProvider;
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -131,6 +140,47 @@ export function buildApp(options: AppOptions): FastifyInstance {
   if (candidateService) {
     app.register(createApplicationCrmRoutes(candidateService), { prefix: '/api' });
     app.register(createApplicationCrmRoutes(candidateService));
+  }
+
+  // Initialize and register Email Intelligence routes
+  let emailSyncService = options.emailSyncService;
+  let emailReviewService = options.emailReviewService;
+  if (!emailSyncService && db && candidateService) {
+    emailSyncService = new EmailSyncService(config, {
+      db,
+      fixtureProvider: options.fixtureEmailProvider,
+    });
+  }
+  if (!emailReviewService && db) {
+    emailReviewService = new EmailReviewService(db);
+  }
+
+  if (emailSyncService && emailReviewService && candidateService) {
+    const oauthStateService = new OAuthStateService(
+      config.EMAIL_TOKEN_ENCRYPTION_KEY,
+      db ?? undefined,
+    );
+    const tokenCryptoService = new TokenCryptoService(config.EMAIL_TOKEN_ENCRYPTION_KEY);
+
+    app.register(
+      createEmailRoutes({
+        candidateService,
+        emailSyncService,
+        emailReviewService,
+        oauthStateService,
+        tokenCryptoService,
+      }),
+      { prefix: '/api' },
+    );
+    app.register(
+      createEmailRoutes({
+        candidateService,
+        emailSyncService,
+        emailReviewService,
+        oauthStateService,
+        tokenCryptoService,
+      }),
+    );
   }
 
   // Custom 404 Not Found handler

@@ -26,5 +26,20 @@ describe('redactSensitiveData', () => {
     const url = 'postgresql://user:secretpass@db.neon.tech:5432/main_db';
     const redacted = redactSensitiveData(url);
     expect(redacted).not.toContain('secretpass');
+    expect(redacted).toBe('postgres://[REDACTED]@[REDACTED]/db.neon.tech:5432/main_db');
+  });
+
+  it('redacts Bearer tokens in strings', () => {
+    const header = 'Authorization: Bearer ya29.a0AfH6SMB_secret_access_token_12345';
+    const redacted = redactSensitiveData(header);
+    expect(redacted).toBe('Authorization: Bearer [REDACTED]');
+    expect(redacted).not.toContain('ya29.a0AfH6SMB_secret_access_token_12345');
+  });
+
+  it('redacts case-insensitive bearer tokens in strings', () => {
+    const lowercase = 'using bearer token_xyz_987 in auth flow';
+    const redacted = redactSensitiveData(lowercase);
+    expect(redacted).toBe('using Bearer [REDACTED] in auth flow');
+    expect(redacted).not.toContain('token_xyz_987');
   });
 });
