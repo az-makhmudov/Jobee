@@ -133,7 +133,7 @@ export function createEmailRoutes(options: {
     });
 
     // 4. OAuth callback handler
-    app.get('/email/oauth/callback', async (req: any, reply) => {
+    const handleOAuthCallback = async (req: any, reply: any) => {
       const { code, state, error } = req.query;
 
       if (error) {
@@ -175,7 +175,10 @@ export function createEmailRoutes(options: {
 
       // Redirect to web application with success parameter
       return reply.redirect('/email?connected=true&accountId=' + account!.id);
-    });
+    };
+
+    app.get('/email/oauth/callback', handleOAuthCallback);
+    app.get('/email/accounts/gmail/callback', handleOAuthCallback);
 
     // 5. Trigger manual synchronization for an account
     app.post('/email/accounts/:accountId/sync', async (req: any) => {

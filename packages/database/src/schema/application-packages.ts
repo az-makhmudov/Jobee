@@ -1,4 +1,13 @@
-import { pgTable, uuid, text, timestamp, boolean, integer, index } from 'drizzle-orm/pg-core';
+import {
+  pgTable,
+  uuid,
+  text,
+  timestamp,
+  boolean,
+  integer,
+  index,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
 import { users } from './users.js';
 import { jobs } from './jobs.js';
 import { jobMatchAnalyses } from './job-match-analyses.js';
@@ -35,6 +44,7 @@ export const applicationPackages = pgTable(
     index('application_packages_user_id_idx').on(table.userId),
     index('application_packages_status_idx').on(table.status),
     index('application_packages_is_stale_idx').on(table.isStale),
+    uniqueIndex('application_packages_user_job_unique_idx').on(table.userId, table.jobId),
   ],
 );
 

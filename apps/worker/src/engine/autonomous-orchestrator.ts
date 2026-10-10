@@ -8,6 +8,7 @@ import {
   browserApplicationRuns,
   applicationInterviews,
   jobPreferences,
+  emailAccounts,
   eq,
   and,
   sql,
@@ -566,6 +567,14 @@ export class AutonomousOrchestrator {
           });
         } else if (completedRun.status === BrowserRunStatus.STOPPED_CAPTCHA) {
           blocked++;
+          await this.db
+            .update(applications)
+            .set({
+              status: 'NEEDS_REVIEW',
+              updatedAt: new Date(),
+            })
+            .where(eq(applications.id, app.id));
+
           await this.dispatcher.dispatch({
             userId,
             type: 'CAPTCHA_HALT',
@@ -578,6 +587,14 @@ export class AutonomousOrchestrator {
           });
         } else if (completedRun.status === BrowserRunStatus.STOPPED_MANUAL_REVIEW) {
           blocked++;
+          await this.db
+            .update(applications)
+            .set({
+              status: 'NEEDS_REVIEW',
+              updatedAt: new Date(),
+            })
+            .where(eq(applications.id, app.id));
+
           await this.dispatcher.dispatch({
             userId,
             type: 'MANUAL_REVIEW_REQUIRED',
@@ -630,12 +647,13 @@ export class AutonomousOrchestrator {
       'Checking configured email accounts for background message sync...',
     );
 
-    const accounts = await this.db.query.emailAccounts?.findMany({
-      where: and(eq(sql`user_id`, userId), eq(sql`is_active`, true)),
-    });
+    const accounts = await this.db
+      .select()
+      .from(emailAccounts)
+      .where(and(eq(emailAccounts.userId, userId), eq(emailAccounts.status, 'CONNECTED')));
 
-    const activeCount = accounts?.length || 0;
-    await addStep('EMAIL_SYNC', `Active email accounts found: ${activeCount}`);
+    const activeCount = accounts.length;
+    await addStep('EMAIL_SYNC', `Active connected email accounts found: ${activeCount}`);
 
     return {
       processed: activeCount,

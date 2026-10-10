@@ -395,7 +395,43 @@ This document tracks execution history and verification state for all official m
     - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors)
     - `npm run test`: PASSED (Vitest, 33 test files, 256/256 tests passed: worker orchestrator tests, API notification and orchestrator route tests, and platform test suites)
     - `npm run build`: PASSED (All 6 workspaces built and Vite web bundle compiled cleanly)
+    - Live End-to-End Verification: PASSED (`scripts/verify-job-p5-t02.ts` executed against real local PostgreSQL `ai_job_agent_dev`, verifying Sections 1–10: schema hygiene, notification preferences CRUD, notification dispatcher and filters, in-app notifications operations and unread count, exponential backoff calculation, orchestrator discovery/matching/preparation lifecycle, circuit breaker & daily quota enforcement, reminders & alerts, Fastify API observability endpoints, and 100% clean teardown).
+
+---
+
+### `POST-ROADMAP-PILOT` — Post-Roadmap Product Validation, Stabilization & Private-Pilot Readiness
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-10
+- **Scope**:
+  - Independent security, concurrency, and invariant audit across all 10 core subsystems.
+  - Defect remediation and stability hardening:
+    - **DEF-01 (CRITICAL - Concurrency Race)**: Implemented atomic transition (`PENDING` -> `RUNNING`) and `onConflictDoUpdate` claim in `browser-runner.ts` and `browser-application-engine.ts` preventing race conditions where multiple worker polling ticks double-launch and double-submit applications.
+    - **DEF-02 (CRITICAL - Form Matching Bypassing Verification)**: Hardened `base-ats-adapter.ts` with word-boundary matching (min 3 chars) and strict exclusion of `val.isSensitive` and unverified answers from automatic form prefill.
+    - **DEF-03 (HIGH - Worker Crash on Missing Column)**: In `autonomous-orchestrator.ts`, corrected email account query to filter by `status = 'CONNECTED'` instead of non-existent `is_active` column.
+    - **DEF-04 (HIGH - OAuth Callback Route Mismatch)**: In `email-routes.ts`, added route alias for `/email/accounts/gmail/callback` matching `GMAIL_REDIRECT_URI` configuration in `env.ts`.
+    - **DEF-05 (HIGH - Auto-Apply Loop on Halts)**: In `autonomous-orchestrator.ts`, updated status transition to set applications to `NEEDS_REVIEW` upon `STOPPED_CAPTCHA` or `STOPPED_MANUAL_REVIEW`, stopping repetitive retry loops.
+    - **DEF-06 (MEDIUM - Crash Recovery)**: In `worker.ts`, added `recoverOrphanedRuns()` at startup to reconcile stale `RUNNING` rows in `browser_application_runs` and `orchestration_runs` to `FAILED`.
+    - **DEF-07 & DEF-09 (MEDIUM - Database Integrity Constraints)**: Added compound unique constraint `(userId, jobId)` to `application_packages` preventing duplicate packages, and added foreign key constraint on `duplicateOfId` referencing `jobs.id` (`onDelete: 'set null'`). Generated and applied migration `0014_harden_pilot_schema.sql`.
+  - Comprehensive Pilot Verification Suite (`scripts/verify-pilot-readiness.ts`):
+    - 11 vertical slices verified end-to-end with live Fastify API, React 19 / Vite dev server, background worker, and PostgreSQL database:
+      1. Health Probes & Vite Reverse Proxy (`/health/live`, `/health/ready`, `http://127.0.0.1:5173/api/...`)
+      2. Candidate Brain & Facts (allowAiUse gating, verified vs unverified)
+      3. Job Ingestion, Normalization & Deduplication
+      4. Match Intelligence, 8-Dimension Fit & Anti-Hallucination Guard
+      5. Application Studio, Truthful Tailoring & Human Approval Gate
+      6. CRM Application Lifecycle (`APPLIED` state machine transition & immutable audit timeline)
+      7. Email Intelligence, Recruiter Threading & Status Sync
+      8. Calendar Availability, Interview Booking & Grounded Prep Briefs
+      9. Controlled Browser Worker (`DRY_RUN`, `STOPPED_CAPTCHA`, `STOPPED_MANUAL_REVIEW`)
+      10. Autonomous Orchestrator, Quota Enforcement & Notification Center
+      11. Clean Teardown (100% fixture deletion, zero database orphans)
+  - Verification Records:
+    - `npm run lint`: PASSED (ESLint 9, 0 errors)
+    - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors)
+    - `npm run test`: PASSED (Vitest, 33 test files, 256/256 tests passed)
+    - `npm run build`: PASSED (All 6 workspaces built and Vite web bundle compiled cleanly)
     - `npm run format`: PASSED (Prettier checked across entire repository)
     - `npm run db:check`: PASSED (Database connectivity verified)
-    - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0013 applied cleanly)
-    - Live End-to-End Verification: PASSED (`scripts/verify-job-p5-t02.ts` executed against real local PostgreSQL `ai_job_agent_dev`, verifying Sections 1–10: schema hygiene, notification preferences CRUD, notification dispatcher and filters, in-app notifications operations and unread count, exponential backoff calculation, orchestrator discovery/matching/preparation lifecycle, circuit breaker & daily quota enforcement, reminders & alerts, Fastify API observability endpoints, and 100% clean teardown).
+    - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0014 applied cleanly)
+    - Live End-to-End Verification: PASSED (`scripts/verify-pilot-readiness.ts` executed cleanly with 0 failures, 11/11 sections passed, 100% clean teardown).

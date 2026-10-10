@@ -50,7 +50,9 @@ export const jobs = pgTable(
     sourceCompanyId: text('source_company_id'),
     contentHash: text('content_hash').notNull(),
     isDuplicate: boolean('is_duplicate').default(false).notNull(),
-    duplicateOfId: uuid('duplicate_of_id'),
+    duplicateOfId: uuid('duplicate_of_id').references((): any => jobs.id, {
+      onDelete: 'set null',
+    }),
     hasManualEdits: boolean('has_manual_edits').default(false).notNull(),
     manualEditFields: jsonb('manual_edit_fields').$type<string[]>().default([]).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),

@@ -203,12 +203,20 @@ export abstract class BaseAtsAdapter {
     // Match against answers map by normalized key
     const answerEntries = Object.entries(payload.answers);
     for (const [key, val] of answerEntries) {
-      const keyNorm = key.toLowerCase();
+      if (val.isSensitive || (val.verificationStatus && val.verificationStatus !== 'VERIFIED')) {
+        continue;
+      }
+      const keyNorm = key.trim().toLowerCase();
+      if (keyNorm.length < 3) continue;
+
+      const escapedKey = keyNorm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const wordBoundaryRegex = new RegExp(`\\b${escapedKey}\\b`, 'i');
+
       if (
-        labelLower.includes(keyNorm) ||
-        keyNorm.includes(labelLower) ||
-        nameLower.includes(keyNorm) ||
-        keyNorm.includes(nameLower)
+        wordBoundaryRegex.test(labelLower) ||
+        wordBoundaryRegex.test(nameLower) ||
+        labelLower === keyNorm ||
+        nameLower === keyNorm
       ) {
         return val.answerText;
       }
@@ -224,12 +232,16 @@ export abstract class BaseAtsAdapter {
         payload.answers['work_authorization'] ||
         payload.answers['authorized_to_work'] ||
         payload.answers['work_auth'];
-      if (authAns) return authAns.answerText;
+      if (authAns && !authAns.isSensitive && authAns.verificationStatus === 'VERIFIED') {
+        return authAns.answerText;
+      }
     }
 
     if (labelLower.includes('sponsorship') || labelLower.includes('sponsor')) {
       const sponAns = payload.answers['sponsorship'] || payload.answers['require_sponsorship'];
-      if (sponAns) return sponAns.answerText;
+      if (sponAns && !sponAns.isSensitive && sponAns.verificationStatus === 'VERIFIED') {
+        return sponAns.answerText;
+      }
     }
 
     return undefined;

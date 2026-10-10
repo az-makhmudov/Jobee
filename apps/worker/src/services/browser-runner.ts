@@ -7,9 +7,11 @@ import {
   answerLibrary,
   applicationPackageVersions,
   eq,
+  and,
 } from '@job-agent/database';
 import {
   BrowserRunMode,
+  BrowserRunStatus,
   type ApplicationSubmissionPayload,
   type BrowserApplicationRunDto,
 } from '@job-agent/shared';
@@ -33,13 +35,28 @@ export async function executePendingBrowserRun(
   runId: string,
   options: RunExecutionOptions = {},
 ): Promise<BrowserApplicationRunDto> {
-  const [run] = await db
-    .select()
-    .from(browserApplicationRuns)
-    .where(eq(browserApplicationRuns.id, runId));
+  // Atomically claim the run from PENDING -> RUNNING to prevent concurrent worker duplicate runs
+  const [claimed] = await db
+    .update(browserApplicationRuns)
+    .set({ status: BrowserRunStatus.RUNNING, startedAt: new Date() })
+    .where(
+      and(
+        eq(browserApplicationRuns.id, runId),
+        eq(browserApplicationRuns.status, BrowserRunStatus.PENDING),
+      ),
+    )
+    .returning();
+
+  const [run] = claimed
+    ? [claimed]
+    : await db.select().from(browserApplicationRuns).where(eq(browserApplicationRuns.id, runId));
 
   if (!run) {
     throw new Error(`Browser run not found: ${runId}`);
+  }
+
+  if (!claimed && run.status !== BrowserRunStatus.RUNNING) {
+    return run as unknown as BrowserApplicationRunDto;
   }
 
   // 1. Compile Candidate Profile Facts

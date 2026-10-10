@@ -76,24 +76,36 @@ export class BrowserApplicationEngine {
     // 1. Initial DB Persistence (if db available)
     if (this.db && !params.skipDb) {
       try {
-        await this.db.insert(browserApplicationRuns).values({
-          id: runId,
-          applicationId: params.applicationId,
-          userId: params.userId,
-          packageVersionId: params.packageVersionId ?? null,
-          atsProvider: atsProvider,
-          targetUrl: params.targetUrl,
-          mode: mode,
-          status: BrowserRunStatus.RUNNING,
-          fieldsDetectedCount: 0,
-          fieldsFilledCount: 0,
-          unmatchedRequiredFields: [],
-          stepLogs: [],
-          screenshotPaths: [],
-          startedAt: now,
-        });
+        await this.db
+          .insert(browserApplicationRuns)
+          .values({
+            id: runId,
+            applicationId: params.applicationId,
+            userId: params.userId,
+            packageVersionId: params.packageVersionId ?? null,
+            atsProvider: atsProvider,
+            targetUrl: params.targetUrl,
+            mode: mode,
+            status: BrowserRunStatus.RUNNING,
+            fieldsDetectedCount: 0,
+            fieldsFilledCount: 0,
+            unmatchedRequiredFields: [],
+            stepLogs: [],
+            screenshotPaths: [],
+            startedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: browserApplicationRuns.id,
+            set: {
+              status: BrowserRunStatus.RUNNING,
+              startedAt: now,
+              atsProvider: atsProvider,
+              mode: mode,
+              updatedAt: now,
+            },
+          });
       } catch (err: any) {
-        logStep('INIT', `Warning: Could not create initial DB record: ${err.message}`, 'WARNING');
+        logStep('INIT', `Warning: Could not create or claim DB record: ${err.message}`, 'WARNING');
       }
     }
 

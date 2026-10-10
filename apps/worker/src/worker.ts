@@ -55,9 +55,56 @@ export class WorkerService {
       message: dbHealth.message,
     });
 
+    // Reconcile orphaned runs from previous abnormal shutdown/crash
+    await this.recoverOrphanedRuns();
+
     // Start heartbeat loop
     this.scheduleNextTick();
     this.logger.info('Worker service started successfully. Running in standby mode.');
+  }
+
+  private async recoverOrphanedRuns(): Promise<void> {
+    try {
+      const db = getDb(this.config.DATABASE_URL);
+
+      const orphanedBrowserRuns = await db
+        .update(browserApplicationRuns)
+        .set({
+          status: BrowserRunStatus.FAILED,
+          errorMessage: 'Interrupted by worker process restart/crash',
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(browserApplicationRuns.status, BrowserRunStatus.RUNNING))
+        .returning();
+
+      if (orphanedBrowserRuns.length > 0) {
+        this.logger.warn(
+          `Reconciled ${orphanedBrowserRuns.length} orphaned browser run(s) from previous shutdown`,
+          { count: orphanedBrowserRuns.length },
+        );
+      }
+
+      const orphanedOrchRuns = await db
+        .update(orchestrationRuns)
+        .set({
+          status: OrchestrationRunStatuses.FAILED,
+          errorMessage: 'Interrupted by worker process restart/crash',
+          completedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(orchestrationRuns.status, OrchestrationRunStatuses.RUNNING))
+        .returning();
+
+      if (orphanedOrchRuns.length > 0) {
+        this.logger.warn(
+          `Reconciled ${orphanedOrchRuns.length} orphaned orchestration run(s) from previous shutdown`,
+          { count: orphanedOrchRuns.length },
+        );
+      }
+    } catch (err: any) {
+      this.logger.error('Failed to reconcile orphaned runs during startup', undefined, err);
+    }
   }
 
   private scheduleNextTick(): void {
