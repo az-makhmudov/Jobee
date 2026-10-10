@@ -12,7 +12,7 @@
 - **Milestone Name:** Browser Application Worker & Initial ATS Adapters
 - **Milestone Status:** NOT STARTED (Next Target)
 - **Previous Completed Milestone:** `JOB-P4-T02` (Calendar Integration, Interview Scheduling & Preparation Workspace)
-- **Last Successful Git Checkpoint:** Pending commit for `JOB-P4-T02`
+- **Last Successful Git Checkpoint:** `2de982d` (`feat(calendar): implement calendar integration and interview preparation workspace (JOB-P4-T02)`)
 
 ---
 
