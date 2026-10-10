@@ -273,3 +273,38 @@ This document tracks execution history and verification state for all official m
   - `npm run db:check`: PASSED (Database connectivity verified)
   - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0010 applied cleanly)
   - Live End-to-End Verification: PASSED (Automated script `scripts/verify-job-p4-t01.ts` executed against real local PostgreSQL `ai_job_agent_dev`, verifying Sections 1–9: versioned token encryption, persistent OAuth state replay refusal surviving service restart, MIME normalization, all 11 email archetypes, live CRM auto-transitions, sync concurrency lock rejection with 409 Conflict, human review queue resolution, safe account disconnect preserving normalized intelligence, and 100% clean teardown with zero database orphans).
+
+---
+
+### `JOB-P4-T02` — Calendar Integration & Interview Preparation Workspace
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-10
+- **Scope**:
+  - Additive PostgreSQL schema for Calendar Integration & Interview Preparation:
+    - `calendar_accounts`: connected calendar provider accounts (`GOOGLE` | `FIXTURE`, email, AES-256-GCM encrypted tokens, granted scopes `NONE` | `AVAILABILITY` | `EVENT_MANAGEMENT`, status `CONNECTED` | `REAUTH_REQUIRED` | `ERROR` | `DISCONNECTED`, selected calendar IDs array, default calendar ID).
+    - `interview_calendar_links`: deterministic links between CRM interviews and external calendar events (interview ID, calendar account ID, calendar ID, external event ID, event URL, etag, last synced timestamp).
+    - `interview_preparation_briefs`: evidence-grounded preparation briefs (`interview_id`, `application_id`, `user_id`, version, generation mode `DETERMINISTIC`, role summary, company context, key requirements, candidate strengths mapped to verified skills/experiences, candidate gaps, likely questions, suggested STAR frameworks with grounded evidence anchors, questions to ask, 6-step preparation checklist with interactive completion flags, candidate personal human notes).
+    - `application_interviews` schema extensions: debrief questions asked, debrief topics discussed, debrief candidate observations, debrief follow-up commitments, debrief concerns, debrief expected next step, debrief expected response date, debrief private notes, scheduling status (`PROPOSED`, `NEEDS_CONFIRMATION`, `CONFIRMED`, `RESCHEDULED`, `CANCELLED`, `COMPLETED`), meeting URL.
+    - Additive migration `0011_calendar_interview_preparation.sql` applied to PostgreSQL `ai_job_agent_dev`.
+  - Service Architecture & Business Logic:
+    - `FixtureCalendarProvider`: offline deterministic calendar provider supporting availability windows, mock busy slots, event CRUD, and meeting links.
+    - `GoogleCalendarProvider`: Google Calendar REST client implementing standard `CalendarProvider` contract with scopes for availability inspection and event management.
+    - `CalendarService`: OAuth URL generation with persistent CSRF defense, token encryption (AES-256-GCM), account connect/disconnect, multi-calendar availability aggregation, conflict detection with severity evaluation (`NONE`, `CONFLICT`) and alternative slot recommendation, interview event booking and unlinking, and interview dashboard metrics.
+    - `InterviewPreparationService`: synthesizes strictly grounded interview briefs anchored in verified candidate skills and achievements (zero-hallucination prime directive invariant), manages 6-step interactive preparation checklist, candidate talking points/notes, and records post-interview debriefs with application lifecycle audit logging (`INTERVIEW_COMPLETED`).
+  - Fastify REST API:
+    - 20 endpoints registered under `/api/calendar/*` and `/api/applications/:appId/interviews/:interviewId/*` covering accounts, OAuth callback, availability queries, conflict verifier, interview booking, preparation briefs, checklist updates, human notes, and debriefs.
+  - React 19 Frontend Web UI:
+    - `InterviewWorkspaceView.tsx`: comprehensive workspace with tabbed navigation (Scheduled Interviews, Availability & Conflicts, Calendar Inboxes), filters (All, Upcoming, Past, Needs Brief, Needs Debrief), preparation brief modal with STAR frameworks and interactive checklist, debrief modal, and calendar booking modal.
+    - `DashboardView.tsx`: integrated Calendar Integration & Interview Preparation metrics card with direct workspace navigation.
+    - `App.tsx`: activated `currentSection === 'interviews'` route with full navigation support.
+    - `calendar-client.ts`: typed API client consuming all calendar and interview endpoints.
+  - Verification Records:
+    - `npm run lint`: PASSED (ESLint 9, 0 errors)
+    - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors)
+    - `npm run test`: PASSED (Vitest, 27 test files, 229/229 tests passed, including `calendar-service.test.ts`, `interview-preparation-service.test.ts`, and `calendar-routes.test.ts`)
+    - `npm run build`: PASSED (All 6 workspaces built and Vite web bundle compiled cleanly)
+    - `npm run format`: PASSED (Prettier checked across entire repository)
+    - `npm run db:check`: PASSED (Database connectivity verified)
+    - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0011 applied cleanly)
+    - Live End-to-End Verification: PASSED (`scripts/verify-job-p4-t02.ts` executed against real local PostgreSQL `ai_job_agent_dev`, verifying Sections 1–10: token encryption, multi-calendar availability aggregation, conflict detection, candidate evidence seeding, interview calendar booking, grounded brief generation with zero-hallucination verification, checklist toggle, human notes, post-interview debrief with CRM lifecycle audit event, workspace listing, calendar event unlinking, and 100% clean teardown).

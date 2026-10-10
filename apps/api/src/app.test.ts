@@ -14,6 +14,7 @@ const testConfig: AppConfig = {
   AI_PROVIDER: 'disabled',
   EMAIL_TOKEN_ENCRYPTION_KEY: 'test-encryption-key-for-unit-testing-purposes-min-32-chars',
   GMAIL_REDIRECT_URI: 'http://localhost:3000/api/email/oauth/callback',
+  GOOGLE_CALENDAR_REDIRECT_URI: 'http://localhost:3000/api/calendar/google/callback',
 };
 
 describe('API Foundation', () => {

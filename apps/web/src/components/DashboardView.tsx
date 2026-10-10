@@ -4,12 +4,14 @@ import { jobApi } from '../api/job-client.js';
 import { applicationPackageClient } from '../api/application-package-client.js';
 import { ApplicationCrmClient } from '../api/application-crm-client.js';
 import { emailClient } from '../api/email-client.js';
+import { calendarClient } from '../api/calendar-client.js';
 import type {
   CandidateOverviewDto,
   JobDashboardMetricsDto,
   ApplicationStudioMetricsDto,
   ApplicationCrmMetricsDto,
   EmailSyncStatsDto,
+  InterviewDashboardMetrics,
 } from '@job-agent/shared';
 
 interface Props {
@@ -22,6 +24,7 @@ export function DashboardView({ onNavigate }: Props) {
   const [packageMetrics, setPackageMetrics] = useState<ApplicationStudioMetricsDto | null>(null);
   const [crmMetrics, setCrmMetrics] = useState<ApplicationCrmMetricsDto | null>(null);
   const [emailStats, setEmailStats] = useState<EmailSyncStatsDto | null>(null);
+  const [calendarMetrics, setCalendarMetrics] = useState<InterviewDashboardMetrics | null>(null);
   const [auditEvents, setAuditEvents] = useState<
     Array<{
       id: string;
@@ -44,6 +47,7 @@ export function DashboardView({ onNavigate }: Props) {
         packageMetricsData,
         crmMetricsData,
         emailStatsData,
+        calendarMetricsData,
       ] = await Promise.all([
         candidateApi.getOverview(),
         candidateApi.getAuditEvents(),
@@ -51,6 +55,7 @@ export function DashboardView({ onNavigate }: Props) {
         applicationPackageClient.getMetrics().catch(() => null),
         ApplicationCrmClient.getMetrics().catch(() => null),
         emailClient.getStats().catch(() => null),
+        calendarClient.getMetrics().catch(() => null),
       ]);
       setOverview(overviewData);
       setAuditEvents(eventsData.slice(0, 10)); // Top 10 recent
@@ -58,6 +63,7 @@ export function DashboardView({ onNavigate }: Props) {
       setPackageMetrics(packageMetricsData);
       setCrmMetrics(crmMetricsData);
       setEmailStats(emailStatsData);
+      setCalendarMetrics(calendarMetricsData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
@@ -793,6 +799,126 @@ export function DashboardView({ onNavigate }: Props) {
               {emailStats?.pendingReviewCount ?? 0}
             </div>
             <div className="status-item-meta">Uncertainty escalated</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Phase 4: Calendar Integration & Interview Preparation */}
+      <div className="card">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1rem',
+          }}
+        >
+          <div>
+            <div className="card-title" style={{ marginBottom: '0.25rem' }}>
+              <span>🎙️ Calendar Integration & Interview Preparation</span>
+              <span
+                className="badge"
+                style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd' }}
+              >
+                JOB-P4-T02
+              </span>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              Multi-calendar availability, grounded STAR answer frameworks, and structured
+              post-interview debriefs.
+            </p>
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={() => onNavigate('interviews')}>
+            Open Interview Workspace ↗
+          </button>
+        </div>
+
+        <div
+          className="status-grid"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            marginBottom: '1.25rem',
+          }}
+        >
+          <div
+            className="status-item"
+            onClick={() => onNavigate('interviews')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Upcoming (7 Days)</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent)' }}>
+              {calendarMetrics?.interviewsThisWeek ?? 0}
+            </div>
+            <div className="status-item-meta">
+              {calendarMetrics?.upcomingInterviews ?? 0} total upcoming
+            </div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('interviews')}
+            style={{
+              cursor: 'pointer',
+              borderColor: (calendarMetrics?.preparationNeeded ?? 0) > 0 ? '#fbbf24' : undefined,
+            }}
+          >
+            <div className="status-item-label">Prep Briefs Needed</div>
+            <div
+              style={{
+                fontSize: '1.4rem',
+                fontWeight: 700,
+                color: (calendarMetrics?.preparationNeeded ?? 0) > 0 ? '#fbbf24' : '#34d399',
+              }}
+            >
+              {calendarMetrics?.preparationNeeded ?? 0}
+            </div>
+            <div className="status-item-meta">Evidence-grounded briefs</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('interviews')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Overdue Follow-ups</div>
+            <div
+              style={{
+                fontSize: '1.4rem',
+                fontWeight: 700,
+                color: (calendarMetrics?.overdueFollowUps ?? 0) > 0 ? 'var(--danger)' : 'inherit',
+              }}
+            >
+              {calendarMetrics?.overdueFollowUps ?? 0}
+            </div>
+            <div className="status-item-meta">Pending response dates</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('interviews')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Completed Rounds</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#34d399' }}>
+              {calendarMetrics?.interviewsCompleted ?? 0}
+            </div>
+            <div className="status-item-meta">Logged in Application CRM</div>
+          </div>
+
+          <div
+            className="status-item"
+            onClick={() => onNavigate('interviews')}
+            style={{ cursor: 'pointer' }}
+          >
+            <div className="status-item-label">Calendar Sync</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>
+              {calendarMetrics?.calendarConnected ? (
+                <span style={{ color: '#34d399' }}>Connected</span>
+              ) : (
+                <span style={{ color: 'var(--text-secondary)' }}>Offline</span>
+              )}
+            </div>
+            <div className="status-item-meta">Google & Fixture providers</div>
           </div>
         </div>
       </div>

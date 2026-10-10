@@ -65,8 +65,8 @@ This document defines the authoritative macro-task roadmap for AI Job Agent, dir
 
 ### `JOB-P4-T02 — Calendar, Interview Scheduling & Interview Preparation`
 
-- **Status**: PENDING
-- **Scope**: Calendar integration abstraction, interview invitation extraction, proposed-time parsing, availability checks, scheduling policy modes (manual / suggest / auto), calendar event creation, interview records, company/role preparation briefs, and follow-up reminders.
+- **Status**: COMPLETED
+- **Scope**: Calendar integration abstraction, Google Calendar & Fixture providers, token encryption, availability aggregation, conflict detection with severity & alternatives, interview calendar event booking, grounded preparation briefs (zero-hallucination candidate strengths & STAR frameworks, 6-step checklist), post-interview debriefs with CRM lifecycle audit logging, and Interview Workspace Web UI.
 
 ---
 

@@ -14,6 +14,7 @@ import { ApplicationPackagesListView } from './components/ApplicationPackagesLis
 import { ApplicationStudioView } from './components/ApplicationStudioView.js';
 import { ApprovalsInboxView } from './components/ApprovalsInboxView.js';
 import { EmailIntelligenceView } from './components/EmailIntelligenceView.js';
+import { InterviewWorkspaceView } from './components/InterviewWorkspaceView.js';
 
 export type NavSection =
   | 'dashboard'
@@ -206,19 +207,13 @@ export default function App() {
         {currentSection === 'settings' && <SettingsView />}
 
         {currentSection === 'interviews' && (
-          <div>
-            <header className="page-header">
-              <h1 className="page-title">Interviews & Follow-ups</h1>
-              <p className="page-subtitle">Module scheduled for future development phases</p>
-            </header>
-            <div className="card placeholder-view">
-              <h3>Phase Roadmap Enforced</h3>
-              <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                This section will be activated in upcoming development phases according to the
-                official macro-task roadmap (Phase 4).
-              </p>
-            </div>
-          </div>
+          <InterviewWorkspaceView
+            onNavigateToApplication={(appId) => {
+              setSelectedApplicationId(appId);
+              setSelectedPackageId(null);
+              setCurrentSection('applications');
+            }}
+          />
         )}
       </main>
     </div>

@@ -30,6 +30,11 @@ import { EmailReviewService } from './services/email/email-review-service.js';
 import { OAuthStateService } from './services/email/oauth-state-service.js';
 import { TokenCryptoService } from './services/email/token-crypto-service.js';
 import { FixtureEmailProvider } from './services/email/fixture-email-provider.js';
+import { createCalendarRoutes } from './routes/calendar-routes.js';
+import { CalendarService } from './services/calendar/calendar-service.js';
+import { InterviewPreparationService } from './services/calendar/interview-preparation-service.js';
+import { GoogleCalendarProvider } from './services/calendar/google-calendar-provider.js';
+import { FixtureCalendarProvider } from './services/calendar/fixture-calendar-provider.js';
 
 export interface AppOptions {
   config: AppConfig;
@@ -44,6 +49,9 @@ export interface AppOptions {
   emailSyncService?: EmailSyncService;
   emailReviewService?: EmailReviewService;
   fixtureEmailProvider?: FixtureEmailProvider;
+  calendarService?: CalendarService;
+  interviewPreparationService?: InterviewPreparationService;
+  fixtureCalendarProvider?: FixtureCalendarProvider;
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -179,6 +187,57 @@ export function buildApp(options: AppOptions): FastifyInstance {
         emailReviewService,
         oauthStateService,
         tokenCryptoService,
+      }),
+    );
+  }
+
+  // Initialize and register Calendar & Interview Preparation routes
+  if (candidateService && db) {
+    let calendarService = options.calendarService;
+    let prepService = options.interviewPreparationService;
+
+    if (!calendarService) {
+      const tokenCryptoService = new TokenCryptoService(config.EMAIL_TOKEN_ENCRYPTION_KEY);
+      const fixtureProvider = options.fixtureCalendarProvider ?? new FixtureCalendarProvider();
+      const googleProvider = new GoogleCalendarProvider({
+        clientId: config.GOOGLE_CALENDAR_CLIENT_ID,
+        clientSecret: config.GOOGLE_CALENDAR_CLIENT_SECRET,
+        redirectUri: config.GOOGLE_CALENDAR_REDIRECT_URI,
+      });
+
+      calendarService = new CalendarService({
+        db,
+        cryptoService: tokenCryptoService,
+        googleProvider,
+        fixtureProvider,
+        logger,
+      });
+    }
+
+    if (!prepService) {
+      prepService = new InterviewPreparationService({ db, logger });
+    }
+
+    const oauthStateService = new OAuthStateService(
+      config.EMAIL_TOKEN_ENCRYPTION_KEY,
+      db ?? undefined,
+    );
+
+    app.register(
+      createCalendarRoutes({
+        candidateService,
+        calendarService,
+        prepService,
+        oauthStateService,
+      }),
+      { prefix: '/api' },
+    );
+    app.register(
+      createCalendarRoutes({
+        candidateService,
+        calendarService,
+        prepService,
+        oauthStateService,
       }),
     );
   }

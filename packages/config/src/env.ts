@@ -53,6 +53,11 @@ export const envSchema = z
     GMAIL_REDIRECT_URI: z
       .string()
       .default('http://127.0.0.1:3000/api/email/accounts/gmail/callback'),
+    GOOGLE_CALENDAR_CLIENT_ID: z.string().optional(),
+    GOOGLE_CALENDAR_CLIENT_SECRET: z.string().optional(),
+    GOOGLE_CALENDAR_REDIRECT_URI: z
+      .string()
+      .default('http://127.0.0.1:3000/api/calendar/google/callback'),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production') {
