@@ -13,7 +13,7 @@
 - **Milestone Status:** READY_FOR_PRIVATE_PILOT
 - **Previous Completed Milestone:** `JOB-P5-T02` (Autonomous Orchestrator, Scheduling, Notifications & Hardening)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION COMPLETE**
-- **Last Successful Git Checkpoint:** `84e5354` (`fix(pilot): resolve security and concurrency defects, harden schema, and verify pilot readiness`)
+- **Last Successful Git Checkpoint:** `9e75e17` (`feat(acceptance): verify real browser UI, integrated ATS fixture submission, and crash safety invariants`)
 
 ---
 
@@ -32,8 +32,8 @@
 | `JOB-P4-T02` | Calendar, Interview Scheduling & Prep Workspace   | COMPLETED     | `2de982d`                                        |
 | `JOB-P5-T01` | Browser Application Worker & Initial ATS Adapters | COMPLETED     | `d9006e7`                                        |
 | `JOB-P5-T02` | Autonomous Orchestrator, Scheduling & Hardening   | COMPLETED     | `9a1c56b`                                        |
-| `PILOT-STAB` | Security Audit, Stabilization & Pilot Readiness   | COMPLETED     | Verified via `scripts/verify-pilot-readiness.ts`       |
-| `OP-ACCEPT`  | Frontend Acceptance, ATS Fixture & Crash Safety   | **COMPLETED** | Verified via `scripts/verify-operational-acceptance.ts` |
+| `PILOT-STAB` | Security Audit, Stabilization & Pilot Readiness   | COMPLETED     | `84e5354`                                        |
+| `OP-ACCEPT`  | Frontend Acceptance, ATS Fixture & Crash Safety   | **COMPLETED** | `9e75e17`                                        |
 
 ---
 
