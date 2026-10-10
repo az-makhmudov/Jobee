@@ -79,5 +79,5 @@ This document defines the authoritative macro-task roadmap for AI Job Agent, dir
 
 ### `JOB-P5-T02 — Autonomous Orchestrator, Scheduling, Notifications & Production Hardening`
 
-- **Status**: PENDING
+- **Status**: COMPLETED
 - **Scope**: Scheduled discovery/analysis runs, background queues, retry/backoff, concurrency controls, auto-apply authorization evaluation, rate limiting, notification/approval reminders, end-to-end observability, security hardening, activity dashboard, and runbooks.

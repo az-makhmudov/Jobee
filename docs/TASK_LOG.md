@@ -355,3 +355,47 @@ This document tracks execution history and verification state for all official m
     - `npm run db:check`: PASSED (Database connectivity verified)
     - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0012 applied cleanly)
     - Live End-to-End Verification: PASSED (`scripts/verify-job-p5-t01.ts` executed against real local PostgreSQL `ai_job_agent_dev`, verifying Sections 1–10: schema hygiene, registry resolution, form extraction, challenge detection, candidate brain facts, DRY_RUN execution with zero-submission guarantee, missing required facts halt with STOPPED_MANUAL_REVIEW, bot challenge halt with STOPPED_CAPTCHA, runner pipeline and worker lifecycle, Fastify REST endpoints, and 100% clean teardown).
+
+---
+
+### `JOB-P5-T02` — Autonomous Orchestrator, Scheduling, Notifications & Production Hardening
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-10
+- **Scope**:
+  - Additive PostgreSQL schema for Autonomous Orchestrator and System Notifications:
+    - `orchestration_runs`: execution tracking table (`id`, `user_id`, `task_type` [PIPELINE_CYCLE, DISCOVERY, MATCHING, PREPARATION, AUTO_APPLY, EMAIL_SYNC, REMINDERS], `trigger` [SCHEDULED, MANUAL, EVENT], `status` [PENDING, RUNNING, COMPLETED, PARTIAL, FAILED], `step_logs` JSONB audit trail, `summary` JSONB metrics, `retry_count`, `max_retries`, `backoff_until`, `error_message`, timestamps).
+    - `system_notifications`: in-app notification center table (`id`, `user_id`, `type` [APPROVAL_REMINDER, CAPTCHA_HALT, MANUAL_REVIEW_REQUIRED, AUTO_APPLY_SUCCESS, AUTO_APPLY_FAILED, RATE_LIMIT_EXCEEDED, EMAIL_SYNC_ALERT, INTERVIEW_UPCOMING, SYSTEM_ALERT], `severity` [INFO, WARNING, CRITICAL], `title`, `message`, `data` JSONB, `status` [UNREAD, READ, DISMISSED], `action_url`, `read_at`, timestamps).
+    - `notification_preferences`: user notification channels and toggles table (`id`, `user_id`, `email_notifications_enabled`, `in_app_notifications_enabled`, `notify_on_captcha_halt`, `notify_on_manual_review`, `notify_on_auto_apply`, `notify_on_upcoming_interview`, `daily_digest_enabled`, timestamps).
+    - Additive migration `0013_orchestrator_scheduling_notifications.sql` generated and applied to PostgreSQL `ai_job_agent_dev`.
+  - Shared domain contracts and DTOs in `packages/shared/src/types/orchestrator.ts`:
+    - `OrchestrationTaskType`, `OrchestrationTrigger`, `OrchestrationRunStatus`, `SystemNotificationType`, `SystemNotificationSeverity`, `SystemNotificationStatus`, `OrchestrationStepLog`, `OrchestrationRunSummary`, `OrchestrationRunDto`, `CreateOrchestrationRunDto`, `SystemNotificationDto`, `NotificationPreferencesDto`, `SystemMetricsDto`.
+  - Config & Environment Hardening:
+    - Added `ORCHESTRATOR_ENABLED`, `ORCHESTRATOR_POLL_INTERVAL_MS`, `DISCOVERY_INTERVAL_MINUTES`, `EMAIL_SYNC_INTERVAL_MINUTES`, `REMINDERS_INTERVAL_MINUTES`, `RATE_LIMIT_DAILY_APPLICATIONS_DEFAULT` to `packages/config/src/env.ts` with Zod validation and `.env.example`.
+  - Autonomous Orchestrator Engine (`apps/worker`):
+    - `AutonomousOrchestrator`: 6-stage autonomous orchestration engine managing discovery, matching, preparation, auto-apply, email sync, and reminders.
+    - Deterministic exponential backoff calculation (`calculateBackoff`) with bounded jitter and retry tracking.
+    - Circuit breaker invariant: strictly prevents automated submissions when `auto_apply_enabled: false`, requiring explicit human authorization.
+    - Daily rate limit & quota enforcement (`max_applications_per_day`) to protect candidate reputation and prevent spamming external ATS portals.
+    - Bot challenge (`STOPPED_CAPTCHA`) and unverified question (`STOPPED_MANUAL_REVIEW`) notification dispatchers alerting the candidate for review.
+    - Notification dispatcher (`NotificationDispatcher`) honoring user preferences before creating in-app alerts.
+    - Background worker service (`WorkerService`): periodic scheduled pipeline runner and orchestration queue polling in heartbeat loop.
+  - Fastify REST API (`apps/api`):
+    - System Notification routes: `GET /api/notifications`, `GET /api/notifications/unread-count`, `POST /api/notifications`, `PATCH /api/notifications/:id/read`, `POST /api/notifications/mark-all-read`, `DELETE /api/notifications/:id`, `GET /api/notifications/preferences`, `PUT /api/notifications/preferences`.
+    - Orchestrator routes: `GET /api/orchestrator/runs`, `GET /api/orchestrator/runs/:id`, `POST /api/orchestrator/runs`, `GET /api/orchestrator/status`, `GET /api/orchestrator/metrics`.
+    - Health & Observability: added lightweight `/health/live` liveness probe and deep dependency `/health/ready` probe checking database connectivity and schema readiness.
+  - React 19 Frontend Web UI (`apps/web`):
+    - Notification Center modal (`NotificationCenterModal.tsx`) with unread filter, direct action links, preferences toggle, and header notification bell with live unread badge in `App.tsx`.
+    - Activity & Operations Hub (`ActivityView.tsx`) with system metric cards (applications submitted today, remaining quota, active alerts, orchestrator status), manual trigger controls, orchestration run history table, live step-by-step trace inspector modal, and candidate brain audit logs tab.
+    - Typed API clients (`notification-client.ts`, `orchestrator-client.ts`).
+  - Production Hardening & Operations:
+    - Authoring `docs/RUNBOOKS.md`: comprehensive operations guide covering architecture, health probes, emergency circuit breakers, bot challenge recovery, rate limiting, and incident playbooks.
+  - Verification Records:
+    - `npm run lint`: PASSED (ESLint 9, 0 errors)
+    - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors)
+    - `npm run test`: PASSED (Vitest, 33 test files, 256/256 tests passed: worker orchestrator tests, API notification and orchestrator route tests, and platform test suites)
+    - `npm run build`: PASSED (All 6 workspaces built and Vite web bundle compiled cleanly)
+    - `npm run format`: PASSED (Prettier checked across entire repository)
+    - `npm run db:check`: PASSED (Database connectivity verified)
+    - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0013 applied cleanly)
+    - Live End-to-End Verification: PASSED (`scripts/verify-job-p5-t02.ts` executed against real local PostgreSQL `ai_job_agent_dev`, verifying Sections 1–10: schema hygiene, notification preferences CRUD, notification dispatcher and filters, in-app notifications operations and unread count, exponential backoff calculation, orchestrator discovery/matching/preparation lifecycle, circuit breaker & daily quota enforcement, reminders & alerts, Fastify API observability endpoints, and 100% clean teardown).

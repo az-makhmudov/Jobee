@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardView } from './components/DashboardView.js';
 import { ProfileView } from './components/ProfileView.js';
 import { DocumentsView } from './components/DocumentsView.js';
@@ -15,6 +15,8 @@ import { ApplicationStudioView } from './components/ApplicationStudioView.js';
 import { ApprovalsInboxView } from './components/ApprovalsInboxView.js';
 import { EmailIntelligenceView } from './components/EmailIntelligenceView.js';
 import { InterviewWorkspaceView } from './components/InterviewWorkspaceView.js';
+import { NotificationCenterModal } from './components/NotificationCenterModal.js';
+import { NotificationClient } from './api/notification-client.js';
 
 export type NavSection =
   | 'dashboard'
@@ -38,6 +40,23 @@ export default function App() {
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [applicationsSubView, setApplicationsSubView] = useState<'crm' | 'packages'>('crm');
   const [, setRefreshKey] = useState<number>(0);
+  const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
+
+  const fetchUnread = async () => {
+    try {
+      const count = await NotificationClient.getUnreadCount();
+      setUnreadNotifsCount(count);
+    } catch {
+      // silent
+    }
+  };
+
+  useEffect(() => {
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleNavigate = (section: string, tabOrId?: string) => {
     setCurrentSection(section as NavSection);
@@ -66,7 +85,7 @@ export default function App() {
     { id: 'applications', label: 'Applications', tag: 'CRM' },
     { id: 'approvals', label: 'Approvals', tag: 'Review' },
     { id: 'emails', label: 'Email Intelligence', tag: 'P4' },
-    { id: 'activity', label: 'Audit Log' },
+    { id: 'activity', label: 'Activity & Ops', tag: 'P5' },
     { id: 'interviews', label: 'Interviews', tag: 'P4' },
     { id: 'settings', label: 'Platform Settings' },
   ];
@@ -75,11 +94,40 @@ export default function App() {
     <div className="app-container">
       {/* Sidebar Navigation */}
       <aside className="sidebar">
-        <div className="sidebar-header">
+        <div
+          className="sidebar-header"
+          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        >
           <div className="sidebar-title">
             <span>AI Job Agent</span>
             <span className="sidebar-badge">v0.1</span>
           </div>
+          <button
+            className="btn btn-secondary btn-sm"
+            style={{ padding: '0.2rem 0.5rem', fontSize: '0.85rem', position: 'relative' }}
+            onClick={() => setIsNotifModalOpen(true)}
+            title="Notification Center & Alerts"
+          >
+            🔔
+            {unreadNotifsCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-5px',
+                  right: '-5px',
+                  backgroundColor: '#ef4444',
+                  color: '#fff',
+                  borderRadius: '10px',
+                  padding: '0.1rem 0.35rem',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  lineHeight: 1,
+                }}
+              >
+                {unreadNotifsCount}
+              </span>
+            )}
+          </button>
         </div>
         <ul className="nav-list">
           {navItems.map((item) => (
@@ -216,6 +264,16 @@ export default function App() {
           />
         )}
       </main>
+
+      {/* Phase 5: Notification Center Modal */}
+      <NotificationCenterModal
+        isOpen={isNotifModalOpen}
+        onClose={() => {
+          setIsNotifModalOpen(false);
+          fetchUnread();
+        }}
+        onNavigate={handleNavigate}
+      />
     </div>
   );
 }

@@ -58,6 +58,19 @@ export const envSchema = z
     GOOGLE_CALENDAR_REDIRECT_URI: z
       .string()
       .default('http://127.0.0.1:3000/api/calendar/google/callback'),
+    ORCHESTRATOR_ENABLED: z
+      .preprocess((val) => {
+        if (typeof val === 'string') {
+          return val.toLowerCase() === 'true' || val === '1';
+        }
+        return val ?? true;
+      }, z.boolean())
+      .default(true),
+    ORCHESTRATOR_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
+    DISCOVERY_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
+    EMAIL_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(15),
+    REMINDERS_INTERVAL_MINUTES: z.coerce.number().int().positive().default(30),
+    RATE_LIMIT_DAILY_APPLICATIONS_DEFAULT: z.coerce.number().int().positive().default(10),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production') {

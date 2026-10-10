@@ -6,15 +6,20 @@ import {
   getDb,
   type Database,
   browserApplicationRuns,
+  orchestrationRuns,
+  users,
   eq,
 } from '@job-agent/database';
-import { BrowserRunStatus } from '@job-agent/shared';
+import { BrowserRunStatus, OrchestrationRunStatuses } from '@job-agent/shared';
 import { executePendingBrowserRun } from './services/browser-runner.js';
+import { AutonomousOrchestrator } from './engine/autonomous-orchestrator.js';
 
 export class WorkerService {
   private isRunning = false;
   private timer: NodeJS.Timeout | null = null;
   private readonly logger: Logger;
+  private lastScheduledRunTime = 0;
+  private orchestrator: AutonomousOrchestrator | null = null;
 
   constructor(
     private readonly config: AppConfig,
@@ -39,6 +44,7 @@ export class WorkerService {
     this.logger.info('Initializing background worker service...', {
       environment: this.config.NODE_ENV,
       pollIntervalMs: this.config.WORKER_POLL_INTERVAL_MS,
+      orchestratorEnabled: this.config.ORCHESTRATOR_ENABLED,
     });
 
     // Check database connectivity
@@ -49,7 +55,7 @@ export class WorkerService {
       message: dbHealth.message,
     });
 
-    // Start idle heartbeat loop
+    // Start heartbeat loop
     this.scheduleNextTick();
     this.logger.info('Worker service started successfully. Running in standby mode.');
   }
@@ -76,12 +82,14 @@ export class WorkerService {
     if (!this.db) {
       try {
         this.db = getDb(this.config.DATABASE_URL);
+        this.orchestrator = new AutonomousOrchestrator(this.db, this.logger);
       } catch (err: any) {
         this.logger.error('Failed to initialize database client in worker', undefined, err);
         return;
       }
     }
 
+    // 1. Process pending browser application runs
     try {
       const pendingRuns = await this.db
         .select()
@@ -105,11 +113,67 @@ export class WorkerService {
             );
           }
         }
-      } else {
-        this.logger.debug('Worker heartbeat tick: 0 pending browser runs');
       }
     } catch (tickErr: any) {
-      this.logger.error('Error querying pending runs during worker tick', undefined, tickErr);
+      this.logger.error(
+        'Error querying pending browser runs during worker tick',
+        undefined,
+        tickErr,
+      );
+    }
+
+    // 2. Process pending on-demand orchestration runs
+    try {
+      const pendingOrchestrations = await this.db
+        .select()
+        .from(orchestrationRuns)
+        .where(eq(orchestrationRuns.status, OrchestrationRunStatuses.PENDING))
+        .limit(3);
+
+      if (pendingOrchestrations.length > 0 && this.orchestrator) {
+        this.logger.info(
+          `Discovered ${pendingOrchestrations.length} pending orchestration run(s). Processing...`,
+        );
+        for (const oRun of pendingOrchestrations) {
+          try {
+            await this.orchestrator.executeRun(
+              oRun.userId,
+              oRun.taskType as any,
+              oRun.trigger as any,
+              { runId: oRun.id },
+            );
+            this.logger.info(`Completed orchestration run ${oRun.id} (${oRun.taskType})`);
+          } catch (oErr: any) {
+            this.logger.error(
+              `Error executing orchestration run ${oRun.id}: ${oErr.message}`,
+              undefined,
+              oErr,
+            );
+          }
+        }
+      }
+    } catch (oQueryErr: any) {
+      this.logger.error('Error querying pending orchestration runs', undefined, oQueryErr);
+    }
+
+    // 3. Scheduled periodic pipeline trigger
+    const now = Date.now();
+    const scheduledInterval = this.config.ORCHESTRATOR_POLL_INTERVAL_MS * 6; // e.g. every 90s
+    if (
+      this.config.ORCHESTRATOR_ENABLED &&
+      this.orchestrator &&
+      now - this.lastScheduledRunTime >= scheduledInterval
+    ) {
+      this.lastScheduledRunTime = now;
+      try {
+        const activeUsers = await this.db.select({ id: users.id }).from(users).limit(1);
+        if (activeUsers.length > 0 && activeUsers[0]) {
+          this.logger.debug('Triggering periodic autonomous pipeline run for primary user...');
+          await this.orchestrator.executePipelineCycle(activeUsers[0].id, 'SCHEDULED');
+        }
+      } catch (schedErr: any) {
+        this.logger.error('Error during scheduled pipeline run', undefined, schedErr);
+      }
     }
   }
 
@@ -128,7 +192,10 @@ export class WorkerService {
     this.logger.info('Background worker service stopped gracefully.');
   }
 
-  public getStatus(): { isRunning: boolean } {
-    return { isRunning: this.isRunning };
+  public getStatus(): { isRunning: boolean; lastScheduledRunTime: number } {
+    return {
+      isRunning: this.isRunning,
+      lastScheduledRunTime: this.lastScheduledRunTime,
+    };
   }
 }

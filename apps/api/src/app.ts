@@ -36,6 +36,8 @@ import { CalendarService } from './services/calendar/calendar-service.js';
 import { InterviewPreparationService } from './services/calendar/interview-preparation-service.js';
 import { GoogleCalendarProvider } from './services/calendar/google-calendar-provider.js';
 import { FixtureCalendarProvider } from './services/calendar/fixture-calendar-provider.js';
+import { notificationRoutes } from './routes/notification-routes.js';
+import { orchestratorRoutes } from './routes/orchestrator-routes.js';
 
 export interface AppOptions {
   config: AppConfig;
@@ -245,6 +247,15 @@ export function buildApp(options: AppOptions): FastifyInstance {
         oauthStateService,
       }),
     );
+  }
+
+  // Initialize and register System Notifications & Autonomous Orchestrator routes (JOB-P5-T02)
+  if (db) {
+    app.register(notificationRoutes, { prefix: '/api/notifications', db });
+    app.register(notificationRoutes, { prefix: '/notifications', db });
+
+    app.register(orchestratorRoutes, { prefix: '/api/orchestrator', db, config });
+    app.register(orchestratorRoutes, { prefix: '/orchestrator', db, config });
   }
 
   // Custom 404 Not Found handler

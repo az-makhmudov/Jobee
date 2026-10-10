@@ -15,6 +15,12 @@ const testConfig: AppConfig = {
   EMAIL_TOKEN_ENCRYPTION_KEY: 'test-encryption-key-for-unit-testing-purposes-min-32-chars',
   GMAIL_REDIRECT_URI: 'http://localhost:3000/api/email/oauth/callback',
   GOOGLE_CALENDAR_REDIRECT_URI: 'http://localhost:3000/api/calendar/google/callback',
+  ORCHESTRATOR_ENABLED: true,
+  ORCHESTRATOR_POLL_INTERVAL_MS: 15000,
+  DISCOVERY_INTERVAL_MINUTES: 60,
+  EMAIL_SYNC_INTERVAL_MINUTES: 15,
+  REMINDERS_INTERVAL_MINUTES: 30,
+  RATE_LIMIT_DAILY_APPLICATIONS_DEFAULT: 10,
 };
 
 describe('WorkerService', () => {

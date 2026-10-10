@@ -15,6 +15,12 @@ const testConfig: AppConfig = {
   EMAIL_TOKEN_ENCRYPTION_KEY: 'test-encryption-key-for-unit-testing-purposes-min-32-chars',
   GMAIL_REDIRECT_URI: 'http://localhost:3000/api/email/oauth/callback',
   GOOGLE_CALENDAR_REDIRECT_URI: 'http://localhost:3000/api/calendar/google/callback',
+  ORCHESTRATOR_ENABLED: true,
+  ORCHESTRATOR_POLL_INTERVAL_MS: 15000,
+  DISCOVERY_INTERVAL_MINUTES: 60,
+  EMAIL_SYNC_INTERVAL_MINUTES: 15,
+  REMINDERS_INTERVAL_MINUTES: 30,
+  RATE_LIMIT_DAILY_APPLICATIONS_DEFAULT: 10,
 };
 
 describe('API Foundation', () => {
@@ -31,6 +37,10 @@ describe('API Foundation', () => {
     expect(body.service).toBe('api');
     expect(body.version).toBe('0.1.0');
     expect(body.uptimeSeconds).toBeTypeOf('number');
+
+    const liveRes = await app.inject({ method: 'GET', url: '/health/live' });
+    expect(liveRes.statusCode).toBe(200);
+    expect(JSON.parse(liveRes.body).status).toBe('ok');
   });
 
   it('GET /ready returns readiness payload with unconfigured database in test', async () => {
@@ -44,6 +54,10 @@ describe('API Foundation', () => {
     const body = JSON.parse(response.body);
     expect(body.status).toBe('degraded');
     expect(body.checks.database.status).toBe('unconfigured');
+
+    const readyAlias = await app.inject({ method: 'GET', url: '/health/ready' });
+    expect(readyAlias.statusCode).toBe(200);
+    expect(JSON.parse(readyAlias.body).status).toBe('degraded');
   });
 
   it('GET /unknown-route returns 404 with standardized error JSON', async () => {
