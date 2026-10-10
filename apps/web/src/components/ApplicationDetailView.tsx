@@ -7,8 +7,11 @@ import {
   NextActionType,
   AssessmentType,
   InterviewType,
+  BrowserRunMode,
   type ApplicationDetailDto,
+  type BrowserApplicationRunDto,
 } from '@job-agent/shared';
+import { BrowserWorkerClient } from '../api/browser-worker-client.js';
 
 interface Props {
   applicationId: string;
@@ -82,6 +85,41 @@ export function ApplicationDetailView({
   const [offerDeadline, setOfferDeadline] = useState('');
   const [offerNotes, setOfferNotes] = useState('');
 
+  // Browser worker automation state
+  const [browserRuns, setBrowserRuns] = useState<BrowserApplicationRunDto[]>([]);
+  const [, setLoadingRuns] = useState(false);
+  const [startingRun, setStartingRun] = useState(false);
+  const [runError, setRunError] = useState<string | null>(null);
+  const [selectedRun, setSelectedRun] = useState<BrowserApplicationRunDto | null>(null);
+  const [showRunModal, setShowRunModal] = useState(false);
+
+  const loadBrowserRuns = async () => {
+    try {
+      setLoadingRuns(true);
+      const runs = await BrowserWorkerClient.listBrowserRuns(applicationId);
+      setBrowserRuns(runs);
+    } catch {
+      // Ignore background fetch error
+    } finally {
+      setLoadingRuns(false);
+    }
+  };
+
+  const handleTriggerRun = async (mode: BrowserRunMode) => {
+    try {
+      setStartingRun(true);
+      setRunError(null);
+      const newRun = await BrowserWorkerClient.startBrowserRun(applicationId, { mode });
+      setSelectedRun(newRun);
+      setShowRunModal(true);
+      await loadBrowserRuns();
+    } catch (err: any) {
+      setRunError(err.message || 'Failed to trigger browser run');
+    } finally {
+      setStartingRun(false);
+    }
+  };
+
   const loadDetail = async () => {
     try {
       setLoading(true);
@@ -99,6 +137,7 @@ export function ApplicationDetailView({
         setOfferDeadline(data.offer.deadlineAt ? data.offer.deadlineAt.slice(0, 16) : '');
         setOfferNotes(data.offer.notes || '');
       }
+      await loadBrowserRuns();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -955,6 +994,192 @@ export function ApplicationDetailView({
                   ? 'Application is ready to submit. Click "Mark as Applied" when sent.'
                   : 'Submitted externally without a frozen studio package.'}
               </p>
+            )}
+          </div>
+
+          {/* Browser Application Automation & ATS Worker Card (JOB-P5-T01) */}
+          <div className="card" style={{ padding: '1.25rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <h3
+                style={{
+                  fontSize: '1.05rem',
+                  margin: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <span>🤖</span> Browser Application Worker & ATS Auto-Fill
+              </h3>
+              {browserRuns.length > 0 && (
+                <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>
+                  {browserRuns.length} run{browserRuns.length > 1 ? 's' : ''} recorded
+                </span>
+              )}
+            </div>
+
+            <p
+              style={{
+                fontSize: '0.85rem',
+                color: 'var(--text-secondary)',
+                marginBottom: '1rem',
+                lineHeight: 1.4,
+              }}
+            >
+              Automated headless form inspection and prefilling for Greenhouse, Lever, and Ashby
+              boards. Grounded exclusively in verified Candidate Brain facts and Answer Library
+              entries with mandatory halt on CAPTCHAs or missing required questions.
+            </p>
+
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'var(--bg-secondary)',
+                padding: '0.6rem 0.85rem',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                marginBottom: '1rem',
+                gap: '0.5rem',
+              }}
+            >
+              <span style={{ color: 'var(--text-secondary)' }}>Target Apply URL:</span>
+              <span
+                style={{
+                  fontFamily: 'monospace',
+                  fontWeight: 600,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  maxWidth: '380px',
+                }}
+                title={application.applicationUrl || job.sourceUrl || ''}
+              >
+                {application.applicationUrl || job.sourceUrl || 'No target apply URL set'}
+              </span>
+            </div>
+
+            {runError && (
+              <div
+                style={{
+                  background: '#fee2e2',
+                  color: '#991b1b',
+                  padding: '0.6rem 0.75rem',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                ⚠️ {runError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              <button
+                className="btn btn-primary btn-sm"
+                disabled={startingRun || !(application.applicationUrl || job.sourceUrl)}
+                onClick={() => handleTriggerRun(BrowserRunMode.DRY_RUN)}
+                title="Prefills and validates form fields without submitting"
+              >
+                {startingRun ? 'Executing Run...' : '🧪 Run Safe Dry-Run'}
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                disabled={startingRun || !(application.applicationUrl || job.sourceUrl)}
+                onClick={() => handleTriggerRun(BrowserRunMode.PREFILL_ONLY)}
+                title="Fills form and preserves active session for manual review"
+              >
+                📝 Prefill in Browser
+              </button>
+              {browserRuns.length > 0 && (
+                <button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setSelectedRun(browserRuns[0]);
+                    setShowRunModal(true);
+                  }}
+                >
+                  🔍 View Latest Audit Trail
+                </button>
+              )}
+            </div>
+
+            {/* Recent Runs summary list */}
+            {browserRuns.length > 0 && (
+              <div style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}>
+                <div
+                  style={{
+                    fontWeight: 600,
+                    marginBottom: '0.5rem',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  Execution History
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {browserRuns.slice(0, 3).map((run) => (
+                    <div
+                      key={run.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: 'var(--bg-secondary)',
+                        padding: '0.4rem 0.6rem',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => {
+                        setSelectedRun(run);
+                        setShowRunModal(true);
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span
+                          className={`badge ${
+                            run.status === 'SUCCESS'
+                              ? 'badge-success'
+                              : run.status.startsWith('STOPPED')
+                                ? 'badge-warning'
+                                : 'badge-error'
+                          }`}
+                          style={{ fontSize: '0.75rem' }}
+                        >
+                          {run.status}
+                        </span>
+                        <span style={{ fontWeight: 500 }}>{run.atsProvider}</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>• {run.mode}</span>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          color: 'var(--text-secondary)',
+                        }}
+                      >
+                        <span>
+                          {run.fieldsFilledCount}/{run.fieldsDetectedCount} fields filled
+                        </span>
+                        <span>
+                          {new Date(run.createdAt).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
 
@@ -1943,6 +2168,212 @@ export function ApplicationDetailView({
                 </button>
               </footer>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Browser Run Audit & Details Modal (JOB-P5-T01) */}
+      {showRunModal && selectedRun && (
+        <div className="modal-backdrop" onClick={() => setShowRunModal(false)}>
+          <div
+            className="modal"
+            style={{ maxWidth: '780px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem',
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: '1.25rem',
+                  margin: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <span>🤖</span> Browser Run Audit Trail
+              </h2>
+              <span
+                className={`badge ${
+                  selectedRun.status === 'SUCCESS'
+                    ? 'badge-success'
+                    : selectedRun.status.startsWith('STOPPED')
+                      ? 'badge-warning'
+                      : 'badge-error'
+                }`}
+              >
+                {selectedRun.status}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                gap: '0.75rem',
+                marginBottom: '1rem',
+                background: 'var(--bg-secondary)',
+                padding: '0.75rem',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+              }}
+            >
+              <div>
+                <span style={{ color: 'var(--text-secondary)' }}>Provider:</span>{' '}
+                <strong>{selectedRun.atsProvider}</strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-secondary)' }}>Mode:</span>{' '}
+                <strong>{selectedRun.mode}</strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-secondary)' }}>Fields Matched:</span>{' '}
+                <strong>
+                  {selectedRun.fieldsFilledCount} / {selectedRun.fieldsDetectedCount}
+                </strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-secondary)' }}>Started:</span>{' '}
+                <span>
+                  {selectedRun.startedAt
+                    ? new Date(selectedRun.startedAt).toLocaleTimeString()
+                    : 'N/A'}
+                </span>
+              </div>
+            </div>
+
+            {selectedRun.confirmationReference && (
+              <div
+                style={{
+                  background: '#ecfdf5',
+                  color: '#065f46',
+                  padding: '0.75rem',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                🎉 <strong>Submission Confirmed:</strong> {selectedRun.confirmationReference}
+              </div>
+            )}
+
+            {selectedRun.errorMessage && (
+              <div
+                style={{
+                  background: '#fee2e2',
+                  color: '#991b1b',
+                  padding: '0.75rem',
+                  borderRadius: '6px',
+                  fontSize: '0.85rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                ⚠️ <strong>Halt Reason:</strong> {selectedRun.errorMessage}
+              </div>
+            )}
+
+            {selectedRun.unmatchedRequiredFields &&
+              selectedRun.unmatchedRequiredFields.length > 0 && (
+                <div
+                  style={{
+                    background: '#fffbeb',
+                    border: '1px solid #fef3c7',
+                    padding: '0.75rem',
+                    borderRadius: '6px',
+                    fontSize: '0.85rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <strong style={{ color: '#b45309' }}>
+                    Missing Verified Facts for Required Fields:
+                  </strong>
+                  <ul style={{ margin: '0.5rem 0 0 1.25rem', padding: 0 }}>
+                    {(selectedRun.unmatchedRequiredFields as any[]).map((f, idx) => (
+                      <li key={idx}>
+                        <strong>{f.label || f.name}</strong> ({f.type})
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+            <div style={{ marginBottom: '1.25rem' }}>
+              <h4 style={{ fontSize: '0.95rem', marginBottom: '0.5rem' }}>
+                Step-by-Step Execution Logs
+              </h4>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.4rem',
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                }}
+              >
+                {selectedRun.stepLogs.map((log, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      background: 'var(--bg-secondary)',
+                      padding: '0.5rem 0.75rem',
+                      borderRadius: '4px',
+                      fontSize: '0.8rem',
+                      borderLeft: `3px solid ${
+                        log.status === 'OK'
+                          ? '#10b981'
+                          : log.status === 'WARNING'
+                            ? '#f59e0b'
+                            : '#ef4444'
+                      }`,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <span>
+                        [{log.step}] {log.action}
+                      </span>
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                        {new Date(log.timestamp).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          second: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                    {log.details && (
+                      <div
+                        style={{
+                          color: 'var(--text-secondary)',
+                          marginTop: '0.2rem',
+                          fontFamily: 'monospace',
+                        }}
+                      >
+                        {log.details}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <footer style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setShowRunModal(false)}>
+                Close
+              </button>
+            </footer>
           </div>
         </div>
       )}

@@ -85,6 +85,13 @@
       "when": 1791144000000,
       "tag": "0011_calendar_interview_preparation",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791146000000,
+      "tag": "0012_browser_application_worker",
+      "breakpoints": true
     }
   ]
 }

@@ -14,7 +14,9 @@
   "dependencies": {
     "@job-agent/config": "*",
     "@job-agent/database": "*",
-    "@job-agent/shared": "*"
+    "@job-agent/shared": "*",
+    "cheerio": "^1.2.0",
+    "playwright": "^1.64.0"
   },
   "devDependencies": {
     "@types/node": "^22.13.9",

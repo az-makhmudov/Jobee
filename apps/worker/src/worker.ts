@@ -1,6 +1,15 @@
 import type { AppConfig } from '@job-agent/config';
 import { Logger, createLogger } from '@job-agent/shared';
-import { checkDatabaseHealth, closeDbPool } from '@job-agent/database';
+import {
+  checkDatabaseHealth,
+  closeDbPool,
+  getDb,
+  type Database,
+  browserApplicationRuns,
+  eq,
+} from '@job-agent/database';
+import { BrowserRunStatus } from '@job-agent/shared';
+import { executePendingBrowserRun } from './services/browser-runner.js';
 
 export class WorkerService {
   private isRunning = false;
@@ -61,8 +70,47 @@ export class WorkerService {
     }, this.config.WORKER_POLL_INTERVAL_MS);
   }
 
+  private db: Database | null = null;
+
   private async tick(): Promise<void> {
-    this.logger.debug('Worker heartbeat tick: idle, ready for future job queues');
+    if (!this.db) {
+      try {
+        this.db = getDb(this.config.DATABASE_URL);
+      } catch (err: any) {
+        this.logger.error('Failed to initialize database client in worker', undefined, err);
+        return;
+      }
+    }
+
+    try {
+      const pendingRuns = await this.db
+        .select()
+        .from(browserApplicationRuns)
+        .where(eq(browserApplicationRuns.status, BrowserRunStatus.PENDING))
+        .limit(5);
+
+      if (pendingRuns.length > 0) {
+        this.logger.info(
+          `Discovered ${pendingRuns.length} pending browser application run(s). Processing...`,
+        );
+        for (const run of pendingRuns) {
+          try {
+            await executePendingBrowserRun(this.db, run.id);
+            this.logger.info(`Successfully completed browser run ${run.id} (${run.mode})`);
+          } catch (runErr: any) {
+            this.logger.error(
+              `Error processing browser run ${run.id}: ${runErr.message}`,
+              undefined,
+              runErr,
+            );
+          }
+        }
+      } else {
+        this.logger.debug('Worker heartbeat tick: 0 pending browser runs');
+      }
+    } catch (tickErr: any) {
+      this.logger.error('Error querying pending runs during worker tick', undefined, tickErr);
+    }
   }
 
   public async stop(): Promise<void> {

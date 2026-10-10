@@ -74,7 +74,7 @@ This document defines the authoritative macro-task roadmap for AI Job Agent, dir
 
 ### `JOB-P5-T01 — Browser Application Worker & Initial ATS Adapters`
 
-- **Status**: PENDING
+- **Status**: COMPLETED
 - **Scope**: Isolated Playwright worker, secure job execution contract, provider/adapter interface (Greenhouse, Lever, Ashby), form field mapping, document uploads, validation, idempotency, screenshots/logs, manual handoff, CAPTCHA stop behavior, and submission audit events.
 
 ### `JOB-P5-T02 — Autonomous Orchestrator, Scheduling, Notifications & Production Hardening`

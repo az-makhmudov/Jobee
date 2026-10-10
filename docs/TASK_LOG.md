@@ -308,3 +308,50 @@ This document tracks execution history and verification state for all official m
     - `npm run db:check`: PASSED (Database connectivity verified)
     - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0011 applied cleanly)
     - Live End-to-End Verification: PASSED (`scripts/verify-job-p4-t02.ts` executed against real local PostgreSQL `ai_job_agent_dev`, verifying Sections 1–10: token encryption, multi-calendar availability aggregation, conflict detection, candidate evidence seeding, interview calendar booking, grounded brief generation with zero-hallucination verification, checklist toggle, human notes, post-interview debrief with CRM lifecycle audit event, workspace listing, calendar event unlinking, and 100% clean teardown).
+
+---
+
+### `JOB-P5-T01` — Browser Application Worker & Initial ATS Adapters
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-10
+- **Scope**:
+  - Additive PostgreSQL schema for Browser Application Worker:
+    - `browser_application_runs`: execution tracking table (`id`, `application_id`, `user_id`, `package_version_id`, `ats_provider`, `target_url`, `mode` [DRY_RUN, PREFILL_ONLY, SUBMIT], `status` [PENDING, RUNNING, SUCCESS, STOPPED_CAPTCHA, STOPPED_MANUAL_REVIEW, VALIDATION_FAILED, FAILED], `fields_detected_count`, `fields_filled_count`, `unmatched_required_fields` JSONB, `step_logs` JSONB audit trail, `screenshot_paths` JSONB, `confirmation_reference`, `error_message`, timestamps).
+    - Additive migration `0012_browser_application_worker.sql` applied to PostgreSQL `ai_job_agent_dev`.
+  - Shared domain contracts and DTOs in `packages/shared/src/types/browser-worker.ts`:
+    - `AtsProviderType`, `BrowserRunMode`, `BrowserRunStatus`, `AtsFormFieldType`, `AtsFormField`, `AtsFormSchema`, `BrowserRunStepLog`, `ChallengeDetectionResult`, `ApplicationSubmissionPayload`, `BrowserApplicationRunDto`, `StartBrowserRunRequest`.
+  - Worker Abstraction & Browser Infrastructure (`apps/worker`):
+    - `BrowserController`, `BrowserPage`, and `BrowserLocator` neutral execution interfaces.
+    - `PlaywrightBrowserController`: headless Chromium wrapper with screenshot and file attachment support.
+    - `FixtureBrowserController`: fast, deterministic in-memory DOM simulation with built-in mock forms for Greenhouse, Lever, Ashby, and bot challenges.
+  - ATS Adapters & Registry:
+    - `BaseAtsAdapter`: common field classification, candidate evidence resolution, dropdown option fuzzy matching, and bot challenge detection (reCAPTCHA, hCaptcha, Cloudflare Turnstile, Arkose/Geetest).
+    - `GreenhouseAdapter`: Greenhouse job board inspection, custom questions, file inputs, and submit button detection.
+    - `LeverAdapter`: Lever posting inspection, custom cards, file inputs, and submit button detection.
+    - `AshbyAdapter`: Ashby posting inspection, field containers, file dropzones, and submit button detection.
+    - `AtsAdapterRegistry`: URL and DOM pattern matcher resolving the appropriate ATS adapter.
+  - Browser Application Execution Engine:
+    - `BrowserApplicationEngine`: coordinates navigation, challenge detection, form schema extraction, candidate brain fact matching, field filling, and execution modes (`DRY_RUN`, `PREFILL_ONLY`, `SUBMIT`).
+    - Prime Invariant enforcement: halts with `STOPPED_CAPTCHA` immediately upon bot challenges without guessing or bypassing; halts with `STOPPED_MANUAL_REVIEW` whenever required questions lack verified candidate facts (zero-hallucination guarantee).
+    - Step-by-step timestamped audit logging for every DOM interaction.
+  - Background Worker Service & Runner:
+    - `executePendingBrowserRun`: compiles candidate profile, links, vault documents, and answer library into submission payload and runs engine.
+    - `WorkerService`: heartbeat polling tick processing pending runs from PostgreSQL queue.
+  - Fastify REST API:
+    - `POST /api/applications/:id/browser-runs`: queues browser form-fill run in DRY_RUN, PREFILL_ONLY, or SUBMIT mode.
+    - `GET /api/applications/:id/browser-runs`: lists execution history with status and counts.
+    - `GET /api/browser-runs/:runId`: fetches full execution trace, step logs, and unmatched fields.
+  - React 19 Frontend Web UI:
+    - Integrated Browser Application Worker card into `ApplicationDetailView.tsx`.
+    - Features: target URL and ATS provider pill, "Run Safe Dry-Run" and "Prefill in Browser" triggers, execution history list with status badges, and interactive "Browser Run Audit Trail" modal with step-by-step logs viewer and missing fields warnings.
+    - `BrowserWorkerClient` for typed API communication.
+  - Verification Records:
+    - `npm run lint`: PASSED (ESLint 9, 0 errors)
+    - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors)
+    - `npm run test`: PASSED (Vitest, 30 test files, 248/248 tests passed: 15 worker tests, 5 API browser worker tests, and all platform tests)
+    - `npm run build`: PASSED (All 6 workspaces built and Vite web bundle compiled cleanly)
+    - `npm run format`: PASSED (Prettier checked across entire repository)
+    - `npm run db:check`: PASSED (Database connectivity verified)
+    - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0012 applied cleanly)
+    - Live End-to-End Verification: PASSED (`scripts/verify-job-p5-t01.ts` executed against real local PostgreSQL `ai_job_agent_dev`, verifying Sections 1–10: schema hygiene, registry resolution, form extraction, challenge detection, candidate brain facts, DRY_RUN execution with zero-submission guarantee, missing required facts halt with STOPPED_MANUAL_REVIEW, bot challenge halt with STOPPED_CAPTCHA, runner pipeline and worker lifecycle, Fastify REST endpoints, and 100% clean teardown).

@@ -1,18 +1,18 @@
 # AI Job Agent — Autonomous Execution State
 
 **Document Status:** Canonical Durable Execution State  
-**Updated At:** 2026-10-10 11:47:00 UTC  
+**Updated At:** 2026-10-10 12:30:00 UTC  
 **Active Lead Engineer:** Antigravity (Autonomous Execution Mode)
 
 ---
 
 ## 1. Roadmap Snapshot
 
-- **Current Official Roadmap Milestone:** `JOB-P5-T01`
-- **Milestone Name:** Browser Application Worker & Initial ATS Adapters
+- **Current Official Roadmap Milestone:** `JOB-P5-T02`
+- **Milestone Name:** Autonomous Orchestrator, Scheduling, Notifications & Production Hardening
 - **Milestone Status:** NOT STARTED (Next Target)
-- **Previous Completed Milestone:** `JOB-P4-T02` (Calendar Integration, Interview Scheduling & Preparation Workspace)
-- **Last Successful Git Checkpoint:** `2de982d` (`feat(calendar): implement calendar integration and interview preparation workspace (JOB-P4-T02)`)
+- **Previous Completed Milestone:** `JOB-P5-T01` (Browser Application Worker & Initial ATS Adapters)
+- **Last Successful Git Checkpoint:** Pending commit for `JOB-P5-T01`
 
 ---
 
@@ -28,70 +28,70 @@
 | `JOB-P3-T01` | Application Studio & Tailored Materials           | COMPLETED     | `024c742`                 |
 | `JOB-P3-T02` | Application CRM, Lifecycle & Analytics (MVP)      | COMPLETED     | `6941d1f`                 |
 | `JOB-P4-T01` | Email Intelligence & CRM Status Sync              | COMPLETED     | `6591f44`                 |
-| `JOB-P4-T02` | Calendar, Interview Scheduling & Prep Workspace   | **COMPLETED** | Verified (229/229 tests)  |
-| `JOB-P5-T01` | Browser Application Worker & Initial ATS Adapters | **NEXT**      | Immediate Target          |
-| `JOB-P5-T02` | Autonomous Orchestrator, Scheduling & Hardening   | PENDING       | Following                 |
+| `JOB-P4-T02` | Calendar, Interview Scheduling & Prep Workspace   | COMPLETED     | `2de982d`                 |
+| `JOB-P5-T01` | Browser Application Worker & Initial ATS Adapters | **COMPLETED** | Verified (248/248 tests)  |
+| `JOB-P5-T02` | Autonomous Orchestrator, Scheduling & Hardening   | **NEXT**      | Immediate Target          |
 
 ---
 
-## 3. Milestone Delivery Summary (`JOB-P4-T02`)
+## 3. Milestone Delivery Summary (`JOB-P5-T01`)
 
 ### Delivered Subsystems:
-1. **Schema & Persistence:**
-   - `calendar_accounts`, `interview_calendar_links`, `interview_preparation_briefs`.
-   - `application_interviews` extended with debrief columns, meeting URLs, and scheduling statuses.
-   - Migration `0011_calendar_interview_preparation.sql` applied to PostgreSQL `ai_job_agent_dev`.
-2. **Calendar Providers & Encryption:**
-   - `FixtureCalendarProvider` for deterministic offline testing and demo.
-   - `GoogleCalendarProvider` for Google Calendar REST API v3.
-   - Versioned AES-256-GCM token encryption with persistent CSRF defense via `oauth_states`.
-3. **Availability & Scheduling Services:**
-   - `CalendarService`: Multi-calendar availability aggregation, conflict detection with severity & alternative slot recommendations, interview calendar booking and unlinking, interview dashboard metrics.
-   - `InterviewPreparationService`: Evidence-grounded briefs anchored strictly in candidate verified skills/achievements, STAR frameworks, 6-step interactive checklist, human notes editor, debrief recording with CRM timeline logging (`INTERVIEW_COMPLETED`).
-4. **API & Frontend Workspace:**
-   - 20 REST endpoints registered in Fastify API.
-   - `InterviewWorkspaceView.tsx`: Full tabbed workspace with scheduled interviews, availability inspector, calendar accounts management, prep brief modal, debrief modal, and calendar booking modal.
-   - `DashboardView.tsx`: Metrics integration with direct links.
-   - `calendar-client.ts`: Typed frontend client.
-5. **Quality & End-to-End Verification:**
-   - Unit & integration tests: 27 test files, 229/229 tests pass (0 failures).
-   - Live script: `scripts/verify-job-p4-t02.ts` verified 10/10 sections on PostgreSQL `ai_job_agent_dev` with 100% clean teardown.
+
+1. **Schema & Persistence (`packages/database`):**
+   - `browser_application_runs`: tracks run state, ATS provider, target URL, mode (`DRY_RUN`, `PREFILL_ONLY`, `SUBMIT`), status (`PENDING`, `RUNNING`, `SUCCESS`, `STOPPED_CAPTCHA`, `STOPPED_MANUAL_REVIEW`, `VALIDATION_FAILED`, `FAILED`), step logs, unmatched fields, screenshot paths, and confirmation references.
+   - Migration `0012_browser_application_worker.sql` applied to PostgreSQL `ai_job_agent_dev`.
+2. **Contracts & DTOs (`packages/shared`):**
+   - Full domain typing in `packages/shared/src/types/browser-worker.ts`: `AtsProviderType`, `BrowserRunMode`, `BrowserRunStatus`, `AtsFormFieldType`, `AtsFormField`, `AtsFormSchema`, `BrowserRunStepLog`, `ChallengeDetectionResult`, `ApplicationSubmissionPayload`, `BrowserApplicationRunDto`, `StartBrowserRunRequest`.
+3. **Browser Abstraction & Worker Runner (`apps/worker`):**
+   - Neutral `BrowserController` abstraction, `PlaywrightBrowserController` for headless Chromium, and `FixtureBrowserController` for fast deterministic in-memory DOM simulation.
+   - ATS Adapters: `BaseAtsAdapter`, `GreenhouseAdapter`, `LeverAdapter`, `AshbyAdapter`, and `AtsAdapterRegistry`.
+   - `BrowserApplicationEngine`: coordinates navigation, challenge detection, form schema extraction, zero-guess candidate brain fact matching, field filling, and execution modes (`DRY_RUN`, `PREFILL_ONLY`, `SUBMIT`).
+   - Prime Invariant enforcement: halts with `STOPPED_CAPTCHA` immediately on bot challenges; halts with `STOPPED_MANUAL_REVIEW` whenever required fields lack verified candidate facts (zero hallucination).
+   - `WorkerService` heartbeat polling loop processing queued runs from PostgreSQL.
+4. **Fastify REST API (`apps/api`):**
+   - Endpoints: `POST /api/applications/:id/browser-runs`, `GET /api/applications/:id/browser-runs`, `GET /api/browser-runs/:runId`.
+   - Comprehensive validation via Zod schemas and integration tests (`browser-worker-routes.test.ts`).
+5. **React 19 Frontend Web UI (`apps/web`):**
+   - Integrated Browser Application Worker card in `ApplicationDetailView.tsx`.
+   - "Run Safe Dry-Run" and "Prefill in Browser" actions, run history list with status badges, and interactive "Browser Run Audit Trail" modal with step-by-step logs and missing required fields alerts.
+   - Typed client `BrowserWorkerClient`.
+6. **Quality & End-to-End Verification:**
+   - 30 test files, 248/248 tests passing (0 failures).
+   - Live script: `scripts/verify-job-p5-t01.ts` verified 10/10 sections against PostgreSQL `ai_job_agent_dev` with 100% clean teardown.
 
 ---
 
 ## 4. Current Quality & Build Status
 
-- **Database Connectivity:** `npm run db:check` -> PASSED (Latency ~17ms)
-- **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0011 up to date)
-- **Unit & Integration Tests:** `npm test` -> PASSED (27 test files, 229/229 tests passing)
+- **Database Connectivity:** `npm run db:check` -> PASSED
+- **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0012 up to date)
+- **Unit & Integration Tests:** `npm test` -> PASSED (30 test files, 248/248 tests passing)
 - **TypeScript Typecheck:** `npm run typecheck` -> PASSED (0 errors across 6 workspaces)
 - **ESLint:** `npm run lint` -> PASSED (0 errors)
 - **Build:** `npm run build` -> PASSED (API, Worker, Web bundle compile cleanly)
+- **Prettier:** `npm run format` -> PASSED (All files formatted)
 
 ---
 
-## 5. Next Milestone Scope (`JOB-P5-T01 — Browser Application Worker & Initial ATS Adapters`)
+## 5. Next Milestone Scope (`JOB-P5-T02 — Autonomous Orchestrator, Scheduling, Notifications & Production Hardening`)
 
-1. **Worker Isolation & Architecture:**
-   - Dedicated Playwright worker process isolated in `apps/worker`.
-   - Provider adapter interface (`AtsAdapter`) with common lifecycle:
-     - `detectPlatform(url: string): boolean`
-     - `extractFormSchema(page: Page): Promise<AtsFormSchema>`
-     - `fillForm(page: Page, applicationData: ApplicationPackageData): Promise<FormFillResult>`
-     - `validateFilledForm(page: Page): Promise<FormValidationResult>`
-     - `submitForm(page: Page): Promise<SubmissionResult>`
-2. **Initial ATS Adapters:**
-   - Greenhouse adapter.
-   - Lever adapter.
-   - Ashby adapter.
-3. **Safety & Policy Invariants:**
-   - Human handoff and CAPTCHA detection (`requiresHumanIntervention`).
-   - Strict dry-run / staging validation before any real submit action.
-   - Screenshots and step-by-step audit logging of all field interactions.
-   - Deterministic stop on unknown or ambiguous required fields.
+1. **Autonomous Orchestration Engine:**
+   - Multi-stage background scheduler in `apps/worker` for periodic discovery, email sync, match analysis, and application preparation runs.
+   - Autonomous pipeline execution respecting candidate policies, rate limits (daily/hourly application quotas), and approval gates.
+   - Fault tolerance: isolated execution per job/stage, retry with exponential backoff, dead-letter recording, and error containment.
+2. **Notification & Approval Reminder Subsystem:**
+   - Notification dispatch service (in-app notifications, email notifications / digests, webhook / calendar reminders).
+   - Human review reminders for pending approvals, bot challenges (`STOPPED_CAPTCHA`), and missing candidate facts (`STOPPED_MANUAL_REVIEW`).
+   - Notification preferences schema and user controls.
+3. **Production Hardening & System Observability:**
+   - Health check endpoints (`/health/live`, `/health/ready`) with deep dependency inspection (DB, Redis/Queue, External Providers).
+   - Structured metrics: application throughput, matching success rate, provider latency, error rates.
+   - Comprehensive system activity & orchestrator monitor UI view in `apps/web`.
+   - Operational runbooks and production deployment checklist.
 
 ---
 
 ## 6. Exact Next Action
 
-Create Git checkpoint commit for `JOB-P4-T02`, then begin architecture and implementation of `JOB-P5-T01`.
+Create Git checkpoint commit for `JOB-P5-T01`, then commence schema, domain contracts, and service architecture for `JOB-P5-T02`.
