@@ -13,7 +13,7 @@
 - **Milestone Status:** READY_FOR_PRIVATE_PILOT
 - **Previous Completed Milestone:** `JOB-P5-T02` (Autonomous Orchestrator, Scheduling, Notifications & Hardening)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION COMPLETE**
-- **Last Successful Git Checkpoint:** Pending (`fix(pilot): resolve security and concurrency defects, harden schema, and verify pilot readiness`)
+- **Last Successful Git Checkpoint:** `84e5354` (`fix(pilot): resolve security and concurrency defects, harden schema, and verify pilot readiness`)
 
 ---
 
