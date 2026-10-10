@@ -12,7 +12,7 @@
 - **Milestone Name:** Autonomous Orchestrator, Scheduling, Notifications & Production Hardening
 - **Milestone Status:** NOT STARTED (Next Target)
 - **Previous Completed Milestone:** `JOB-P5-T01` (Browser Application Worker & Initial ATS Adapters)
-- **Last Successful Git Checkpoint:** Pending commit for `JOB-P5-T01`
+- **Last Successful Git Checkpoint:** `d9006e7` (`feat(worker): implement browser application worker and initial ATS adapters (JOB-P5-T01)`)
 
 ---
 
