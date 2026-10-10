@@ -1050,11 +1050,15 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
               </p>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className="btn btn-secondary btn-sm" onClick={handleConnectFixture}>
-                + Connect Demo Fixture
-              </button>
               <button className="btn btn-primary btn-sm" onClick={handleConnectGoogle}>
-                + Connect Google Calendar
+                + Connect Google Calendar (OAuth)
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={handleConnectFixture}
+                title="Connect offline simulated calendar fixture for local testing without live Google credentials."
+              >
+                🧪 Offline Test Fixture
               </button>
             </div>
           </div>
@@ -1063,16 +1067,28 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
             <div className="placeholder-view">
               <h3>No Calendar Accounts Connected</h3>
               <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                Connect a calendar to sync interview meetings, check availability, and prevent
-                overlapping rounds.
+                Connect your real calendar to sync interview meetings, check availability, and
+                prevent overlapping rounds.
               </p>
-              <button
-                className="btn btn-primary"
-                onClick={handleConnectFixture}
-                style={{ marginTop: '1rem' }}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '0.75rem',
+                  justifyContent: 'center',
+                  marginTop: '1rem',
+                }}
               >
-                Connect Demo Fixture (Instant Offline Test)
-              </button>
+                <button className="btn btn-primary" onClick={handleConnectGoogle}>
+                  + Connect Google Calendar (OAuth)
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleConnectFixture}
+                  title="Local offline simulation for testing"
+                >
+                  🧪 Connect Offline Test Fixture
+                </button>
+              </div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -1095,7 +1111,9 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
                         {acc.provider === 'GOOGLE' ? '🗓️' : '🧪'}
                       </span>
                       <strong style={{ fontSize: '1rem' }}>{acc.emailAddress}</strong>
-                      <span className="badge">{acc.provider}</span>
+                      <span className="badge">
+                        {acc.provider === 'FIXTURE' ? 'OFFLINE FIXTURE (SIMULATED)' : acc.provider}
+                      </span>
                       <span
                         className={`status-badge ${acc.status === 'CONNECTED' ? 'ok' : 'error'}`}
                       >

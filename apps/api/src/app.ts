@@ -96,7 +96,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   // Register baseline routes
   app.register(healthRoutes);
+  app.register(healthRoutes, { prefix: '/api' });
   app.register(createReadyRoutes(config));
+  app.register(createReadyRoutes(config), { prefix: '/api' });
 
   // Initialize and register Candidate Brain routes
   let candidateService = options.candidateService;

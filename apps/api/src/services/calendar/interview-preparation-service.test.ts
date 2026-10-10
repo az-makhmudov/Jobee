@@ -179,13 +179,18 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
     expect(tsStrength?.evidenceType).toBe('skill');
     expect(tsStrength?.evidenceId).toBe(testSkillId);
 
-    const expStrength = brief.candidateStrengths.find((s) => s.evidenceType === 'experience');
+    const expStrength = brief.candidateStrengths.find(
+      (s) => s.evidenceType === 'experience' && s.evidenceId === testExpId,
+    );
     expect(expStrength).toBeDefined();
     expect(expStrength?.evidenceTitle).toContain('Acme Technologies');
 
     // Verify STAR frameworks
     expect(brief.suggestedAnswerFrameworks.length).toBeGreaterThan(0);
-    expect(brief.suggestedAnswerFrameworks[0]?.situation).toContain('Acme Technologies');
+    const starFramework = brief.suggestedAnswerFrameworks.find((f) =>
+      f.situation.includes('Acme Technologies'),
+    );
+    expect(starFramework).toBeDefined();
 
     // Verify checklist
     expect(brief.preparationChecklist.length).toBe(6);

@@ -99,6 +99,21 @@ export class LocalStorageProvider implements FileStorageProvider {
       return { buffer, storageKey };
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        const safeKey = path.basename(storageKey);
+        const candidates = [
+          path.resolve(process.cwd(), 'apps/api/uploads/documents', safeKey),
+          path.resolve(process.cwd(), 'uploads/documents', safeKey),
+          path.resolve(process.cwd(), '../uploads/documents', safeKey),
+          path.resolve(process.cwd(), '../../uploads/documents', safeKey),
+        ];
+        for (const candidate of candidates) {
+          try {
+            const buffer = await fs.readFile(candidate);
+            return { buffer, storageKey };
+          } catch {
+            // continue checking candidate paths
+          }
+        }
         throw AppError.notFound(`Stored file not found: ${storageKey}`);
       }
       throw err;
@@ -122,6 +137,21 @@ export class LocalStorageProvider implements FileStorageProvider {
       await fs.access(filePath);
       return true;
     } catch {
+      const safeKey = path.basename(storageKey);
+      const candidates = [
+        path.resolve(process.cwd(), 'apps/api/uploads/documents', safeKey),
+        path.resolve(process.cwd(), 'uploads/documents', safeKey),
+        path.resolve(process.cwd(), '../uploads/documents', safeKey),
+        path.resolve(process.cwd(), '../../uploads/documents', safeKey),
+      ];
+      for (const candidate of candidates) {
+        try {
+          await fs.access(candidate);
+          return true;
+        } catch {
+          // continue checking candidate paths
+        }
+      }
       return false;
     }
   }

@@ -19,54 +19,63 @@
 
 ## 2. Milestone Progress Tracker
 
-| Milestone ID | Description                                       | Status        | Verification & Checkpoint                        |
-| ------------ | ------------------------------------------------- | ------------- | ------------------------------------------------ |
-| `JOB-P0-T01` | Project Foundation, Architecture, Policies        | COMPLETED     | Verified in `docs/`                              |
-| `JOB-P1-T01` | Workspace, DB & Core Platform Foundation          | COMPLETED     | `e4e4815`                                        |
-| `JOB-P1-T02` | Candidate Brain, Documents, Answer Library        | COMPLETED     | `e4e4815`                                        |
-| `JOB-P2-T01` | Job Ingestion, Parsing, Normalization, Inbox      | COMPLETED     | `b7e7e80`                                        |
-| `JOB-P2-T02` | Requirement Analysis, Matching & Policy Engine    | COMPLETED     | `432cfa0`                                        |
-| `JOB-P3-T01` | Application Studio & Tailored Materials           | COMPLETED     | `024c742`                                        |
-| `JOB-P3-T02` | Application CRM, Lifecycle & Analytics (MVP)      | COMPLETED     | `6941d1f`                                        |
-| `JOB-P4-T01` | Email Intelligence & CRM Status Sync              | COMPLETED     | `6591f44`                                        |
-| `JOB-P4-T02` | Calendar, Interview Scheduling & Prep Workspace   | COMPLETED     | `2de982d`                                        |
-| `JOB-P5-T01` | Browser Application Worker & Initial ATS Adapters | COMPLETED     | `d9006e7`                                        |
-| `JOB-P5-T02` | Autonomous Orchestrator, Scheduling & Hardening   | COMPLETED     | `9a1c56b`                                        |
-| `PILOT-STAB` | Security Audit, Stabilization & Pilot Readiness   | COMPLETED     | `84e5354`                                        |
-| `OP-ACCEPT`  | Frontend Acceptance, ATS Fixture & Crash Safety   | **COMPLETED** | `9e75e17`                                        |
+| Milestone ID | Description                                       | Status        | Verification & Checkpoint |
+| ------------ | ------------------------------------------------- | ------------- | ------------------------- |
+| `JOB-P0-T01` | Project Foundation, Architecture, Policies        | COMPLETED     | Verified in `docs/`       |
+| `JOB-P1-T01` | Workspace, DB & Core Platform Foundation          | COMPLETED     | `e4e4815`                 |
+| `JOB-P1-T02` | Candidate Brain, Documents, Answer Library        | COMPLETED     | `e4e4815`                 |
+| `JOB-P2-T01` | Job Ingestion, Parsing, Normalization, Inbox      | COMPLETED     | `b7e7e80`                 |
+| `JOB-P2-T02` | Requirement Analysis, Matching & Policy Engine    | COMPLETED     | `432cfa0`                 |
+| `JOB-P3-T01` | Application Studio & Tailored Materials           | COMPLETED     | `024c742`                 |
+| `JOB-P3-T02` | Application CRM, Lifecycle & Analytics (MVP)      | COMPLETED     | `6941d1f`                 |
+| `JOB-P4-T01` | Email Intelligence & CRM Status Sync              | COMPLETED     | `6591f44`                 |
+| `JOB-P4-T02` | Calendar, Interview Scheduling & Prep Workspace   | COMPLETED     | `2de982d`                 |
+| `JOB-P5-T01` | Browser Application Worker & Initial ATS Adapters | COMPLETED     | `d9006e7`                 |
+| `JOB-P5-T02` | Autonomous Orchestrator, Scheduling & Hardening   | COMPLETED     | `9a1c56b`                 |
+| `PILOT-STAB` | Security Audit, Stabilization & Pilot Readiness   | COMPLETED     | `84e5354`                 |
+| `OP-ACCEPT`  | Frontend Acceptance, ATS Fixture & Crash Safety   | COMPLETED     | `9e75e17`                 |
+| `REAL-ACT`   | Real Functionality Activation & Truthful De-bias  | **COMPLETED** | Verified local checkpoint |
 
 ---
 
-## 3. Stabilization & Operational Acceptance Summary
+## 3. Real Functionality Activation & Truthfulness Summary
 
-1. **DEF-01 (CRITICAL - Concurrency Race)**:
-   - Atomic state claim (`PENDING` -> `RUNNING`) and `onConflictDoUpdate` claim in `browser-runner.ts` and `browser-application-engine.ts` preventing race conditions where multiple worker polling ticks double-launch and double-submit applications.
-2. **DEF-02 (CRITICAL - Form Matching Bypassing Verification)**:
-   - Hardened `base-ats-adapter.ts` with word-boundary matching (min 3 chars) and strict exclusion of `val.isSensitive` and unverified answers from automatic form prefill.
-3. **DEF-03 (HIGH - Worker Crash on Missing Column)**:
-   - Corrected email account query in `autonomous-orchestrator.ts` to filter by `status = 'CONNECTED'` instead of non-existent `is_active` column.
-4. **DEF-04 (HIGH - OAuth Callback Route Mismatch)**:
-   - Added route alias for `/email/accounts/gmail/callback` in `email-routes.ts` matching `GMAIL_REDIRECT_URI` configuration.
-5. **DEF-05 (HIGH - Auto-Apply Loop on Halts)**:
-   - Transitioned applications to `NEEDS_REVIEW` upon `STOPPED_CAPTCHA` or `STOPPED_MANUAL_REVIEW`, stopping repetitive retry loops.
-6. **DEF-06 & INVARIANT-01 (CRITICAL - Crash & Duplicate-Submission Safety)**:
-   - Upgraded `worker.ts` `recoverOrphanedRuns()`: any crashed `RUNNING` run in `SUBMIT` mode (or containing submission dispatch logs) is reconciled to `SUBMISSION_UNCERTAIN`.
-   - Transitions linked CRM application to `NEEDS_REVIEW` and dispatches `MANUAL_REVIEW_REQUIRED` notification.
-   - Non-submit runs (`DRY_RUN`, `PREFILL_ONLY`) safely marked `FAILED`.
-   - Hardened `autonomous-orchestrator.ts`: strictly blocks auto-apply runs if an existing run is `SUBMISSION_UNCERTAIN`.
-7. **DEF-07 & DEF-09 (MEDIUM - Database Integrity Constraints)**:
-   - Added compound unique constraint `(userId, jobId)` to `application_packages` and foreign key on `duplicateOfId` referencing `jobs.id` (`onDelete: 'set null'`). Authored and applied migration `0014_harden_pilot_schema.sql`.
-8. **OPERATIONAL-01 (HIGH - Real Browser & Integrated Submission Pass)**:
-   - Verified all 10 rendered React 19 views via Playwright Chromium with zero browser console errors.
-   - Executed integrated Greenhouse ATS submission workflow: verified DRY_RUN form inspection, human authorization modal, fixture submission, confirmation reference generation, CRM transition to `APPLIED`, and immutable `SUBMITTED` lifecycle audit event.
+1. **User Data Protection & Database Hygiene**:
+   - Preserved all real user data for candidate Asadbek Makhmudov (`00000000-0000-0000-0000-000000000001`).
+   - Created and verified PostgreSQL dump backup: `backups/ai_job_agent_dev_backup_20261010_145257.sql`.
+   - Extracted verified facts, certifications, and skills from candidate's authoritative Master CV (`Resume - Asadbek M.pdf`).
+   - Purged 11 synthetic mock jobs and 3 fake test applications from test suites that polluted the UI dashboard.
+   - Result: Profile completeness reached 100% with active Master CV, 14 verified skills, 2 certifications, and 6 verified facts.
+
+2. **Cover Letter & Tailoring Anti-Hallucination Remediation**:
+   - Fixed `CoverLetterEngine`: eliminated hardcoded software engineering claims ("production software systems", "engineering initiatives"). Dynamically grounded opening, achievements, skills, and closing in the candidate's actual record (Project Management / Operations Assistant).
+   - Fixed `TailoringEngine`: replaced `Software Professional` fallback with `Professional` and domain-neutral dedication clause.
+   - Added unit test in `application-package.test.ts` verifying Project Management candidate tailoring without software engineering hallucination.
+
+3. **CRM Application Duplication Bug Resolved**:
+   - Fixed `ApplicationCrmService.listApplications`: added `eq(jobMatchAnalyses.isStale, false)` to the left join and in-memory Set deduplication by `app.id` to prevent applications from duplicating when jobs are re-analyzed.
+
+4. **Honest UI Presentation & Fixture Isolation**:
+   - `EmailIntelligenceView.tsx`: Promoted real `+ Connect Gmail (OAuth)` to primary action. Labeled fixture account as `🧪 Offline Test Fixture (Simulated)` with explanatory notes.
+   - `InterviewWorkspaceView.tsx`: Promoted real `+ Connect Google Calendar (OAuth)` to primary action. Labeled fixture calendar as `🧪 Offline Test Fixture (Simulated)`.
+   - `SettingsView.tsx`: Registered `/api/health` and `/api/ready` route aliases in Fastify so settings probing succeeds.
+   - `LocalStorageProvider`: Added fallback search across monorepo directory root and `apps/api` for robust document downloads.
+
+5. **First Complete Real User Workflow Executed**:
+   - Candidate: Asadbek Makhmudov (Project Manager, Warsaw, Poland)
+   - Real Vacancy: Associate Project Manager at Revolut (Warsaw, Poland)
+   - Match Score: 92% MATCH (Deterministic engine, 0 hard blockers, 100% role/skills overlap)
+   - Studio Package: ATS-compliant Tailored CV DOCX (10,573 bytes) and Cover Letter DOCX (10,252 bytes) generated and verified.
+   - Human Approvals: 3 sensitive/custom questions routed to human review inbox, human approval authorized via API, transitioning package to `READY`.
+   - CRM Lifecycle: Tracked in CRM (`status: READY_TO_APPLY`).
 
 ---
 
 ## 4. Current Quality & Build Status
 
-- **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 16ms latency)
+- **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 17ms latency)
 - **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0014 up to date)
-- **Unit & Integration Tests:** `npm test` -> PASSED (34 test files, 260/260 tests passing)
+- **Unit & Integration Tests:** `npm test` -> PASSED (34 test files, 261/261 tests passing)
 - **TypeScript Typecheck:** `npm run typecheck` -> PASSED (0 errors across 6 workspaces)
 - **ESLint:** `npm run lint` -> PASSED (0 errors across codebase)
 - **Build:** `npm run build` -> PASSED (API, Worker, and Web bundle compile cleanly)

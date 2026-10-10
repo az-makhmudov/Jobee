@@ -22,7 +22,28 @@ export class CoverLetterEngine {
     const topExp = candidate.experiences[0];
     let expMention = '';
     if (topExp) {
-      expMention = `In my role as ${topExp.position} at ${topExp.organization}, I developed hands-on expertise building and scaling production software systems. `;
+      const expRole = topExp.position;
+      const expOrg = topExp.organization;
+      const achievements = Array.isArray(topExp.achievements)
+        ? (topExp.achievements as string[])
+        : [];
+
+      if (topExp.description && topExp.description.trim().length > 0) {
+        const desc = topExp.description.trim().replace(/\.$/, '');
+        const verbStart =
+          /^(built|developed|managed|assisted|led|designed|implemented|coordinated|directed)/i.test(
+            desc,
+          );
+        expMention = `In my role as ${expRole} at ${expOrg}, I ${verbStart ? desc : 'focused on ' + desc}. `;
+      } else {
+        expMention = `In my role as ${expRole} at ${expOrg}, I contributed to key operational and organizational priorities. `;
+      }
+
+      const firstAchievement = achievements[0];
+      if (firstAchievement) {
+        expMention += `Key contributions include: ${firstAchievement.trim().replace(/\.$/, '')}. `;
+      }
+
       evidenceIds.push(`candidate_experience:${topExp.id}`);
     }
 
@@ -30,7 +51,7 @@ export class CoverLetterEngine {
     const skillNames = candidate.skills.slice(0, 4).map((s) => s.name);
     let skillsMention = '';
     if (skillNames.length > 0) {
-      skillsMention = `My core competencies include ${skillNames.join(', ')}, which directly align with the technical requirements outlined in your job posting. `;
+      skillsMention = `My core competencies include ${skillNames.join(', ')}, which directly align with the requirements outlined in your posting. `;
       for (const s of candidate.skills.slice(0, 4)) {
         evidenceIds.push(`candidate_skill:${s.id}`);
       }
@@ -46,11 +67,11 @@ export class CoverLetterEngine {
     const paragraphs: string[] = [
       `Dear Hiring Team at ${company},`,
 
-      `I am writing to express my strong interest in the ${jobTitle} position at ${company}. Having reviewed the requirements and responsibilities, I am confident that my technical background and engineering experience make me an excellent candidate for this opportunity.`,
+      `I am writing to express my strong interest in the ${jobTitle} position at ${company}. Having reviewed the requirements and responsibilities, I am confident that my background, proven track record, and verified competencies make me an excellent candidate for this opportunity.`,
 
       `${expMention}${skillsMention}${strengthsClause}`,
 
-      `I am drawn to ${company} because of the opportunity to tackle challenging problems and build impactful, reliable products. I would welcome the opportunity to discuss how my qualifications can support your engineering initiatives.`,
+      `I am drawn to ${company} because of the opportunity to contribute to meaningful goals and tackle high-impact challenges. I would welcome the opportunity to discuss how my qualifications can support your team's objectives.`,
 
       `Thank you for your time and consideration.\n\nSincerely,\n${candidateName}`,
     ];
@@ -62,7 +83,7 @@ export class CoverLetterEngine {
       evidenceIds,
       changeSummary: [
         `Generated grounded cover letter for ${jobTitle} at ${company}.`,
-        `Referenced verified experience and technical proficiencies (${skillNames.join(', ')}).`,
+        `Referenced verified experience and core proficiencies (${skillNames.join(', ')}).`,
         'Truthfulness invariant preserved: zero synthetic claims or invented achievements.',
       ],
     };

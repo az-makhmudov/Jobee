@@ -188,7 +188,7 @@ export class TailoringEngine {
     const summaryEvidenceIds: string[] = [];
     let summary = '';
 
-    const candidateRole = candidate.profile.headline || 'Software Professional';
+    const candidateRole = candidate.profile.headline || 'Professional';
     const topSkills = tailoredSkills.slice(0, 4).map((s) => s.name);
     const companyName = job.company || 'the organization';
     const targetJobTitle = job.title;
@@ -198,7 +198,7 @@ export class TailoringEngine {
       summaryEvidenceIds.push(`candidate_profile:${candidate.profile.id}`);
     } else {
       const skillsClause = topSkills.length > 0 ? ` specializing in ${topSkills.join(', ')}` : '';
-      summary = `${candidateRole}${skillsClause}, targeting the ${targetJobTitle} position at ${companyName}. Dedicated to delivering reliable, scalable solutions backed by verified technical expertise.`;
+      summary = `${candidateRole}${skillsClause}, targeting the ${targetJobTitle} position at ${companyName}. Dedicated to delivering measurable results, cross-functional collaboration, and excellence backed by verified domain expertise.`;
     }
 
     changeExplanation.push(

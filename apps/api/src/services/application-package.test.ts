@@ -371,6 +371,86 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       expect(cl.evidenceIds).toContain('candidate_skill:skill-1');
       expect(cl.changeSummary.length).toBeGreaterThan(0);
     });
+
+    it('generates truthful domain-appropriate cover letter for Project Manager without software engineering bias', () => {
+      const pmContext: CandidateContext = {
+        ...candidateContext,
+        profile: {
+          ...dummyProfile,
+          fullName: 'Asadbek Makhmudov',
+          headline: 'Project Manager',
+        },
+        experiences: [
+          {
+            id: 'exp-pm',
+            userId: dummyProfile.userId,
+            organization: 'Asia Alliance Bank',
+            position: 'Operations Assistant',
+            location: 'Samarkand',
+            employmentType: 'INTERNSHIP',
+            startDate: '2023-05',
+            endDate: '2023-08',
+            isCurrent: false,
+            description: 'Assisted operations management and optimized banking workflows.',
+            achievements: [
+              'Assisted in digitizing operational files and optimizing workflows, achieving a 30% reduction in document retrieval time',
+            ],
+            displayOrder: 0,
+            verificationStatus: 'VERIFIED',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+        skills: [
+          {
+            id: 'skill-pm1',
+            userId: dummyProfile.userId,
+            name: 'Project Management',
+            category: 'Management',
+            proficiency: 'ADVANCED',
+            yearsExperience: 2,
+            isActive: true,
+            verificationStatus: 'VERIFIED',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          {
+            id: 'skill-pm2',
+            userId: dummyProfile.userId,
+            name: 'Agile Methodologies',
+            category: 'Methodology',
+            proficiency: 'ADVANCED',
+            yearsExperience: 2,
+            isActive: true,
+            verificationStatus: 'VERIFIED',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+      };
+
+      const pmJob: Job = {
+        ...dummyJob,
+        title: 'Associate Project Manager',
+        company: 'Fintech Solutions Ltd',
+      };
+
+      const cl = CoverLetterEngine.generateCoverLetter(pmContext, pmJob);
+
+      expect(cl.text).toContain('Fintech Solutions Ltd');
+      expect(cl.text).toContain('Associate Project Manager');
+      expect(cl.text).toContain('Asia Alliance Bank');
+      expect(cl.text).toContain('Operations Assistant');
+      expect(cl.text).toContain('Project Management');
+      expect(cl.text).toContain('Agile Methodologies');
+      expect(cl.text).toContain('30% reduction in document retrieval time');
+      // Crucial: must never hallucinate software engineering claims
+      expect(cl.text).not.toContain('production software systems');
+      expect(cl.text).not.toContain('engineering experience');
+      expect(cl.text).not.toContain('engineering initiatives');
+      expect(cl.evidenceIds).toContain('candidate_experience:exp-pm');
+      expect(cl.evidenceIds).toContain('candidate_skill:skill-pm1');
+    });
   });
 
   // ========================================================================

@@ -683,7 +683,11 @@ export class ApplicationCrmService {
       .innerJoin(jobs, eq(applications.jobId, jobs.id))
       .leftJoin(
         jobMatchAnalyses,
-        and(eq(jobMatchAnalyses.jobId, jobs.id), eq(jobMatchAnalyses.userId, userId)),
+        and(
+          eq(jobMatchAnalyses.jobId, jobs.id),
+          eq(jobMatchAnalyses.userId, userId),
+          eq(jobMatchAnalyses.isStale, false),
+        ),
       )
       .leftJoin(
         applicationPackageVersions,
@@ -695,9 +699,12 @@ export class ApplicationCrmService {
       .offset(offset);
 
     // Fetch counts for notes, contacts, interviews in parallel
+    const seenAppIds = new Set<string>();
     const items: ApplicationSummaryDto[] = [];
     for (const r of rows) {
       const appId = r.app.id;
+      if (seenAppIds.has(appId)) continue;
+      seenAppIds.add(appId);
 
       const [notesC, contactsC, interviewsC] = await Promise.all([
         db

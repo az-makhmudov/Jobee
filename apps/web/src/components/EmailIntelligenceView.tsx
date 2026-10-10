@@ -307,12 +307,12 @@ export function EmailIntelligenceView() {
                         fontSize: '0.8rem',
                         padding: '0.2rem 0.5rem',
                         borderRadius: '4px',
-                        background: acc.provider === 'GMAIL' ? '#dc2626' : '#2563eb',
+                        background: acc.provider === 'GMAIL' ? '#dc2626' : '#475569',
                         color: '#fff',
                         fontWeight: 600,
                       }}
                     >
-                      {acc.provider}
+                      {acc.provider === 'FIXTURE' ? 'OFFLINE FIXTURE (SIMULATED)' : acc.provider}
                     </span>
                     <span style={{ fontWeight: 500 }}>{acc.emailAddress}</span>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -331,13 +331,29 @@ export function EmailIntelligenceView() {
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button className="btn btn-outline" onClick={handleConnectGmail}>
-              + Connect Gmail (OAuth)
-            </button>
-            <button className="btn btn-outline-primary" onClick={handleConnectFixture}>
-              🧪 Connect Demo Fixture Inbox
-            </button>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              gap: '0.4rem',
+            }}
+          >
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn btn-primary" onClick={handleConnectGmail}>
+                + Connect Gmail (OAuth)
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={handleConnectFixture}
+                title="Connect offline simulated email fixture for local testing without live Google credentials."
+              >
+                🧪 Offline Test Fixture
+              </button>
+            </div>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              Live sync requires Google OAuth credentials. Test fixture runs locally offline.
+            </span>
           </div>
         </div>
       </div>
