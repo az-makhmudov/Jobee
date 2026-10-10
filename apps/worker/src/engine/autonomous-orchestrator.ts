@@ -501,6 +501,24 @@ export class AutonomousOrchestrator {
       const roleTitle = job?.title || 'Unknown Role';
       const company = job?.company || 'Unknown Company';
 
+      // Invariant: If a prior run was SUBMISSION_UNCERTAIN or SUCCESS, block submission to prevent duplicates
+      const existingRuns = await this.db.query.browserApplicationRuns.findMany({
+        where: eq(browserApplicationRuns.applicationId, app.id),
+      });
+
+      const uncertainRun = existingRuns.find(
+        (r) => r.status === BrowserRunStatus.SUBMISSION_UNCERTAIN,
+      );
+      if (uncertainRun) {
+        await addStep(
+          'AUTO_APPLY',
+          `Application ${app.id} blocked: Prior run ${uncertainRun.id} is SUBMISSION_UNCERTAIN. Human review required to avoid duplicate submission.`,
+          { applicationId: app.id, runId: uncertainRun.id },
+        );
+        blocked++;
+        continue;
+      }
+
       // Check pending approvals
       const pendingApprovals = await this.db.query.approvalRequests.findMany({
         where: and(eq(approvalRequests.userId, userId), eq(approvalRequests.status, 'PENDING')),
@@ -605,6 +623,26 @@ export class AutonomousOrchestrator {
             targetId: app.id,
             actionUrl: `/applications`,
           });
+        } else if (completedRun.status === BrowserRunStatus.SUBMISSION_UNCERTAIN) {
+          blocked++;
+          await this.db
+            .update(applications)
+            .set({
+              status: 'NEEDS_REVIEW',
+              updatedAt: new Date(),
+            })
+            .where(eq(applications.id, app.id));
+
+          await this.dispatcher.dispatch({
+            userId,
+            type: 'MANUAL_REVIEW_REQUIRED',
+            title: `Submission Uncertain: ${company}`,
+            message: `Submission status is uncertain for ${roleTitle} at ${company}. Application marked Needs Review to prevent duplicate submissions. Please verify with employer portal.`,
+            severity: 'CRITICAL',
+            targetType: 'APPLICATION',
+            targetId: app.id,
+            actionUrl: `/applications`,
+          });
         } else {
           blocked++;
           await this.dispatcher.dispatch({
@@ -621,9 +659,15 @@ export class AutonomousOrchestrator {
         }
       } catch (runErr: any) {
         blocked++;
+        // If error thrown during execution of a SUBMIT run, set application to NEEDS_REVIEW to prevent retry
+        await this.db
+          .update(applications)
+          .set({ status: 'NEEDS_REVIEW', updatedAt: new Date() })
+          .where(eq(applications.id, app.id));
+
         await addStep(
           'AUTO_APPLY',
-          `Error executing browser run for ${roleTitle}: ${runErr.message}`,
+          `Error executing browser run for ${roleTitle}: ${runErr.message}. Set application to NEEDS_REVIEW to prevent duplicate submission retry.`,
           { error: runErr.message },
         );
       }

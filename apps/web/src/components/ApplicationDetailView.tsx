@@ -1099,6 +1099,22 @@ export function ApplicationDetailView({
               >
                 📝 Prefill in Browser
               </button>
+              <button
+                className="btn btn-warning btn-sm"
+                disabled={startingRun || !(application.applicationUrl || job.sourceUrl)}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Human Authorization Required:\n\nAuthorize automated submission to ${job.company || 'employer'}?\n\nThis will populate your verified candidate information, attach your selected CV, and submit the external application form.`,
+                    )
+                  ) {
+                    handleTriggerRun(BrowserRunMode.SUBMIT);
+                  }
+                }}
+                title="Authorizes worker to fill and submit application to the external ATS"
+              >
+                🚀 Submit via Browser Worker
+              </button>
               {browserRuns.length > 0 && (
                 <button
                   className="btn btn-secondary btn-sm"
@@ -1147,13 +1163,20 @@ export function ApplicationDetailView({
                           className={`badge ${
                             run.status === 'SUCCESS'
                               ? 'badge-success'
-                              : run.status.startsWith('STOPPED')
+                              : run.status === 'SUBMISSION_UNCERTAIN'
                                 ? 'badge-warning'
-                                : 'badge-error'
+                                : run.status.startsWith('STOPPED')
+                                  ? 'badge-warning'
+                                  : 'badge-error'
                           }`}
-                          style={{ fontSize: '0.75rem' }}
+                          style={{
+                            fontSize: '0.75rem',
+                            backgroundColor:
+                              run.status === 'SUBMISSION_UNCERTAIN' ? '#b45309' : undefined,
+                            color: run.status === 'SUBMISSION_UNCERTAIN' ? '#fff' : undefined,
+                          }}
                         >
-                          {run.status}
+                          {run.status === 'SUBMISSION_UNCERTAIN' ? '⚠️ UNCERTAIN' : run.status}
                         </span>
                         <span style={{ fontWeight: 500 }}>{run.atsProvider}</span>
                         <span style={{ color: 'var(--text-secondary)' }}>• {run.mode}</span>
@@ -2203,12 +2226,21 @@ export function ApplicationDetailView({
                 className={`badge ${
                   selectedRun.status === 'SUCCESS'
                     ? 'badge-success'
-                    : selectedRun.status.startsWith('STOPPED')
+                    : selectedRun.status === 'SUBMISSION_UNCERTAIN'
                       ? 'badge-warning'
-                      : 'badge-error'
+                      : selectedRun.status.startsWith('STOPPED')
+                        ? 'badge-warning'
+                        : 'badge-error'
                 }`}
+                style={{
+                  backgroundColor:
+                    selectedRun.status === 'SUBMISSION_UNCERTAIN' ? '#b45309' : undefined,
+                  color: selectedRun.status === 'SUBMISSION_UNCERTAIN' ? '#fff' : undefined,
+                }}
               >
-                {selectedRun.status}
+                {selectedRun.status === 'SUBMISSION_UNCERTAIN'
+                  ? '⚠️ SUBMISSION UNCERTAIN'
+                  : selectedRun.status}
               </span>
             </div>
 

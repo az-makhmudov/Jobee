@@ -19,24 +19,25 @@
 
 ## 2. Milestone Progress Tracker
 
-| Milestone ID | Description                                       | Status        | Verification & Checkpoint |
-| ------------ | ------------------------------------------------- | ------------- | ------------------------- |
-| `JOB-P0-T01` | Project Foundation, Architecture, Policies        | COMPLETED     | Verified in `docs/`       |
-| `JOB-P1-T01` | Workspace, DB & Core Platform Foundation          | COMPLETED     | `e4e4815`                 |
-| `JOB-P1-T02` | Candidate Brain, Documents, Answer Library        | COMPLETED     | `e4e4815`                 |
-| `JOB-P2-T01` | Job Ingestion, Parsing, Normalization, Inbox      | COMPLETED     | `b7e7e80`                 |
-| `JOB-P2-T02` | Requirement Analysis, Matching & Policy Engine    | COMPLETED     | `432cfa0`                 |
-| `JOB-P3-T01` | Application Studio & Tailored Materials           | COMPLETED     | `024c742`                 |
-| `JOB-P3-T02` | Application CRM, Lifecycle & Analytics (MVP)      | COMPLETED     | `6941d1f`                 |
-| `JOB-P4-T01` | Email Intelligence & CRM Status Sync              | COMPLETED     | `6591f44`                 |
-| `JOB-P4-T02` | Calendar, Interview Scheduling & Prep Workspace   | COMPLETED     | `2de982d`                 |
-| `JOB-P5-T01` | Browser Application Worker & Initial ATS Adapters | COMPLETED     | `d9006e7`                 |
-| `JOB-P5-T02` | Autonomous Orchestrator, Scheduling & Hardening   | COMPLETED     | `9a1c56b`                 |
-| `PILOT-STAB` | Security Audit, Stabilization & Pilot Readiness   | **COMPLETED** | Verified via `scripts/verify-pilot-readiness.ts` |
+| Milestone ID | Description                                       | Status        | Verification & Checkpoint                        |
+| ------------ | ------------------------------------------------- | ------------- | ------------------------------------------------ |
+| `JOB-P0-T01` | Project Foundation, Architecture, Policies        | COMPLETED     | Verified in `docs/`                              |
+| `JOB-P1-T01` | Workspace, DB & Core Platform Foundation          | COMPLETED     | `e4e4815`                                        |
+| `JOB-P1-T02` | Candidate Brain, Documents, Answer Library        | COMPLETED     | `e4e4815`                                        |
+| `JOB-P2-T01` | Job Ingestion, Parsing, Normalization, Inbox      | COMPLETED     | `b7e7e80`                                        |
+| `JOB-P2-T02` | Requirement Analysis, Matching & Policy Engine    | COMPLETED     | `432cfa0`                                        |
+| `JOB-P3-T01` | Application Studio & Tailored Materials           | COMPLETED     | `024c742`                                        |
+| `JOB-P3-T02` | Application CRM, Lifecycle & Analytics (MVP)      | COMPLETED     | `6941d1f`                                        |
+| `JOB-P4-T01` | Email Intelligence & CRM Status Sync              | COMPLETED     | `6591f44`                                        |
+| `JOB-P4-T02` | Calendar, Interview Scheduling & Prep Workspace   | COMPLETED     | `2de982d`                                        |
+| `JOB-P5-T01` | Browser Application Worker & Initial ATS Adapters | COMPLETED     | `d9006e7`                                        |
+| `JOB-P5-T02` | Autonomous Orchestrator, Scheduling & Hardening   | COMPLETED     | `9a1c56b`                                        |
+| `PILOT-STAB` | Security Audit, Stabilization & Pilot Readiness   | COMPLETED     | Verified via `scripts/verify-pilot-readiness.ts`       |
+| `OP-ACCEPT`  | Frontend Acceptance, ATS Fixture & Crash Safety   | **COMPLETED** | Verified via `scripts/verify-operational-acceptance.ts` |
 
 ---
 
-## 3. Stabilization & Defect Remediation Summary
+## 3. Stabilization & Operational Acceptance Summary
 
 1. **DEF-01 (CRITICAL - Concurrency Race)**:
    - Atomic state claim (`PENDING` -> `RUNNING`) and `onConflictDoUpdate` claim in `browser-runner.ts` and `browser-application-engine.ts` preventing race conditions where multiple worker polling ticks double-launch and double-submit applications.
@@ -48,29 +49,37 @@
    - Added route alias for `/email/accounts/gmail/callback` in `email-routes.ts` matching `GMAIL_REDIRECT_URI` configuration.
 5. **DEF-05 (HIGH - Auto-Apply Loop on Halts)**:
    - Transitioned applications to `NEEDS_REVIEW` upon `STOPPED_CAPTCHA` or `STOPPED_MANUAL_REVIEW`, stopping repetitive retry loops.
-6. **DEF-06 (MEDIUM - Crash Recovery)**:
-   - Added `recoverOrphanedRuns()` at worker startup in `worker.ts` to reconcile stale `RUNNING` rows in `browser_application_runs` and `orchestration_runs` to `FAILED`.
+6. **DEF-06 & INVARIANT-01 (CRITICAL - Crash & Duplicate-Submission Safety)**:
+   - Upgraded `worker.ts` `recoverOrphanedRuns()`: any crashed `RUNNING` run in `SUBMIT` mode (or containing submission dispatch logs) is reconciled to `SUBMISSION_UNCERTAIN`.
+   - Transitions linked CRM application to `NEEDS_REVIEW` and dispatches `MANUAL_REVIEW_REQUIRED` notification.
+   - Non-submit runs (`DRY_RUN`, `PREFILL_ONLY`) safely marked `FAILED`.
+   - Hardened `autonomous-orchestrator.ts`: strictly blocks auto-apply runs if an existing run is `SUBMISSION_UNCERTAIN`.
 7. **DEF-07 & DEF-09 (MEDIUM - Database Integrity Constraints)**:
    - Added compound unique constraint `(userId, jobId)` to `application_packages` and foreign key on `duplicateOfId` referencing `jobs.id` (`onDelete: 'set null'`). Authored and applied migration `0014_harden_pilot_schema.sql`.
+8. **OPERATIONAL-01 (HIGH - Real Browser & Integrated Submission Pass)**:
+   - Verified all 10 rendered React 19 views via Playwright Chromium with zero browser console errors.
+   - Executed integrated Greenhouse ATS submission workflow: verified DRY_RUN form inspection, human authorization modal, fixture submission, confirmation reference generation, CRM transition to `APPLIED`, and immutable `SUBMITTED` lifecycle audit event.
 
 ---
 
 ## 4. Current Quality & Build Status
 
-- **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 29ms latency)
+- **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 16ms latency)
 - **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0014 up to date)
-- **Unit & Integration Tests:** `npm test` -> PASSED (33 test files, 256/256 tests passing)
+- **Unit & Integration Tests:** `npm test` -> PASSED (34 test files, 260/260 tests passing)
 - **TypeScript Typecheck:** `npm run typecheck` -> PASSED (0 errors across 6 workspaces)
 - **ESLint:** `npm run lint` -> PASSED (0 errors across codebase)
 - **Build:** `npm run build` -> PASSED (API, Worker, and Web bundle compile cleanly)
 - **Prettier:** `npm run format` -> PASSED (All matched files conform)
 - **Live Pilot Readiness Suite:** `scripts/verify-pilot-readiness.ts` -> PASSED (11/11 sections passed cleanly with 0 failures, 100% clean teardown)
+- **Live Operational Acceptance Suite:** `scripts/verify-operational-acceptance.ts` -> PASSED (Real Playwright UI, ATS fixture submission, crash invariants, 100% clean teardown)
 
 ---
 
 ## 5. Private-Pilot Readiness & External Integration Boundaries
 
 ### Fully Verified Locally (Ready for Private Pilot):
+
 - Candidate Brain: verified facts, documents, answer library, and privacy guardrails.
 - Job Ingestion: pasted text, URL ingestion, deduplication, and requirement extraction.
 - Match Intelligence: 8-dimension scoring, composite fit, and anti-hallucination validation.
@@ -82,6 +91,7 @@
 - Autonomous Orchestrator: background scheduling, daily quota enforcement, in-app notifications, and system health observability (`/health/live`, `/health/ready`).
 
 ### External Integrations Requiring Live Credentials for Production / Live Pilot:
+
 1. **Google OAuth 2.0 Credentials**: `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` for live Google account sync.
 2. **Live External ATS Submissions**: Executing live submissions (instead of `DRY_RUN` / `PREFILL_ONLY`) requires explicit human approval and candidates enabling `auto_apply_enabled: true` in policy settings.
 3. **Headless Browser Runtime**: Deployment container requires Playwright browser binaries (`npx playwright install --with-deps chromium`).

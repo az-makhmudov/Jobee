@@ -435,3 +435,39 @@ This document tracks execution history and verification state for all official m
     - `npm run db:check`: PASSED (Database connectivity verified)
     - `npm run db:migrate`: PASSED (Migration sequence 0000 through 0014 applied cleanly)
     - Live End-to-End Verification: PASSED (`scripts/verify-pilot-readiness.ts` executed cleanly with 0 failures, 11/11 sections passed, 100% clean teardown).
+
+---
+
+### `OPERATIONAL-ACCEPTANCE` — Real Browser UI, Integrated ATS Submission & Crash Safety Invariants
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-10
+- **Scope**:
+  - **1. Frontend Acceptance (Real Browser UI)**:
+    - Launched complete local application (Fastify API, PostgreSQL, React 19 Vite dev server, background worker).
+    - Executed automated Playwright Chromium test exercising all 10 frontend views: Candidate Brain (Profile, Skills tab, Facts tab, Document Vault, Answer Library, Preferences & Safety Policy), Job Inbox, Application CRM, Human Approvals, Email Intelligence, Calendar & Interview Workspace, Activity & Ops / Orchestrator Dashboard, and Notification Center modal.
+    - Verified 0 JavaScript page errors, clean component rendering, and functional navigation.
+    - Added UI enhancements in `ApplicationDetailView.tsx`: human confirmation modal for browser execution and `SUBMISSION_UNCERTAIN` status badges with warning callouts.
+  - **2. Integrated ATS Fixture Submission Workflow**:
+    - Executed end-to-end Greenhouse ATS submission workflow on canonical job opportunity:
+      - DRY_RUN inspection: extracted 9 fields, matched 7 candidate facts, verified 0 mutations to CRM (`READY_TO_APPLY` preserved).
+      - Human-authorized SUBMIT mode: filled approved candidate facts, uploaded CV, clicked submit on fixture form.
+      - Generated confirmation reference (`SUBMITTED-2026-10-10-...`), transitioned CRM status to `APPLIED`, recorded `appliedAt` timestamp, preserved submission method (`GREENHOUSE`) and external reference ID, and logged immutable `SUBMITTED` audit lifecycle event.
+  - **3. Crash and Duplicate-Submission Safety Invariants**:
+    - **Worker Crash During External Submission**:
+      - Upgraded `browser-application-engine.ts` with in-flight submit tracking (`submissionDispatched` flag) and pre-submission step logging.
+      - Upgraded `worker.ts` `recoverOrphanedRuns()`: any orphaned `RUNNING` run in `SUBMIT` mode (or containing submission dispatch logs) is reconciled to `SUBMISSION_UNCERTAIN`.
+      - Automatically transitioned linked CRM application to `ApplicationLifecycleStatus.NEEDS_REVIEW` to block automatic retries.
+      - Dispatched critical in-app notification (`MANUAL_REVIEW_REQUIRED`) prompting candidate to inspect employer portal.
+      - Reconciled non-submit (`DRY_RUN`, `PREFILL_ONLY`) runs to `FAILED` safely (no external request emitted).
+    - **Autonomous Orchestrator Duplicate Prevention**:
+      - Hardened `autonomous-orchestrator.ts` (`runAutoApplyStage`): strictly blocked generating or dispatching new browser runs if an existing run is `SUBMISSION_UNCERTAIN`, preventing double submissions even under misconfigurations or state manipulation.
+    - Added dedicated test suite `apps/worker/src/engine/crash-submission-safety.test.ts` (4/4 tests passed).
+  - **Verification Records**:
+    - `npm run lint`: PASSED (ESLint 9, 0 errors)
+    - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors)
+    - `npm run test`: PASSED (Vitest, 34 test files, 260/260 tests passed)
+    - `npm run build`: PASSED (All 6 workspaces built and Vite web bundle compiled cleanly)
+    - `npm run format`: PASSED (Prettier checked across entire repository)
+    - `npm run db:check`: PASSED (Database connectivity verified)
+    - Live Operational Acceptance Suite: PASSED (`scripts/verify-operational-acceptance.ts` executed cleanly with 0 failures, 100% clean teardown).

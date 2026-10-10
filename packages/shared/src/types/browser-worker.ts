@@ -27,6 +27,7 @@ export const BrowserRunStatus = {
   STOPPED_CAPTCHA: 'STOPPED_CAPTCHA',
   STOPPED_MANUAL_REVIEW: 'STOPPED_MANUAL_REVIEW',
   VALIDATION_FAILED: 'VALIDATION_FAILED',
+  SUBMISSION_UNCERTAIN: 'SUBMISSION_UNCERTAIN',
   FAILED: 'FAILED',
 } as const;
 export type BrowserRunStatus = (typeof BrowserRunStatus)[keyof typeof BrowserRunStatus];

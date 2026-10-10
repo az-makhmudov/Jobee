@@ -13,6 +13,7 @@ import {
 import {
   browserApplicationRuns,
   applicationLifecycleEvents,
+  applications,
   type Database,
 } from '@job-agent/database';
 import { eq } from 'drizzle-orm';
@@ -72,6 +73,7 @@ export class BrowserApplicationEngine {
     let runStatus: BrowserRunStatus = BrowserRunStatus.RUNNING;
     let confirmationReference: string | undefined;
     let errorMessage: string | undefined;
+    let submissionDispatched = false;
 
     // 1. Initial DB Persistence (if db available)
     if (this.db && !params.skipDb) {
@@ -326,9 +328,89 @@ export class BrowserApplicationEngine {
           .first();
 
         if ((await submitButton.count()) > 0) {
-          logStep('SUBMISSION', 'Submitting application form...', 'OK');
-          await submitButton.click();
-          await page.waitForTimeout(500);
+          logStep(
+            'SUBMISSION_DISPATCHING',
+            'Dispatching submission action to external provider...',
+            'OK',
+          );
+          submissionDispatched = true;
+
+          // Persist step logs before clicking submit so that an immediate process kill/crash
+          // retains durable evidence that the submission action was in-flight
+          if (this.db && !params.skipDb) {
+            try {
+              await this.db
+                .update(browserApplicationRuns)
+                .set({ stepLogs, updatedAt: new Date() })
+                .where(eq(browserApplicationRuns.id, runId));
+            } catch {
+              // ignore
+            }
+          }
+
+          try {
+            await submitButton.click();
+            await page.waitForTimeout(500);
+          } catch (clickErr: any) {
+            logStep(
+              'SUBMISSION_UNCERTAIN',
+              `Submission action was dispatched but encountered error/timeout: ${clickErr.message}. Marked SUBMISSION_UNCERTAIN to prevent duplicate external submission.`,
+              'ERROR',
+            );
+            runStatus = BrowserRunStatus.SUBMISSION_UNCERTAIN;
+            errorMessage = `Submission uncertain: Error occurred during or immediately after external submission action (${clickErr.message})`;
+
+            if (this.db && !params.skipDb) {
+              try {
+                await this.db
+                  .update(applications)
+                  .set({
+                    status: 'NEEDS_REVIEW',
+                    updatedAt: new Date(),
+                  })
+                  .where(eq(applications.id, params.applicationId));
+
+                await this.db.insert(applicationLifecycleEvents).values({
+                  id: crypto.randomUUID(),
+                  applicationId: params.applicationId,
+                  userId: params.userId,
+                  eventType: 'SUBMISSION_UNCERTAIN',
+                  previousStatus: 'READY_TO_APPLY',
+                  newStatus: 'NEEDS_REVIEW',
+                  actor: 'WORKER',
+                  note: `Submission action was dispatched but encountered an error. Status set to NEEDS_REVIEW to prevent automatic duplicate retries. (${clickErr.message})`,
+                  safeMetadata: {
+                    runId,
+                    atsProvider,
+                    mode,
+                    error: clickErr.message,
+                  },
+                });
+              } catch (crmErr: any) {
+                logStep(
+                  'LIFECYCLE',
+                  `Warning: Failed to update CRM application/event: ${crmErr.message}`,
+                  'WARNING',
+                );
+              }
+            }
+
+            return await this.finalizeRun({
+              runId,
+              params,
+              atsProvider,
+              mode,
+              runStatus,
+              fieldsDetectedCount,
+              fieldsFilledCount,
+              unmatchedRequiredFields,
+              stepLogs,
+              screenshotPaths,
+              startedAt: now,
+              confirmationReference,
+              errorMessage,
+            });
+          }
 
           confirmationReference = `SUBMITTED-${new Date().toISOString().slice(0, 10)}-${runId.slice(0, 8)}`;
           logStep(
@@ -337,9 +419,20 @@ export class BrowserApplicationEngine {
             'OK',
           );
 
-          // Record lifecycle event if DB is connected
+          // Update CRM application to APPLIED and record immutable lifecycle event
           if (this.db && !params.skipDb) {
             try {
+              await this.db
+                .update(applications)
+                .set({
+                  status: 'APPLIED',
+                  appliedAt: new Date(),
+                  submissionMethod: atsProvider,
+                  externalReferenceId: confirmationReference,
+                  updatedAt: new Date(),
+                })
+                .where(eq(applications.id, params.applicationId));
+
               await this.db.insert(applicationLifecycleEvents).values({
                 id: crypto.randomUUID(),
                 applicationId: params.applicationId,
@@ -380,8 +473,23 @@ export class BrowserApplicationEngine {
         `Unexpected runtime error during browser execution: ${error.message}`,
         'ERROR',
       );
-      runStatus = BrowserRunStatus.FAILED;
-      errorMessage = error.message;
+      if (submissionDispatched) {
+        runStatus = BrowserRunStatus.SUBMISSION_UNCERTAIN;
+        errorMessage = `Submission uncertain: Runtime error after submission was dispatched: ${error.message}`;
+        if (this.db && !params.skipDb) {
+          try {
+            await this.db
+              .update(applications)
+              .set({ status: 'NEEDS_REVIEW', updatedAt: new Date() })
+              .where(eq(applications.id, params.applicationId));
+          } catch {
+            // ignore
+          }
+        }
+      } else {
+        runStatus = BrowserRunStatus.FAILED;
+        errorMessage = error.message;
+      }
     } finally {
       if (page) {
         try {
