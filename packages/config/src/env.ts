@@ -115,6 +115,18 @@ export const envSchema = z
           path: ['EMAIL_TOKEN_ENCRYPTION_KEY'],
         });
       }
+      if (
+        !data.BETTER_AUTH_SECRET ||
+        data.BETTER_AUTH_SECRET ===
+          '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message:
+            'A secure non-default BETTER_AUTH_SECRET is required in production environment',
+          path: ['BETTER_AUTH_SECRET'],
+        });
+      }
     }
   });
 

@@ -29,11 +29,16 @@ describe('validateEnv', () => {
       DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/testdb',
       EMAIL_TOKEN_ENCRYPTION_KEY:
         'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
+      BETTER_AUTH_SECRET:
+        'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
     });
 
     expect(config.NODE_ENV).toBe('production');
     expect(config.DATABASE_URL).toBe('postgresql://postgres:secret@localhost:5432/testdb');
     expect(config.EMAIL_TOKEN_ENCRYPTION_KEY).toBe(
+      'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
+    );
+    expect(config.BETTER_AUTH_SECRET).toBe(
       'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
     );
   });
@@ -69,7 +74,22 @@ describe('validateEnv', () => {
         DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/testdb',
         EMAIL_TOKEN_ENCRYPTION_KEY:
           '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        BETTER_AUTH_SECRET:
+          'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
       }),
     ).toThrow(/secure non-default EMAIL_TOKEN_ENCRYPTION_KEY/);
+  });
+
+  it('fails in production if default BETTER_AUTH_SECRET is used', () => {
+    expect(() =>
+      validateEnv({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/testdb',
+        EMAIL_TOKEN_ENCRYPTION_KEY:
+          'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
+        BETTER_AUTH_SECRET:
+          '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      }),
+    ).toThrow(/secure non-default BETTER_AUTH_SECRET/);
   });
 });

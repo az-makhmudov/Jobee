@@ -30,6 +30,7 @@ jobs:
       NODE_ENV: test
       DATABASE_URL: postgresql://jobee_ci_user:jobee_ci_password_secure@127.0.0.1:5432/jobee_ci_test
       EMAIL_TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      BETTER_AUTH_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
       API_HOST: 127.0.0.1
       API_PORT: 3000
       WEB_ORIGIN: http://localhost:5173
