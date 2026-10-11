@@ -821,6 +821,7 @@ Persistent, restart-resilient OAuth state replay defense and CSRF protection:
 ## 9. Identity & Authentication Entities (`JOB-AUTH-01`)
 
 ### 9.1. `users` Table (Extensions)
+
 - `name`: TEXT (User display name)
 - `email`: TEXT UNIQUE (Normalized user email address with unique index)
 - `email_verified`: BOOLEAN DEFAULT false (Email verification flag)
@@ -832,6 +833,7 @@ Persistent, restart-resilient OAuth state replay defense and CSRF protection:
 - `invitation_code`: TEXT (Reference to pilot invitation used during onboarding)
 
 ### 9.2. `sessions` (Better Auth Sessions)
+
 - `id`: TEXT PRIMARY KEY
 - `user_id`: UUID NOT NULL (FK -> `users.id`, CASCADE)
 - `token`: TEXT NOT NULL UNIQUE (Session token with unique index)
@@ -841,6 +843,7 @@ Persistent, restart-resilient OAuth state replay defense and CSRF protection:
 - `created_at`, `updated_at`: TIMESTAMPTZ NOT NULL
 
 ### 9.3. `accounts` (Better Auth OAuth & Credential Accounts)
+
 - `id`: TEXT PRIMARY KEY
 - `user_id`: UUID NOT NULL (FK -> `users.id`, CASCADE)
 - `account_id`: TEXT NOT NULL (External OAuth subject ID or email)
@@ -852,6 +855,7 @@ Persistent, restart-resilient OAuth state replay defense and CSRF protection:
 - `created_at`, `updated_at`: TIMESTAMPTZ NOT NULL
 
 ### 9.4. `verifications` (Better Auth Email Verifications & Password Reset)
+
 - `id`: TEXT PRIMARY KEY
 - `identifier`: TEXT NOT NULL (Email or user identifier)
 - `value`: TEXT NOT NULL (Verification code or hash)
@@ -859,6 +863,7 @@ Persistent, restart-resilient OAuth state replay defense and CSRF protection:
 - `created_at`, `updated_at`: TIMESTAMPTZ NOT NULL
 
 ### 9.5. `pilot_invitations` (Private Pilot Onboarding Invitations)
+
 - `id`: UUID PRIMARY KEY DEFAULT gen_random_uuid()
 - `code`: VARCHAR(64) NOT NULL UNIQUE (Generated invite code, e.g. `pilot_...`)
 - `inviter_user_id`: UUID (FK -> `users.id`, SET NULL)
@@ -902,4 +907,3 @@ Persistent, restart-resilient OAuth state replay defense and CSRF protection:
 - `0013_orchestrator_scheduling_notifications.sql`: Additive schema for Autonomous Orchestrator runs, System Notifications center, and User Preferences (`orchestration_runs`, `system_notifications`, `notification_preferences`).
 - `0014_candidate_data_quarantine.sql`: Candidate data quarantine and reconfirmation verification fields.
 - `0015_better_auth.sql`: Authoritative identity management and session infrastructure via Better Auth (`sessions`, `accounts`, `verifications`, `pilot_invitations`, and `users` authentication columns).
-

@@ -25,6 +25,7 @@ import {
   browserApplicationRuns,
   systemNotifications,
   applicationPolicy,
+  sessions,
   inArray,
   eq,
   and,
@@ -55,11 +56,16 @@ interface OperationalContext {
   createdAnswerIds: string[];
 }
 
+let globalSessionToken: string | null = null;
+
 async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
   const url = `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
   const headers: Record<string, string> = {
     ...((options.headers as Record<string, string>) || {}),
   };
+  if (globalSessionToken && !headers['Cookie'] && !headers['cookie']) {
+    headers['Cookie'] = `better-auth.session_token=${globalSessionToken}`;
+  }
   if (options.body && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
@@ -84,6 +90,16 @@ async function main() {
   const user = await getOrCreatePrimaryUser(db);
   const userId = user.id;
   const tag = `op-accept-${Date.now()}`;
+
+  // Seed authenticated Better Auth session
+  const testSessionToken = `op-accept-sess-${Date.now()}`;
+  globalSessionToken = testSessionToken;
+  await db.insert(sessions).values({
+    id: `sess-${Date.now()}`,
+    userId,
+    token: testSessionToken,
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  });
 
   const ctx: OperationalContext = {
     userId,
@@ -153,6 +169,23 @@ async function main() {
     const context = await browser.newContext({
       viewport: { width: 1440, height: 900 },
     });
+
+    if (globalSessionToken) {
+      await context.addCookies([
+        {
+          name: 'better-auth.session_token',
+          value: globalSessionToken,
+          domain: '127.0.0.1',
+          path: '/',
+        },
+        {
+          name: 'better-auth.session_token',
+          value: globalSessionToken,
+          domain: 'localhost',
+          path: '/',
+        },
+      ]);
+    }
 
     const pageErrors: string[] = [];
     page = await context.newPage();
@@ -712,6 +745,10 @@ async function main() {
           availability: initialProfile.availability,
         }),
       });
+    }
+
+    if (globalSessionToken) {
+      await db.delete(sessions).where(eq(sessions.token, globalSessionToken));
     }
 
     console.log('✓ Teardown complete. Zero database orphans left.');

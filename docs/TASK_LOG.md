@@ -790,3 +790,43 @@ This document tracks execution history and verification state for all official m
   - `npm run format`: PASSED (All matched files conform to Prettier).
   - Primary Candidate Profile Audit: `Asadbek Makhmudov | asadbek.mzw@gmail.com | Role: admin | Verified: true` verified 100% intact in database with 14 skills and 6 facts.
 
+---
+
+### `JOB-PROD-03` — Public Job Discovery, Background Ingestion & Containerized Cloud Deployment Readiness
+
+- **Status**: COMPLETED (LOCAL CHECKPOINT)
+- **Completed**: 2026-10-11
+- **Scope**:
+  - **1. Public Opportunity Discovery Service (`JobDiscoveryService`)**:
+    - Created `apps/api/src/services/job-discovery-service.ts`: connects to public job feeds (Arbeitnow public API at `https://www.arbeitnow.com/api/job-board-api` and public Greenhouse boards at `boards-api.greenhouse.io`).
+    - Matches candidate `targetTitles` from `jobPreferences` and candidate profile headline.
+    - Sanitizes HTML descriptions into clean readable text for requirement parsing.
+    - Enforces deduplication via content hash and canonical URL to prevent re-ingesting duplicate jobs.
+    - Added unit test suite `apps/api/src/services/job-discovery-service.test.ts` (2/2 tests passing).
+  - **2. API Endpoints & Web UI Integration**:
+    - Registered `POST /api/jobs/discover` and `POST /jobs/discover` in Fastify `job-routes.ts`.
+    - Added `discoverJobs` method to `apps/web/src/api/job-client.ts`.
+    - Added `🌐 Discover Public Jobs` button and reactive notification ribbon to `JobInboxView.tsx`.
+  - **3. Autonomous Orchestrator Discovery & Preparation Pipeline Integration**:
+    - Updated `AutonomousOrchestrator.runDiscoveryStage`: when active discovery queue has fewer than 3 opportunities, automatically polls the public feed and ingests new vacancies.
+    - Updated `AutonomousOrchestrator.runPreparationStage`: initializes draft application packages in `NEEDS_REVIEW` in Application Studio for candidate review.
+  - **4. Single-Port Production Serving**:
+    - Registered `@fastify/static` in `apps/api/src/app.ts` to serve compiled React 19 SPA from `apps/web/dist` on port 3000 in production.
+    - Unified single `app.setNotFoundHandler` with SPA `index.html` fallback for client-side routing.
+  - **5. Containerization & Cloud Deployment Readiness**:
+    - Multi-stage `Dockerfile`: Node.js 22-bookworm-slim with Chromium/Playwright dependencies, monorepo build stage, and production runner stage.
+    - `docker-compose.yml`: orchestrated local stack (`postgres`, `api`, `worker`) with healthchecks and volume persistence.
+    - `.dockerignore`: clean container build exclusion.
+  - **6. Verification Test Hardening**:
+    - Updated `scripts/verify-pilot-readiness.ts` and `scripts/verify-operational-acceptance.ts` to authenticate with Better Auth sessions.
+- **Verification Records**:
+  - `npm run db:check`: PASSED (PostgreSQL connected, 31ms latency).
+  - `npm run db:migrate`: PASSED (16 migrations up to date).
+  - `npm run typecheck`: PASSED (0 errors across all 6 workspaces).
+  - `npm run lint`: PASSED (0 errors across codebase).
+  - `npm run test`: PASSED (38 test files, 280/280 tests passed in 26.72s).
+  - `npm run build`: PASSED (API, Worker, Config, Shared, Database, and Web SPA bundle compile cleanly).
+  - `npm run format`: PASSED (All files formatted cleanly).
+  - `scripts/verify-pilot-readiness.ts`: PASSED (11/11 sections passed cleanly with 0 failures, 100% clean teardown).
+  - `scripts/verify-operational-acceptance.ts`: PASSED (Real Playwright Chromium driving React UI across all 10 views, ATS fixture submission, crash invariants, 100% clean teardown).
+  - Primary Candidate Profile Audit: `Asadbek Makhmudov | asadbek.mzw@gmail.com | Role: admin` verified 100% intact in database with 14 skills, 2 certifications, and 6 facts.

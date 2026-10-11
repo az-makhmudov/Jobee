@@ -47,6 +47,8 @@ import {
   browserApplicationRuns,
   orchestrationRuns,
   systemNotifications,
+  sessions,
+  eq,
   inArray,
 } from '@job-agent/database';
 import { getConfig } from '@job-agent/config';
@@ -76,11 +78,16 @@ interface TestContext {
   createdAnswerIds: string[];
 }
 
+let globalSessionToken: string | null = null;
+
 async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
   const url = `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
   const headers: Record<string, string> = {
     ...((options.headers as Record<string, string>) || {}),
   };
+  if (globalSessionToken && !headers['Cookie'] && !headers['cookie']) {
+    headers['Cookie'] = `better-auth.session_token=${globalSessionToken}`;
+  }
   if (options.body && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
@@ -105,6 +112,16 @@ async function main() {
   const user = await getOrCreatePrimaryUser(db);
   const userId = user.id;
   const tag = `pilot-${Date.now()}`;
+
+  // Seed authenticated Better Auth session for integration test suite
+  const testSessionToken = `pilot-test-sess-${Date.now()}`;
+  globalSessionToken = testSessionToken;
+  await db.insert(sessions).values({
+    id: `sess-${Date.now()}`,
+    userId,
+    token: testSessionToken,
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  });
 
   const ctx: TestContext = {
     userId,
@@ -168,7 +185,11 @@ async function main() {
       console.warn(`! Frontend port check note: ${err.message}`);
     }
 
-    const proxyRes = await fetch(`${WEB_BASE_URL}/api/orchestrator/status`);
+    const proxyRes = await fetch(`${WEB_BASE_URL}/api/orchestrator/status`, {
+      headers: globalSessionToken
+        ? { Cookie: `better-auth.session_token=${globalSessionToken}` }
+        : {},
+    });
     if (proxyRes.ok) {
       const proxyData = await proxyRes.json();
       if (proxyData.status === 'ok' && proxyData.data?.orchestratorEnabled === true) {
@@ -1045,6 +1066,10 @@ Requirements:
           availability: initialProfile.availability,
         }),
       });
+    }
+
+    if (globalSessionToken) {
+      await db.delete(sessions).where(eq(sessions.token, globalSessionToken));
     }
 
     console.log('✓ Teardown complete. Zero database orphans left.');

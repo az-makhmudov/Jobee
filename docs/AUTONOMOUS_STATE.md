@@ -8,12 +8,12 @@
 
 ## 1. Roadmap Snapshot
 
-- **Current Official Roadmap Milestone:** Authentication & Production Deployment Readiness
-- **Milestone Name:** Better Auth Integration, Multi-Tenant Workspace Isolation & Private Pilot Onboarding (`JOB-AUTH-01`)
+- **Current Official Roadmap Milestone:** Autonomous Product Completion & Cloud Deployment Readiness
+- **Milestone Name:** Public Job Discovery, Background Ingestion & Containerized Cloud Deployment Readiness (`JOB-PROD-03`)
 - **Milestone Status:** COMPLETED (LOCAL CHECKPOINT)
-- **Previous Completed Milestone:** `JOB-PROD-02` (Cryptographic Manifest-Bound Submission Authorization)
-- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION & BETTER AUTH MULTI-TENANT ISOLATION COMPLETE**
-- **Active Git Checkpoint:** `f773187` (`feat(auth): integrate Better Auth with multi-user tenant isolation and invite-only private pilot (JOB-AUTH-01)`)
+- **Previous Completed Milestone:** `JOB-AUTH-01` (Better Auth Identity, Multi-Tenant Isolation & Private Pilot)
+- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + BETTER AUTH & CLOUD CONTAINERIZATION COMPLETE**
+- **Active Git Checkpoint:** Pending commit (`feat(discovery): activate public job ingestion, semantic matching, and containerized deployment (JOB-PROD-03)`)
 
 ---
 
@@ -40,7 +40,8 @@
 | `JOB-P0-T01-STABILIZATION` | Autonomous Stabilization & Readiness Hardening                    | COMPLETED     | `696b1cc`                                        |
 | `JOB-PROD-01`              | Backend Authorization, Submission Guardrails & Profile Sandbox    | COMPLETED     | `904c19f`                                        |
 | `JOB-PROD-02`              | Cryptographic Manifest-Bound Submission Authorization             | COMPLETED     | `8f58075`                                        |
-| `JOB-AUTH-01`              | Better Auth Identity, Multi-Tenant Isolation & Private Pilot      | **COMPLETED** | Verified via all quality gates                   |
+| `JOB-AUTH-01`              | Better Auth Identity, Multi-Tenant Isolation & Private Pilot      | COMPLETED     | `f04ca1a`                                        |
+| `JOB-PROD-03`              | Public Job Discovery, Ingestion & Containerized Cloud Deployment  | **COMPLETED** | Verified via all quality gates                   |
 
 ---
 
@@ -87,15 +88,15 @@
 
 ## 4. Current Quality & Build Status
 
-- **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 75ms latency)
+- **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 31ms latency)
 - **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0015 up to date)
-- **Unit & Integration Tests:** `npm test` -> PASSED (37 test files, 277/277 tests passing)
+- **Unit & Integration Tests:** `npm test` -> PASSED (38 test files, 280/280 tests passing)
 - **TypeScript Typecheck:** `npm run typecheck` -> PASSED (0 errors across 6 workspaces)
 - **ESLint:** `npm run lint` -> PASSED (0 errors across codebase)
-- **Build:** `npm run build` -> PASSED (API, Worker, and Web bundle compile cleanly)
+- **Build:** `npm run build` -> PASSED (API, Worker, and Web SPA bundle compile cleanly)
 - **Prettier:** `npm run format` -> PASSED (All matched files conform)
 - **Live Pilot Readiness Suite:** `scripts/verify-pilot-readiness.ts` -> PASSED (11/11 sections passed cleanly with 0 failures, 100% clean teardown)
-- **Live Operational Acceptance Suite:** `scripts/verify-operational-acceptance.ts` -> PASSED (Real Playwright UI, ATS fixture submission, crash invariants, 100% clean teardown)
+- **Live Operational Acceptance Suite:** `scripts/verify-operational-acceptance.ts` -> PASSED (Real Playwright Chromium driving React 19 UI across all 10 views, ATS fixture submission, crash invariants, 100% clean teardown)
 
 ---
 

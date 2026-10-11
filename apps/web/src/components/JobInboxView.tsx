@@ -21,6 +21,7 @@ export function JobInboxView({ onSelectJob }: Props) {
   const [analyzingJobId, setAnalyzingJobId] = useState<string | null>(null);
   const [batchAnalyzing, setBatchAnalyzing] = useState(false);
   const [batchNotice, setBatchNotice] = useState<string | null>(null);
+  const [discovering, setDiscovering] = useState(false);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -111,6 +112,23 @@ export function JobInboxView({ onSelectJob }: Props) {
     }
   };
 
+  const handleDiscoverJobs = async () => {
+    setDiscovering(true);
+    setBatchNotice(null);
+    setError(null);
+    try {
+      const res = await jobApi.discoverJobs({ limit: 10 });
+      setBatchNotice(
+        `Discovery complete: ${res.newJobsIngested} new job(s) ingested from public sources (${res.duplicatesSkipped} duplicates skipped, ${res.totalDiscovered} scanned).`,
+      );
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to discover jobs from public sources');
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
   return (
     <div>
       {/* Page Header */}
@@ -132,6 +150,14 @@ export function JobInboxView({ onSelectJob }: Props) {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={handleDiscoverJobs}
+            disabled={discovering || loading}
+            title="Discover and ingest opportunities from Arbeitnow and Greenhouse public boards"
+          >
+            {discovering ? '🌐 Discovering...' : '🌐 Discover Public Jobs'}
+          </button>
           <button
             className="btn btn-secondary btn-sm"
             onClick={handleBatchAnalyze}

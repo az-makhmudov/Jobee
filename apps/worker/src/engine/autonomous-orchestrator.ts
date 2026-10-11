@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import type { Database } from '@job-agent/database';
 import {
   orchestrationRuns,
@@ -260,18 +261,119 @@ export class AutonomousOrchestrator {
   ): Promise<{ processed: number; succeeded: number; failed: number; newlyDiscovered: number }> {
     await addStep('DISCOVERY', 'Checking active job opportunities and ingestion sources...');
 
-    const existingDiscovered = await this.db.query.jobs.findMany({
-      where: and(
-        eq(jobs.userId, userId),
-        or(eq(jobs.state, 'DISCOVERED'), eq(jobs.state, 'INGESTED'), eq(jobs.state, 'NEW')),
-      ),
-      limit: 20,
-    });
+    let existingDiscovered =
+      (await this.db.query.jobs?.findMany({
+        where: and(
+          eq(jobs.userId, userId),
+          or(eq(jobs.state, 'DISCOVERED'), eq(jobs.state, 'INGESTED'), eq(jobs.state, 'NEW')),
+        ),
+        limit: 20,
+      })) || [];
+
+    let newlyIngestedFromFeed = 0;
+
+    // If discovery queue is sparse (< 3 opportunities), attempt polling public Arbeitnow feed
+    if (existingDiscovered.length < 3) {
+      try {
+        const prefs = await this.db.query.jobPreferences?.findFirst({
+          where: eq(jobPreferences.userId, userId),
+        });
+        const targetRoles = (prefs?.targetTitles as string[]) || [];
+
+        const res = await fetch('https://www.arbeitnow.com/api/job-board-api', {
+          headers: { Accept: 'application/json' },
+          signal: AbortSignal.timeout(5000),
+        });
+
+        if (res.ok) {
+          const body = (await res.json()) as {
+            data?: Array<{
+              title?: string;
+              company_name?: string;
+              description?: string;
+              url?: string;
+              location?: string;
+              remote?: boolean;
+              tags?: string[];
+            }>;
+          };
+
+          const items = body.data || [];
+          const matched = items
+            .filter((item) => {
+              if (targetRoles.length === 0) return true;
+              const text = `${item.title || ''} ${item.tags?.join(' ') || ''}`.toLowerCase();
+              return targetRoles.some((kw) => text.includes(kw.toLowerCase()));
+            })
+            .slice(0, 3);
+
+          for (const item of matched) {
+            if (!item.title || !item.company_name || !item.description) continue;
+            const plainDesc = item.description
+              .replace(/<[^>]*>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            const contentHash = crypto
+              .createHash('sha256')
+              .update(
+                `${item.company_name.toLowerCase()}:${item.title.toLowerCase()}:${plainDesc.slice(0, 500)}`,
+              )
+              .digest('hex');
+
+            const [dup] = await this.db
+              .select({ id: jobs.id })
+              .from(jobs)
+              .where(and(eq(jobs.userId, userId), eq(jobs.contentHash, contentHash)))
+              .limit(1);
+
+            if (!dup) {
+              await this.db.insert(jobs).values({
+                userId,
+                title: item.title,
+                company: item.company_name,
+                description: plainDesc,
+                locationText: item.location || (item.remote ? 'Remote' : 'Unspecified'),
+                workplaceType: item.remote ? 'REMOTE' : 'UNKNOWN',
+                originalUrl: item.url || null,
+                canonicalUrl: item.url || null,
+                provider: 'ARBEITNOW',
+                state: 'NEW',
+                contentHash,
+              });
+              newlyIngestedFromFeed++;
+            }
+          }
+
+          if (newlyIngestedFromFeed > 0) {
+            await addStep(
+              'DISCOVERY',
+              `Discovered and ingested ${newlyIngestedFromFeed} opportunity(ies) from public Arbeitnow feed.`,
+              { newlyIngestedFromFeed },
+            );
+            // Refresh discovered jobs
+            existingDiscovered =
+              (await this.db.query.jobs?.findMany({
+                where: and(
+                  eq(jobs.userId, userId),
+                  or(
+                    eq(jobs.state, 'DISCOVERED'),
+                    eq(jobs.state, 'INGESTED'),
+                    eq(jobs.state, 'NEW'),
+                  ),
+                ),
+                limit: 20,
+              })) || [];
+          }
+        }
+      } catch (feedErr: any) {
+        this.logger?.debug(`Public feed discovery skipped or offline: ${feedErr.message}`);
+      }
+    }
 
     await addStep(
       'DISCOVERY',
-      `Found ${existingDiscovered.length} active job(s) in discovery queue.`,
-      { count: existingDiscovered.length },
+      `Found ${existingDiscovered.length} active job(s) in discovery queue (${newlyIngestedFromFeed} newly ingested).`,
+      { count: existingDiscovered.length, newlyIngestedFromFeed },
     );
 
     return {
@@ -410,6 +512,21 @@ export class AutonomousOrchestrator {
             },
           );
         }
+      }
+
+      // Also ensure application package exists in Studio for review
+      const existingPkg = await this.db.query.applicationPackages.findFirst({
+        where: and(eq(applicationPackages.jobId, job.id), eq(applicationPackages.userId, userId)),
+      });
+
+      if (!existingPkg) {
+        await this.db.insert(applicationPackages).values({
+          jobId: job.id,
+          userId,
+          status: 'NEEDS_REVIEW',
+          readinessReason:
+            'Draft package initialized by Autonomous Orchestrator. Review and tailor materials in Application Studio.',
+        });
       }
     }
 

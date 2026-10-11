@@ -372,4 +372,3 @@ The identity management subsystem integrates Better Auth to establish production
    - Registration requires a single-use code from `pilot_invitations`.
    - Verification and redemption occur atomically inside the `databaseHooks.user.create` transaction.
    - Admin routes (`/api/pilot/invitations`) enforce role checks (`user.role === 'admin'`), preventing privilege escalation.
-

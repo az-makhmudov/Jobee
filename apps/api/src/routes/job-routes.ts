@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { JobService } from '../services/job-service.js';
 import type { MatchService } from '../services/match-service.js';
+import type { JobDiscoveryService } from '../services/job-discovery-service.js';
 import { AppError } from '@job-agent/shared';
 import {
   ingestTextSchema,
@@ -15,9 +16,19 @@ import { getCurrentUserId } from '../plugins/auth-plugin.js';
 export function createJobRoutes(
   service: JobService,
   matchService?: MatchService,
+  discoveryService?: JobDiscoveryService,
 ): FastifyPluginAsync {
   return async (app) => {
     const getUserId = async () => getCurrentUserId() ?? (await service.getPrimaryUserId());
+
+    // --- On-Demand Public Discovery ---
+    app.post('/jobs/discover', async (req) => {
+      if (!discoveryService) throw AppError.internal('Discovery service is not initialized');
+      const userId = await getUserId();
+      const options = (req.body as any) || {};
+      const result = await discoveryService.discoverForCandidate(userId, options);
+      return { status: 'ok', data: result, timestamp: new Date().toISOString() };
+    });
 
     // --- Ingestion: Pasted Text ---
     const handleIngestText = async (req: any, reply: any) => {

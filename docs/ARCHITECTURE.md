@@ -673,6 +673,7 @@ The identity management subsystem integrates **Better Auth** as the authoritativ
 ```
 
 ### 11.1. Core Identity & Session Model
+
 - **Better Auth Framework**: Built on Better Auth (`better-auth`) with PostgreSQL persistence via Drizzle ORM adapter.
 - **Dual Authentication**:
   1. **Google OAuth 2.0**: Native sign-in and account linking for modern browser workflows.
@@ -680,11 +681,13 @@ The identity management subsystem integrates **Better Auth** as the authoritativ
 - **Transactional Delivery (`TransactionalEmailService`)**: Integrated Resend email client (`RESEND_API_KEY`) for delivering verification codes and password reset links, with structured console fallback for local development.
 
 ### 11.2. Multi-Tenant Workspace Isolation
+
 - **AsyncLocalStorage Context Propagation**: Node.js `AsyncLocalStorage` (`requestUserContext`) stores the authenticated user's ID during Fastify request lifecycle.
 - **Tenant Scoping**: All database queries across candidate profiles, document vault, answer library, job inbox, match evaluations, application packages, CRM applications, email accounts, calendar accounts, and notifications are scoped to `getCurrentUserId()`.
 - **Zero Cross-Tenant Leakage**: Users can only inspect and mutate their own workspace. Unauthenticated requests to protected endpoints receive HTTP 401 Unauthorized.
 
 ### 11.3. Invite-Only Private Pilot & Role-Based Access Control
+
 - **Gated Registration**: When `INVITE_ONLY_REGISTRATION=true`, Better Auth's `user.create` hook requires a valid, pending invitation code from `pilot_invitations`.
 - **Automatic Workspace Provisioning**: On successful registration, the user hook provisions the candidate's baseline profile, default job preferences, and application safety policy.
 - **Admin Management (`PilotInvitationService`)**:
@@ -693,3 +696,27 @@ The identity management subsystem integrates **Better Auth** as the authoritativ
   - `POST /api/pilot/invitations/:id/revoke`: Admins revoke pending invites.
 - **Primary Candidate Preservation**: Legacy candidate `Asadbek Makhmudov` (`00000000-0000-0000-0000-000000000001`) retains 100% of historical data, verified facts, Master CV documents, and CRM records, and is assigned the `'admin'` role.
 
+---
+
+## 12. Public Job Discovery & Production Containerization
+
+### 12.1. Public Job Discovery Service (`JobDiscoveryService`)
+
+- **Public Feed Feasibility**: Ingests live job opportunities from public zero-auth feeds:
+  1. **Arbeitnow JSON API**: European tech, product, and remote positions matching candidate `targetTitles` from `jobPreferences`.
+  2. **Greenhouse Public Boards API**: Direct board queries (`boards-api.greenhouse.io/v1/boards/{company}/jobs`) for public postings without API keys.
+- **Deduplication Engine**: Uses canonical URL and SHA-256 `contentHash` (`company:title:description`) to prevent re-ingesting duplicate opportunities.
+- **Autonomous Orchestrator Integration**: When active discovery queue has fewer than 3 unanalyzed opportunities, `AutonomousOrchestrator.runDiscoveryStage` polls public feeds automatically.
+
+### 12.2. Single-Port Unified Production Serving
+
+- **Fastify Static SPA**: Fastify serves compiled production React assets from `apps/web/dist` via `@fastify/static` on port 3000.
+- **Client-Side Routing Fallback**: Non-API/non-auth GET requests fallback to `index.html`, eliminating CORS configuration and reverse proxy complexities in cloud environments.
+
+### 12.3. Multi-Stage Containerization
+
+- **Dockerfile**:
+  - `base`: Node.js 22-bookworm-slim with Linux runtime packages for Chromium / Playwright.
+  - `builder`: Compiles all TypeScript packages and builds Vite web bundle.
+  - `runner`: Lightweight production container with pre-installed Chromium binaries (`npx playwright install --with-deps chromium`) serving port 3000.
+- **docker-compose.yml**: Orchestrates `postgres:16-alpine`, `api` (unified server), and `worker` (background orchestrator daemon) with healthchecks and persistent storage.

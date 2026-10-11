@@ -41,8 +41,12 @@ import { orchestratorRoutes } from './routes/orchestrator-routes.js';
 import { authPlugin } from './plugins/auth-plugin.js';
 import { createBetterAuthInstance, type BetterAuthInstance } from './auth/better-auth-instance.js';
 import { pilotInvitationRoutes } from './routes/pilot-invitation-routes.js';
+import fastifyStatic from '@fastify/static';
+import path from 'node:path';
+import fs from 'node:fs';
 import { PilotInvitationService } from './services/auth/pilot-invitation-service.js';
 import { TransactionalEmailService } from './services/email/transactional-email-service.js';
+import { JobDiscoveryService } from './services/job-discovery-service.js';
 
 export interface AppOptions {
   config: AppConfig;
@@ -52,6 +56,7 @@ export interface AppOptions {
   candidateService?: CandidateService;
   jobService?: JobService;
   matchService?: MatchService;
+  discoveryService?: JobDiscoveryService;
   packageService?: ApplicationPackageService;
   aiProvider?: AiProvider;
   emailSyncService?: EmailSyncService;
@@ -121,7 +126,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         options.transactionalEmailService ?? new TransactionalEmailService(config);
       authInstance = createBetterAuthInstance(db, config, emailService, invitationService);
     }
-    app.register(authPlugin, { auth: authInstance, config });
+    app.register(authPlugin, { auth: authInstance, config, db });
     app.register(pilotInvitationRoutes, { prefix: '/api/pilot', db, invitationService });
     app.register(pilotInvitationRoutes, { prefix: '/pilot', db, invitationService });
   }
@@ -148,6 +153,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   // Initialize and register Job Ingestion & Match Intelligence routes
   let jobService = options.jobService;
   let matchService = options.matchService;
+  let discoveryService = options.discoveryService;
 
   if (!jobService && db) {
     jobService = new JobService(db);
@@ -157,9 +163,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
     matchService = new MatchService(db, aiProvider);
   }
 
+  if (!discoveryService && db && jobService) {
+    discoveryService = new JobDiscoveryService(db, jobService, { logger });
+  }
+
   if (jobService) {
-    app.register(createJobRoutes(jobService, matchService), { prefix: '/api' });
-    app.register(createJobRoutes(jobService, matchService));
+    app.register(createJobRoutes(jobService, matchService, discoveryService), { prefix: '/api' });
+    app.register(createJobRoutes(jobService, matchService, discoveryService));
   }
 
   // Initialize and register Application Studio & Human Approval routes
@@ -287,8 +297,30 @@ export function buildApp(options: AppOptions): FastifyInstance {
     app.register(orchestratorRoutes, { prefix: '/orchestrator', db, config });
   }
 
+  // Production static web assets & SPA fallback
+  const webDistPath = path.resolve(process.cwd(), 'apps/web/dist');
+  const serveWeb = config.NODE_ENV === 'production' && fs.existsSync(webDistPath);
+
+  if (serveWeb) {
+    app.register(fastifyStatic, {
+      root: webDistPath,
+      prefix: '/',
+      wildcard: false,
+    });
+  }
+
   // Custom 404 Not Found handler
   app.setNotFoundHandler(async (req, reply) => {
+    if (
+      serveWeb &&
+      req.method === 'GET' &&
+      !req.url.startsWith('/api') &&
+      !req.url.startsWith('/auth') &&
+      !req.url.startsWith('/health')
+    ) {
+      return reply.sendFile('index.html');
+    }
+
     logger.warn(`Route not found: ${req.method} ${req.url}`, {
       method: req.method,
       url: req.url,

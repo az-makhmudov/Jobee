@@ -122,8 +122,7 @@ export const envSchema = z
       ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message:
-            'A secure non-default BETTER_AUTH_SECRET is required in production environment',
+          message: 'A secure non-default BETTER_AUTH_SECRET is required in production environment',
           path: ['BETTER_AUTH_SECRET'],
         });
       }

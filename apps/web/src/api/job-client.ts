@@ -156,4 +156,28 @@ export const jobApi = {
       body: JSON.stringify(data),
     });
   },
+
+  // Discover public opportunities (Arbeitnow & Greenhouse)
+  discoverJobs: async (options?: {
+    limit?: number;
+    sources?: ('ARBEITNOW' | 'GREENHOUSE')[];
+    companies?: string[];
+    queryKeywords?: string[];
+  }): Promise<{
+    sourcesSummary: Array<{
+      source: string;
+      totalFound: number;
+      newJobsIngested: number;
+      duplicatesSkipped: number;
+      errors: string[];
+    }>;
+    totalDiscovered: number;
+    newJobsIngested: number;
+    duplicatesSkipped: number;
+  }> => {
+    return request('/jobs/discover', {
+      method: 'POST',
+      body: JSON.stringify(options || {}),
+    });
+  },
 };

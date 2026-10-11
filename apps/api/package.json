@@ -14,6 +14,7 @@
   "dependencies": {
     "@fastify/cors": "^10.0.2",
     "@fastify/multipart": "^10.1.2",
+    "@fastify/static": "^10.1.6",
     "@job-agent/config": "*",
     "@job-agent/database": "*",
     "@job-agent/shared": "*",

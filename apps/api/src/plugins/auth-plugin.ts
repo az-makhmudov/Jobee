@@ -39,15 +39,18 @@ export function getCurrentUserId(): string | undefined {
   return requestUserContext.getStore();
 }
 
+import { eq, and, gt } from 'drizzle-orm';
+import { sessions, users, type Database } from '@job-agent/database';
 import type { AppConfig } from '@job-agent/config';
 
 export interface AuthPluginOptions {
   auth: BetterAuthInstance;
   config: AppConfig;
+  db?: Database | null;
 }
 
 const authPluginCallback: FastifyPluginAsync<AuthPluginOptions> = async (fastify, options) => {
-  const { auth, config } = options;
+  const { auth, config, db } = options;
   fastify.decorate('auth', auth);
 
   // Authentication preHandler hook
@@ -65,6 +68,49 @@ const authPluginCallback: FastifyPluginAsync<AuthPluginOptions> = async (fastify
       request.user = session.user as any;
       request.session = session.session as any;
       return;
+    }
+
+    // Direct bearer token or session token lookup in DB fallback
+    const rawCookie = request.headers.cookie;
+    const authHeader = request.headers.authorization;
+    let fallbackToken: string | undefined;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      fallbackToken = authHeader.substring(7).trim();
+    } else if (rawCookie) {
+      const match = rawCookie.match(/better-auth\.session_token=([^;]+)/);
+      if (match && match[1]) {
+        fallbackToken = decodeURIComponent(match[1].trim());
+      }
+    }
+
+    if (fallbackToken && db) {
+      const tokenParts = fallbackToken.split('.');
+      const cleanToken = tokenParts[0] || fallbackToken;
+      const [foundSession] = await db
+        .select()
+        .from(sessions)
+        .where(and(eq(sessions.token, cleanToken), gt(sessions.expiresAt, new Date())))
+        .limit(1);
+
+      if (foundSession) {
+        const [foundUser] = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, foundSession.userId))
+          .limit(1);
+
+        if (foundUser) {
+          request.user = {
+            id: foundUser.id,
+            name: foundUser.name,
+            email: foundUser.email,
+            role: foundUser.role,
+            emailVerified: foundUser.emailVerified,
+          };
+          request.session = foundSession as any;
+          return;
+        }
+      }
     }
 
     // Handle test environment overrides
