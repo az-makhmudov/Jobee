@@ -35,7 +35,7 @@
 | `REAL-ACT`               | Real Functionality Activation & Truthful De-bias                  | PARTIAL       | Remediated in `REAL-ACT-REMEDIATION` |
 | `REAL-ACT-REMEDIATION`   | Candidate Data Integrity, Human Authorization & Safety Boundaries | COMPLETED     | `91c1765`                            |
 | `JOB-P0-T01`             | Jobee Foundation, Rebrand & Private GitHub Repo Setup             | COMPLETED     | `78f6b40`                            |
-| `JOB-P0-T01-REMEDIATION` | Post-Migration Security Audit & Context Remediation               | **COMPLETED** | Verified in `docs/` & `git`          |
+| `JOB-P0-T01-REMEDIATION` | Post-Migration Security & CI Remediation                          | **COMPLETED** | Verified in `docs/` & `git`          |
 
 ---
 

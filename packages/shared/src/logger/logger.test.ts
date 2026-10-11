@@ -23,17 +23,21 @@ describe('redactSensitiveData', () => {
   });
 
   it('redacts database credentials in URLs', () => {
-    const url = 'postgresql://user:secretpass@db.neon.tech:5432/main_db';
+    // Unmistakably fictional example URL using RFC 2606 reserved domain and fixture credentials.
+    // Replaces previous db.neon.tech example that triggered false-positive GitGuardian alerts.
+    const url =
+      'postgresql://fixture-user:fixture-secret-password-xyz@db.example.internal:5432/test_db';
     const redacted = redactSensitiveData(url);
-    expect(redacted).not.toContain('secretpass');
-    expect(redacted).toBe('postgres://[REDACTED]@[REDACTED]/db.neon.tech:5432/main_db');
+    expect(redacted).not.toContain('fixture-secret-password-xyz');
+    expect(redacted).not.toContain('fixture-user');
+    expect(redacted).toBe('postgres://[REDACTED]@[REDACTED]/db.example.internal:5432/test_db');
   });
 
   it('redacts Bearer tokens in strings', () => {
-    const header = 'Authorization: Bearer ya29.a0AfH6SMB_secret_access_token_12345';
+    const header = 'Authorization: Bearer mock_access_token_fixture_value_12345';
     const redacted = redactSensitiveData(header);
     expect(redacted).toBe('Authorization: Bearer [REDACTED]');
-    expect(redacted).not.toContain('ya29.a0AfH6SMB_secret_access_token_12345');
+    expect(redacted).not.toContain('mock_access_token_fixture_value_12345');
   });
 
   it('redacts case-insensitive bearer tokens in strings', () => {

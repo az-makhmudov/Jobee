@@ -4,6 +4,7 @@ import { getConfig } from '@job-agent/config';
 import {
   closeDbPool,
   getDb,
+  getOrCreatePrimaryUser,
   jobs,
   candidateSkills,
   candidateExperiences,
@@ -28,12 +29,27 @@ describe('Application Package Routes Integration Tests (JOB-P3-T01)', () => {
     await app.ready();
 
     const db = getDb(config.DATABASE_URL);
-    const candidateRes = await app.inject({
-      method: 'GET',
-      url: '/api/candidate/overview',
-    });
-    const candidateData = JSON.parse(candidateRes.body).data;
-    const userId = candidateData.profile.userId;
+    const user = await getOrCreatePrimaryUser(db);
+    const userId = user.id;
+
+    // Ensure candidate profile exists
+    const profRes = await app.inject({ method: 'GET', url: '/api/candidate/profile' });
+    if (profRes.statusCode !== 200 || !JSON.parse(profRes.body).data) {
+      await app.inject({
+        method: 'PUT',
+        url: '/api/candidate/profile',
+        payload: {
+          fullName: 'Package Test Candidate',
+          preferredName: 'PackageTester',
+          headline: 'Full Stack Engineer',
+          email: 'package.candidate@example.com',
+          summary: 'Integration test profile for package routes',
+          city: 'Berlin',
+          country: 'Germany',
+          availability: 'Immediately',
+        },
+      });
+    }
 
     // Seed test candidate evidence
     const [skill] = await db

@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { buildApp } from '../app.js';
 import { getConfig } from '@job-agent/config';
-import { closeDbPool, getDb, jobs, candidateSkills } from '@job-agent/database';
+import {
+  closeDbPool,
+  getDb,
+  getOrCreatePrimaryUser,
+  jobs,
+  candidateSkills,
+} from '@job-agent/database';
 import { eq, inArray } from 'drizzle-orm';
 
 describe('Match Intelligence Routes Integration Tests (JOB-P2-T02)', () => {
@@ -18,12 +24,27 @@ describe('Match Intelligence Routes Integration Tests (JOB-P2-T02)', () => {
 
     // Ensure candidate has a verified skill for deterministic evidence mapping
     const db = getDb(config.DATABASE_URL);
-    const candidateRes = await app.inject({
-      method: 'GET',
-      url: '/api/candidate/overview',
-    });
-    const candidateData = JSON.parse(candidateRes.body).data;
-    const userId = candidateData.profile.userId;
+    const user = await getOrCreatePrimaryUser(db);
+    const userId = user.id;
+
+    // Ensure profile exists for overview endpoints
+    const profRes = await app.inject({ method: 'GET', url: '/api/candidate/profile' });
+    if (profRes.statusCode !== 200 || !JSON.parse(profRes.body).data) {
+      await app.inject({
+        method: 'PUT',
+        url: '/api/candidate/profile',
+        payload: {
+          fullName: 'Match Test Candidate',
+          preferredName: 'MatchTester',
+          headline: 'Senior Full Stack Engineer',
+          email: 'match.candidate@example.com',
+          summary: 'Integration test profile for matching tests',
+          city: 'Berlin',
+          country: 'Germany',
+          availability: 'Immediately',
+        },
+      });
+    }
 
     const [insertedSkill] = await db
       .insert(candidateSkills)

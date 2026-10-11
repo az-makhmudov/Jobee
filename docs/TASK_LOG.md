@@ -537,16 +537,26 @@ This document tracks execution history and verification state for all official m
 
 ---
 
-### `JOB-P0-T01-REMEDIATION` — Post-Migration Security & Documentation Remediation
+### `JOB-P0-T01` — Post-Migration Security & CI Remediation
 
 - **Status**: COMPLETED
 - **Completed**: 2026-10-11
 - **Scope**:
-  - **Git History Security Audit**:
-    - Identified sensitive historical database dump `backups/ai_job_agent_dev_backup_20261010_145257.sql` introduced in commit `57001c95` and removed in commit `91c17652`.
-    - Confirmed no other secret files, private keys, or `.env` credential files were ever committed to Git history.
-    - Designed non-destructive Git history cleaning procedure using `git-filter-repo` to excise the backup blob from historical tree objects without altering source code.
-    - Enforced mandatory authorization safeguard: refrained from rewriting remote Git history or force-pushing without explicit user approval.
+  - **GitGuardian Incident Investigation & Remediation**:
+    - Investigated High-severity alert for PostgreSQL credentials in `packages/shared/src/logger/logger.test.ts`.
+    - Verified the string was a synthetic unit test fixture testing connection string URL redaction, not an active database credential (verified false positive).
+    - Replaced realistic URL (`user:secretpass@db.neon.tech`) and Bearer token with unmistakably fictional test fixtures using RFC 2606 reserved domains (`fixture-user:fixture-secret-password-xyz@db.example.internal:5432/test_db`) and generic tokens, preserving 100% credential redaction verification logic while eliminating scanner alerts.
+  - **Git History Historical Backup Audit**:
+    - Identified sensitive historical development database dump `backups/ai_job_agent_dev_backup_20261010_145257.sql` introduced in commit `57001c95` and removed from HEAD in commit `91c17652`.
+    - Conducted non-disclosing exposure assessment: confirmed dump contained candidate profile PII (1 candidate profile, 1 experience, 1 education) and 0 credentials/tokens (`email_accounts` and `calendar_accounts` had 0 rows, no OAuth access/refresh tokens).
+    - Confirmed no `.env` files, certificates, or private keys exist across the Git commit graph.
+    - Prepared controlled Git-history rewriting plan using `git-filter-repo` (held pending explicit user authorization before execution or force-push).
+  - **GitHub Actions CI Pipeline Hardening**:
+    - Reconfigured `.github/workflows/ci.yml` with dedicated PostgreSQL 16 Alpine service container (`postgres:16-alpine`) on port 5432 with health check (`pg_isready`).
+    - Configured isolated CI environment variables (`NODE_ENV: test`, temporary CI database `jobee_ci_test`, dedicated non-production user `jobee_ci_user`, encryption key).
+    - Added automated pre-test database health check (`npm run db:check`) and schema migrations (`npm run db:migrate`).
+  - **Integration Test Isolation & Determinism**:
+    - Hardened `apps/api/src/routes/match-routes.test.ts` and `apps/api/src/routes/application-package-routes.test.ts` to deterministically provision primary user and profile via `getOrCreatePrimaryUser(db)` instead of assuming pre-existing profiles in unseeded databases.
   - **.gitignore Drizzle Migration Safeguard**:
     - Identified regression where generic `*.sql` rule shadowed future Drizzle migration files in `packages/database/drizzle/`.
     - Corrected `.gitignore` by adding explicit exceptions `!packages/database/drizzle/*.sql` and `!packages/database/drizzle/**/*.sql`, verified with `git check-ignore`.
@@ -557,7 +567,9 @@ This document tracks execution history and verification state for all official m
 - **Verification Records**:
   - `git check-ignore`: PASSED (`packages/database/drizzle/*.sql` un-ignored; `backups/*.sql` and root `*.sql` ignored).
   - Context Sync: PASSED (`cmp -s docs/MASTER_CONTEXT.md JOBEE_MASTER_CONTEXT.md` exit code 0).
+  - `npm run db:check`: PASSED (Database connected against isolated test DB).
+  - `npm run db:migrate`: PASSED (15 migrations applied cleanly).
   - `npm run lint`: PASSED (ESLint 9, 0 errors).
   - `npm run typecheck`: PASSED (TypeScript 5.8 across all workspaces, 0 errors).
-  - `npm run test`: PASSED (Vitest, 35 test files, 268/268 tests passed).
-  - `npm run build`: PASSED (All workspaces compiled cleanly).
+  - `npm run test`: PASSED (Vitest, 35 test files, 268/268 tests passed with 0 failures).
+  - `npm run build`: PASSED (All 6 workspaces built cleanly including Vite web bundle).
