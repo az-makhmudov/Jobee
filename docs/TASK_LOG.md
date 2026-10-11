@@ -723,8 +723,13 @@ This document tracks execution history and verification state for all official m
   - **3. Frontend Client & UI Integration**:
     - Added `requestSubmissionAuthorization` in `apps/web/src/api/browser-worker-client.ts`.
     - Updated `apps/web/src/components/ApplicationDetailView.tsx`: triggers authorization ticket issuance prior to dispatching browser run in `SUBMIT` mode.
-  - **4. Orchestrator Preparation Status Integrity**:
+  - **4. Orchestrator Preparation Status & Ingestion Integrity**:
     - Updated `runPreparationStage` in `apps/worker/src/engine/autonomous-orchestrator.ts`: transitions newly generated application packages to `NEEDS_REVIEW` rather than premature `READY_TO_APPLY`.
+    - Updated `runDiscoveryStage` and `runMatchingStage`: queries jobs in `DISCOVERED`, `INGESTED`, and `NEW` states so real user-imported and pasted job postings are actively picked up.
+  - **5. Browser Worker Foreign Key Constraint Resolution**:
+    - Hardened `BrowserWorkerService.createBrowserRun`: queries `applicationPackageVersions` table to resolve the latest version ID when `packageVersionId` is not provided, preventing foreign key constraint violations from inserting package container IDs into `package_version_id`.
+  - **6. Operational Acceptance Test Profile Hardening**:
+    - Updated `scripts/verify-operational-acceptance.ts`: preserves candidate Asadbek Makhmudov's profile during test execution without temporary synthetic mutations.
 - **Verification Records**:
   - `npm run db:check`: PASSED (PostgreSQL connected, 18ms latency).
   - `npm run db:migrate`: PASSED (15 migrations up to date).
@@ -733,3 +738,7 @@ This document tracks execution history and verification state for all official m
   - `npm run test`: PASSED (36 test files, 271/271 tests passed, including `submission-authorization-service.test.ts`).
   - `npm run build`: PASSED (All 6 workspaces built cleanly including Vite web bundle).
   - `npm run format`: PASSED (Prettier checked across entire repository).
+  - `scripts/verify-pilot-readiness.ts`: PASSED (11/11 sections passed cleanly with 0 failures, 100% clean teardown).
+  - `scripts/verify-operational-acceptance.ts`: PASSED (Real Playwright Chromium driving React 19 UI across all 10 views, ATS fixture submission, crash invariants, 100% clean teardown).
+  - Candidate Profile Audit: `Asadbek Makhmudov | Project Manager | Warsaw, Poland` verified 100% preserved in database.
+

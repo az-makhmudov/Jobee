@@ -123,21 +123,27 @@ async function main() {
     const initialProfileRes = await apiFetch('/candidate/profile');
     initialProfile = initialProfileRes.data?.data;
 
-    // Ensure candidate profile exists
-    await apiFetch('/candidate/profile', {
-      method: 'PUT',
-      body: JSON.stringify({
-        fullName: 'Alex Vance',
-        headline: 'Lead Cloud Infrastructure Architect',
-        email: `alex.vance.${tag}@example.com`,
-        phone: '+1 555-0182',
-        city: 'San Francisco',
-        region: 'CA',
-        country: 'US',
-        summary: 'Specialist in high-scale distributed systems and cloud infrastructure.',
-      }),
-    });
-    console.log('✓ Verified primary candidate profile in database');
+    // Ensure candidate profile exists without overwriting real candidate data
+    if (!initialProfile || !initialProfile.fullName) {
+      await apiFetch('/candidate/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          fullName: 'Asadbek Makhmudov',
+          headline: 'Project Manager',
+          email: 'asadbek.m@example.com',
+          phone: '+48 123 456 789',
+          city: 'Warsaw',
+          region: 'Mazovia',
+          country: 'Poland',
+          summary: 'Experienced Project Manager with strong track record in IT and operations.',
+        }),
+      });
+      console.log('✓ Initialized primary candidate profile in database');
+    } else {
+      console.log(
+        `✓ Preserved verified candidate profile in database: ${initialProfile.fullName} (${initialProfile.headline})`,
+      );
+    }
 
     // -------------------------------------------------------------------------
     // PART 1: FRONTEND ACCEPTANCE (Real Chromium Browser exercising React 19 UI)

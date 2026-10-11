@@ -12,6 +12,7 @@ import {
   emailAccounts,
   eq,
   and,
+  or,
   inArray,
   sql,
 } from '@job-agent/database';
@@ -260,13 +261,16 @@ export class AutonomousOrchestrator {
     await addStep('DISCOVERY', 'Checking active job opportunities and ingestion sources...');
 
     const existingDiscovered = await this.db.query.jobs.findMany({
-      where: and(eq(jobs.userId, userId), eq(jobs.state, 'DISCOVERED')),
+      where: and(
+        eq(jobs.userId, userId),
+        or(eq(jobs.state, 'DISCOVERED'), eq(jobs.state, 'INGESTED'), eq(jobs.state, 'NEW')),
+      ),
       limit: 20,
     });
 
     await addStep(
       'DISCOVERY',
-      `Found ${existingDiscovered.length} active job(s) in DISCOVERED queue.`,
+      `Found ${existingDiscovered.length} active job(s) in discovery queue.`,
       { count: existingDiscovered.length },
     );
 
@@ -290,11 +294,14 @@ export class AutonomousOrchestrator {
   }> {
     await addStep(
       'MATCHING',
-      'Evaluating jobs in DISCOVERED status against candidate policy and brain...',
+      'Evaluating newly ingested and discovered opportunities against candidate policy...',
     );
 
     const discoveredJobs = await this.db.query.jobs.findMany({
-      where: and(eq(jobs.userId, userId), eq(jobs.state, 'DISCOVERED')),
+      where: and(
+        eq(jobs.userId, userId),
+        or(eq(jobs.state, 'DISCOVERED'), eq(jobs.state, 'INGESTED'), eq(jobs.state, 'NEW')),
+      ),
       limit: 10,
     });
 

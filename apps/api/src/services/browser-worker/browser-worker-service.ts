@@ -4,6 +4,7 @@ import {
   applications,
   jobs,
   applicationPolicy,
+  applicationPackageVersions,
   browserApplicationRuns,
   type BrowserApplicationRun,
 } from '@job-agent/database';
@@ -128,18 +129,32 @@ export class BrowserWorkerService {
       status: 'OK',
     };
 
+    let packageVersionId: string | null =
+      verifiedVersionId ??
+      input.packageVersionId ??
+      appRecord.application.submittedPackageVersionId ??
+      null;
+
+    if (!packageVersionId && appRecord.application.currentPackageId) {
+      const [latestVersion] = await db
+        .select({ id: applicationPackageVersions.id })
+        .from(applicationPackageVersions)
+        .where(eq(applicationPackageVersions.packageId, appRecord.application.currentPackageId))
+        .orderBy(desc(applicationPackageVersions.versionNumber))
+        .limit(1);
+
+      if (latestVersion) {
+        packageVersionId = latestVersion.id;
+      }
+    }
+
     const [inserted] = await db
       .insert(browserApplicationRuns)
       .values({
         id: runId,
         applicationId,
         userId,
-        packageVersionId:
-          verifiedVersionId ??
-          input.packageVersionId ??
-          appRecord.application.submittedPackageVersionId ??
-          appRecord.application.currentPackageId ??
-          null,
+        packageVersionId,
         atsProvider,
         targetUrl,
         mode,
