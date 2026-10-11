@@ -13,7 +13,7 @@
 - **Milestone Status:** COMPLETED (LOCAL CHECKPOINT)
 - **Previous Completed Milestone:** `JOB-P0-T01-STABILIZATION` (Autonomous Stabilization & Readiness Hardening)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION & BACKEND AUTHORIZATION HARDENING COMPLETE**
-- **Active Git Checkpoint:** Pending local commit (`feat(security): enforce backend authorization for submissions and approvals (JOB-PROD-01)`)
+- **Active Git Checkpoint:** `904c19f` (`feat(security): enforce backend authorization for submissions and approvals (JOB-PROD-01)`)
 
 ---
 
@@ -38,7 +38,7 @@
 | `JOB-P0-T01-REMEDIATION`   | Post-Migration Security & CI Remediation                          | COMPLETED     | `442fa23`                                        |
 | `JOB-P0-T01-CLEANUP`       | Git History Security Cleanup & Sensitive SQL Purge                | COMPLETED     | `1b62e69`                                        |
 | `JOB-P0-T01-STABILIZATION` | Autonomous Stabilization & Readiness Hardening                    | COMPLETED     | `696b1cc`                                        |
-| `JOB-PROD-01`              | Backend Authorization, Submission Guardrails & Profile Sandbox    | **COMPLETED** | Local Checkpoint (`JOB-PROD-01`)                 |
+| `JOB-PROD-01`              | Backend Authorization, Submission Guardrails & Profile Sandbox    | **COMPLETED** | `904c19f`                                        |
 
 ---
 
