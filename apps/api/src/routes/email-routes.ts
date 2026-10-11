@@ -14,6 +14,7 @@ import {
   listMessagesQuerySchema,
   resolveReviewItemSchema,
 } from './email-schemas.js';
+import { getCurrentUserId } from '../plugins/auth-plugin.js';
 
 export function createEmailRoutes(options: {
   candidateService: CandidateService;
@@ -31,7 +32,7 @@ export function createEmailRoutes(options: {
   } = options;
 
   return async (app) => {
-    const getUserId = async () => candidateService.getPrimaryUserId();
+    const getUserId = async () => getCurrentUserId() ?? (await candidateService.getPrimaryUserId());
     const db = getDb();
 
     // 1. List connected email accounts

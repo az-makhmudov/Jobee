@@ -17,6 +17,7 @@ import {
   updateChecklistSchema,
   updateDebriefSchema,
 } from './calendar-schemas.js';
+import { getCurrentUserId } from '../plugins/auth-plugin.js';
 
 export interface CalendarRoutesOptions {
   candidateService: CandidateService;
@@ -29,7 +30,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
   const { candidateService, calendarService, prepService, oauthStateService } = options;
 
   return async (app) => {
-    const getUserId = async () => candidateService.getPrimaryUserId();
+    const getUserId = async () => getCurrentUserId() ?? (await candidateService.getPrimaryUserId());
 
     // ─── Calendar Accounts ───────────────────────────────────────────────
 

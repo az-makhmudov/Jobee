@@ -40,6 +40,10 @@ export async function getOrCreatePrimaryUser(db: Database): Promise<User> {
     .values({
       id: PRIMARY_USER_ID,
       systemKey: PRIMARY_USER_SYSTEM_KEY,
+      name: 'Asadbek Makhmudov',
+      email: 'asadbek.mzw@gmail.com',
+      emailVerified: true,
+      role: 'admin',
     })
     .onConflictDoNothing()
     .returning();

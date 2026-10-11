@@ -21,6 +21,11 @@ const testConfig: AppConfig = {
   EMAIL_SYNC_INTERVAL_MINUTES: 15,
   REMINDERS_INTERVAL_MINUTES: 30,
   RATE_LIMIT_DAILY_APPLICATIONS_DEFAULT: 10,
+  BETTER_AUTH_SECRET: 'test-better-auth-secret-min-32-chars-long',
+  BETTER_AUTH_URL: 'http://localhost:3000',
+  BETTER_AUTH_TRUSTED_ORIGINS: 'http://localhost:5173',
+  SMTP_FROM: 'noreply@jobee.local',
+  INVITE_ONLY_REGISTRATION: true,
 };
 
 describe('API Foundation', () => {

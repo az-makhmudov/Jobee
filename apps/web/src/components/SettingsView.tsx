@@ -298,29 +298,36 @@ export function SettingsView() {
         </div>
       </div>
 
-      {/* Identity & Security Model */}
+      {/* Identity & Security Model (Better Auth) */}
       <div className="card">
-        <div className="card-title">Identity & Security Model</div>
+        <div className="card-title">Identity & Multi-User Security Model (Better Auth)</div>
         <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
           <p>
-            <strong>Deterministic Single-User Mode:</strong> Jobee currently executes in single-user
-            personal mode. All candidate data is attached to the deterministic primary candidate
-            identity:
+            <strong>Authoritative Authentication & Multi-Tenant Isolation:</strong> Jobee is powered
+            by Better Auth with strict tenant workspace isolation. Each authenticated user has an
+            isolated Candidate Brain, Document Vault, Preferences, Applications CRM, and
+            Email/Calendar sync.
           </p>
           <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
             <li>
-              <code>System Key</code>: <code>default_primary_candidate</code>
+              <code>Authentication Provider</code>:{' '}
+              <strong>Better Auth (Google OAuth & Email/Password)</strong>
             </li>
             <li>
-              <code>Deterministic UUID</code>: <code>00000000-0000-0000-0000-000000000001</code>
+              <code>Private Pilot Policy</code>: Registration is invite-only via cryptographic pilot
+              tokens.
             </li>
             <li>
-              <code>Storage Sandboxing</code>: Document files are persisted locally in{' '}
-              <code>uploads/</code> and excluded from version control.
+              <code>Primary Owner Candidate</code>: <code>Asadbek Makhmudov</code> (
+              <code>00000000-0000-0000-0000-000000000001</code>)
             </li>
             <li>
-              <code>Security Posture</code>: Auto-apply is disabled by default; generative AI
-              operates strictly on explicitly stored and verified candidate facts.
+              <code>Multi-User Safety</code>: All API mutations and queries are strictly bound to
+              authenticated session identity.
+            </li>
+            <li>
+              <code>Zero Hallucination Guardrail</code>: Candidate Brain acts as the immutable
+              ground truth; unverified facts are strictly quarantined.
             </li>
           </ul>
         </div>

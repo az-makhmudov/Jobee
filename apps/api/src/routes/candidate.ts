@@ -24,11 +24,12 @@ import {
   upsertPreferencesSchema,
   updatePolicySchema,
 } from './candidate-schemas.js';
+import { getCurrentUserId } from '../plugins/auth-plugin.js';
 
 export function createCandidateRoutes(service: CandidateService): FastifyPluginAsync {
   return async (app) => {
-    // Helper to get deterministic primary user
-    const getUserId = async () => service.getPrimaryUserId();
+    // Helper to get authenticated user or fallback
+    const getUserId = async () => getCurrentUserId() ?? (await service.getPrimaryUserId());
 
     // --- Overview & Dashboard ---
     app.get('/candidate/overview', async () => {

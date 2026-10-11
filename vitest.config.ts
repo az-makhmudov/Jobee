@@ -6,5 +6,6 @@ export default defineConfig({
     environment: 'node',
     include: ['**/*.test.ts', '**/*.test.tsx'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/.drizzle/**'],
+    testTimeout: 20000,
   },
 });

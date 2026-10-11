@@ -742,3 +742,51 @@ This document tracks execution history and verification state for all official m
   - `scripts/verify-operational-acceptance.ts`: PASSED (Real Playwright Chromium driving React 19 UI across all 10 views, ATS fixture submission, crash invariants, 100% clean teardown).
   - Candidate Profile Audit: `Asadbek Makhmudov | Project Manager | Warsaw, Poland` verified 100% preserved in database.
 
+---
+
+### `JOB-AUTH-01` — Better Auth Identity, Multi-Tenant Workspace Isolation & Private Pilot Onboarding
+
+- **Status**: COMPLETED (LOCAL CHECKPOINT)
+- **Completed**: 2026-10-11
+- **Scope**:
+  - **1. Better Auth Framework Integration**:
+    - Installed and integrated `better-auth@1.7.7` across backend (`apps/api`) and frontend (`apps/web`).
+    - Configured Better Auth instance (`createBetterAuthInstance`) with PostgreSQL Drizzle ORM adapter.
+    - Supported dual authentication: Google OAuth 2.0 (social provider) and Email/Password with email verification and password reset.
+    - Configured secure session management via signed HTTP-only cookies and Bearer tokens.
+    - Added environment variables to `@job-agent/config`: `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `BETTER_AUTH_TRUSTED_ORIGINS`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `RESEND_API_KEY`, `SMTP_*`, and `INVITE_ONLY_REGISTRATION` with Zod schema validation.
+  - **2. Database Schema Extensions & Migration 0015**:
+    - Extended `users` table with `name`, `email` (unique index), `email_verified`, `image`, `role` (default 'user'), `banned`, `ban_reason`, `ban_expires`, and `invitation_code`.
+    - Created Better Auth tables: `sessions` (token, user_id, expires_at, ip_address, user_agent), `accounts` (provider_id, account_id, tokens, scrypt password hash), `verifications` (identifier, value, expires_at).
+    - Created private pilot onboarding table: `pilot_invitations` (code, inviter_user_id, invited_email, role, status, redeemed_by_user_id, redeemed_at, expires_at).
+    - Generated and applied migration `0015_better_auth.sql` to development database `ai_job_agent_dev`.
+    - Preserved primary user `Asadbek Makhmudov` (`00000000-0000-0000-0000-000000000001`, `asadbek.mzw@gmail.com`) with role `'admin'` and 100% verified facts, skills, and documents intact.
+  - **3. Transactional Delivery & Pilot Invitation Service**:
+    - Implemented `TransactionalEmailService`: delivers email verification codes and password reset links via Resend API (`RESEND_API_KEY`), with structured console logging fallback for development.
+    - Implemented `PilotInvitationService`: generates cryptographically random invitation codes with expiry and optional email binding, verifies codes publicly, redeems codes during signup, and revokes pending invitations with admin permission checks.
+  - **4. Fastify Authentication Plugin & Multi-Tenant Isolation**:
+    - Created `authPlugin` (`apps/api/src/plugins/auth-plugin.ts`):
+      - Intercepts and delegates `/api/auth/*` and `/auth/*` directly to Better Auth handler with path normalization.
+      - Uses Node.js `AsyncLocalStorage` (`requestUserContext`) in request `preHandler` to securely propagate authenticated user context (`userId`, `role`).
+      - Exposes `getCurrentUserId()` to guarantee thread-safe tenant identity resolution across all domain routes.
+      - Decorates Fastify with `requireAuth` (401 Unauthorized for unauthenticated requests) and `requireAdmin` (403 Forbidden for non-admin users).
+    - Updated all domain route handlers (`candidate.ts`, `job-routes.ts`, `application-package-routes.ts`, `application-crm-routes.ts`, `browser-worker-routes.ts`, `email-routes.ts`, `calendar-routes.ts`, `orchestrator-routes.ts`, `notification-routes.ts`) to query database entities using `getCurrentUserId()`.
+  - **5. React 19 Web UI Auth Integration**:
+    - Created React Better Auth client in `apps/web/src/api/auth-client.ts` with hooks for session inspection, sign-in, sign-up, and sign-out.
+    - Created `AuthModal.tsx`: supports Google Sign-In, Email/Password sign-in, invite-only pilot registration with real-time invite validation, and password reset.
+    - Created `PilotInvitationsModal.tsx`: admin panel for generating single-use invite codes, listing pending and redeemed invites, copying codes, and revoking invites.
+    - Updated `App.tsx`: added session status card in sidebar footer (avatar, name, email, role badge, Admin invite management modal button, and Sign Out button).
+    - Updated `SettingsView.tsx`: documented Better Auth multi-user architecture and tenant isolation model.
+  - **6. Automated Testing & Verification**:
+    - Created `apps/api/src/routes/auth-routes.test.ts`: 6/6 tests passing (pilot invite verification, invite-only access control, admin generation and revocation, unauthenticated 401 protection, public health endpoint accessibility, and multi-user profile isolation).
+    - Hardened Vitest timeout in `vitest.config.ts` (`testTimeout: 20000`) for seamless execution under CPU contention.
+- **Verification Records**:
+  - `npm run db:check`: PASSED (PostgreSQL connected, 75ms latency).
+  - `npm run db:migrate`: PASSED (16 migrations up to date: 0000 through 0015).
+  - `npm run typecheck`: PASSED (0 errors across all 6 workspaces).
+  - `npm run lint`: PASSED (0 errors across codebase).
+  - `npm run test`: PASSED (37 test files, 277/277 tests passed in 48.17s).
+  - `npm run build`: PASSED (All 6 workspaces built cleanly including Vite web bundle in 5.63s).
+  - `npm run format`: PASSED (All matched files conform to Prettier).
+  - Primary Candidate Profile Audit: `Asadbek Makhmudov | asadbek.mzw@gmail.com | Role: admin | Verified: true` verified 100% intact in database with 14 skills and 6 facts.
+

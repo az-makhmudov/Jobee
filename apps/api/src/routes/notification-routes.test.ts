@@ -14,11 +14,14 @@ describe('Notification Routes Integration Tests', () => {
     app = buildApp({ config, db });
     await app.ready();
 
+    const timestamp = Date.now();
     // Ensure a test user exists
     const [testUser] = await db
       .insert(users)
       .values({
-        systemKey: `test_notif_${Date.now()}`,
+        name: `Test Notif User ${timestamp}`,
+        email: `test_notif_${timestamp}@example.com`,
+        systemKey: `test_notif_${timestamp}`,
       })
       .returning();
     testUserId = testUser!.id;

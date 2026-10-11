@@ -13,12 +13,14 @@ import {
 } from './application-package-schemas.js';
 import { AppError } from '@job-agent/shared';
 
+import { getCurrentUserId } from '../plugins/auth-plugin.js';
+
 export function createApplicationPackageRoutes(
   service: ApplicationPackageService,
   candidateService: CandidateService,
 ): FastifyPluginAsync {
   return async (app) => {
-    const getUserId = async () => candidateService.getPrimaryUserId();
+    const getUserId = async () => getCurrentUserId() ?? (await candidateService.getPrimaryUserId());
 
     // 1. Create Package from Job
     app.post('/jobs/:jobId/application-package', async (req: any, reply) => {

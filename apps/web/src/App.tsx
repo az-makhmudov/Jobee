@@ -17,6 +17,9 @@ import { EmailIntelligenceView } from './components/EmailIntelligenceView.js';
 import { InterviewWorkspaceView } from './components/InterviewWorkspaceView.js';
 import { NotificationCenterModal } from './components/NotificationCenterModal.js';
 import { NotificationClient } from './api/notification-client.js';
+import { authClient } from './api/auth-client.js';
+import { AuthModal } from './components/AuthModal.js';
+import { PilotInvitationsModal } from './components/PilotInvitationsModal.js';
 
 export type NavSection =
   | 'dashboard'
@@ -42,6 +45,10 @@ export default function App() {
   const [, setRefreshKey] = useState<number>(0);
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
+
+  const { data: session, isPending: isSessionPending } = authClient.useSession();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isPilotModalOpen, setIsPilotModalOpen] = useState(false);
 
   const fetchUnread = async () => {
     try {
@@ -150,6 +157,135 @@ export default function App() {
             </li>
           ))}
         </ul>
+
+        {/* User Session Profile & Controls */}
+        <div
+          className="sidebar-footer"
+          style={{
+            marginTop: 'auto',
+            padding: '1rem',
+            borderTop: '1px solid var(--border-color, #e5e7eb)',
+            backgroundColor: 'var(--bg-subtle, #f9fafb)',
+          }}
+        >
+          {isSessionPending ? (
+            <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>Loading session...</div>
+          ) : session?.user ? (
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    backgroundColor: '#3b82f6',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  {session.user.name ? session.user.name[0].toUpperCase() : 'U'}
+                </div>
+                <div style={{ overflow: 'hidden' }}>
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {session.user.name || 'Candidate'}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      color: '#6b7280',
+                      whiteSpace: 'nowrap',
+                      textOverflow: 'ellipsis',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {session.user.email}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  marginBottom: '0.6rem',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    padding: '0.1rem 0.4rem',
+                    borderRadius: '4px',
+                    backgroundColor: (session.user as any).role === 'admin' ? '#dbeafe' : '#f3f4f6',
+                    color: (session.user as any).role === 'admin' ? '#1d4ed8' : '#374151',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {(session.user as any).role === 'admin' ? 'Owner / Admin' : 'Pilot Tester'}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                {(session.user as any).role === 'admin' && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    style={{ flex: 1, fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                    onClick={() => setIsPilotModalOpen(true)}
+                    title="Manage Pilot Invitations"
+                  >
+                    🎟️ Invites
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ flex: 1, fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                  onClick={async () => {
+                    await authClient.signOut();
+                    window.location.reload();
+                  }}
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                Not authenticated
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                style={{ width: '100%', fontSize: '0.8rem' }}
+                onClick={() => setIsAuthModalOpen(true)}
+              >
+                Sign In / Join Pilot
+              </button>
+            </div>
+          )}
+        </div>
       </aside>
 
       {/* Main Content Area */}
@@ -274,6 +410,12 @@ export default function App() {
         }}
         onNavigate={handleNavigate}
       />
+
+      {/* Better Auth: Sign In & Private Pilot Registration Modal */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
+      {/* Admin: Pilot Invitations Management Modal */}
+      <PilotInvitationsModal isOpen={isPilotModalOpen} onClose={() => setIsPilotModalOpen(false)} />
     </div>
   );
 }

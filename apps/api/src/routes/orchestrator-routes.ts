@@ -18,11 +18,10 @@ export const orchestratorRoutes: FastifyPluginAsync<OrchestratorRoutesOptions> =
   opts,
 ) => {
   const service = new OrchestratorService(opts.db, opts.config, fastify.log as any);
+  const { getCurrentUserId } = await import('../plugins/auth-plugin.js');
 
   const getUserId = async (request: any): Promise<string> => {
-    if (request.userId) return request.userId;
-    const user = await getOrCreatePrimaryUser(opts.db);
-    return user.id;
+    return getCurrentUserId() ?? request.userId ?? (await getOrCreatePrimaryUser(opts.db)).id;
   };
 
   // POST /api/orchestrator/runs - Enqueue an on-demand orchestration run

@@ -338,3 +338,38 @@ The owner authorization strictly applied to:
 
   Thank you!
   ```
+
+---
+
+## 16. Authentication Security, Session Integrity & Multi-Tenant Isolation (`JOB-AUTH-01`)
+
+The identity management subsystem integrates Better Auth to establish production-grade authentication and multi-user tenant boundary defenses:
+
+1. **Secure Session Cookie Management**:
+   - Better Auth issues cryptographically signed session tokens stored in PostgreSQL table `sessions`.
+   - Browser cookies enforce `httpOnly: true` (preventing XSS session extraction) and `sameSite: 'lax'`.
+   - In production environments, cookies strictly enforce `secure: true` (HTTPS-only transmission).
+   - Trusted origins (`BETTER_AUTH_TRUSTED_ORIGINS`) and secret salts (`BETTER_AUTH_SECRET`) are validated at startup via Zod.
+
+2. **Credential Security & Email Verification**:
+   - Password authentication uses state-of-the-art `scrypt` hashing with unique per-user salts.
+   - Email verification codes and password reset tokens are persisted in `verifications` table with strict expiration timestamps.
+   - Transactional email dispatch uses Resend (`RESEND_API_KEY`) over TLS; development mode safely outputs formatted tokens to structured server logs.
+
+3. **OAuth Privilege & Scope Separation**:
+   - Better Auth Google Sign-In strictly requests OpenID Connect identity scopes (`openid`, `profile`, `email`) for authentication and account linking.
+   - Identity tokens are stored in Better Auth `accounts` table and **never** conflated with recruitment integrations.
+   - Gmail read-only tokens (`email_accounts`) and Google Calendar tokens (`calendar_accounts`) remain completely separate subsystems governed by dedicated versioned AES-256-GCM token encryption envelopes (`TokenCryptoService`).
+
+4. **Multi-Tenant Workspace Isolation**:
+   - Authenticated sessions resolve user identity into Node.js `AsyncLocalStorage` (`requestUserContext`).
+   - All backend domain endpoints (`/api/candidate/*`, `/api/jobs/*`, `/api/applications/*`, `/api/email/*`, `/api/calendar/*`, `/api/notifications/*`) resolve user context via `getCurrentUserId()` rather than trusting client-supplied user parameters.
+   - Unauthenticated requests are rejected with `401 Unauthorized` (`AppError.unauthorized`).
+   - Cross-tenant data access attempts return `404 Not Found` or `403 Forbidden`.
+
+5. **Private Pilot Gated Registration**:
+   - Public self-registration is strictly blocked when `INVITE_ONLY_REGISTRATION=true`.
+   - Registration requires a single-use code from `pilot_invitations`.
+   - Verification and redemption occur atomically inside the `databaseHooks.user.create` transaction.
+   - Admin routes (`/api/pilot/invitations`) enforce role checks (`user.role === 'admin'`), preventing privilege escalation.
+

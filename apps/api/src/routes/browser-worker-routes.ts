@@ -8,10 +8,11 @@ import {
   applicationRunParamsSchema,
   browserRunParamsSchema,
 } from './browser-worker-schemas.js';
+import { getCurrentUserId } from '../plugins/auth-plugin.js';
 
 export function createBrowserWorkerRoutes(candidateService: CandidateService): FastifyPluginAsync {
   return async (app) => {
-    const getUserId = async () => candidateService.getPrimaryUserId();
+    const getUserId = async () => getCurrentUserId() ?? (await candidateService.getPrimaryUserId());
 
     // 1. Queue or trigger browser run for an application
     app.post('/applications/:id/browser-runs', async (req: any, reply) => {

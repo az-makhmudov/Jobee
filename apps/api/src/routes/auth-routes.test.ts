@@ -1,0 +1,313 @@
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { buildApp } from '../app.js';
+import { getConfig } from '@job-agent/config';
+import {
+  closeDbPool,
+  getDb,
+  users,
+  sessions,
+  accounts,
+  pilotInvitations,
+  candidateProfiles,
+  jobPreferences,
+  applicationPolicy,
+  eq,
+  inArray,
+} from '@job-agent/database';
+import { PilotInvitationStatus } from '@job-agent/shared';
+
+describe('Better Auth, Multi-User Isolation & Private Pilot Integration Tests', () => {
+  const config = getConfig();
+  let app: ReturnType<typeof buildApp>;
+  const db = getDb(config.DATABASE_URL);
+
+  const createdUserIds: string[] = [];
+  const createdInviteIds: string[] = [];
+  const timestamp = Date.now();
+
+  let adminUserId: string;
+
+  beforeAll(async () => {
+    app = buildApp({ config });
+    await app.ready();
+
+    // 1. Ensure admin user exists for test operations
+    const [adminUser] = await db
+      .insert(users)
+      .values({
+        name: 'Admin Tester',
+        email: `admin_${timestamp}@example.com`,
+        emailVerified: true,
+        role: 'admin',
+        systemKey: `admin_${timestamp}`,
+      })
+      .returning();
+    if (!adminUser) throw new Error('Failed to insert adminUser');
+    adminUserId = adminUser.id;
+    createdUserIds.push(adminUserId);
+  });
+
+  afterAll(async () => {
+    // Teardown created test entities
+    if (createdInviteIds.length > 0) {
+      await db.delete(pilotInvitations).where(inArray(pilotInvitations.id, createdInviteIds));
+    }
+    if (createdUserIds.length > 0) {
+      await db.delete(candidateProfiles).where(inArray(candidateProfiles.userId, createdUserIds));
+      await db.delete(jobPreferences).where(inArray(jobPreferences.userId, createdUserIds));
+      await db.delete(applicationPolicy).where(inArray(applicationPolicy.userId, createdUserIds));
+      await db.delete(sessions).where(inArray(sessions.userId, createdUserIds));
+      await db.delete(accounts).where(inArray(accounts.userId, createdUserIds));
+      await db.delete(users).where(inArray(users.id, createdUserIds));
+    }
+
+    await app.close();
+    await closeDbPool();
+  });
+
+  describe('1. Pilot Invitation Lifecycle & Access Control', () => {
+    it('allows admin to create an invitation and non-admin is forbidden', async () => {
+      // Non-admin attempt should be forbidden (403)
+      const nonAdminRes = await app.inject({
+        method: 'POST',
+        url: '/api/pilot/invitations',
+        headers: {
+          'x-test-user-id': '00000000-0000-0000-0000-000000000099',
+        },
+        payload: {
+          role: 'user',
+        },
+      });
+      expect(nonAdminRes.statusCode).toBe(403);
+
+      // Admin attempt should succeed (201)
+      const adminRes = await app.inject({
+        method: 'POST',
+        url: '/api/pilot/invitations',
+        headers: {
+          'x-test-user-id': adminUserId,
+          'x-test-user-role': 'admin',
+        },
+        payload: {
+          role: 'user',
+          expiresInDays: 7,
+        },
+      });
+      expect(adminRes.statusCode).toBe(201);
+      const body = JSON.parse(adminRes.body).data;
+      expect(body.code).toMatch(/^pilot_/);
+      expect(body.status).toBe(PilotInvitationStatus.PENDING);
+      createdInviteIds.push(body.id);
+    });
+
+    it('verifies valid invitation code via public endpoint and rejects invalid codes', async () => {
+      // 1. Create a known test invitation
+      const [invite] = await db
+        .insert(pilotInvitations)
+        .values({
+          code: `pilot_valid_${timestamp}`,
+          inviterUserId: adminUserId,
+          role: 'user',
+          status: PilotInvitationStatus.PENDING,
+          expiresAt: new Date(Date.now() + 86400000),
+        })
+        .returning();
+      if (!invite) throw new Error('Failed to insert invite');
+      createdInviteIds.push(invite.id);
+
+      // 2. Public verification for valid code
+      const validRes = await app.inject({
+        method: 'GET',
+        url: `/api/pilot/verify?code=${invite.code}`,
+      });
+      expect(validRes.statusCode).toBe(200);
+      const validBody = JSON.parse(validRes.body).data;
+      expect(validBody.valid).toBe(true);
+
+      // 3. Verification for nonexistent code
+      const invalidRes = await app.inject({
+        method: 'GET',
+        url: '/api/pilot/verify?code=nonexistent_code_123',
+      });
+      expect(invalidRes.statusCode).toBe(400);
+
+      // 4. Verification for revoked code
+      await db
+        .update(pilotInvitations)
+        .set({ status: PilotInvitationStatus.REVOKED })
+        .where(eq(pilotInvitations.id, invite.id));
+
+      const revokedRes = await app.inject({
+        method: 'GET',
+        url: `/api/pilot/verify?code=${invite.code}`,
+      });
+      expect(revokedRes.statusCode).toBe(403);
+    });
+
+    it('allows admin to list and revoke invitations', async () => {
+      // Create an invitation to revoke
+      const [invite] = await db
+        .insert(pilotInvitations)
+        .values({
+          code: `pilot_to_revoke_${timestamp}`,
+          inviterUserId: adminUserId,
+          role: 'user',
+          status: PilotInvitationStatus.PENDING,
+          expiresAt: new Date(Date.now() + 86400000),
+        })
+        .returning();
+      if (!invite) throw new Error('Failed to insert invite');
+      createdInviteIds.push(invite.id);
+
+      // List invitations as admin
+      const listRes = await app.inject({
+        method: 'GET',
+        url: '/api/pilot/invitations',
+        headers: {
+          'x-test-user-id': adminUserId,
+          'x-test-user-role': 'admin',
+        },
+      });
+      expect(listRes.statusCode).toBe(200);
+      const list = JSON.parse(listRes.body).data;
+      expect(list.some((i: any) => i.id === invite.id)).toBe(true);
+
+      // Revoke invitation as admin
+      const revokeRes = await app.inject({
+        method: 'POST',
+        url: `/api/pilot/invitations/${invite.id}/revoke`,
+        headers: {
+          'x-test-user-id': adminUserId,
+          'x-test-user-role': 'admin',
+        },
+      });
+      expect(revokeRes.statusCode).toBe(200);
+
+      // Verify status updated in DB
+      const [updated] = await db
+        .select()
+        .from(pilotInvitations)
+        .where(eq(pilotInvitations.id, invite.id));
+      if (!updated) throw new Error('Failed to fetch updated invite');
+      expect(updated.status).toBe(PilotInvitationStatus.REVOKED);
+    });
+  });
+
+  describe('2. Authentication Rejection & Unauthenticated Protection', () => {
+    it('rejects unauthenticated requests to protected candidate overview endpoint', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/candidate/overview',
+        headers: {
+          'x-require-auth': 'true',
+        },
+      });
+      expect(res.statusCode).toBe(401);
+      const body = JSON.parse(res.body);
+      expect(body.status).toBe('error');
+      expect(body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('allows public health and readiness checks without authentication', async () => {
+      const healthRes = await app.inject({ method: 'GET', url: '/api/health' });
+      expect(healthRes.statusCode).toBe(200);
+
+      const readyRes = await app.inject({ method: 'GET', url: '/api/ready' });
+      expect(readyRes.statusCode).toBe(200);
+    });
+  });
+
+  describe('3. Multi-User Tenant Workspace Isolation', () => {
+    it('isolates candidate profile and preferences between two different users', async () => {
+      // Create User A
+      const [userA] = await db
+        .insert(users)
+        .values({
+          name: 'Alice Candidate',
+          email: `alice_${timestamp}@example.com`,
+          emailVerified: true,
+          role: 'user',
+          systemKey: `user_a_${timestamp}`,
+        })
+        .returning();
+      if (!userA) throw new Error('Failed to insert userA');
+      createdUserIds.push(userA.id);
+
+      // Create User B
+      const [userB] = await db
+        .insert(users)
+        .values({
+          name: 'Bob Candidate',
+          email: `bob_${timestamp}@example.com`,
+          emailVerified: true,
+          role: 'user',
+          systemKey: `user_b_${timestamp}`,
+        })
+        .returning();
+      if (!userB) throw new Error('Failed to insert userB');
+      createdUserIds.push(userB.id);
+
+      // User A updates her profile
+      const updateARes = await app.inject({
+        method: 'PUT',
+        url: '/api/candidate/profile',
+        headers: {
+          'x-test-user-id': userA.id,
+        },
+        payload: {
+          fullName: 'Alice Candidate A',
+          email: `alice_${timestamp}@example.com`,
+          headline: 'Senior Distributed Systems Engineer',
+          city: 'Berlin',
+          country: 'Germany',
+        },
+      });
+      expect(updateARes.statusCode).toBe(200);
+
+      // User B updates his profile
+      const updateBRes = await app.inject({
+        method: 'PUT',
+        url: '/api/candidate/profile',
+        headers: {
+          'x-test-user-id': userB.id,
+        },
+        payload: {
+          fullName: 'Bob Candidate B',
+          email: `bob_${timestamp}@example.com`,
+          headline: 'Lead Mobile Architect',
+          city: 'Tokyo',
+          country: 'Japan',
+        },
+      });
+      expect(updateBRes.statusCode).toBe(200);
+
+      // Fetch User A profile -> must return Alice
+      const getARes = await app.inject({
+        method: 'GET',
+        url: '/api/candidate/profile',
+        headers: {
+          'x-test-user-id': userA.id,
+        },
+      });
+      expect(getARes.statusCode).toBe(200);
+      const profileA = JSON.parse(getARes.body).data;
+      expect(profileA.fullName).toBe('Alice Candidate A');
+      expect(profileA.headline).toBe('Senior Distributed Systems Engineer');
+      expect(profileA.city).toBe('Berlin');
+
+      // Fetch User B profile -> must return Bob
+      const getBRes = await app.inject({
+        method: 'GET',
+        url: '/api/candidate/profile',
+        headers: {
+          'x-test-user-id': userB.id,
+        },
+      });
+      expect(getBRes.statusCode).toBe(200);
+      const profileB = JSON.parse(getBRes.body).data;
+      expect(profileB.fullName).toBe('Bob Candidate B');
+      expect(profileB.headline).toBe('Lead Mobile Architect');
+      expect(profileB.city).toBe('Tokyo');
+    });
+  });
+});

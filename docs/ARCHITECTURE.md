@@ -636,9 +636,60 @@ The Email Intelligence subsystem forms the system's external sensory organ, conn
 
 ---
 
-## 10. Future Architecture Isolation (Playwright Browser Worker)
+## 11. Authentication, Identity Management & Multi-Tenant Isolation (`JOB-AUTH-01`)
 
-When browser automation (JOB-P5-T01 / JOB-P5-T02) is implemented:
+The identity management subsystem integrates **Better Auth** as the authoritative identity and session layer across the Jobee stack, transitioning the platform from a single-user prototype to a multi-user, tenant-isolated application supporting invite-only private pilot onboarding.
 
-- Automation will run in a dedicated, sandboxed worker process (`apps/browser-worker`).
-- Headless Chromium/Firefox instances and Playwright binaries will remain completely segregated from the primary API runtime to prevent resource exhaustion, zombie browser leaks, and memory bloat.
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                    Web Frontend (React 19)                  │
+│  - Better Auth React Client (`@better-auth/react`)          │
+│  - AuthModal: Google OAuth, Email/Password, Invite Code     │
+│  - Session Status Pill & Pilot Invitations Admin Modal       │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼ [HTTP with Session Cookies / Bearer]
+┌─────────────────────────────────────────────────────────────┐
+│                   Fastify API (`authPlugin`)                │
+│  - Intercepts `/api/auth/*` -> Better Auth Node handler     │
+│  - Extracts session from cookie or Bearer authorization     │
+│  - Binds User Context to Node.js `AsyncLocalStorage`        │
+│  - Provides `getCurrentUserId()` to all downstream services  │
+│  - Enforces `requireAuth` (401) and `requireAdmin` (403)    │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+        ┌──────────────────────┴──────────────────────┐
+        ▼                                             ▼
+┌───────────────────────────────┐       ┌─────────────────────────────┐
+│     Better Auth Engine        │       │   Multi-Tenant Domain Core  │
+│  - Drizzle ORM Adapter        │       │  - Candidate Brain CRUD     │
+│  - Google Social Provider     │       │  - Job Ingestion & Matches  │
+│  - Email & Password Provider  │       │  - Application Packages     │
+│  - Transactional Email Service│       │  - Application CRM Pipeline │
+│  - `databaseHooks.user.create`│       │  - Email & Calendar Sync    │
+│    (Invite code verification  │       │  - Browser Worker Runs      │
+│     & Workspace auto-seeding) │       │  (All scoped to tenant ID)  │
+└───────────────────────────────┘       └─────────────────────────────┘
+```
+
+### 11.1. Core Identity & Session Model
+- **Better Auth Framework**: Built on Better Auth (`better-auth`) with PostgreSQL persistence via Drizzle ORM adapter.
+- **Dual Authentication**:
+  1. **Google OAuth 2.0**: Native sign-in and account linking for modern browser workflows.
+  2. **Email & Password**: Secure password hashing with scrypt, email verification tokens, and forgot-password flows.
+- **Transactional Delivery (`TransactionalEmailService`)**: Integrated Resend email client (`RESEND_API_KEY`) for delivering verification codes and password reset links, with structured console fallback for local development.
+
+### 11.2. Multi-Tenant Workspace Isolation
+- **AsyncLocalStorage Context Propagation**: Node.js `AsyncLocalStorage` (`requestUserContext`) stores the authenticated user's ID during Fastify request lifecycle.
+- **Tenant Scoping**: All database queries across candidate profiles, document vault, answer library, job inbox, match evaluations, application packages, CRM applications, email accounts, calendar accounts, and notifications are scoped to `getCurrentUserId()`.
+- **Zero Cross-Tenant Leakage**: Users can only inspect and mutate their own workspace. Unauthenticated requests to protected endpoints receive HTTP 401 Unauthorized.
+
+### 11.3. Invite-Only Private Pilot & Role-Based Access Control
+- **Gated Registration**: When `INVITE_ONLY_REGISTRATION=true`, Better Auth's `user.create` hook requires a valid, pending invitation code from `pilot_invitations`.
+- **Automatic Workspace Provisioning**: On successful registration, the user hook provisions the candidate's baseline profile, default job preferences, and application safety policy.
+- **Admin Management (`PilotInvitationService`)**:
+  - `POST /api/pilot/invitations`: Admins generate single-use invite codes with optional expiration and reserved email binding.
+  - `GET /api/pilot/invitations`: Admins monitor active and redeemed invites.
+  - `POST /api/pilot/invitations/:id/revoke`: Admins revoke pending invites.
+- **Primary Candidate Preservation**: Legacy candidate `Asadbek Makhmudov` (`00000000-0000-0000-0000-000000000001`) retains 100% of historical data, verified facts, Master CV documents, and CRM records, and is assigned the `'admin'` role.
+

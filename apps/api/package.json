@@ -17,6 +17,7 @@
     "@job-agent/config": "*",
     "@job-agent/database": "*",
     "@job-agent/shared": "*",
+    "better-auth": "^1.7.7",
     "cheerio": "^1.2.0",
     "docx": "^9.8.1",
     "fastify": "^5.2.1"

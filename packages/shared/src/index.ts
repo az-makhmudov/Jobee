@@ -12,4 +12,5 @@ export * from './types/email-intelligence.js';
 export * from './types/calendar.js';
 export * from './types/browser-worker.js';
 export * from './types/orchestrator.js';
+export * from './types/auth.js';
 export * from './utils/html-sanitizer.js';

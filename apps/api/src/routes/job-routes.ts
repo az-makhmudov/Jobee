@@ -10,13 +10,14 @@ import {
   analyzeJobSchema,
   batchAnalyzeSchema,
 } from './job-schemas.js';
+import { getCurrentUserId } from '../plugins/auth-plugin.js';
 
 export function createJobRoutes(
   service: JobService,
   matchService?: MatchService,
 ): FastifyPluginAsync {
   return async (app) => {
-    const getUserId = async () => service.getPrimaryUserId();
+    const getUserId = async () => getCurrentUserId() ?? (await service.getPrimaryUserId());
 
     // --- Ingestion: Pasted Text ---
     const handleIngestText = async (req: any, reply: any) => {

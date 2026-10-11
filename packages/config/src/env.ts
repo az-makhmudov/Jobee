@@ -71,6 +71,28 @@ export const envSchema = z
     EMAIL_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(15),
     REMINDERS_INTERVAL_MINUTES: z.coerce.number().int().positive().default(30),
     RATE_LIMIT_DAILY_APPLICATIONS_DEFAULT: z.coerce.number().int().positive().default(10),
+    BETTER_AUTH_SECRET: z
+      .string()
+      .min(32, 'BETTER_AUTH_SECRET must be at least 32 characters')
+      .default('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
+    BETTER_AUTH_URL: z.string().default('http://127.0.0.1:3000'),
+    BETTER_AUTH_TRUSTED_ORIGINS: z.string().default('http://localhost:5173,http://127.0.0.1:5173'),
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    GOOGLE_CLIENT_SECRET: z.string().optional(),
+    RESEND_API_KEY: z.string().optional(),
+    SMTP_HOST: z.string().optional(),
+    SMTP_PORT: z.coerce.number().int().positive().optional(),
+    SMTP_USER: z.string().optional(),
+    SMTP_PASS: z.string().optional(),
+    SMTP_FROM: z.string().default('Jobee <notifications@jobee.local>'),
+    INVITE_ONLY_REGISTRATION: z
+      .preprocess((val) => {
+        if (typeof val === 'string') {
+          return val.toLowerCase() === 'true' || val === '1';
+        }
+        return val ?? true;
+      }, z.boolean())
+      .default(true),
   })
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production') {

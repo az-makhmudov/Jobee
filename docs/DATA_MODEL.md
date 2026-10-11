@@ -818,15 +818,57 @@ Persistent, restart-resilient OAuth state replay defense and CSRF protection:
 
 ---
 
-## 9. Deferred Domain Schemas
+## 9. Identity & Authentication Entities (`JOB-AUTH-01`)
 
-The following entities are explicitly deferred until their respective macro-tasks:
+### 9.1. `users` Table (Extensions)
+- `name`: TEXT (User display name)
+- `email`: TEXT UNIQUE (Normalized user email address with unique index)
+- `email_verified`: BOOLEAN DEFAULT false (Email verification flag)
+- `image`: TEXT (Avatar URL from Google OAuth or upload)
+- `role`: TEXT DEFAULT 'user' ('admin' | 'user')
+- `banned`: BOOLEAN DEFAULT false
+- `ban_reason`: TEXT
+- `ban_expires`: TIMESTAMPTZ
+- `invitation_code`: TEXT (Reference to pilot invitation used during onboarding)
 
-- **Calendar & Interview Scheduling (`JOB-P4-T02`)**:
-  - Automated calendar sync integrations and busy-slot cache
-- **Controlled Automation (`JOB-P5-T01` / `JOB-P5-T02`)**:
-  - `agent_actions`
-  - Browser automation trace logs
+### 9.2. `sessions` (Better Auth Sessions)
+- `id`: TEXT PRIMARY KEY
+- `user_id`: UUID NOT NULL (FK -> `users.id`, CASCADE)
+- `token`: TEXT NOT NULL UNIQUE (Session token with unique index)
+- `expires_at`: TIMESTAMPTZ NOT NULL
+- `ip_address`: TEXT
+- `user_agent`: TEXT
+- `created_at`, `updated_at`: TIMESTAMPTZ NOT NULL
+
+### 9.3. `accounts` (Better Auth OAuth & Credential Accounts)
+- `id`: TEXT PRIMARY KEY
+- `user_id`: UUID NOT NULL (FK -> `users.id`, CASCADE)
+- `account_id`: TEXT NOT NULL (External OAuth subject ID or email)
+- `provider_id`: TEXT NOT NULL ('google' | 'credential')
+- `access_token`, `refresh_token`, `id_token`: TEXT
+- `access_token_expires_at`, `refresh_token_expires_at`: TIMESTAMPTZ
+- `scope`: TEXT
+- `password`: TEXT (Scrypt hashed password for 'credential' provider)
+- `created_at`, `updated_at`: TIMESTAMPTZ NOT NULL
+
+### 9.4. `verifications` (Better Auth Email Verifications & Password Reset)
+- `id`: TEXT PRIMARY KEY
+- `identifier`: TEXT NOT NULL (Email or user identifier)
+- `value`: TEXT NOT NULL (Verification code or hash)
+- `expires_at`: TIMESTAMPTZ NOT NULL
+- `created_at`, `updated_at`: TIMESTAMPTZ NOT NULL
+
+### 9.5. `pilot_invitations` (Private Pilot Onboarding Invitations)
+- `id`: UUID PRIMARY KEY DEFAULT gen_random_uuid()
+- `code`: VARCHAR(64) NOT NULL UNIQUE (Generated invite code, e.g. `pilot_...`)
+- `inviter_user_id`: UUID (FK -> `users.id`, SET NULL)
+- `invited_email`: VARCHAR(255) (Optional email reservation constraint)
+- `role`: VARCHAR(32) NOT NULL DEFAULT 'user'
+- `status`: VARCHAR(32) NOT NULL DEFAULT 'PENDING' ('PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED')
+- `redeemed_by_user_id`: UUID (FK -> `users.id`, SET NULL)
+- `redeemed_at`: TIMESTAMPTZ
+- `expires_at`: TIMESTAMPTZ NOT NULL
+- `created_at`, `updated_at`: TIMESTAMPTZ NOT NULL
 
 ---
 
@@ -855,3 +897,9 @@ The following entities are explicitly deferred until their respective macro-task
 - `0008_application_lifecycle_canonicalization.sql`: Canonical lifecycle migration adding `archived_at` timestamp column and index `applications_archived_at_idx`, plus safe state transition queries reconciling legacy statuses to canonical states.
 - `0009_email_intelligence.sql`: Additive schema for Email Intelligence, Job Alerts & Application Status Synchronization (`email_accounts`, `email_messages`, `email_thread_links`, `email_review_items`, `email_sync_runs`).
 - `0010_oauth_state_persistence.sql`: Additive schema for persistent OAuth state replay defense and sync concurrency locking (`oauth_states` table, `is_syncing` and `sync_locked_at` columns on `email_accounts`).
+- `0011_calendar_interview_preparation.sql`: Additive schema for Calendar Integration & Grounded Interview Preparation Workspace (`calendar_accounts`, `interview_calendar_links`, `interview_preparation_briefs`).
+- `0012_browser_application_worker.sql`: Additive schema for Browser Application Worker runs and ATS step logs (`browser_application_runs`).
+- `0013_orchestrator_scheduling_notifications.sql`: Additive schema for Autonomous Orchestrator runs, System Notifications center, and User Preferences (`orchestration_runs`, `system_notifications`, `notification_preferences`).
+- `0014_candidate_data_quarantine.sql`: Candidate data quarantine and reconfirmation verification fields.
+- `0015_better_auth.sql`: Authoritative identity management and session infrastructure via Better Auth (`sessions`, `accounts`, `verifications`, `pilot_invitations`, and `users` authentication columns).
+

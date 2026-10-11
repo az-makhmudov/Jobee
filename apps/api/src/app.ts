@@ -38,6 +38,11 @@ import { GoogleCalendarProvider } from './services/calendar/google-calendar-prov
 import { FixtureCalendarProvider } from './services/calendar/fixture-calendar-provider.js';
 import { notificationRoutes } from './routes/notification-routes.js';
 import { orchestratorRoutes } from './routes/orchestrator-routes.js';
+import { authPlugin } from './plugins/auth-plugin.js';
+import { createBetterAuthInstance, type BetterAuthInstance } from './auth/better-auth-instance.js';
+import { pilotInvitationRoutes } from './routes/pilot-invitation-routes.js';
+import { PilotInvitationService } from './services/auth/pilot-invitation-service.js';
+import { TransactionalEmailService } from './services/email/transactional-email-service.js';
 
 export interface AppOptions {
   config: AppConfig;
@@ -55,6 +60,9 @@ export interface AppOptions {
   calendarService?: CalendarService;
   interviewPreparationService?: InterviewPreparationService;
   fixtureCalendarProvider?: FixtureCalendarProvider;
+  auth?: BetterAuthInstance;
+  pilotInvitationService?: PilotInvitationService;
+  transactionalEmailService?: TransactionalEmailService;
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -97,6 +105,27 @@ export function buildApp(options: AppOptions): FastifyInstance {
   // AI Provider setup
   const aiProvider = options.aiProvider ?? createAiProvider(config);
 
+  // Database resolution
+  const db = options.db ?? (config.DATABASE_URL ? getDb(config.DATABASE_URL) : null);
+
+  // Initialize Better Auth & Pilot Invitations
+  let authInstance = options.auth;
+  let invitationService = options.pilotInvitationService;
+
+  if (db) {
+    if (!invitationService) {
+      invitationService = new PilotInvitationService(db);
+    }
+    if (!authInstance) {
+      const emailService =
+        options.transactionalEmailService ?? new TransactionalEmailService(config);
+      authInstance = createBetterAuthInstance(db, config, emailService, invitationService);
+    }
+    app.register(authPlugin, { auth: authInstance, config });
+    app.register(pilotInvitationRoutes, { prefix: '/api/pilot', db, invitationService });
+    app.register(pilotInvitationRoutes, { prefix: '/pilot', db, invitationService });
+  }
+
   // Register baseline routes
   app.register(healthRoutes);
   app.register(healthRoutes, { prefix: '/api' });
@@ -105,12 +134,9 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   // Initialize and register Candidate Brain routes
   let candidateService = options.candidateService;
-  if (!candidateService) {
-    const db = options.db ?? (config.DATABASE_URL ? getDb(config.DATABASE_URL) : null);
-    if (db) {
-      const storage = options.storage ?? new LocalStorageProvider();
-      candidateService = new CandidateService(db, storage);
-    }
+  if (!candidateService && db) {
+    const storage = options.storage ?? new LocalStorageProvider();
+    candidateService = new CandidateService(db, storage);
   }
 
   if (candidateService) {
@@ -122,7 +148,6 @@ export function buildApp(options: AppOptions): FastifyInstance {
   // Initialize and register Job Ingestion & Match Intelligence routes
   let jobService = options.jobService;
   let matchService = options.matchService;
-  const db = options.db ?? (config.DATABASE_URL ? getDb(config.DATABASE_URL) : null);
 
   if (!jobService && db) {
     jobService = new JobService(db);

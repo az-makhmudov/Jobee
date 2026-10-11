@@ -8,12 +8,12 @@
 
 ## 1. Roadmap Snapshot
 
-- **Current Official Roadmap Milestone:** Production Readiness & Security Enforcement
-- **Milestone Name:** Cryptographic Manifest-Bound Submission Authorization & Ingestion Verification
+- **Current Official Roadmap Milestone:** Authentication & Production Deployment Readiness
+- **Milestone Name:** Better Auth Integration, Multi-Tenant Workspace Isolation & Private Pilot Onboarding (`JOB-AUTH-01`)
 - **Milestone Status:** COMPLETED (LOCAL CHECKPOINT)
-- **Previous Completed Milestone:** `JOB-PROD-01` (Backend Authorization Enforcement & Safety Boundary Hardening)
-- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION & BACKEND CRYPTOGRAPHIC SUBMISSION HARDENING COMPLETE**
-- **Active Git Checkpoint:** `8f58075` (`feat(security): enforce cryptographic manifest-bound submission authorization (JOB-PROD-02)`)
+- **Previous Completed Milestone:** `JOB-PROD-02` (Cryptographic Manifest-Bound Submission Authorization)
+- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION & BETTER AUTH MULTI-TENANT ISOLATION COMPLETE**
+- **Active Git Checkpoint:** `JOB-AUTH-01` (In staging for commit)
 
 ---
 
@@ -39,7 +39,8 @@
 | `JOB-P0-T01-CLEANUP`       | Git History Security Cleanup & Sensitive SQL Purge                | COMPLETED     | `1b62e69`                                        |
 | `JOB-P0-T01-STABILIZATION` | Autonomous Stabilization & Readiness Hardening                    | COMPLETED     | `696b1cc`                                        |
 | `JOB-PROD-01`              | Backend Authorization, Submission Guardrails & Profile Sandbox    | COMPLETED     | `904c19f`                                        |
-| `JOB-PROD-02`              | Cryptographic Manifest-Bound Submission Authorization             | **COMPLETED** | `8f58075`                                        |
+| `JOB-PROD-02`              | Cryptographic Manifest-Bound Submission Authorization             | COMPLETED     | `8f58075`                                        |
+| `JOB-AUTH-01`              | Better Auth Identity, Multi-Tenant Isolation & Private Pilot      | **COMPLETED** | Verified via all quality gates                   |
 
 ---
 
@@ -86,9 +87,9 @@
 
 ## 4. Current Quality & Build Status
 
-- **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 17ms latency)
-- **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0014 up to date)
-- **Unit & Integration Tests:** `npm test` -> PASSED (36 test files, 271/271 tests passing)
+- **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 75ms latency)
+- **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0015 up to date)
+- **Unit & Integration Tests:** `npm test` -> PASSED (37 test files, 277/277 tests passing)
 - **TypeScript Typecheck:** `npm run typecheck` -> PASSED (0 errors across 6 workspaces)
 - **ESLint:** `npm run lint` -> PASSED (0 errors across codebase)
 - **Build:** `npm run build` -> PASSED (API, Worker, and Web bundle compile cleanly)

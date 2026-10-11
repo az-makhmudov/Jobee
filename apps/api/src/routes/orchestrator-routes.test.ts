@@ -14,10 +14,13 @@ describe('Orchestrator Routes Integration Tests', () => {
     app = buildApp({ config, db });
     await app.ready();
 
+    const timestamp = Date.now();
     const [testUser] = await db
       .insert(users)
       .values({
-        systemKey: `test_orch_${Date.now()}`,
+        name: `Test Orch User ${timestamp}`,
+        email: `test_orch_${timestamp}@example.com`,
+        systemKey: `test_orch_${timestamp}`,
       })
       .returning();
     testUserId = testUser!.id;

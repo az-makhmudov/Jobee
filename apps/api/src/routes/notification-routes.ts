@@ -18,10 +18,10 @@ export const notificationRoutes: FastifyPluginAsync<NotificationRoutesOptions> =
 ) => {
   const service = new NotificationService(opts.db, fastify.log as any);
 
+  const { getCurrentUserId } = await import('../plugins/auth-plugin.js');
+
   const getUserId = async (request: any): Promise<string> => {
-    if (request.userId) return request.userId;
-    const user = await getOrCreatePrimaryUser(opts.db);
-    return user.id;
+    return getCurrentUserId() ?? request.userId ?? (await getOrCreatePrimaryUser(opts.db)).id;
   };
 
   // GET /api/notifications
