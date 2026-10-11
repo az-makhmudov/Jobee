@@ -29,7 +29,7 @@ export const DEFAULT_TIMEOUT_MS = 8000;
 export const DEFAULT_MAX_BYTES = 2 * 1024 * 1024; // 2MB
 export const DEFAULT_MAX_REDIRECTS = 3;
 export const USER_AGENT =
-  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 (JobAgent/1.0; +https://github.com/ai-job-agent)';
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36 (Jobee/1.0; +https://github.com/az-makhmudov/Jobee)';
 
 /**
  * Validates whether an IP address belongs to private, loopback, link-local,

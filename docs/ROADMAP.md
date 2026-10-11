@@ -1,6 +1,6 @@
-# AI Job Agent — Canonical Macro-Task Roadmap
+# Jobee — Canonical Macro-Task Roadmap
 
-This document defines the authoritative macro-task roadmap for AI Job Agent, directly aligned with Section 16 of the master context. All engineering tasks must remain under these official task stamps.
+This document defines the authoritative macro-task roadmap for **Jobee** (formerly AI Job Agent), directly aligned with Section 16 of the master context. All engineering tasks remain under these official task stamps.
 
 ---
 

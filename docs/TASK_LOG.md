@@ -1,4 +1,4 @@
-# AI Job Agent — Engineering Task Log
+# Jobee — Engineering Task Log
 
 This document tracks execution history and verification state for all official macro-tasks.
 
@@ -508,3 +508,29 @@ This document tracks execution history and verification state for all official m
   - `npm run build`: PASSED (All 6 workspaces built and Vite web bundle compiled cleanly)
   - `npm run format`: PASSED (Prettier checked across entire repository)
   - `npm run db:check`: PASSED (Database connectivity verified)
+
+---
+
+### `JOB-P0-T01` — Jobee Project Foundation: Rebranding, Repository Initialization & GitHub Setup
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-11
+- **Scope**:
+  - Official rebranding from working title "AI Job Agent" to "Jobee".
+  - Canonical project context updated to Version 1.1 in `docs/MASTER_CONTEXT.md` and root mirrors (`JOBEE_MASTER_CONTEXT.md`, `AI_JOB_AGENT_MASTER_CONTEXT.md`).
+  - Created private GitHub repository `az-makhmudov/Jobee` under verified account `az-makhmudov`.
+  - Configured git origin remote `https://github.com/az-makhmudov/Jobee.git`.
+  - Created local workspace symlink `/Users/bek/Jobee -> /Users/bek/Job Agent`.
+  - Created Architecture Decision Record `docs/decisions/0007-rebranding-to-jobee.md` and indexed in `docs/decisions/README.md`.
+  - Created `docs/RENAME_LOG.md` recording all renaming decisions and preserving historical context.
+  - Updated agent guidelines (`AGENTS.md`) with collaborative roles (ChatGPT, Antigravity 2.0, User) and mandatory quality gates.
+  - Updated README.md, package metadata, web application browser title, and service branding to Jobee.
+  - Hardened `.gitignore` with extra credential, certificate, and sensitive candidate patterns.
+  - Preserved 100% of existing implementations, database migrations, security fixes, and historical task stamps (`JOB-P0-T01` through `JOB-P5-T02`).
+- **Verification Records**:
+  - GitHub Repository: Verified `https://github.com/az-makhmudov/Jobee` (Private, Owner: `az-makhmudov`, default branch: `main`).
+  - Remote: `origin` pointing to `https://github.com/az-makhmudov/Jobee.git`.
+  - `npm run lint`: PASSED (ESLint 9, 0 errors).
+  - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors).
+  - `npm run test`: PASSED (Vitest, 35 test files, 268/268 tests passed).
+  - `npm run build`: PASSED (All 6 workspaces built and Vite web bundle compiled cleanly).

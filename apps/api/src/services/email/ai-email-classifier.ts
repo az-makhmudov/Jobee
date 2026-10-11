@@ -41,7 +41,7 @@ export class AiEmailClassifier {
       return null;
     }
 
-    const prompt = `You are a recruitment communications classifier for an AI Job Agent.
+    const prompt = `You are a recruitment communications classifier for Jobee, a personal AI job-search platform.
 Analyze the following email and classify it into exactly one of these categories:
 - JOB_ALERT: Job alert aggregator (LinkedIn, Indeed, etc.) with multiple job listings
 - APPLICATION_CONFIRMATION: Employer/ATS confirmation that an application was received

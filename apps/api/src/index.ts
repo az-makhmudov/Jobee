@@ -35,7 +35,7 @@ async function bootstrap() {
       port: config.API_PORT,
       host: config.API_HOST,
     });
-    logger.info(`AI Job Agent API listening at ${address}`, {
+    logger.info(`Jobee API listening at ${address}`, {
       host: config.API_HOST,
       port: config.API_PORT,
       env: config.NODE_ENV,

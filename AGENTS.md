@@ -1,6 +1,14 @@
-# Antigravity & AI Coding Agent Guidelines
+# Jobee — Antigravity & AI Coding Agent Guidelines
 
-This document provides mandatory operational instructions for Antigravity, Antigravity 2.0, and any AI coding agents working on the AI Job Agent codebase.
+This document provides mandatory operational instructions for Antigravity, Antigravity 2.0, and any AI coding agents working on the **Jobee** codebase (originally developed under the working name AI Job Agent).
+
+---
+
+## 0. Collaborative Delivery Workflow & Roles
+
+- **ChatGPT**: Requirements planning, architecture discussions, macro-task decomposition, prompt generation, and completion report review.
+- **Antigravity 2.0**: Repository inspection, coding, migrations, tests, lint/typecheck/build, documentation updates, and implementation reports.
+- **User**: Strategic oversight, external account permissions/credentials, and authorizing external actions.
 
 ---
 
@@ -18,42 +26,37 @@ This document provides mandatory operational instructions for Antigravity, Antig
 ## 2. Agent Workflow & Execution Rules
 
 1. **Read Master Context**: Before commencing work on any feature or macro-task, inspect `docs/MASTER_CONTEXT.md` and related documents in `docs/`.
-2. **Preserve Official Task Stamps**: Keep all work unified under the canonical macro-task stamp (e.g. `JOB-P1-T01`, `JOB-P1-T02`). Do not invent or fragment work into micro-task identifiers.
-3. **Inspect Before Editing**: Always inspect the existing workspace files, types, and git status before writing code.
-4. **Avoid Unrelated Refactoring**: Focus strictly on the scope of the assigned macro-task. Do not gratuitously reformat or refactor unrelated files.
-5. **Database Migration Hygiene**:
-   - Migrations must be generated with `npm run db:generate`.
-   - Never write raw unmanaged DDL scripts.
-   - Never drop columns or tables without reviewable forward-compatible deprecation paths.
-   - Never modify production data casually.
-6. **Zero Secrets in Git**:
-   - Never commit `.env` files or API keys.
-   - Ensure new configuration variables are documented in `.env.example` and validated via Zod in `packages/config/src/env.ts`.
-7. **Strict Process Boundaries**:
-   - Keep `apps/api`, `apps/worker`, and `apps/web` separated.
-   - Do not import frontend modules into backend services or vice-versa.
-   - Prepare for future Playwright browser automation to run exclusively in an isolated worker sandbox.
-8. **Structured Logging Only**:
-   - Do not use raw `console.log` in production code. Use the structured logger from `@job-agent/shared`.
-   - Ensure the redaction filter protects tokens and credentials.
-9. **Mandatory Quality Gates Before Task Completion**:
-   Every task must be verified with:
-   ```bash
-   npm run lint
-   npm run typecheck
-   npm run test
-   npm run build
-   ```
-10. **Documentation Sync**: When architecture or data models change, update corresponding documents in `docs/` and log the milestone in `docs/TASK_LOG.md`.
+2. **Follow Official Roadmap**: Execute work aligned with the canonical roadmap; never skip uncompleted dependencies.
+3. **Preserve Official Task Stamps**: Keep all work unified under the canonical macro-task stamp (e.g. `JOB-P0-T01`, `JOB-P1-T01`). Do not invent or fragment work into micro-task identifiers.
+4. **Inspect Existing Architecture Before Editing**: Always inspect the existing workspace files, types, and git status before writing code.
+5. **Prefer Coherent Macro-Task Implementations**: Own the entire vertical slice without gratuitous micro-commits or premature completion declarations.
+6. **Avoid Unnecessary Dependencies**: Use existing workspace libraries and dependencies; do not introduce redundant packages.
+7. **Never Fabricate Candidate Information**: Strict zero-tolerance invariant on hallucinating facts, metrics, or answers.
+8. **Keep AI Recommendations Separate from Authorization**: Rules authorize; AI only suggests and drafts.
+9. **Maintain Security and Privacy**: Ensure candidate data and tokens are protected with cryptographic envelopes and least privilege.
+10. **Zero Secrets in Git**:
+    - Never commit `.env` files, API keys, or OAuth credentials.
+    - Ensure new configuration variables are documented in `.env.example` and validated via Zod in `packages/config/src/env.ts`.
+11. **Run Mandatory Quality Gates Before Task Completion**:
+    Every task must be verified with:
+    ```bash
+    npm run lint
+    npm run typecheck
+    npm run test
+    npm run build
+    ```
+12. **Update Documentation After Implementation**: When architecture or data models change, update corresponding documents in `docs/` and log the milestone in `docs/TASK_LOG.md`.
+13. **Produce Structured Completion Reports**: After each task, output a structured report detailing scope, status, verification, and next steps.
 
 ---
 
 ## 3. Canonical Project Context & Documentation
 
-Canonical project context lives exclusively in `docs/`:
+Canonical project context lives in `docs/` and root mirrors:
 
-- `docs/MASTER_CONTEXT.md`: The authoritative product specification, principles, and roadmap definitions. (Note: root file `AI_JOB_AGENT_MASTER_CONTEXT.md` is an identical mirror and must be kept in sync).
+- `docs/MASTER_CONTEXT.md`: The authoritative product specification, principles, and roadmap definitions. (Root files `JOBEE_MASTER_CONTEXT.md` and legacy `AI_JOB_AGENT_MASTER_CONTEXT.md` are identical mirrors).
 - `docs/ROADMAP.md`: Official milestone status tracker.
+- `docs/RENAME_LOG.md`: Official record of project rebranding to Jobee on 2026-10-11.
 - `docs/ARCHITECTURE.md`: High-level system architecture, boundaries, and tech stack.
 - `docs/DATA_MODEL.md`: Schema, entity definitions, and relationship maps.
 - `docs/SECURITY.md`: Security controls, encryption envelopes, and threat models.

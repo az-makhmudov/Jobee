@@ -99,7 +99,7 @@ export default function App() {
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
         >
           <div className="sidebar-title">
-            <span>AI Job Agent</span>
+            <span>Jobee</span>
             <span className="sidebar-badge">v0.1</span>
           </div>
           <button

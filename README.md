@@ -1,13 +1,33 @@
-# AI Job Agent
+# Jobee
 
-AI Job Agent is a single-user personal AI job-search and application platform designed to automate the discovery, evaluation, tailoring, tracking, and lifecycle management of job applications. Built around the core invariant—**"AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable."**—the system uses AI to analyze requirements and draft tailored materials while enforcing strict deterministic authorization and zero tolerance for hallucinated candidate facts.
+**Jobee** is a personal AI-powered job discovery, matching, application preparation, and lifecycle management platform. Built around the core invariant—**"AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable."**—the system uses AI to analyze requirements and draft tailored materials while enforcing strict deterministic authorization and zero tolerance for hallucinated candidate facts.
+
+Originally developed under the working title **AI Job Agent**, the project was officially rebranded to **Jobee** on 2026-10-11 (see [`docs/RENAME_LOG.md`](docs/RENAME_LOG.md)).
+
+---
+
+## Delivery Workflow & Key Documents
+
+The project is developed using a collaborative agentic workflow:
+
+- **ChatGPT**: Requirements planning, architecture discussions, macro-task decomposition, and review.
+- **Antigravity 2.0**: Repository inspection, implementation, migrations, tests, quality gates, and documentation updates.
+- **User**: Strategic oversight, external credentials, and authorization for real-world side effects.
+
+### Authoritative Documentation
+
+- [`docs/MASTER_CONTEXT.md`](docs/MASTER_CONTEXT.md) — **Canonical** source of truth for scope, policies, architecture, and roadmap.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — Canonical macro-task status tracker (`JOB-P0-T01` through `JOB-P5-T02`).
+- [`docs/TASK_LOG.md`](docs/TASK_LOG.md) — Chronological engineering execution and verification audit.
+- [`docs/RENAME_LOG.md`](docs/RENAME_LOG.md) — Official record of the 2026-10-11 identity change to Jobee.
+- [`AGENTS.md`](AGENTS.md) — Mandatory operational instructions and quality gates for AI coding agents.
 
 ---
 
 ## Repository Structure
 
 ```text
-ai-job-agent/
+Jobee/
 ├── apps/
 │   ├── web/              # React 19 + Vite 8 frontend application shell
 │   ├── api/              # Fastify 5 REST API with Candidate Brain & health endpoints
@@ -16,7 +36,7 @@ ai-job-agent/
 │   ├── config/           # Centralized environment validation (Zod)
 │   ├── database/         # PostgreSQL schema, Drizzle ORM & migration engine
 │   └── shared/           # Core DTOs, completeness engine, storage, AppError, logger
-├── docs/                 # Authoritative architecture, data model, and ADRs
+├── docs/                 # Authoritative architecture, data model, decisions, and runbooks
 └── .github/workflows/    # CI quality pipeline
 ```
 
@@ -35,8 +55,8 @@ ai-job-agent/
 1. **Clone the repository**:
 
    ```bash
-   git clone <repo-url>
-   cd "Job Agent"
+   git clone https://github.com/az-makhmudov/Jobee.git
+   cd Jobee
    ```
 
 2. **Install workspace dependencies**:
@@ -187,10 +207,15 @@ npm run build       # Build all packages and applications
 npm run format      # Check code formatting with Prettier
 ```
 
----
-
 ## Current Status
 
-- **Macro-Task**: `JOB-P4-T01 — Email Intelligence, Job Alerts & Application Status Synchronization` (COMPLETED).
-- **Milestone Reached**: Phase 4 external communication intelligence layer fully operational with versioned token cryptography, persistent OAuth replay defense, all 11 archetype fixtures, sync concurrency mutex, and deterministic CRM synchronization.
-- **Next Milestone**: `JOB-P4-T02 — Calendar, Interview Scheduling & Interview Preparation`.
+- **Identity**: Officially rebranded to **Jobee** on 2026-10-11 (`JOB-P0-T01`).
+- **Milestones Reached**: All roadmap phases (Phases 0 through 5) completed and verified:
+  - Phase 0: Project Foundation & Canonical Master Context (`JOB-P0-T01`)
+  - Phase 1: Core Platform (`JOB-P1-T01`) and Candidate Brain (`JOB-P1-T02`)
+  - Phase 2: Job Ingestion & Normalization (`JOB-P2-T01`) and Match Intelligence (`JOB-P2-T02`)
+  - Phase 3: Application Studio (`JOB-P3-T01`) and Application CRM MVP (`JOB-P3-T02`)
+  - Phase 4: Email Intelligence (`JOB-P4-T01`) and Calendar / Interview Workspace (`JOB-P4-T02`)
+  - Phase 5: Browser Application Worker (`JOB-P5-T01`) and Autonomous Orchestrator (`JOB-P5-T02`)
+  - Stabilization & Remediation: Candidate data integrity, anti-hallucination guardrails, and human authorization boundaries verified.
+- **Canonical Repository**: Private GitHub repository at `https://github.com/az-makhmudov/Jobee`.

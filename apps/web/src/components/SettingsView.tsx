@@ -137,9 +137,9 @@ export function SettingsView() {
         <div className="card-title">Identity & Security Model</div>
         <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
           <p>
-            <strong>Deterministic Single-User Mode:</strong> AI Job Agent currently executes in
-            single-user personal mode. All candidate data is attached to the deterministic primary
-            candidate identity:
+            <strong>Deterministic Single-User Mode:</strong> Jobee currently executes in single-user
+            personal mode. All candidate data is attached to the deterministic primary candidate
+            identity:
           </p>
           <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
             <li>

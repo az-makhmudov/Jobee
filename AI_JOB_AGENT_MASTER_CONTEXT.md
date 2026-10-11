@@ -1,16 +1,17 @@
-# AI Job Agent — Master Project Context
+# Jobee — Master Project Context
 
 **Document status:** Canonical project context  
-**Version:** 1.0  
-**Date:** 2026-10-04  
-**Working project name:** AI Job Agent  
+**Version:** 1.1  
+**Date:** 2026-10-11  
+**Project name:** Jobee  
 **Primary user:** Single-user personal job-search agent first; multi-user product only after the personal system is proven.
+**Canonical product identity:** Jobee. Legacy working title is retained only in the rename record; future user-facing wording, file names, and repositories use Jobee.
 
 ---
 
 ## 0. How This Document Must Be Used
 
-This file is the canonical context document for the AI Job Agent project.
+This file is the canonical context document for the Jobee project.
 
 When this file is attached to a ChatGPT Project, new chats should use it as the primary project baseline before planning or proposing implementation work. It exists so the project can continue consistently across chats without rebuilding context from memory.
 
@@ -33,7 +34,7 @@ Earlier highly granular conceptual task lists are superseded by the macro-task r
 
 # 1. Product Vision
 
-AI Job Agent is a personal AI-powered job-search and application system that can:
+Jobee is a personal AI-powered job-search and application system that can:
 
 - discover relevant jobs;
 - receive and interpret job alerts;
@@ -1076,9 +1077,17 @@ The project should not be fragmented into micro tasks unless a real tool/context
 
 # 26. Changelog
 
+## Version 1.1 — 2026-10-11
+
+- Adopted **Jobee** as the official product and project name; supersedes the original working title, **AI Job Agent**.
+- Standardized GitHub repository target as `az-makhmudov/Jobee` (private).
+- Preserved official macro-task stamps `JOB-P0-T01` through `JOB-P5-T02` and all architectural/decision-log identifiers.
+- Updated the canonical context and aligned the repository documentation set.
+- ChatGPT Project UI title and originally attached source file to be updated in ChatGPT.
+
 ## Version 1.0 — 2026-10-04
 
-- Created canonical AI Job Agent project context.
+- Created initial canonical project context (before the Jobee rename).
 - Consolidated earlier granular roadmap into macro tasks.
 - Defined MVP and long-term scope.
 - Defined Candidate Brain and truthfulness rules.

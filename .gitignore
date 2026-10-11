@@ -1,4 +1,5 @@
 # Dependencies
+node_modules
 node_modules/
 .pnp
 .pnp.js
@@ -53,3 +54,18 @@ uploads/
 backups/
 *.sql
 *.dump
+
+# Security, Certificates & Credentials (never commit)
+*.pem
+*.key
+*.p12
+private/
+secrets/
+credentials/
+
+# Sensitive Candidate & Application Data
+candidate-data/
+cv/
+resumes/
+applications-data/
+

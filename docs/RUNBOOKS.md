@@ -1,4 +1,4 @@
-# AI Job Agent — Production Operations & Runbooks
+# Jobee — Production Operations & Runbooks
 
 **Document Status:** Canonical Operational Guidelines & Runbooks  
 **Task Association:** `JOB-P5-T02 — Autonomous Orchestrator, Scheduling, Notifications & Production Hardening`  

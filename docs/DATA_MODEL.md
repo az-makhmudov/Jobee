@@ -1,4 +1,4 @@
-# AI Job Agent — Data Model & Migration Strategy
+# Jobee — Data Model & Migration Strategy
 
 ## 1. Design Conventions & Baseline Rules
 
@@ -21,7 +21,7 @@ All persistence operations follow these foundational standards:
 
 ### `users` Table
 
-Even though AI Job Agent is currently single-user personal software, data ownership is anchored to an explicit user entity to support multi-account or multi-profile scaling without future schema rewrites. Single-user execution resolves deterministically via `system_key`:
+Even though **Jobee** is currently single-user personal software, data ownership is anchored to an explicit user entity to support multi-account or multi-profile scaling without future schema rewrites. Single-user execution resolves deterministically via `system_key`:
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (

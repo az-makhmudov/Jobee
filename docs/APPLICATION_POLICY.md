@@ -1,4 +1,4 @@
-# AI Job Agent — Application & Submission Policy Framework
+# Jobee — Application & Submission Policy Framework
 
 ## 1. Purpose & Scope
 

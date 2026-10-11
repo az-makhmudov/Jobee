@@ -1,11 +1,11 @@
-# AI Job Agent — System Architecture
+# Jobee — System Architecture
 
 ## 1. Overview & Monorepo Topology
 
-AI Job Agent is built as a TypeScript-first monorepo using npm workspaces. The architecture establishes strict boundaries between user interface, HTTP API, background processing, data persistence, and shared primitives.
+**Jobee** (originally developed under the working name AI Job Agent) is built as a TypeScript-first monorepo using npm workspaces. The architecture establishes strict boundaries between user interface, HTTP API, background processing, data persistence, and shared primitives.
 
 ```text
-ai-job-agent/
+Jobee/
 ├── apps/
 │   ├── web/              # User Interface (React 19, Vite 8, pure modern CSS)
 │   ├── api/              # HTTP API (Fastify, TypeScript, structured logging)
@@ -152,7 +152,7 @@ The Candidate Brain is the authoritative structured truth repository for the can
 
 ## 5. Job Ingestion & Normalization Subsystem (`JOB-P2-T01`)
 
-The Job Ingestion subsystem provides the entry point for all job postings into AI Job Agent. It handles input from pasted text or public URLs, safely fetches web pages with comprehensive SSRF defenses, extracts structured data via ATS-specific and generic parsers, normalizes values into a canonical internal model, and enforces strict idempotency and deduplication without generative AI hallucinations.
+The Job Ingestion subsystem provides the entry point for all job postings into Jobee. It handles input from pasted text or public URLs, safely fetches web pages with comprehensive SSRF defenses, extracts structured data via ATS-specific and generic parsers, normalizes values into a canonical internal model, and enforces strict idempotency and deduplication without generative AI hallucinations.
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐

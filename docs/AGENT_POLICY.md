@@ -1,4 +1,4 @@
-# AI Job Agent — Autonomous Agent Policy
+# Jobee — Autonomous Agent Policy
 
 This policy governs the behavior, responsibilities, and operational bounds of AI coding agents (such as Antigravity) working on the codebase, as well as runtime AI models evaluating jobs.
 

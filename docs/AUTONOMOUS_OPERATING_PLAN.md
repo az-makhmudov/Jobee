@@ -1,14 +1,14 @@
-# AI Job Agent — Autonomous Operating Plan
+# Jobee — Autonomous Operating Plan
 
 **Document Status:** Canonical Engineering Operating Plan  
 **Role:** Autonomous Lead Engineering Agent  
-**Last Updated:** 2026-10-10
+**Last Updated:** 2026-10-11
 
 ---
 
 ## 1. Operating Methodology & Core Philosophy
 
-AI Job Agent operates under the core invariant:
+**Jobee** operates under the core invariant:
 
 > **"AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable."**
 

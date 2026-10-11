@@ -1,4 +1,4 @@
-# AI Job Agent — Security Baseline & Secrets Policy
+# Jobee — Security Baseline & Secrets Policy
 
 ## 1. Secrets Management
 
