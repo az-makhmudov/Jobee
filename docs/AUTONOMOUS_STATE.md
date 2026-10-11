@@ -1,7 +1,7 @@
 # Jobee — Autonomous Execution State
 
 **Document Status:** Canonical Durable Execution State  
-**Updated At:** 2026-10-11 09:30:00 UTC  
+**Updated At:** 2026-10-11 10:15:00 UTC  
 **Active Lead Engineer:** Antigravity (Autonomous Execution Mode)
 
 ---
@@ -13,29 +13,30 @@
 - **Milestone Status:** READY_FOR_PRIVATE_PILOT
 - **Previous Completed Milestone:** `JOB-P5-T02` (Autonomous Orchestrator, Scheduling, Notifications & Hardening)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION COMPLETE**
-- **Last Successful Git Checkpoint:** `91c1765` (`fix(safety): quarantine unverified facts, invalidate untrusted approvals, and enforce human authorization boundaries (REAL-ACT-REMEDIATION)`)
+- **Last Successful Git Checkpoint:** `442fa23` (`fix(ci): remediate GitGuardian credentials false positive, isolate test fixtures, and configure PostgreSQL CI service (JOB-P0-T01)`)
 
 ---
 
 ## 2. Milestone Progress Tracker
 
-| Milestone ID             | Description                                                       | Status        | Verification & Checkpoint            |
-| ------------------------ | ----------------------------------------------------------------- | ------------- | ------------------------------------ |
-| `JOB-P0-T01`             | Project Foundation, Architecture, Policies                        | COMPLETED     | Verified in `docs/`                  |
-| `JOB-P1-T01`             | Workspace, DB & Core Platform Foundation                          | COMPLETED     | `e4e4815`                            |
-| `JOB-P1-T02`             | Candidate Brain, Documents, Answer Library                        | COMPLETED     | `e4e4815`                            |
-| `JOB-P2-T01`             | Job Ingestion, Parsing, Normalization, Inbox                      | COMPLETED     | `b7e7e80`                            |
-| `JOB-P2-T02`             | Requirement Analysis, Matching & Policy Engine                    | COMPLETED     | `432cfa0`                            |
-| `JOB-P3-T01`             | Application Studio & Tailored Materials                           | COMPLETED     | `024c742`                            |
-| `JOB-P3-T02`             | Application CRM, Lifecycle & Analytics (MVP)                      | COMPLETED     | `6941d1f`                            |
-| `JOB-P4-T01`             | Email Intelligence & CRM Status Sync                              | COMPLETED     | `6591f44`                            |
-| `JOB-P4-T02`             | Calendar, Interview Scheduling & Prep Workspace                   | COMPLETED     | `2de982d`                            |
-| `JOB-P5-T01`             | Browser Application Worker & Initial ATS Adapters                 | COMPLETED     | `d9006e7`                            |
-| `JOB-P5-T02`             | Autonomous Orchestrator, Scheduling & Hardening                   | COMPLETED     | `9a1c56b`                            |
-| `REAL-ACT`               | Real Functionality Activation & Truthful De-bias                  | PARTIAL       | Remediated in `REAL-ACT-REMEDIATION` |
-| `REAL-ACT-REMEDIATION`   | Candidate Data Integrity, Human Authorization & Safety Boundaries | COMPLETED     | `91c1765`                            |
-| `JOB-P0-T01`             | Jobee Foundation, Rebrand & Private GitHub Repo Setup             | COMPLETED     | `78f6b40`                            |
-| `JOB-P0-T01-REMEDIATION` | Post-Migration Security & CI Remediation                          | **COMPLETED** | Verified in `docs/` & `git`          |
+| Milestone ID             | Description                                                       | Status        | Verification & Checkpoint                        |
+| ------------------------ | ----------------------------------------------------------------- | ------------- | ------------------------------------------------ |
+| `JOB-P0-T01`             | Project Foundation, Architecture, Policies                        | COMPLETED     | Verified in `docs/`                              |
+| `JOB-P1-T01`             | Workspace, DB & Core Platform Foundation                          | COMPLETED     | `e4e4815`                                        |
+| `JOB-P1-T02`             | Candidate Brain, Documents, Answer Library                        | COMPLETED     | `e4e4815`                                        |
+| `JOB-P2-T01`             | Job Ingestion, Parsing, Normalization, Inbox                      | COMPLETED     | `b7e7e80`                                        |
+| `JOB-P2-T02`             | Requirement Analysis, Matching & Policy Engine                    | COMPLETED     | `432cfa0`                                        |
+| `JOB-P3-T01`             | Application Studio & Tailored Materials                           | COMPLETED     | `024c742`                                        |
+| `JOB-P3-T02`             | Application CRM, Lifecycle & Analytics (MVP)                      | COMPLETED     | `6941d1f`                                        |
+| `JOB-P4-T01`             | Email Intelligence & CRM Status Sync                              | COMPLETED     | `6591f44`                                        |
+| `JOB-P4-T02`             | Calendar, Interview Scheduling & Prep Workspace                   | COMPLETED     | `2de982d`                                        |
+| `JOB-P5-T01`             | Browser Application Worker & Initial ATS Adapters                 | COMPLETED     | `d9006e7`                                        |
+| `JOB-P5-T02`             | Autonomous Orchestrator, Scheduling & Hardening                   | COMPLETED     | `9a1c56b`                                        |
+| `REAL-ACT`               | Real Functionality Activation & Truthful De-bias                  | PARTIAL       | Remediated in `REAL-ACT-REMEDIATION` (`c7537b4`) |
+| `REAL-ACT-REMEDIATION`   | Candidate Data Integrity, Human Authorization & Safety Boundaries | COMPLETED     | `bd28ca8`                                        |
+| `JOB-P0-T01`             | Jobee Foundation, Rebrand & Private GitHub Repo Setup             | COMPLETED     | `4f932fe`                                        |
+| `JOB-P0-T01-REMEDIATION` | Post-Migration Security & CI Remediation                          | COMPLETED     | `442fa23`                                        |
+| `JOB-P0-T01-CLEANUP`     | Git History Security Cleanup & Sensitive SQL Purge                | **COMPLETED** | Verified in `docs/`, `git`, GitHub CI            |
 
 ---
 
@@ -43,6 +44,8 @@
 
 1. **User Data Protection & Database Hygiene**:
    - Preserved all real user data for candidate Asadbek Makhmudov (`00000000-0000-0000-0000-000000000001`).
+   - Purged historical database dump (`backups/ai_job_agent_dev_backup_20261010_145257.sql`) entirely from Git history across all branches using `git-filter-repo`.
+   - Verified 0 reachable Git objects and 0 commits reference the sensitive backup; local recovery backup secured under `/Users/bek/.jobee-security-cleanup/` (mode 700).
    - Created and verified PostgreSQL dump backup: `backups/ai_job_agent_dev_backup_20261010_145257.sql`.
    - Extracted verified facts, certifications, and skills from candidate's authoritative Master CV (`Resume - Asadbek M.pdf`).
    - Purged 11 synthetic mock jobs and 3 fake test applications from test suites that polluted the UI dashboard.

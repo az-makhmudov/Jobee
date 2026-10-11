@@ -573,3 +573,50 @@ This document tracks execution history and verification state for all official m
   - `npm run typecheck`: PASSED (TypeScript 5.8 across all workspaces, 0 errors).
   - `npm run test`: PASSED (Vitest, 35 test files, 268/268 tests passed with 0 failures).
   - `npm run build`: PASSED (All 6 workspaces built cleanly including Vite web bundle).
+
+---
+
+### `JOB-P0-T01` — Final Git History Security Cleanup & Sensitive SQL Purge
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-11
+- **Scope**:
+  - **Authorized History Purge**:
+    - Project owner authorized permanent purge of sensitive development database backup `backups/ai_job_agent_dev_backup_20261010_145257.sql` across reachable Git history.
+    - Historical commit `57001c95` originally added the file, and commit `91c17652` removed it from HEAD.
+    - Verified non-disclosing exposure assessment: 0 active credentials or API keys were in the backup.
+  - **Safety Requirements & Local Isolation**:
+    - Confirmed GitHub repository `az-makhmudov/Jobee` is private (`private: true`, `visibility: private`).
+    - Verified CI Quality Gate on `main` passed (`conclusion: success`, Run ID: 38123213951).
+    - Created secure local recovery backup in `/Users/bek/.jobee-security-cleanup/` (mode `chmod 700`), containing full bare mirror `jobee-backup.git` and bundle `jobee-backup.bundle` outside the project repository.
+    - Executed rewrite inside dedicated fresh clone `/Users/bek/.jobee-security-cleanup/jobee-clean`.
+  - **History Rewriting via `git-filter-repo`**:
+    - Executed `git-filter-repo --invert-paths --path backups/ai_job_agent_dev_backup_20261010_145257.sql --force`.
+    - Preserved 100% of application source code, 15 database migrations, documentation, and features.
+    - Neither affected commit was collapsed into an empty commit; all application logic and test fixtures were preserved.
+  - **Pre-Push Quality & Tree Invariant Verification**:
+    - Compared root tree hash of original `main` (`e1ad4ba`) and rewritten `main` (`442fa23`): 100% identical (`f729bfdd512ab9b2fe955f4b1ef9c0cbc0c66ca9`).
+    - Compared tree hash of `rebrand_to_jobee` (`6b4a3a9`) and original (`bdc70fb`): 100% identical (`5e8a202bb9a71719dc1907f1e80ed63d54e5f43d`).
+    - Verified 0 reachable Git objects and 0 commits across all branches reference the sensitive SQL file.
+  - **Controlled Remote Push**:
+    - Force-pushed only authorized branches: `main` and `security_and_ci_remediation`.
+    - Avoided unrestricted mirror push.
+  - **Local Workspace & Worktree Reconciliation**:
+    - Reconciled primary repository `/Users/bek/Job Agent` safely without destructive commands (`update-ref` to remote heads).
+    - Expired reflogs (`git reflog expire --expire=now --all`) and pruned unreachable objects (`git gc --prune=now`).
+    - Cleaned worktrees `rebrand_to_jobee` and `security_and_ci_remediation`.
+  - **GitHub Actions Verification**:
+    - Rewritten `main` commit `442fa23` triggered GitHub Actions CI Quality Gate (Run ID: 38123824404) and completed with `conclusion: success`.
+  - **Documentation & Follow-Up Procedures**:
+    - Updated `docs/SECURITY.md` (Section 15), `docs/AUTONOMOUS_STATE.md`, and `docs/TASK_LOG.md`.
+    - Documented GitHub server cache retention characteristics and provided a ready-to-use GitHub Support ticket template for manual cache clear and backend garbage collection.
+- **Verification Records**:
+  - Sensitive File Log: `git log --all --full-history -- "**/ai_job_agent_dev_backup*"` -> 0 commits found (PASSED).
+  - Sensitive Object Check: `git rev-list --objects --all | grep 'ai_job_agent_dev_backup'` -> 0 objects found (PASSED).
+  - Tree Comparison: Root tree `f729bfdd512ab9b2fe955f4b1ef9c0cbc0c66ca9` identical (PASSED).
+  - GitHub Actions: Run ID 38123824404 on `442fa23b1dcae9988155f7886aae8f0ddcf5efd8` -> `completed` / `success` (PASSED).
+  - `npm run lint`: PASSED (ESLint 9, 0 errors).
+  - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors).
+  - `npm run test`: PASSED (Vitest, 35 test files, 268/268 tests passed).
+  - `npm run build`: PASSED (All 6 workspaces built cleanly including Vite web bundle).
+  - `npm run format`: PASSED (Prettier checked across entire repository).

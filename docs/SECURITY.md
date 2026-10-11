@@ -256,3 +256,85 @@ The Email Intelligence subsystem integrates with external email providers (e.g. 
    - Conservative Rejection Invariant: Automatic rejection transitions require confidence >= 0.95 AND exact entity resolution (`EXTERNAL_REF` or `COMPANY_AND_ROLE`). Fuzzy matches or lower confidence rejections must route to `email_review_items` with `riskLevel: 'HIGH'`.
    - High-stakes events (`OFFER_LETTER`) never auto-transition CRM state; they are flagged for human sign-off in the review queue.
    - All state transitions execute through `ApplicationStateMachine` and append an immutable event to `application_lifecycle_events` with trigger `EMAIL_SYNC` and actor `SYSTEM`.
+
+---
+
+## 15. Repository History Security & Sensitive Backup Removal (`JOB-P0-T01`)
+
+### 15.1 Context & Incident Rationale
+
+During repository initialization and security auditing for the private GitHub migration (`az-makhmudov/Jobee`), a sensitive development database backup dump file was detected in historical commits:
+
+- **File Name:** `backups/ai_job_agent_dev_backup_20261010_145257.sql`
+- **Introduction Commit:** `57001c95` (`feat(truthfulness): activate real candidate functionality and eliminate software hallucinations`)
+- **Working-Tree Removal Commit:** `91c17652` (`fix(safety): quarantine unverified facts, invalidate untrusted approvals, and enforce human authorization boundaries`)
+- **Sensitive Content Assessment:** The SQL dump contained real candidate personally identifiable information (profile records, educational history, work experience). The audit confirmed **zero** live external API keys, OAuth tokens, or production passwords were present in the dump (`email_accounts` and `calendar_accounts` had 0 rows).
+- **Security Requirement:** Although removed from HEAD, Git objects representing the file remained accessible in reachable Git history. To eliminate data leakage risks, the project owner authorized a controlled history rewrite to permanently expunge the file from Git history.
+
+### 15.2 Authorized Scope & Invariants
+
+The owner authorization strictly applied to:
+
+1. Permanently purging `backups/ai_job_agent_dev_backup_20261010_145257.sql` from Git history across all branches and tags.
+2. Preserving 100% of application source code, database migrations (0000–0014), documentation, architectural decision records, and feature implementations.
+3. Operating strictly inside an isolated clone outside the primary repository and active Antigravity worktrees.
+4. Securing a durable local recovery backup before rewriting.
+5. Reconciling all local worktrees and preventing old history reintroduction.
+
+### 15.3 Execution Procedure
+
+1. **Isolated Workspace & Secure Recovery Backup:**
+   - Secure backup directory created at `/Users/bek/.jobee-security-cleanup/` with permissions restricted to `chmod 700` (`drwx------`).
+   - Created full Git mirror backup (`jobee-backup.git`) and complete Git bundle (`jobee-backup.bundle`).
+   - Fresh clone initialized at `/Users/bek/.jobee-security-cleanup/jobee-clean` for the rewrite operation.
+2. **Deterministic History Filtering via `git-filter-repo`:**
+   - Filter executed with `--invert-paths --path backups/ai_job_agent_dev_backup_20261010_145257.sql --force`.
+   - Verified that neither commit became empty; code changes and test additions were fully preserved.
+3. **Pre-Push Quality & Tree Invariant Verification:**
+   - Tree SHA comparison between original `main` (`e1ad4ba`) and rewritten `main` (`442fa23`) confirmed identical tree hash: `f729bfdd512ab9b2fe955f4b1ef9c0cbc0c66ca9` (100% bit-for-bit identical).
+   - Rebrand tree SHA (`6b4a3a9`) confirmed identical to original (`bdc70fb`): `5e8a202bb9a71719dc1907f1e80ed63d54e5f43d`.
+   - Full history log scan verified 0 reachable objects and 0 commits reference the sensitive backup.
+4. **Controlled Force-Push:**
+   - GitHub repository privacy reconfirmed (`private: true`, `visibility: private`).
+   - Controlled push of only authorized rewritten branches: `main` and `security_and_ci_remediation`.
+   - Zero unrestricted mirror pushes executed.
+5. **Local Workspace Reconciliation:**
+   - Primary repository (`/Users/bek/Job Agent`) fetched updated origin refs.
+   - Branch refs safely advanced without destructive commands.
+   - Reflogs expired and unreachable objects pruned (`git reflog expire --expire=now --all`, `git gc --prune=now`).
+   - Active Antigravity worktrees (`rebrand_to_jobee`, `security_and_ci_remediation`) cleanly reconciled to rewritten heads.
+
+### 15.4 Rewritten Commit Hash Map
+
+| Logical Stage             | Original SHA | Rewritten SHA | Commit Description                                                                                                      |
+| :------------------------ | :----------- | :------------ | :---------------------------------------------------------------------------------------------------------------------- |
+| `REAL-ACT`                | `57001c95`   | `c7537b4e`    | `feat(truthfulness): activate real candidate functionality and eliminate software hallucinations`                       |
+| `REAL-ACT-REMEDIATION`    | `91c17652`   | `bd28ca8f`    | `fix(safety): quarantine unverified facts, invalidate untrusted approvals, and enforce human authorization boundaries`  |
+| State Checkpoint          | `e49faf3a`   | `01a25f48`    | `docs(state): update checkpoint hash to bd28ca8 after remediation`                                                      |
+| `JOB-P0-T01`              | `78f6b409`   | `4f932fec`    | `chore: initialize Jobee project foundation (JOB-P0-T01)`                                                               |
+| `JOB-P0-T01-REMEDIATION`  | `bdc70fbc`   | `6b4a3a9d`    | `docs(security): remediate gitignore migration rules, update context status, and prepare history audit`                 |
+| `JOB-P0-T01` CI Hardening | `e1ad4ba7`   | `442fa23b`    | `fix(ci): remediate GitGuardian credentials false positive, isolate test fixtures, and configure PostgreSQL CI service` |
+
+### 15.5 GitHub Server-Side Cache & Support Remediation
+
+- **Investigation Finding:** When a repository history is rewritten and force-pushed, GitHub updates branch heads immediately. However, GitHub's server-side object database may retain unreferenced historical commit SHAs in cache and backend storage until internal garbage collection runs.
+- **Repository Visibility Safeguard:** Because `az-makhmudov/Jobee` is strictly private, these cached objects are only accessible to authenticated repository owners/collaborators who possess the exact commit SHA.
+- **Permanent Purge via GitHub Support:** To ensure total compliance and purge historical commit SHAs from GitHub's internal cache immediately, the repository owner can submit a ticket to GitHub Support.
+- **Support Ticket Request Template:**
+  ```text
+  Subject: Request repository cache clear and garbage collection for private repo az-makhmudov/Jobee
+
+  Hello GitHub Support,
+
+  I am the owner of the private repository https://github.com/az-makhmudov/Jobee.
+  I have recently rewritten git history using git-filter-repo to permanently remove
+  a development database backup containing personal information from all branches
+  and tags, and force-pushed the cleaned branches.
+
+  Please purge all cached views, unreferenced commit objects, and run garbage collection
+  (git gc) on the backend for az-makhmudov/Jobee so that unreachable commit SHAs
+  (specifically 57001c95bc60b7cfe9deac3836c26112ac0223cf and e1ad4ba7b120a17e35802ae2ad27af03d274a4c8)
+  can no longer be retrieved via the web interface or API.
+
+  Thank you!
+  ```
