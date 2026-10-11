@@ -13,7 +13,7 @@
 - **Milestone Status:** COMPLETED (LOCAL CHECKPOINT)
 - **Previous Completed Milestone:** `JOB-AUTH-01` (Better Auth Identity, Multi-Tenant Isolation & Private Pilot)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + BETTER AUTH & CLOUD CONTAINERIZATION COMPLETE**
-- **Active Git Checkpoint:** Pending commit (`feat(discovery): activate public job ingestion, semantic matching, and containerized deployment (JOB-PROD-03)`)
+- **Active Git Checkpoint:** `d65c337` (`feat(discovery): activate public job ingestion, semantic matching, and containerized deployment (JOB-PROD-03)`)
 
 ---
 
