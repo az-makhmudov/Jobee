@@ -78,6 +78,7 @@ export const ApprovalStatus = {
   REJECTED: 'REJECTED',
   RESOLVED: 'RESOLVED',
   CANCELLED: 'CANCELLED',
+  NEEDS_USER_RECONFIRMATION: 'NEEDS_USER_RECONFIRMATION',
 } as const;
 export type ApprovalStatus = (typeof ApprovalStatus)[keyof typeof ApprovalStatus];
 

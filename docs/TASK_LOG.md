@@ -620,3 +620,45 @@ This document tracks execution history and verification state for all official m
   - `npm run test`: PASSED (Vitest, 35 test files, 268/268 tests passed).
   - `npm run build`: PASSED (All 6 workspaces built cleanly including Vite web bundle).
   - `npm run format`: PASSED (Prettier checked across entire repository).
+
+---
+
+### `JOB-P0-T01` — Autonomous Product Stabilization & Operational Readiness Hardening
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-11
+- **Scope**:
+  - **1. Candidate Fact Verification UI & Prime Directive Compliance**:
+    - Enhanced `apps/web/src/components/ProfileView.tsx` with 1-click fact verification controls (`✓ Verify & Authorize AI` and `Revoke`) directly calling `candidateClient.updateFact(id, { verificationStatus, allowAiUse })`.
+    - Added a prominent Prime Directive truthfulness banner explaining that unverified facts are quarantined from AI prompts, question generation, and materials tailoring.
+  - **2. Application Studio & Approvals Inbox Reconfirmation Unblocking**:
+    - Updated `ApprovalsInboxView.tsx` and `ApplicationStudioView.tsx` to display action controls (`Reconfirm & Approve`, `Edit & Approve`, `Reject`) for requests with status `NEEDS_USER_RECONFIRMATION` (previously suppressed by strict `status === 'PENDING'` checks).
+    - Added warning banners on quarantined approvals informing the candidate of the required reconfirmation.
+    - Updated `ApplicationPackageService`:
+      - Package regeneration automatically marks unresolved superseded approval requests from prior versions as `CANCELLED`.
+      - Updated `listApprovals` to join `applicationPackageVersions` and strictly filter to the package's active version (`currentVersionNumber === versionNumber`).
+    - Added `NEEDS_USER_RECONFIRMATION` to the canonical `ApprovalStatus` enum in `@job-agent/shared`.
+  - **3. Synthetic Data Leakage Prevention & Test Teardown Hardening**:
+    - Purged orphan synthetic fixture jobs (`Acme Corp`, `Globex Software`, `Initech Corp`) from the database that had leaked into the candidate's real job inbox during historical email sync runs.
+    - Patched `scripts/verify-job-p4-t01.ts` to track and clean up newly discovered alert jobs during test teardown, ensuring test runs never pollute the candidate's active vacancy inbox.
+  - **4. Document Storage Sandboxing & Path Canonicalization**:
+    - Updated `LocalStorageProvider` in `apps/api/src/storage/local-storage.ts` so `baseDir` canonically resolves to the workspace root `uploads/documents/` regardless of working directory.
+    - Synced candidate's authoritative Master CV (`Resume - Asadbek M.pdf`) to `uploads/documents/23bea6bf-5517-4066-a823-a4431803c333.pdf`.
+  - **5. Dynamic System Readiness Probing & Settings UI Observability**:
+    - Extended `ReadinessResponse` in `@job-agent/shared` with optional `ai` and `integrations` check details.
+    - Updated `/ready` and `/health/ready` endpoints in `apps/api/src/routes/ready.ts` to dynamically inspect database connectivity, AI engine status (Deterministic Grounded Mode vs Gemini LLM), and external OAuth integrations.
+    - Enhanced `apps/web/src/components/SettingsView.tsx` with dynamic cards for System Health, AI Intelligence Engine, Communications & Calendar Integrations, Application Automation & Browser ATS Worker, and the Single-User Security Model.
+- **Verification Records**:
+  - `npm run db:check`: PASSED (PostgreSQL connected, 20ms latency).
+  - `npm run db:migrate`: PASSED (15 migrations up to date).
+  - `npm run typecheck`: PASSED (0 errors across all 6 workspaces).
+  - `npm run lint`: PASSED (0 errors across codebase).
+  - `npm run test`: PASSED (35 test files, 268/268 tests passed).
+  - `npm run build`: PASSED (All 6 workspaces built cleanly including Vite web bundle).
+  - `npm run format`: PASSED (Prettier checked across entire repository).
+  - Verification Suites:
+    - `scripts/verify-job-p4-t01.ts`: PASSED (11 email archetypes, OAuth CSRF replay protection, CRM status sync, clean teardown).
+    - `scripts/verify-job-p4-t02.ts`: PASSED (10/10 sections: availability, conflict detection, interview booking, STAR prep brief, clean teardown).
+    - `scripts/verify-job-p5-t01.ts`: PASSED (10/10 sections: ATS adapters, CAPTCHA halting, missing fact halting, runner pipeline, clean teardown).
+    - `scripts/verify-job-p5-t02.ts`: PASSED (10/10 sections: orchestrator discovery, matching, auto-apply circuit breaker, reminders, clean teardown).
+    - `scripts/verify-crm-lifecycle.ts`: PASSED (100% success across all lifecycle transitions, soft archiving, analytics, clean teardown).

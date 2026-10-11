@@ -94,11 +94,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
     });
   });
 
+  // AI Provider setup
+  const aiProvider = options.aiProvider ?? createAiProvider(config);
+
   // Register baseline routes
   app.register(healthRoutes);
   app.register(healthRoutes, { prefix: '/api' });
-  app.register(createReadyRoutes(config));
-  app.register(createReadyRoutes(config), { prefix: '/api' });
+  app.register(createReadyRoutes(config, aiProvider));
+  app.register(createReadyRoutes(config, aiProvider), { prefix: '/api' });
 
   // Initialize and register Candidate Brain routes
   let candidateService = options.candidateService;
@@ -126,7 +129,6 @@ export function buildApp(options: AppOptions): FastifyInstance {
   }
 
   if (!matchService && db) {
-    const aiProvider = options.aiProvider ?? createAiProvider(config);
     matchService = new MatchService(db, aiProvider);
   }
 

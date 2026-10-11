@@ -294,6 +294,14 @@ On Thu, Oct 8, 2026 at 10:00 AM Bek wrote:
     console.log(`  - Review items created:    ${syncResult.reviewItemsCreated}`);
     console.log(`  - Jobs discovered:         ${syncResult.jobsDiscoveredCount}`);
 
+    // Track any jobs discovered by alert parser during this run for teardown hygiene
+    const allUserJobs = await db.select({ id: jobs.id }).from(jobs).where(eq(jobs.userId, userId));
+    for (const uj of allUserJobs) {
+      if (!createdJobIds.includes(uj.id) && uj.id !== '90d7c12d-41d0-415b-b88e-feca0a51b3e6') {
+        createdJobIds.push(uj.id);
+      }
+    }
+
     // Verify CRM status outcomes
     const [appAcmeRow] = await db.select().from(applications).where(eq(applications.id, appAcmeId));
     const [appWayneRow] = await db

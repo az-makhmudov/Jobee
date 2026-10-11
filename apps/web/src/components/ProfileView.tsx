@@ -950,6 +950,23 @@ export function ProfileView({ initialTab, onUpdate }: Props) {
             </button>
           </div>
 
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              marginBottom: '1rem',
+              borderRadius: '6px',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              fontSize: '0.875rem',
+              color: '#93c5fd',
+            }}
+          >
+            <strong>Prime Directive Invariant:</strong> AI evaluates and prepares. Rules authorize.
+            Only verified facts with explicit candidate authorization (<code>allowAiUse: true</code>
+            ) can be used to generate tailored CVs, cover letters, and application materials.
+            Unverified facts are quarantined from AI generation.
+          </div>
+
           {facts.length === 0 ? (
             <div className="card placeholder-view">No verified facts recorded yet.</div>
           ) : (
@@ -1005,7 +1022,59 @@ export function ProfileView({ initialTab, onUpdate }: Props) {
                       </div>
                       <div style={{ fontSize: '0.95rem', fontWeight: 500 }}>{fact.statement}</div>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      {fact.verificationStatus !== 'VERIFIED' ? (
+                        <button
+                          className="btn btn-sm"
+                          style={{
+                            backgroundColor: '#10b981',
+                            borderColor: '#059669',
+                            color: '#fff',
+                            fontWeight: 600,
+                          }}
+                          onClick={async () => {
+                            try {
+                              await candidateApi.updateFact(fact.id, {
+                                verificationStatus: 'VERIFIED',
+                                allowAiUse: true,
+                              });
+                              showToast('ok', 'Fact verified and authorized for AI use.');
+                              loadData();
+                              onUpdate?.();
+                            } catch (err) {
+                              showToast(
+                                'error',
+                                err instanceof Error ? err.message : 'Verification failed',
+                              );
+                            }
+                          }}
+                        >
+                          ✓ Verify & Authorize AI
+                        </button>
+                      ) : (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{ color: 'var(--text-secondary)' }}
+                          onClick={async () => {
+                            try {
+                              await candidateApi.updateFact(fact.id, {
+                                verificationStatus: 'UNVERIFIED',
+                                allowAiUse: false,
+                              });
+                              showToast('ok', 'Fact unverified (AI access revoked).');
+                              loadData();
+                              onUpdate?.();
+                            } catch (err) {
+                              showToast(
+                                'error',
+                                err instanceof Error ? err.message : 'Revocation failed',
+                              );
+                            }
+                          }}
+                        >
+                          Revoke
+                        </button>
+                      )}
                       <button
                         className="btn btn-secondary btn-sm"
                         onClick={() => {

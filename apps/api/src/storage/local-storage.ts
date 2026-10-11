@@ -23,7 +23,19 @@ export class LocalStorageProvider implements FileStorageProvider {
   public readonly baseDir: string;
 
   constructor(options?: LocalStorageOptions) {
-    this.baseDir = options?.baseDir ?? path.resolve(process.cwd(), 'uploads/documents');
+    if (options?.baseDir) {
+      this.baseDir = options.baseDir;
+    } else {
+      let rootDir = process.cwd();
+      if (
+        rootDir.endsWith(path.join('apps', 'api')) ||
+        rootDir.endsWith(path.join('apps', 'worker')) ||
+        rootDir.endsWith(path.join('apps', 'web'))
+      ) {
+        rootDir = path.resolve(rootDir, '../..');
+      }
+      this.baseDir = path.resolve(rootDir, 'uploads/documents');
+    }
   }
 
   private async ensureBaseDir(): Promise<void> {

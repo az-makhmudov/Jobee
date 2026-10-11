@@ -2,8 +2,9 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { ReadinessResponse } from '@job-agent/shared';
 import { checkDatabaseHealth } from '@job-agent/database';
 import type { AppConfig } from '@job-agent/config';
+import type { AiProvider } from '../ai/index.js';
 
-export function createReadyRoutes(config: AppConfig): FastifyPluginAsync {
+export function createReadyRoutes(config: AppConfig, aiProvider?: AiProvider): FastifyPluginAsync {
   return async (app) => {
     const handleReady = async (_req: any, reply: any) => {
       const dbHealth = await checkDatabaseHealth(config.DATABASE_URL);
@@ -19,6 +20,17 @@ export function createReadyRoutes(config: AppConfig): FastifyPluginAsync {
         statusCode = config.NODE_ENV === 'production' ? 503 : 200;
       }
 
+      const isAiConfigured = aiProvider
+        ? aiProvider.isAvailable()
+        : Boolean(config.AI_PROVIDER === 'gemini' && (config.AI_API_KEY || config.GEMINI_API_KEY));
+      const aiProviderName = aiProvider ? aiProvider.name : config.AI_PROVIDER;
+      const aiMode = isAiConfigured ? ('llm' as const) : ('deterministic' as const);
+
+      const hasGmail = Boolean(config.GMAIL_CLIENT_ID && config.GMAIL_CLIENT_SECRET);
+      const hasCalendar = Boolean(
+        config.GOOGLE_CALENDAR_CLIENT_ID && config.GOOGLE_CALENDAR_CLIENT_SECRET,
+      );
+
       reply.status(statusCode);
       return {
         status: overallStatus,
@@ -27,6 +39,17 @@ export function createReadyRoutes(config: AppConfig): FastifyPluginAsync {
         timestamp: new Date().toISOString(),
         checks: {
           database: dbHealth,
+          ai: {
+            provider: aiProviderName,
+            isConfigured: isAiConfigured,
+            model:
+              config.AI_MODEL || (config.AI_PROVIDER === 'gemini' ? 'gemini-2.5-flash' : 'none'),
+            mode: aiMode,
+          },
+          integrations: {
+            gmail: { isConfigured: hasGmail },
+            googleCalendar: { isConfigured: hasCalendar },
+          },
         },
       };
     };

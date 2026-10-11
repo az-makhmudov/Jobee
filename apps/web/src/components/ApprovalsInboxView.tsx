@@ -198,15 +198,35 @@ export function ApprovalsInboxView({ onOpenPackage }: ApprovalsInboxViewProps) {
                 )}
               </div>
 
-              {appr.status === 'PENDING' && (
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+              {appr.status === 'NEEDS_USER_RECONFIRMATION' && (
+                <div
+                  style={{
+                    margin: '0.5rem 0',
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: '4px',
+                    background: 'rgba(234, 179, 8, 0.1)',
+                    border: '1px solid rgba(234, 179, 8, 0.3)',
+                    color: '#ca8a04',
+                    fontSize: '0.85rem',
+                  }}
+                >
+                  ⚠️ <strong>Candidate Reconfirmation Required:</strong> This answer was quarantined
+                  by safety policy. Your explicit confirmation is required before it can be included
+                  in application materials.
+                </div>
+              )}
+
+              {(appr.status === 'PENDING' || appr.status === 'NEEDS_USER_RECONFIRMATION') && (
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                   <button
                     className="button button-primary"
                     style={{ fontSize: '0.85rem' }}
                     onClick={() => handleApprove(appr.id)}
                     disabled={actionLoading}
                   >
-                    ✓ Approve
+                    {appr.status === 'NEEDS_USER_RECONFIRMATION'
+                      ? '✓ Reconfirm & Approve'
+                      : '✓ Approve'}
                   </button>
                   <button
                     className="button button-secondary"

@@ -411,6 +411,14 @@ export class ApplicationPackageService {
               resolvedAt: prevAppr.resolvedAt,
               resolvedBy: prevAppr.resolvedBy,
             });
+
+            // Supersede previous version's unresolved approval request so it does not linger
+            if (['PENDING', 'NEEDS_USER_RECONFIRMATION'].includes(prevAppr.status)) {
+              await this.db
+                .update(approvalRequests)
+                .set({ status: 'CANCELLED', updatedAt: new Date() })
+                .where(eq(approvalRequests.id, prevAppr.id));
+            }
           }
         }
       }
@@ -1235,7 +1243,17 @@ export class ApplicationPackageService {
       .from(approvalRequests)
       .innerJoin(applicationPackages, eq(approvalRequests.packageId, applicationPackages.id))
       .innerJoin(jobs, eq(applicationPackages.jobId, jobs.id))
-      .where(and(eq(approvalRequests.userId, userId), statusCondition))
+      .innerJoin(
+        applicationPackageVersions,
+        eq(approvalRequests.versionId, applicationPackageVersions.id),
+      )
+      .where(
+        and(
+          eq(approvalRequests.userId, userId),
+          statusCondition,
+          eq(applicationPackages.currentVersionNumber, applicationPackageVersions.versionNumber),
+        ),
+      )
       .orderBy(desc(approvalRequests.createdAt));
 
     return rows.map((r) => ({

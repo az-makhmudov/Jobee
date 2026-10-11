@@ -17,6 +17,16 @@ interface ReadyData {
       latencyMs?: number;
       message?: string;
     };
+    ai?: {
+      provider: string;
+      isConfigured: boolean;
+      model: string;
+      mode: 'deterministic' | 'llm';
+    };
+    integrations?: {
+      gmail: { isConfigured: boolean };
+      googleCalendar: { isConfigured: boolean };
+    };
   };
 }
 
@@ -61,15 +71,20 @@ export function SettingsView() {
     checkConnectivity();
   }, []);
 
+  const aiChecks = ready?.checks?.ai;
+  const intChecks = ready?.checks?.integrations;
+
   return (
     <div>
       <header className="page-header">
         <h1 className="page-title">Platform Settings & Connectivity</h1>
         <p className="page-subtitle">
-          Core runtime configuration, database health checks, and identity resolution
+          Core runtime configuration, intelligence engines, external integrations, and security
+          boundaries
         </p>
       </header>
 
+      {/* System Health & Readiness */}
       <div className="card">
         <div
           style={{
@@ -80,7 +95,7 @@ export function SettingsView() {
           }}
         >
           <div className="card-title" style={{ marginBottom: 0 }}>
-            System Health & Readiness
+            System Health & Infrastructure
           </div>
           <button className="btn btn-primary btn-sm" onClick={checkConnectivity} disabled={loading}>
             {loading ? 'Probing...' : 'Re-probe Services'}
@@ -133,6 +148,157 @@ export function SettingsView() {
         )}
       </div>
 
+      {/* AI Intelligence Engine */}
+      <div className="card">
+        <div className="card-title">AI Intelligence Engine</div>
+        <div className="status-grid">
+          <div className="status-item">
+            <div className="status-item-header">
+              <span className="status-item-label">Operating Mode</span>
+              <span className={`status-badge ${aiChecks?.isConfigured ? 'ok' : 'connected'}`}>
+                {aiChecks?.isConfigured ? 'LLM AUGMENTED' : 'DETERMINISTIC GROUNDED'}
+              </span>
+            </div>
+            <div className="status-item-meta">
+              Provider: <strong>{aiChecks?.provider || 'disabled'}</strong> | Model:{' '}
+              <code>{aiChecks?.model || 'none'}</code>
+            </div>
+            <div
+              style={{
+                marginTop: '0.5rem',
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                lineHeight: '1.4',
+              }}
+            >
+              {aiChecks?.isConfigured
+                ? 'Gemini LLM enabled for semantic reasoning, match extraction, and drafting. All outputs are strictly validated against verified candidate facts.'
+                : '100% deterministic rule-based matching. Zero external AI API calls. Zero hallucination risk.'}
+            </div>
+          </div>
+
+          <div className="status-item">
+            <div className="status-item-header">
+              <span className="status-item-label">Truthfulness & Fact Safety</span>
+              <span className="status-badge ok">ENFORCED</span>
+            </div>
+            <div className="status-item-meta">Invariant: Zero Candidate Fact Fabrication</div>
+            <div
+              style={{
+                marginTop: '0.5rem',
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                lineHeight: '1.4',
+              }}
+            >
+              Candidate Brain acts as the immutable ground truth. Facts marked unverified are
+              strictly quarantined from AI prompts and application answers.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* External Communications & OAuth Integrations */}
+      <div className="card">
+        <div className="card-title">Communications & Calendar Integrations</div>
+        <div className="status-grid">
+          <div className="status-item">
+            <div className="status-item-header">
+              <span className="status-item-label">Gmail OAuth Integration</span>
+              <span
+                className={`status-badge ${intChecks?.gmail?.isConfigured ? 'ok' : 'unconfigured'}`}
+              >
+                {intChecks?.gmail?.isConfigured ? 'CONFIGURED' : 'PENDING CREDENTIALS'}
+              </span>
+            </div>
+            <div className="status-item-meta">Protocol: OAuth 2.0 PKCE / Restricted Scope</div>
+            <div
+              style={{
+                marginTop: '0.5rem',
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                lineHeight: '1.4',
+              }}
+            >
+              {intChecks?.gmail?.isConfigured
+                ? 'Google Client credentials configured. Live mailbox sync and recruiter thread tracking active.'
+                : 'Requires GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET. Local FixtureEmailProvider active for offline testing.'}
+            </div>
+          </div>
+
+          <div className="status-item">
+            <div className="status-item-header">
+              <span className="status-item-label">Google Calendar Integration</span>
+              <span
+                className={`status-badge ${
+                  intChecks?.googleCalendar?.isConfigured ? 'ok' : 'unconfigured'
+                }`}
+              >
+                {intChecks?.googleCalendar?.isConfigured ? 'CONFIGURED' : 'PENDING CREDENTIALS'}
+              </span>
+            </div>
+            <div className="status-item-meta">Protocol: Google Calendar API v3 / FreeBusy</div>
+            <div
+              style={{
+                marginTop: '0.5rem',
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                lineHeight: '1.4',
+              }}
+            >
+              {intChecks?.googleCalendar?.isConfigured
+                ? 'Google Calendar credentials configured. Interview scheduling and conflict detection active.'
+                : 'Requires GOOGLE_CALENDAR_CLIENT_ID and secret. Local FixtureCalendarProvider active for offline testing.'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Application Automation & Browser ATS Worker */}
+      <div className="card">
+        <div className="card-title">Application Automation & Browser ATS Worker</div>
+        <div className="status-grid">
+          <div className="status-item">
+            <div className="status-item-header">
+              <span className="status-item-label">Playwright Browser Worker</span>
+              <span className="status-badge connected">SUPERVISED DRY-RUN</span>
+            </div>
+            <div className="status-item-meta">Supported ATS: Greenhouse, Lever, Workday</div>
+            <div
+              style={{
+                marginTop: '0.5rem',
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                lineHeight: '1.4',
+              }}
+            >
+              Form introspection and field mapping execute in dry-run mode. Final application
+              submission requires explicit deterministic user authorization.
+            </div>
+          </div>
+
+          <div className="status-item">
+            <div className="status-item-header">
+              <span className="status-item-label">Cryptographic Token Envelopes</span>
+              <span className="status-badge ok">SECURE</span>
+            </div>
+            <div className="status-item-meta">Algorithm: AES-256-GCM + PBKDF2 Nonce</div>
+            <div
+              style={{
+                marginTop: '0.5rem',
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                lineHeight: '1.4',
+              }}
+            >
+              All external OAuth tokens and refresh tokens are encrypted at rest with verified
+              entropy keys before persisting to PostgreSQL.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Identity & Security Model */}
       <div className="card">
         <div className="card-title">Identity & Security Model</div>
         <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>

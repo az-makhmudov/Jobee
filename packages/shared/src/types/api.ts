@@ -37,5 +37,15 @@ export interface ReadinessResponse {
   timestamp: string;
   checks: {
     database: DatabaseHealthCheck;
+    ai?: {
+      provider: string;
+      isConfigured: boolean;
+      model: string;
+      mode: 'deterministic' | 'llm';
+    };
+    integrations?: {
+      gmail: { isConfigured: boolean };
+      googleCalendar: { isConfigured: boolean };
+    };
   };
 }
