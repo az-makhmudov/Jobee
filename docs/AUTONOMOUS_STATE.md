@@ -13,7 +13,7 @@
 - **Milestone Status:** COMPLETED (LOCAL CHECKPOINT)
 - **Previous Completed Milestone:** `JOB-PROD-01` (Backend Authorization Enforcement & Safety Boundary Hardening)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION & BACKEND CRYPTOGRAPHIC SUBMISSION HARDENING COMPLETE**
-- **Active Git Checkpoint:** In Progress (`feat(security): enforce cryptographic manifest-bound submission authorization (JOB-PROD-02)`)
+- **Active Git Checkpoint:** `57d28b3` (`feat(security): enforce cryptographic manifest-bound submission authorization (JOB-PROD-02)`)
 
 ---
 
@@ -39,7 +39,7 @@
 | `JOB-P0-T01-CLEANUP`       | Git History Security Cleanup & Sensitive SQL Purge                | COMPLETED     | `1b62e69`                                        |
 | `JOB-P0-T01-STABILIZATION` | Autonomous Stabilization & Readiness Hardening                    | COMPLETED     | `696b1cc`                                        |
 | `JOB-PROD-01`              | Backend Authorization, Submission Guardrails & Profile Sandbox    | COMPLETED     | `904c19f`                                        |
-| `JOB-PROD-02`              | Cryptographic Manifest-Bound Submission Authorization             | **COMPLETED** | Local Checkpoint (`JOB-PROD-02`)                 |
+| `JOB-PROD-02`              | Cryptographic Manifest-Bound Submission Authorization             | **COMPLETED** | `57d28b3`                                        |
 
 ---
 
