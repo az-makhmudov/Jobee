@@ -13,7 +13,7 @@
 - **Milestone Status:** READY_FOR_PRIVATE_PILOT
 - **Previous Completed Milestone:** `JOB-P5-T02` (Autonomous Orchestrator, Scheduling, Notifications & Hardening)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION COMPLETE**
-- **Last Successful Git Checkpoint:** `442fa23` (`fix(ci): remediate GitGuardian credentials false positive, isolate test fixtures, and configure PostgreSQL CI service (JOB-P0-T01)`)
+- **Last Successful Git Checkpoint:** `1b62e69` (`docs(security): document historical git cleanup and sensitive sql purge (JOB-P0-T01)`)
 
 ---
 
