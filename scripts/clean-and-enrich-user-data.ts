@@ -26,6 +26,15 @@ async function main() {
   const userId = profile.userId;
   console.log(`Working on candidate: ${profile.fullName} (ID: ${userId})`);
 
+  // Safety guard: Protect primary candidate data
+  const isPrimaryCandidate = userId === '00000000-0000-0000-0000-000000000001';
+  if (isPrimaryCandidate && !process.argv.includes('--force-candidate-override')) {
+    console.error(
+      'SAFETY ABORT: Refusing to run data-enrichment script against primary candidate without explicit --force-candidate-override flag.',
+    );
+    process.exit(1);
+  }
+
   // 1. Remove synthetic document (Jane Hopper)
   const delDoc = await db
     .delete(candidateDocuments)
@@ -212,11 +221,11 @@ async function main() {
       factKey: f.factKey,
       category: f.category,
       statement: f.statement,
-      verificationStatus: 'VERIFIED',
-      allowAiUse: true,
+      verificationStatus: 'UNVERIFIED',
+      allowAiUse: false,
     });
   }
-  console.log(`✓ Inserted ${factsList.length} verified candidate facts`);
+  console.log(`✓ Inserted ${factsList.length} candidate facts (quarantined as UNVERIFIED)`);
 
   console.log('\n--- Data Hygiene & Candidate Brain Enrichment Complete ---');
   process.exit(0);

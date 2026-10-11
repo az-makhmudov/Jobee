@@ -48,3 +48,8 @@ Thumbs.db
 
 # Local uploaded files
 uploads/
+
+# Backups & database dumps (contains sensitive candidate data)
+backups/
+*.sql
+*.dump

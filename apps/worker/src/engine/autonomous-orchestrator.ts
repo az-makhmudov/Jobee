@@ -11,6 +11,7 @@ import {
   emailAccounts,
   eq,
   and,
+  inArray,
   sql,
 } from '@job-agent/database';
 import {
@@ -521,7 +522,10 @@ export class AutonomousOrchestrator {
 
       // Check pending approvals
       const pendingApprovals = await this.db.query.approvalRequests.findMany({
-        where: and(eq(approvalRequests.userId, userId), eq(approvalRequests.status, 'PENDING')),
+        where: and(
+          eq(approvalRequests.userId, userId),
+          inArray(approvalRequests.status, ['PENDING', 'NEEDS_USER_RECONFIRMATION']),
+        ),
       });
 
       if (pendingApprovals.length > 0 && policy.blockOnUnresolvedReview) {
@@ -716,7 +720,10 @@ export class AutonomousOrchestrator {
 
     // 1. Pending Approvals
     const pendingApprovals = await this.db.query.approvalRequests.findMany({
-      where: and(eq(approvalRequests.userId, userId), eq(approvalRequests.status, 'PENDING')),
+      where: and(
+        eq(approvalRequests.userId, userId),
+        inArray(approvalRequests.status, ['PENDING', 'NEEDS_USER_RECONFIRMATION']),
+      ),
     });
 
     if (pendingApprovals.length > 0) {

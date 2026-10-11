@@ -33,8 +33,8 @@
 | `JOB-P5-T01` | Browser Application Worker & Initial ATS Adapters | COMPLETED     | `d9006e7`                 |
 | `JOB-P5-T02` | Autonomous Orchestrator, Scheduling & Hardening   | COMPLETED     | `9a1c56b`                 |
 | `PILOT-STAB` | Security Audit, Stabilization & Pilot Readiness   | COMPLETED     | `84e5354`                 |
-| `OP-ACCEPT`  | Frontend Acceptance, ATS Fixture & Crash Safety   | COMPLETED     | `9e75e17`                 |
-| `REAL-ACT`   | Real Functionality Activation & Truthful De-bias  | **COMPLETED** | Verified local checkpoint |
+| `REAL-ACT`   | Real Functionality Activation & Truthful De-bias  | PARTIAL       | Remediated in `REAL-ACT-REMEDIATION` |
+| `REAL-ACT-REMEDIATION` | Candidate Data Integrity, Human Authorization & Safety Boundaries | **COMPLETED** | Verified local checkpoint |
 
 ---
 
@@ -75,7 +75,7 @@
 
 - **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 17ms latency)
 - **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0014 up to date)
-- **Unit & Integration Tests:** `npm test` -> PASSED (34 test files, 261/261 tests passing)
+- **Unit & Integration Tests:** `npm test` -> PASSED (35 test files, 268/268 tests passing)
 - **TypeScript Typecheck:** `npm run typecheck` -> PASSED (0 errors across 6 workspaces)
 - **ESLint:** `npm run lint` -> PASSED (0 errors across codebase)
 - **Build:** `npm run build` -> PASSED (API, Worker, and Web bundle compile cleanly)

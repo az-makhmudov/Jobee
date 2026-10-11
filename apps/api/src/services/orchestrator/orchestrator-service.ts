@@ -9,6 +9,7 @@ import {
   systemNotifications,
   eq,
   and,
+  inArray,
   desc,
   sql,
 } from '@job-agent/database';
@@ -161,7 +162,12 @@ export class OrchestratorService {
     const [approvalsCount] = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(approvalRequests)
-      .where(and(eq(approvalRequests.userId, userId), eq(approvalRequests.status, 'PENDING')));
+      .where(
+        and(
+          eq(approvalRequests.userId, userId),
+          inArray(approvalRequests.status, ['PENDING', 'NEEDS_USER_RECONFIRMATION']),
+        ),
+      );
 
     // 5. Unread notifications
     const [notificationsCount] = await this.db

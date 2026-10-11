@@ -26,6 +26,7 @@ import {
   eq,
   and,
   desc,
+  inArray,
 } from '@job-agent/database';
 import {
   AppError,
@@ -447,7 +448,13 @@ export class ApplicationPackageService {
     const facts = await this.db
       .select()
       .from(candidateFacts)
-      .where(eq(candidateFacts.userId, userId));
+      .where(
+        and(
+          eq(candidateFacts.userId, userId),
+          eq(candidateFacts.verificationStatus, 'VERIFIED'),
+          eq(candidateFacts.allowAiUse, true),
+        ),
+      );
     const [preferences] = await this.db
       .select()
       .from(jobPreferences)
@@ -977,7 +984,13 @@ export class ApplicationPackageService {
     const facts = await this.db
       .select()
       .from(candidateFacts)
-      .where(eq(candidateFacts.userId, userId));
+      .where(
+        and(
+          eq(candidateFacts.userId, userId),
+          eq(candidateFacts.verificationStatus, 'VERIFIED'),
+          eq(candidateFacts.allowAiUse, true),
+        ),
+      );
     const [preferences] = await this.db
       .select()
       .from(jobPreferences)
@@ -1208,7 +1221,11 @@ export class ApplicationPackageService {
     userId: string,
     filter?: { status?: string },
   ): Promise<ApprovalRequestDto[]> {
-    const status = filter?.status || 'PENDING';
+    const statusCondition =
+      filter?.status && filter.status !== 'PENDING'
+        ? eq(approvalRequests.status, filter.status)
+        : inArray(approvalRequests.status, ['PENDING', 'NEEDS_USER_RECONFIRMATION']);
+
     const rows = await this.db
       .select({
         approval: approvalRequests,
@@ -1218,7 +1235,7 @@ export class ApplicationPackageService {
       .from(approvalRequests)
       .innerJoin(applicationPackages, eq(approvalRequests.packageId, applicationPackages.id))
       .innerJoin(jobs, eq(applicationPackages.jobId, jobs.id))
-      .where(and(eq(approvalRequests.userId, userId), eq(approvalRequests.status, status)))
+      .where(and(eq(approvalRequests.userId, userId), statusCondition))
       .orderBy(desc(approvalRequests.createdAt));
 
     return rows.map((r) => ({

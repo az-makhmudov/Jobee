@@ -21,6 +21,15 @@ async function main() {
     `Candidate: ${profile.fullName} | Role: ${profile.headline} | Location: ${profile.city}, ${profile.country}`,
   );
 
+  // Safety guard: Protect primary candidate data
+  const isPrimaryCandidate = userId === '00000000-0000-0000-0000-000000000001';
+  if (isPrimaryCandidate && !process.argv.includes('--force-candidate-override')) {
+    console.error(
+      'SAFETY ABORT: Refusing to run autonomous workflow script against primary candidate without explicit --force-candidate-override flag.',
+    );
+    process.exit(1);
+  }
+
   const storage = new LocalStorageProvider();
   const jobService = new JobService(db);
   const aiProvider = createAiProvider(config);

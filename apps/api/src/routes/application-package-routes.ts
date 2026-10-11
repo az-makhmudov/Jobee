@@ -11,6 +11,7 @@ import {
   approveRequestSchema,
   overrideBlockerSchema,
 } from './application-package-schemas.js';
+import { AppError } from '@job-agent/shared';
 
 export function createApplicationPackageRoutes(
   service: ApplicationPackageService,
@@ -188,6 +189,17 @@ export function createApplicationPackageRoutes(
     app.post('/approvals/:id/approve', async (req: any) => {
       const userId = await getUserId();
       const { id } = req.params;
+
+      // Reject automated agent / script bypasses
+      const isAutomation =
+        req.headers['x-automation-agent'] === 'true' || req.headers['x-script-runner'] === 'true';
+
+      if (isAutomation && !req.headers['x-human-confirmation']) {
+        throw AppError.forbidden(
+          'Consequential approval requests cannot be approved by automated agents or background scripts. Explicit candidate authorization is required.',
+        );
+      }
+
       const body = approveRequestSchema.parse(req.body || {});
       const result = await service.approveRequest(id, userId, body.userEditedValue);
       return {

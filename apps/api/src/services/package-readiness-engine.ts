@@ -55,14 +55,39 @@ export class PackageReadinessEngine {
       );
     }
 
-    // 4. Pending Approvals check
-    const pendingApprovals = params.approvals.filter((a) => a.status === 'PENDING');
+    // 4. Pending & Reconfirmation Approvals check
+    const pendingApprovals = params.approvals.filter(
+      (a) => a.status === 'PENDING' || a.status === 'NEEDS_USER_RECONFIRMATION',
+    );
+    const untrustedApprovals = params.approvals.filter(
+      (a) =>
+        (a.status === 'APPROVED' || a.status === 'RESOLVED') &&
+        (!a.resolvedBy || a.resolvedBy !== 'USER'),
+    );
+
     if (pendingApprovals.length > 0) {
+      const reconfirmCount = pendingApprovals.filter(
+        (a) => a.status === 'NEEDS_USER_RECONFIRMATION',
+      ).length;
+      if (reconfirmCount > 0) {
+        blockingIssues.push(
+          `${reconfirmCount} approval request(s) require explicit user reconfirmation before submission`,
+        );
+      }
+      const regularPending = pendingApprovals.length - reconfirmCount;
+      if (regularPending > 0) {
+        blockingIssues.push(
+          `${regularPending} pending approval request(s) require human review and authorization`,
+        );
+      }
+    } else if (untrustedApprovals.length > 0) {
       blockingIssues.push(
-        `${pendingApprovals.length} pending approval request(s) require human review and authorization`,
+        `${untrustedApprovals.length} approval request(s) were resolved by automation rather than human user and must be reconfirmed`,
       );
     } else if (params.approvals.length > 0) {
-      reasons.push(`All ${params.approvals.length} approval request(s) have been resolved`);
+      reasons.push(
+        `All ${params.approvals.length} approval request(s) have been verified and approved by candidate`,
+      );
     }
 
     // 5. Staleness check
@@ -80,7 +105,7 @@ export class PackageReadinessEngine {
       isReady,
       reasons,
       blockingIssues,
-      pendingApprovalsCount: pendingApprovals.length,
+      pendingApprovalsCount: pendingApprovals.length + untrustedApprovals.length,
       unresolvedQuestionsCount: unresolvedQuestions.length,
     };
   }

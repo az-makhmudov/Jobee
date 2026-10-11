@@ -6,13 +6,67 @@ import { closeDbPool } from '@job-agent/database';
 describe('Candidate Brain API Routes', () => {
   const config = getConfig();
   let app: ReturnType<typeof buildApp>;
+  let originalProfile: any = null;
+  let originalPreferences: any = null;
 
   beforeAll(async () => {
     app = buildApp({ config });
     await app.ready();
+
+    // Snapshot existing profile and preferences to avoid test pollution
+    const profRes = await app.inject({ method: 'GET', url: '/api/candidate/profile' });
+    if (profRes.statusCode === 200) {
+      originalProfile = JSON.parse(profRes.body).data;
+    }
+    const prefRes = await app.inject({ method: 'GET', url: '/api/candidate/preferences' });
+    if (prefRes.statusCode === 200) {
+      originalPreferences = JSON.parse(prefRes.body).data;
+    }
   });
 
   afterAll(async () => {
+    // Restore pre-test candidate profile and preferences
+    if (originalProfile) {
+      await app.inject({
+        method: 'PUT',
+        url: '/api/candidate/profile',
+        payload: {
+          fullName: originalProfile.fullName,
+          preferredName: originalProfile.preferredName,
+          headline: originalProfile.headline,
+          email: originalProfile.email,
+          phone: originalProfile.phone,
+          summary: originalProfile.summary,
+          city: originalProfile.city,
+          region: originalProfile.region,
+          country: originalProfile.country,
+          availability: originalProfile.availability,
+        },
+      });
+    }
+    if (originalPreferences) {
+      await app.inject({
+        method: 'PUT',
+        url: '/api/candidate/preferences',
+        payload: {
+          targetTitles: originalPreferences.targetTitles,
+          targetCategories: originalPreferences.targetCategories,
+          preferredLocations: originalPreferences.preferredLocations,
+          workModes: originalPreferences.workModes,
+          employmentTypes: originalPreferences.employmentTypes,
+          seniorityLevels: originalPreferences.seniorityLevels,
+          minSalary: originalPreferences.minSalary,
+          maxSalary: originalPreferences.maxSalary,
+          currency: originalPreferences.currency,
+          preferredLanguages: originalPreferences.preferredLanguages,
+          excludedCompanies: originalPreferences.excludedCompanies,
+          excludedKeywords: originalPreferences.excludedKeywords,
+          acceptUnpaid: originalPreferences.acceptUnpaid,
+          willingToRelocate: originalPreferences.willingToRelocate,
+          needsSponsorship: originalPreferences.needsSponsorship,
+        },
+      });
+    }
     await app.close();
     await closeDbPool();
   });

@@ -152,6 +152,7 @@ export class ApplicationQuestionEngine {
       const authFact = context.candidateFacts.find(
         (f) =>
           f.verificationStatus === 'VERIFIED' &&
+          f.allowAiUse === true &&
           (f.category === 'CITIZENSHIP' ||
             f.category === 'WORK_AUTHORIZATION' ||
             f.factKey.includes('work_auth')),

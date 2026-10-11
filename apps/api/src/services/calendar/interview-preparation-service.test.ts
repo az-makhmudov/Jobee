@@ -188,7 +188,7 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
     // Verify STAR frameworks
     expect(brief.suggestedAnswerFrameworks.length).toBeGreaterThan(0);
     const starFramework = brief.suggestedAnswerFrameworks.find((f) =>
-      f.situation.includes('Acme Technologies'),
+      f.situation?.includes('Acme Technologies'),
     );
     expect(starFramework).toBeDefined();
 

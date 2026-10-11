@@ -1004,6 +1004,10 @@ export class CandidateService {
       allowAiUse?: boolean;
     },
   ): Promise<CandidateFactDto> {
+    const status = data.verificationStatus ?? 'UNVERIFIED';
+    // Invariant: Unverified facts cannot be used by AI
+    const allowAi = status === 'VERIFIED' ? (data.allowAiUse ?? false) : false;
+
     const [row] = await this.db
       .insert(candidateFacts)
       .values({
@@ -1014,8 +1018,8 @@ export class CandidateService {
         structuredValue: data.structuredValue ?? null,
         sourceType: data.sourceType ?? 'MANUAL',
         sourceEntityId: data.sourceEntityId ?? null,
-        verificationStatus: data.verificationStatus ?? 'UNVERIFIED',
-        allowAiUse: data.allowAiUse ?? false,
+        verificationStatus: status,
+        allowAiUse: allowAi,
       })
       .returning();
 
@@ -1050,10 +1054,25 @@ export class CandidateService {
       allowAiUse: boolean;
     }>,
   ): Promise<CandidateFactDto> {
+    const [existing] = await this.db
+      .select()
+      .from(candidateFacts)
+      .where(and(eq(candidateFacts.id, id), eq(candidateFacts.userId, userId)))
+      .limit(1);
+
+    if (!existing) throw AppError.notFound(`Candidate fact ${id} not found`);
+
+    const effectiveStatus = data.verificationStatus ?? existing.verificationStatus;
+    let allowAi = data.allowAiUse !== undefined ? data.allowAiUse : existing.allowAiUse;
+    if (effectiveStatus !== 'VERIFIED') {
+      allowAi = false;
+    }
+
     const [row] = await this.db
       .update(candidateFacts)
       .set({
         ...data,
+        allowAiUse: allowAi,
         updatedAt: new Date(),
       })
       .where(and(eq(candidateFacts.id, id), eq(candidateFacts.userId, userId)))

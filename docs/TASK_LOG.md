@@ -471,3 +471,40 @@ This document tracks execution history and verification state for all official m
     - `npm run format`: PASSED (Prettier checked across entire repository)
     - `npm run db:check`: PASSED (Database connectivity verified)
     - Live Operational Acceptance Suite: PASSED (`scripts/verify-operational-acceptance.ts` executed cleanly with 0 failures, 100% clean teardown).
+
+---
+
+### `REAL-ACT-REMEDIATION` — Candidate Data Integrity, Human Authorization & Safety Boundary Hardening
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-11
+- **Scope**:
+  - **1. Safety & Data Integrity**:
+    - Halted all autonomous consequential data modifications.
+    - Forensic audit of pre-cleanup backup `backups/ai_job_agent_dev_backup_20261010_145257.sql` vs active PostgreSQL database.
+    - Restored candidate profile (`candidate_profiles`) to original candidate-entered values: Asadbek Makhmudov, Project Manager, Warsaw, Poland, availability "2 weeks notice".
+    - Restored original job preferences (`job_preferences`): target titles `["Project Manager", "Operations Lead"]`, locations `["Berlin", "Remote EU"]`, salary `80,000 - 130,000 EUR`, seniority `["senior", "lead"]`.
+  - **2. Quarantine of Inferred Candidate Facts**:
+    - All 6 candidate facts created during REAL-ACT (`work_authorization`, `visa_sponsorship`, `current_location`, `target_role`, `education_status`, `banking_experience`) were quarantined: set `verificationStatus: 'UNVERIFIED'`, `allowAiUse: false`. Original statements and audit history preserved; 0 facts deleted.
+    - Updated `CandidateService.createFact` and `updateFact` to strictly prohibit `allowAiUse: true` on unverified facts.
+    - Updated `ApplicationQuestionEngine` and `ApplicationPackageService` to strictly filter candidate facts requiring both `verificationStatus: 'VERIFIED'` and `allowAiUse: true`.
+  - **3. Human Authorization & Invalidation of Untrusted Approvals**:
+    - All 3 approvals generated during REAL-ACT (`work_authorization`, `salary_expectation`, `visa_sponsorship`) were transitioned from `APPROVED` to `NEEDS_USER_RECONFIRMATION`. Cleared `resolvedBy` and `resolvedAt`.
+    - Associated application questions reset to `approvalState: 'PENDING'`, `finalAnswer: null`.
+    - Package `d3ca7301-7f6e-441a-9b15-fb9d0e5a4923` invalidated: `status: 'NEEDS_REVIEW'`, `isReady: false`.
+    - CRM Application `83290dbc-7ab2-4abe-b9f5-43d6bfa083a7` reverted from `READY_TO_APPLY` to `NEEDS_REVIEW`.
+    - Upgraded `PackageReadinessEngine.evaluateReadiness` to block readiness when any approval has status `NEEDS_USER_RECONFIRMATION` or was approved by automation (`resolvedBy !== 'USER'`).
+    - Guarded `POST /api/approvals/:id/approve` against automated agent bypass (`x-automation-agent: true` rejected without explicit human confirmation).
+  - **4. Data-Enrichment Script & Backup Security**:
+    - Guarded `scripts/clean-and-enrich-user-data.ts` and `scripts/execute-first-real-workflow.ts` against executing on primary candidate without explicit `--force-candidate-override` flag.
+    - Secured `backups/ai_job_agent_dev_backup_20261010_145257.sql`: untracked from git index, verified `.gitignore` excludes `backups/`, `*.sql`, `*.dump`. Confirmed 0 remote repositories configured (no remote exposure).
+    - Hardened `apps/api/src/routes/candidate.test.ts` to snapshot and restore candidate profile and preferences before and after test execution.
+  - **5. Regression Test Suite**:
+    - Added dedicated test suite `apps/api/src/services/data-integrity-safety.test.ts` (7/7 tests passed).
+- **Verification Records**:
+  - `npm run lint`: PASSED (ESLint 9, 0 errors, 234 warnings)
+  - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors)
+  - `npm run test`: PASSED (Vitest, 35 test files, 268/268 tests passed)
+  - `npm run build`: PASSED (All 6 workspaces built and Vite web bundle compiled cleanly)
+  - `npm run format`: PASSED (Prettier checked across entire repository)
+  - `npm run db:check`: PASSED (Database connectivity verified)
