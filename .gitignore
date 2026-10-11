@@ -52,8 +52,10 @@ uploads/
 
 # Backups & database dumps (contains sensitive candidate data)
 backups/
-*.sql
 *.dump
+*.sql
+!packages/database/drizzle/*.sql
+!packages/database/drizzle/**/*.sql
 
 # Security, Certificates & Credentials (never commit)
 *.pem

@@ -852,27 +852,32 @@ The system can safely operate as a controlled autonomous job agent within config
 
 # 17. Current Project Status
 
-Current status:
+Current status (as of 2026-10-11):
 
-- Product concept: DEFINED
-- High-level architecture: DEFINED
-- Macro roadmap: DEFINED
-- Implementation repository: NOT YET INITIALIZED/CONFIRMED IN THIS DOCUMENT
-- Production integrations: NOT STARTED
-- Browser automation: NOT STARTED
-- MVP: NOT STARTED
+- **Product Identity & Repository**: Jobee canonical private repository established at `https://github.com/az-makhmudov/Jobee` (`JOB-P0-T01`).
+- **Phase 0 (Foundation)**: COMPLETED (`JOB-P0-T01`). Architecture, policies, documentation, and agent operating guidelines established.
+- **Phase 1 (Core Platform & Candidate Intelligence)**: COMPLETED (`JOB-P1-T01`, `JOB-P1-T02`). Monorepo, Fastify API, worker process, PostgreSQL/Drizzle persistence, Candidate Brain, Document Vault, Answer Library, and Job Preferences operational.
+- **Phase 2 (Job Intelligence)**: COMPLETED (`JOB-P2-T01`, `JOB-P2-T02`). Job ingestion with SSRF defenses, ATS extractors, normalization, 8-dimension matching engine, and policy decision engine operational.
+- **Phase 3 (Application Workflow & Personal ATS MVP)**: COMPLETED (`JOB-P3-T01`, `JOB-P3-T02`). Application Studio, ATS-friendly DOCX tailoring, 4-tier question resolution, human approval queue, and Personal ATS CRM with 17 canonical lifecycle states operational.
+- **Phase 4 (Communication & Interviews)**: COMPLETED (`JOB-P4-T01`, `JOB-P4-T02`). Email intelligence with token encryption and replay defense, calendar integration, conflict detection, interview briefs, and preparation workspace operational.
+- **Phase 5 (Controlled Automation)**: COMPLETED (`JOB-P5-T01`, `JOB-P5-T02`). Isolated Playwright browser worker with Greenhouse/Lever/Ashby adapters, autonomous orchestrator, scheduling, notifications, and circuit breakers operational.
+- **Stabilization & Pilot Validation**: COMPLETED (`PILOT-STAB`). Comprehensive security review, schema hardening, and end-to-end integration verified.
+- **Data Integrity & Truthfulness Remediation**: COMPLETED (`REAL-ACT-REMEDIATION`). Enforced quarantine on unverified candidate facts (`allowAiUse: false`), invalidated untrusted automated approvals to `NEEDS_USER_RECONFIRMATION`, and reinforced strict human authorization boundaries across all application packages.
 
-Current active task:
+### Outstanding External Integration & Human-Approval Requirements
 
-**JOB-P0-T01 — Project Foundation, Architecture, Policies & Documentation**
+While the full local application stack and simulated test fixtures are operational and passing quality gates, real-world external execution requires explicit human authorization and setup:
 
-This master document is one of the outputs of JOB-P0-T01.
-
-The next implementation step after foundation approval is:
-
-**JOB-P1-T01 — Workspace, Database & Core Platform Foundation**
-
-Do not begin browser automation first.
+1. **Human Authorization Invariant**:
+   - The agent is NEVER authorized to autonomously submit real external applications, send outbound recruiter communications, or accept calendar invites without explicit, recorded human approval.
+   - All sensitive screening declarations (work authorization, visa sponsorship, salary requirements) strictly require human verification before packages reach `READY` status.
+2. **External OAuth & Cloud Credentials**:
+   - Production Gmail OAuth 2.0 integration requires user-configured Google Cloud OAuth client credentials (`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`) and a 32-byte AES-256-GCM encryption key (`EMAIL_TOKEN_ENCRYPTION_KEY`).
+   - Production Google Calendar integration requires configured Google Calendar OAuth credentials (`GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`).
+   - Offline test fixtures (`FixtureEmailProvider`, `FixtureCalendarProvider`, `FixtureBrowserController`) remain the default safe execution path in local and testing environments.
+3. **External ATS Platform Automation**:
+   - Headless browser application submission against real external company job boards (Greenhouse, Lever, Ashby) must always run in `DRY_RUN` mode until specifically authorized by the user on a per-application basis.
+   - Any anti-bot challenges (CAPTCHA, Cloudflare turnstile) or missing candidate facts immediately trigger a full halt with `STOPPED_CAPTCHA` or `STOPPED_MANUAL_REVIEW`.
 
 ---
 
@@ -1065,13 +1070,9 @@ A macro task is not complete merely because code was generated.
 
 # 25. Immediate Next Step
 
-Finish **JOB-P0-T01** by using this master context to establish the repository-facing foundation documents and the first Antigravity 2.0 implementation prompt.
+Maintain and operate the complete verified **Jobee** platform, monitor incoming opportunities, review pending human approvals in the Application Studio, and proceed with private pilot operations under human oversight.
 
-Then execute:
-
-**JOB-P1-T01 — Workspace, Database & Core Platform Foundation**
-
-The project should not be fragmented into micro tasks unless a real tool/context/risk boundary requires it.
+Any future expansions or external integrations should follow the canonical macro-task roadmap and preserve strict human authorization boundaries.
 
 ---
 

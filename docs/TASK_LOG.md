@@ -534,3 +534,30 @@ This document tracks execution history and verification state for all official m
   - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors).
   - `npm run test`: PASSED (Vitest, 35 test files, 268/268 tests passed).
   - `npm run build`: PASSED (All 6 workspaces built and Vite web bundle compiled cleanly).
+
+---
+
+### `JOB-P0-T01-REMEDIATION` — Post-Migration Security & Documentation Remediation
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-11
+- **Scope**:
+  - **Git History Security Audit**:
+    - Identified sensitive historical database dump `backups/ai_job_agent_dev_backup_20261010_145257.sql` introduced in commit `57001c95` and removed in commit `91c17652`.
+    - Confirmed no other secret files, private keys, or `.env` credential files were ever committed to Git history.
+    - Designed non-destructive Git history cleaning procedure using `git-filter-repo` to excise the backup blob from historical tree objects without altering source code.
+    - Enforced mandatory authorization safeguard: refrained from rewriting remote Git history or force-pushing without explicit user approval.
+  - **.gitignore Drizzle Migration Safeguard**:
+    - Identified regression where generic `*.sql` rule shadowed future Drizzle migration files in `packages/database/drizzle/`.
+    - Corrected `.gitignore` by adding explicit exceptions `!packages/database/drizzle/*.sql` and `!packages/database/drizzle/**/*.sql`, verified with `git check-ignore`.
+  - **Master Context Synchronization**:
+    - Updated Section 17 of `docs/MASTER_CONTEXT.md` to accurately reflect full completion of Phases 0–5, Personal ATS MVP, pilot stabilization, and data-integrity remediation.
+    - Explicitly documented outstanding external integration requirements and mandatory human-approval invariants.
+    - Synchronized root mirrors `JOBEE_MASTER_CONTEXT.md` and `AI_JOB_AGENT_MASTER_CONTEXT.md` (verified 100% byte-for-byte identical).
+- **Verification Records**:
+  - `git check-ignore`: PASSED (`packages/database/drizzle/*.sql` un-ignored; `backups/*.sql` and root `*.sql` ignored).
+  - Context Sync: PASSED (`cmp -s docs/MASTER_CONTEXT.md JOBEE_MASTER_CONTEXT.md` exit code 0).
+  - `npm run lint`: PASSED (ESLint 9, 0 errors).
+  - `npm run typecheck`: PASSED (TypeScript 5.8 across all workspaces, 0 errors).
+  - `npm run test`: PASSED (Vitest, 35 test files, 268/268 tests passed).
+  - `npm run build`: PASSED (All workspaces compiled cleanly).
