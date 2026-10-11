@@ -13,7 +13,7 @@
 - **Milestone Status:** COMPLETED (LOCAL CHECKPOINT)
 - **Previous Completed Milestone:** `JOB-PROD-02` (Cryptographic Manifest-Bound Submission Authorization)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION & BETTER AUTH MULTI-TENANT ISOLATION COMPLETE**
-- **Active Git Checkpoint:** `JOB-AUTH-01` (In staging for commit)
+- **Active Git Checkpoint:** `f04ca1a` (`feat(auth): integrate Better Auth with multi-user tenant isolation and invite-only private pilot (JOB-AUTH-01)`)
 
 ---
 
