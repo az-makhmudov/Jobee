@@ -13,7 +13,7 @@
 - **Milestone Status:** READY_FOR_PRIVATE_PILOT
 - **Previous Completed Milestone:** `JOB-P5-T02` (Autonomous Orchestrator, Scheduling, Notifications & Hardening)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION COMPLETE**
-- **Last Successful Git Checkpoint:** `9e75e17` (`feat(acceptance): verify real browser UI, integrated ATS fixture submission, and crash safety invariants`)
+- **Last Successful Git Checkpoint:** `91c1765` (`fix(safety): quarantine unverified facts, invalidate untrusted approvals, and enforce human authorization boundaries (REAL-ACT-REMEDIATION)`)
 
 ---
 
@@ -34,7 +34,7 @@
 | `JOB-P5-T02` | Autonomous Orchestrator, Scheduling & Hardening   | COMPLETED     | `9a1c56b`                 |
 | `PILOT-STAB` | Security Audit, Stabilization & Pilot Readiness   | COMPLETED     | `84e5354`                 |
 | `REAL-ACT`   | Real Functionality Activation & Truthful De-bias  | PARTIAL       | Remediated in `REAL-ACT-REMEDIATION` |
-| `REAL-ACT-REMEDIATION` | Candidate Data Integrity, Human Authorization & Safety Boundaries | **COMPLETED** | Verified local checkpoint |
+| `REAL-ACT-REMEDIATION` | Candidate Data Integrity, Human Authorization & Safety Boundaries | **COMPLETED** | `91c1765` |
 
 ---
 
