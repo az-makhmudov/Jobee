@@ -3,6 +3,9 @@ import {
   getDb,
   applications,
   jobs,
+  applicationPolicy,
+  applicationPackages,
+  approvalRequests,
   browserApplicationRuns,
   type BrowserApplicationRun,
 } from '@job-agent/database';
@@ -72,6 +75,72 @@ export class BrowserWorkerService {
 
     const atsProvider = this.inferAtsProvider(targetUrl);
     const mode = input.mode ?? BrowserRunMode.DRY_RUN;
+
+    // Strict Backend Authorization Guard for SUBMIT mode
+    if (mode === BrowserRunMode.SUBMIT) {
+      const [policy] = await db
+        .select()
+        .from(applicationPolicy)
+        .where(eq(applicationPolicy.userId, userId))
+        .limit(1);
+
+      if (!policy?.autoApplyEnabled && !input.userConfirmed) {
+        throw AppError.forbidden(
+          'Automated submission is blocked: Direct external submission requires explicit candidate confirmation or autoApplyEnabled authorization.',
+        );
+      }
+
+      // Verify associated Application Package
+      const packageId = appRecord.application.currentPackageId;
+      const [pkg] = packageId
+        ? await db
+            .select()
+            .from(applicationPackages)
+            .where(eq(applicationPackages.id, packageId))
+            .limit(1)
+        : await db
+            .select()
+            .from(applicationPackages)
+            .where(
+              and(
+                eq(applicationPackages.jobId, appRecord.application.jobId),
+                eq(applicationPackages.userId, userId),
+              ),
+            )
+            .limit(1);
+
+      if (!pkg || pkg.status !== 'READY') {
+        throw AppError.badRequest(
+          `Cannot execute browser submission: Application package is not ready (status: ${pkg?.status ?? 'MISSING'}). Human preparation and review required.`,
+        );
+      }
+
+      if (pkg.hasPolicyBlocker && !pkg.blockerOverridden) {
+        throw AppError.badRequest(
+          'Cannot execute browser submission: Job matching has active hard policy blocker not overridden by candidate.',
+        );
+      }
+
+      // Verify all package approvals are resolved by human user
+      const pkgApprovals = await db
+        .select()
+        .from(approvalRequests)
+        .where(eq(approvalRequests.packageId, pkg.id));
+
+      const unverified = pkgApprovals.filter(
+        (a) =>
+          a.status === 'PENDING' ||
+          a.status === 'NEEDS_USER_RECONFIRMATION' ||
+          ((a.status === 'APPROVED' || a.status === 'RESOLVED') && a.resolvedBy !== 'USER'),
+      );
+
+      if (unverified.length > 0) {
+        throw AppError.badRequest(
+          `Cannot execute browser submission: ${unverified.length} approval request(s) require human authorization or reconfirmation.`,
+        );
+      }
+    }
+
     const runId = crypto.randomUUID();
     const now = new Date();
 

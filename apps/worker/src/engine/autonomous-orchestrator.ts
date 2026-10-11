@@ -3,6 +3,7 @@ import {
   orchestrationRuns,
   applicationPolicy,
   applications,
+  applicationPackages,
   jobs,
   approvalRequests,
   browserApplicationRuns,
@@ -520,7 +521,61 @@ export class AutonomousOrchestrator {
         continue;
       }
 
-      // Check pending approvals
+      // Invariant: Verify associated Application Package exists and is human-approved & ready
+      const pkg = app.currentPackageId
+        ? await this.db.query.applicationPackages.findFirst({
+            where: eq(applicationPackages.id, app.currentPackageId),
+          })
+        : await this.db.query.applicationPackages.findFirst({
+            where: and(
+              eq(applicationPackages.jobId, app.jobId),
+              eq(applicationPackages.userId, userId),
+            ),
+          });
+
+      if (!pkg || pkg.status !== 'READY') {
+        await addStep(
+          'AUTO_APPLY',
+          `Application ${app.id} blocked: Application package is not ready (status: ${pkg?.status ?? 'MISSING'}). Human preparation and review required.`,
+          { applicationId: app.id, packageId: pkg?.id, packageStatus: pkg?.status },
+        );
+        blocked++;
+        continue;
+      }
+
+      if (pkg.hasPolicyBlocker && !pkg.blockerOverridden) {
+        await addStep(
+          'AUTO_APPLY',
+          `Application ${app.id} blocked: Job matching has active hard policy blocker not overridden by candidate.`,
+          { applicationId: app.id, packageId: pkg.id },
+        );
+        blocked++;
+        continue;
+      }
+
+      // Invariant: Verify all approvals for this package have been explicitly resolved by human candidate
+      const packageApprovals = await this.db.query.approvalRequests.findMany({
+        where: and(eq(approvalRequests.packageId, pkg.id), eq(approvalRequests.userId, userId)),
+      });
+
+      const unverifiedApprovals = packageApprovals.filter(
+        (a) =>
+          a.status === 'PENDING' ||
+          a.status === 'NEEDS_USER_RECONFIRMATION' ||
+          ((a.status === 'APPROVED' || a.status === 'RESOLVED') && a.resolvedBy !== 'USER'),
+      );
+
+      if (unverifiedApprovals.length > 0) {
+        await addStep(
+          'AUTO_APPLY',
+          `Application ${app.id} blocked: Package has ${unverifiedApprovals.length} approval request(s) requiring human authorization or reconfirmation.`,
+          { applicationId: app.id, unverifiedApprovalsCount: unverifiedApprovals.length },
+        );
+        blocked++;
+        continue;
+      }
+
+      // Check global pending approvals across user
       const pendingApprovals = await this.db.query.approvalRequests.findMany({
         where: and(
           eq(approvalRequests.userId, userId),

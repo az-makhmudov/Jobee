@@ -157,4 +157,5 @@ export interface StartBrowserRunRequest {
   mode?: BrowserRunMode;
   packageVersionId?: string;
   headless?: boolean;
+  userConfirmed?: boolean;
 }

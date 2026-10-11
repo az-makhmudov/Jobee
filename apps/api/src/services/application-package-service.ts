@@ -23,6 +23,8 @@ import {
   answerLibrary,
   jobPreferences,
   applicationPolicy,
+  applications,
+  applicationLifecycleEvents,
   eq,
   and,
   desc,
@@ -635,6 +637,41 @@ export class ApplicationPackageService {
         updatedAt: new Date(),
       })
       .where(eq(applicationPackageVersions.id, versionId));
+
+    // Synchronize with linked CRM Application if status is in READY_TO_APPLY or NEEDS_REVIEW
+    const [linkedApp] = await this.db
+      .select()
+      .from(applications)
+      .where(and(eq(applications.jobId, pkg.jobId), eq(applications.userId, pkg.userId)))
+      .limit(1);
+
+    if (linkedApp) {
+      const targetCrmStatus = readiness.isReady ? 'READY_TO_APPLY' : 'NEEDS_REVIEW';
+      if (
+        (linkedApp.status === 'READY_TO_APPLY' || linkedApp.status === 'NEEDS_REVIEW') &&
+        linkedApp.status !== targetCrmStatus
+      ) {
+        await this.db
+          .update(applications)
+          .set({
+            status: targetCrmStatus,
+            lastStatusChangeAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(applications.id, linkedApp.id));
+
+        await this.db.insert(applicationLifecycleEvents).values({
+          id: crypto.randomUUID(),
+          applicationId: linkedApp.id,
+          userId: pkg.userId,
+          eventType: 'STATUS_CHANGED',
+          previousStatus: linkedApp.status,
+          newStatus: targetCrmStatus,
+          actor: 'SYSTEM',
+          note: `CRM application status synchronized with package readiness (${readiness.status})`,
+        });
+      }
+    }
 
     return readiness;
   }

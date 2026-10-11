@@ -127,6 +127,7 @@ async function main() {
   };
 
   let failuresCount = 0;
+  let initialProfile: any = null;
 
   try {
     // -------------------------------------------------------------------------
@@ -185,6 +186,10 @@ async function main() {
     // SECTION 2: Candidate Brain & Information Integrity
     // -------------------------------------------------------------------------
     console.log('\n--- SECTION 2: Candidate Brain & Information Integrity ---');
+
+    // Save initial profile to restore in teardown
+    const initialProfileRes = await apiFetch('/candidate/profile');
+    initialProfile = initialProfileRes.data?.data;
 
     // 2a. Upsert Profile
     const profileRes = await apiFetch('/candidate/profile', {
@@ -1021,6 +1026,25 @@ Requirements:
     if (ctx.createdAnswerIds.length > 0) {
       console.log(`✓ Cleaning up ${ctx.createdAnswerIds.length} test answer(s)...`);
       await db.delete(answerLibrary).where(inArray(answerLibrary.id, ctx.createdAnswerIds));
+    }
+
+    if (initialProfile) {
+      console.log('✓ Restoring original candidate profile...');
+      await apiFetch('/candidate/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          preferredName: initialProfile.preferredName,
+          fullName: initialProfile.fullName,
+          headline: initialProfile.headline,
+          email: initialProfile.email,
+          phone: initialProfile.phone,
+          city: initialProfile.city,
+          region: initialProfile.region,
+          country: initialProfile.country,
+          summary: initialProfile.summary,
+          availability: initialProfile.availability,
+        }),
+      });
     }
 
     console.log('✓ Teardown complete. Zero database orphans left.');

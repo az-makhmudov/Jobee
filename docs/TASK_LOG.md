@@ -662,3 +662,43 @@ This document tracks execution history and verification state for all official m
     - `scripts/verify-job-p5-t01.ts`: PASSED (10/10 sections: ATS adapters, CAPTCHA halting, missing fact halting, runner pipeline, clean teardown).
     - `scripts/verify-job-p5-t02.ts`: PASSED (10/10 sections: orchestrator discovery, matching, auto-apply circuit breaker, reminders, clean teardown).
     - `scripts/verify-crm-lifecycle.ts`: PASSED (100% success across all lifecycle transitions, soft archiving, analytics, clean teardown).
+
+---
+
+### `JOB-PROD-01` — Backend Authorization Enforcement, Submission Guardrails & Test Sandbox Hardening
+
+- **Status**: COMPLETED (LOCAL CHECKPOINT)
+- **Completed**: 2026-10-11
+- **Scope**:
+  - **1. Pre-Creation Authorization in `BrowserWorkerService`**:
+    - Guarded `createBrowserRun`: in `mode === 'SUBMIT'`, verifies `policy.autoApplyEnabled: true` or `input.userConfirmed: true`. Rejects unauthorized submissions with `403 FORBIDDEN`.
+    - Package Verification: requires the linked Application Package to exist and be in `READY` status. Rejects with `400 BAD_REQUEST` (`Application package is not ready`).
+    - Blocker Verification: requires that any matching hard policy blocker is overridden by candidate.
+    - Human Approval Verification: queries all package approvals from `approval_requests` and verifies that every request is resolved by the candidate (`status: APPROVED | RESOLVED` AND `resolvedBy === 'USER'`). Rejects if any approval is `PENDING`, `NEEDS_USER_RECONFIRMATION`, or resolved by automation (`resolvedBy !== 'USER'`).
+  - **2. Submission Guardrails in Autonomous Orchestrator**:
+    - Updated `runAutoApplyStage` in `apps/worker/src/engine/autonomous-orchestrator.ts`:
+      - Evaluates associated package readiness (`status === 'READY'`).
+      - Confirms policy blockers are overridden.
+      - Confirms 0 approvals on the package are unverified or resolved by automation.
+  - **3. CRM Status Auto-Synchronization on Readiness Degradation**:
+    - Updated `ApplicationPackageService.refreshPackageReadiness`: when package readiness status becomes `NEEDS_REVIEW`, any linked application in CRM (`status === 'READY_TO_APPLY'`) automatically transitions to `NEEDS_REVIEW` with an immutable lifecycle event.
+  - **4. Test Suite Candidate Profile Sandbox Preservation**:
+    - Updated `scripts/verify-pilot-readiness.ts` and `scripts/verify-operational-acceptance.ts`:
+      - In pre-flight / setup, the candidate's existing profile (`/candidate/profile`) is captured into memory.
+      - In teardown (`finally`), the original profile is faithfully restored via `PUT /candidate/profile`.
+      - Prevents test runs and CI smoke tests from mutating candidate Asadbek Makhmudov's real data.
+  - **5. Database Connection Pool Fallback**:
+    - Updated `packages/database/src/client.ts` (`getDbPool`): falls back to `process.env.DATABASE_URL` if `connectionString` argument is omitted, preventing runtime crashes in service layers.
+    - Re-exported `ne, or, not, asc` from `drizzle-orm` in `packages/database/src/index.ts`.
+- **Verification Records**:
+  - `npm run db:check`: PASSED (PostgreSQL connected, 18ms latency).
+  - `npm run db:migrate`: PASSED (15 migrations up to date).
+  - `npm run typecheck`: PASSED (0 errors across all 6 workspaces).
+  - `npm run lint`: PASSED (0 errors across codebase).
+  - `npm run test`: PASSED (35 test files, 268/268 tests passed).
+  - `npm run build`: PASSED (All 6 workspaces built cleanly including Vite web bundle).
+  - `npm run format`: PASSED (Prettier checked across entire repository).
+  - Verification Suites:
+    - `scripts/verify-pilot-readiness.ts`: PASSED (11/11 sections passed cleanly, original candidate profile restored during teardown).
+    - `scripts/verify-operational-acceptance.ts`: PASSED (Real UI, ATS fixture submission, crash invariants passed, original candidate profile restored during teardown).
+    - Database Profile Audit: `Asadbek Makhmudov | Project Manager | Warsaw, Poland` verified preserved.

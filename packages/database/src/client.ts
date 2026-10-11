@@ -9,11 +9,12 @@ let dbInstance: NodePgDatabase<typeof schema> | null = null;
 
 export function getDbPool(connectionString?: string): pg.Pool {
   if (!pool) {
-    if (!connectionString) {
+    const connStr = connectionString || process.env.DATABASE_URL;
+    if (!connStr) {
       throw new Error('DATABASE_URL is not configured');
     }
     pool = new Pool({
-      connectionString,
+      connectionString: connStr,
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,

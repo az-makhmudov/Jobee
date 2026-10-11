@@ -8,12 +8,12 @@
 
 ## 1. Roadmap Snapshot
 
-- **Current Official Roadmap Milestone:** Production & Private-Pilot Operational Readiness
-- **Milestone Name:** Operational Readiness & Stabilization Hardening
-- **Milestone Status:** COMPLETED
-- **Previous Completed Milestone:** `JOB-P0-T01-CLEANUP` (Git History Security Cleanup & Sensitive SQL Purge)
-- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION COMPLETE**
-- **Last Successful Git Checkpoint:** `696b1cc` (`feat(platform): harden operational readiness, unblock approvals and fact verification (JOB-P0-T01)`)
+- **Current Official Roadmap Milestone:** Production Readiness & Security Enforcement
+- **Milestone Name:** Backend Authorization Enforcement & Safety Boundary Hardening
+- **Milestone Status:** COMPLETED (LOCAL CHECKPOINT)
+- **Previous Completed Milestone:** `JOB-P0-T01-STABILIZATION` (Autonomous Stabilization & Readiness Hardening)
+- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION & BACKEND AUTHORIZATION HARDENING COMPLETE**
+- **Active Git Checkpoint:** Pending local commit (`feat(security): enforce backend authorization for submissions and approvals (JOB-PROD-01)`)
 
 ---
 
@@ -37,7 +37,8 @@
 | `JOB-P0-T01`               | Jobee Foundation, Rebrand & Private GitHub Repo Setup             | COMPLETED     | `4f932fe`                                        |
 | `JOB-P0-T01-REMEDIATION`   | Post-Migration Security & CI Remediation                          | COMPLETED     | `442fa23`                                        |
 | `JOB-P0-T01-CLEANUP`       | Git History Security Cleanup & Sensitive SQL Purge                | COMPLETED     | `1b62e69`                                        |
-| `JOB-P0-T01-STABILIZATION` | Autonomous Stabilization & Readiness Hardening                    | **COMPLETED** | `696b1cc`                                        |
+| `JOB-P0-T01-STABILIZATION` | Autonomous Stabilization & Readiness Hardening                    | COMPLETED     | `696b1cc`                                        |
+| `JOB-PROD-01`              | Backend Authorization, Submission Guardrails & Profile Sandbox    | **COMPLETED** | Local Checkpoint (`JOB-PROD-01`)                 |
 
 ---
 
@@ -73,6 +74,12 @@
    - Studio Package: ATS-compliant Tailored CV DOCX (10,573 bytes) and Cover Letter DOCX (10,252 bytes) generated and verified.
    - Human Approvals: 3 sensitive/custom questions routed to human review inbox, human approval authorized via API, transitioning package to `READY`.
    - CRM Lifecycle: Tracked in CRM (`status: READY_TO_APPLY`).
+
+6. **Backend Authorization & Verification Guardrails (`JOB-PROD-01`)**:
+   - **Strict Pre-Creation Authorization in `BrowserWorkerService`**: In `SUBMIT` mode, requests require either `policy.autoApplyEnabled: true` or explicit `input.userConfirmed: true` (rejects with `403 Forbidden`). Enforced that the associated Application Package exists and is in `READY` status (rejects with `400 Bad Request`), matching policy blockers are overridden, and all package approvals are resolved by the candidate (`resolvedBy === 'USER'`).
+   - **Autonomous Orchestrator Submission Guardrails**: In `runAutoApplyStage`, auto-application is blocked if the package is missing or not in `READY` status, if policy blockers are active, or if any package approval is unresolved or resolved by automation (`resolvedBy !== 'USER'`).
+   - **CRM Status Auto-Synchronization**: `ApplicationPackageService.refreshPackageReadiness` automatically transitions linked CRM application to `NEEDS_REVIEW` whenever package readiness degrades to `NEEDS_REVIEW`.
+   - **Test Profile Sandbox Preservation**: Hardened `scripts/verify-pilot-readiness.ts` and `scripts/verify-operational-acceptance.ts` to capture the candidate profile before testing and restore `Asadbek Makhmudov` faithfully during teardown, preventing test mutations from overwriting the candidate's real profile.
 
 ---
 

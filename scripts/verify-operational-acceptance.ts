@@ -100,6 +100,7 @@ async function main() {
   let failuresCount = 0;
   let browser: Browser | null = null;
   let page: Page | null = null;
+  let initialProfile: any = null;
 
   try {
     // -------------------------------------------------------------------------
@@ -117,6 +118,10 @@ async function main() {
       throw new Error(`API database connectivity probe failed: ${JSON.stringify(readyProbe)}`);
     }
     console.log(`✓ PostgreSQL database connection confirmed healthy`);
+
+    // Save initial candidate profile to restore during teardown
+    const initialProfileRes = await apiFetch('/candidate/profile');
+    initialProfile = initialProfileRes.data?.data;
 
     // Ensure candidate profile exists
     await apiFetch('/candidate/profile', {
@@ -682,6 +687,25 @@ async function main() {
     if (ctx.createdAnswerIds.length > 0) {
       console.log(`✓ Cleaning up ${ctx.createdAnswerIds.length} test answer(s)...`);
       await db.delete(answerLibrary).where(inArray(answerLibrary.id, ctx.createdAnswerIds));
+    }
+
+    if (initialProfile) {
+      console.log('✓ Restoring original candidate profile...');
+      await apiFetch('/candidate/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          preferredName: initialProfile.preferredName,
+          fullName: initialProfile.fullName,
+          headline: initialProfile.headline,
+          email: initialProfile.email,
+          phone: initialProfile.phone,
+          city: initialProfile.city,
+          region: initialProfile.region,
+          country: initialProfile.country,
+          summary: initialProfile.summary,
+          availability: initialProfile.availability,
+        }),
+      });
     }
 
     console.log('✓ Teardown complete. Zero database orphans left.');

@@ -9,6 +9,7 @@ export const startBrowserRunSchema = z.object({
     .default(BrowserRunMode.DRY_RUN),
   packageVersionId: z.string().uuid().optional(),
   headless: z.boolean().optional().default(true),
+  userConfirmed: z.boolean().optional(),
 });
 
 export const applicationRunParamsSchema = z.object({

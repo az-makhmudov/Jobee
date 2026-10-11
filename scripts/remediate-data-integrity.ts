@@ -9,6 +9,8 @@ import {
   applications,
   jobs,
   eq,
+  ne,
+  and,
 } from '@job-agent/database';
 import { getConfig } from '@job-agent/config';
 
@@ -82,7 +84,10 @@ async function main() {
   // 4. Invalidate Untrusted Approvals & Questions
   console.log('4. Invalidating untrusted approvals and resetting questions...');
   const packageId = 'd3ca7301-7f6e-441a-9b15-fb9d0e5a4923';
-  const updatedApprovals = await db
+  const activeVersionId = 'fb860ac5-6f15-4778-8357-79f7555990c9';
+
+  // Active version approvals require user reconfirmation
+  const updatedActiveApprovals = await db
     .update(approvalRequests)
     .set({
       status: 'NEEDS_USER_RECONFIRMATION',
@@ -90,10 +95,33 @@ async function main() {
       resolvedAt: null,
       updatedAt: new Date(),
     })
-    .where(eq(approvalRequests.packageId, packageId))
+    .where(
+      and(
+        eq(approvalRequests.packageId, packageId),
+        eq(approvalRequests.versionId, activeVersionId),
+      ),
+    )
     .returning();
+
+  // Superseded versions are marked CANCELLED
+  const cancelledSupersededApprovals = await db
+    .update(approvalRequests)
+    .set({
+      status: 'CANCELLED',
+      resolvedBy: null,
+      resolvedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(approvalRequests.packageId, packageId),
+        ne(approvalRequests.versionId, activeVersionId),
+      ),
+    )
+    .returning();
+
   console.log(
-    `✓ Reverted ${updatedApprovals.length} approval requests to NEEDS_USER_RECONFIRMATION.`,
+    `✓ Reverted ${updatedActiveApprovals.length} active approval requests to NEEDS_USER_RECONFIRMATION, cancelled ${cancelledSupersededApprovals.length} superseded requests.`,
   );
 
   const updatedQuestions = await db
