@@ -10,6 +10,7 @@ export const startBrowserRunSchema = z.object({
   packageVersionId: z.string().uuid().optional(),
   headless: z.boolean().optional().default(true),
   userConfirmed: z.boolean().optional(),
+  submissionToken: z.string().optional(),
 });
 
 export const applicationRunParamsSchema = z.object({

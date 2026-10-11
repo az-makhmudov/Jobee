@@ -9,11 +9,11 @@
 ## 1. Roadmap Snapshot
 
 - **Current Official Roadmap Milestone:** Production Readiness & Security Enforcement
-- **Milestone Name:** Backend Authorization Enforcement & Safety Boundary Hardening
+- **Milestone Name:** Cryptographic Manifest-Bound Submission Authorization & Ingestion Verification
 - **Milestone Status:** COMPLETED (LOCAL CHECKPOINT)
-- **Previous Completed Milestone:** `JOB-P0-T01-STABILIZATION` (Autonomous Stabilization & Readiness Hardening)
-- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION & BACKEND AUTHORIZATION HARDENING COMPLETE**
-- **Active Git Checkpoint:** `904c19f` (`feat(security): enforce backend authorization for submissions and approvals (JOB-PROD-01)`)
+- **Previous Completed Milestone:** `JOB-PROD-01` (Backend Authorization Enforcement & Safety Boundary Hardening)
+- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 5) + STABILIZATION & BACKEND CRYPTOGRAPHIC SUBMISSION HARDENING COMPLETE**
+- **Active Git Checkpoint:** In Progress (`feat(security): enforce cryptographic manifest-bound submission authorization (JOB-PROD-02)`)
 
 ---
 
@@ -38,7 +38,8 @@
 | `JOB-P0-T01-REMEDIATION`   | Post-Migration Security & CI Remediation                          | COMPLETED     | `442fa23`                                        |
 | `JOB-P0-T01-CLEANUP`       | Git History Security Cleanup & Sensitive SQL Purge                | COMPLETED     | `1b62e69`                                        |
 | `JOB-P0-T01-STABILIZATION` | Autonomous Stabilization & Readiness Hardening                    | COMPLETED     | `696b1cc`                                        |
-| `JOB-PROD-01`              | Backend Authorization, Submission Guardrails & Profile Sandbox    | **COMPLETED** | `904c19f`                                        |
+| `JOB-PROD-01`              | Backend Authorization, Submission Guardrails & Profile Sandbox    | COMPLETED     | `904c19f`                                        |
+| `JOB-PROD-02`              | Cryptographic Manifest-Bound Submission Authorization             | **COMPLETED** | Local Checkpoint (`JOB-PROD-02`)                 |
 
 ---
 

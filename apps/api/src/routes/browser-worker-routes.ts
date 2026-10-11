@@ -1,6 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import type { CandidateService } from '../services/candidate-service.js';
 import { BrowserWorkerService } from '../services/browser-worker/browser-worker-service.js';
+import { SubmissionAuthorizationService } from '../services/browser-worker/submission-authorization-service.js';
+import { AppError } from '@job-agent/shared';
 import {
   startBrowserRunSchema,
   applicationRunParamsSchema,
@@ -48,6 +50,30 @@ export function createBrowserWorkerRoutes(candidateService: CandidateService): F
       return {
         status: 'ok',
         data: run,
+        timestamp: new Date().toISOString(),
+      };
+    });
+
+    // 4. Request cryptographic submission authorization ticket
+    app.post('/applications/:id/submission-authorization', async (req: any) => {
+      const userId = await getUserId();
+      const params = applicationRunParamsSchema.parse(req.params);
+
+      const isAutomation =
+        req.headers['x-automation-agent'] === 'true' || req.headers['x-script-runner'] === 'true';
+      if (isAutomation && !req.headers['x-human-confirmation']) {
+        throw AppError.forbidden(
+          'Automated agents cannot request submission authorization. Explicit candidate interaction is required.',
+        );
+      }
+
+      const ticket = await SubmissionAuthorizationService.createSubmissionAuthorizationTicket(
+        userId,
+        params.id,
+      );
+      return {
+        status: 'ok',
+        data: ticket,
         timestamp: new Date().toISOString(),
       };
     });

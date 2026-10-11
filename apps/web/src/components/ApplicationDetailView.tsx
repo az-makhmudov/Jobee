@@ -109,7 +109,17 @@ export function ApplicationDetailView({
     try {
       setStartingRun(true);
       setRunError(null);
-      const newRun = await BrowserWorkerClient.startBrowserRun(applicationId, { mode });
+
+      let submissionToken: string | undefined;
+      if (mode === BrowserRunMode.SUBMIT) {
+        const ticket = await BrowserWorkerClient.requestSubmissionAuthorization(applicationId);
+        submissionToken = ticket.submissionToken;
+      }
+
+      const newRun = await BrowserWorkerClient.startBrowserRun(applicationId, {
+        mode,
+        submissionToken,
+      });
       setSelectedRun(newRun);
       setShowRunModal(true);
       await loadBrowserRuns();

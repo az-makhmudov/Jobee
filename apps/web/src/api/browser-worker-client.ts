@@ -1,6 +1,7 @@
 import {
   type BrowserApplicationRunDto,
   type StartBrowserRunRequest,
+  type SubmissionAuthorizationTicketDto,
   BrowserRunMode,
 } from '@job-agent/shared';
 
@@ -53,6 +54,28 @@ export class BrowserWorkerClient {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err?.error?.message || `Failed to fetch browser run: HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.data;
+  }
+
+  /**
+   * Request cryptographic submission authorization ticket for an application.
+   */
+  static async requestSubmissionAuthorization(
+    applicationId: string,
+  ): Promise<SubmissionAuthorizationTicketDto> {
+    const res = await fetch(`${API_BASE}/applications/${applicationId}/submission-authorization`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(
+        err?.error?.message || `Failed to obtain submission authorization: HTTP ${res.status}`,
+      );
     }
 
     const data = await res.json();

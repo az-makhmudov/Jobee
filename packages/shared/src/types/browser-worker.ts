@@ -158,4 +158,22 @@ export interface StartBrowserRunRequest {
   packageVersionId?: string;
   headless?: boolean;
   userConfirmed?: boolean;
+  submissionToken?: string;
+}
+
+export interface SubmissionAuthorizationTicketDto {
+  submissionToken: string;
+  manifestChecksum: string;
+  packageVersionId: string;
+  expiresAt: string;
+  applicationId: string;
+  jobTitle: string;
+  company: string;
+  artifacts: {
+    cvArtifactId?: string;
+    cvChecksum?: string;
+    coverLetterArtifactId?: string;
+    coverLetterChecksum?: string;
+  };
+  answersCount: number;
 }

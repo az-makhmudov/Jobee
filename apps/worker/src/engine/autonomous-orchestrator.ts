@@ -386,8 +386,9 @@ export class AutonomousOrchestrator {
           .values({
             jobId: job.id,
             userId,
-            status: 'READY_TO_APPLY',
-            notes: 'Automatically prepared by Autonomous Orchestrator',
+            status: 'NEEDS_REVIEW',
+            notes:
+              'Automatically prepared by Autonomous Orchestrator. Requires material tailoring and human approval before applying.',
           })
           .returning({ id: applications.id });
 

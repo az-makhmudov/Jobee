@@ -702,3 +702,34 @@ This document tracks execution history and verification state for all official m
     - `scripts/verify-pilot-readiness.ts`: PASSED (11/11 sections passed cleanly, original candidate profile restored during teardown).
     - `scripts/verify-operational-acceptance.ts`: PASSED (Real UI, ATS fixture submission, crash invariants passed, original candidate profile restored during teardown).
     - Database Profile Audit: `Asadbek Makhmudov | Project Manager | Warsaw, Poland` verified preserved.
+
+---
+
+### `JOB-PROD-02` — Cryptographic Manifest-Bound Submission Authorization & Ingestion Hardening
+
+- **Status**: COMPLETED (LOCAL CHECKPOINT)
+- **Completed**: 2026-10-11
+- **Scope**:
+  - **1. Cryptographic Manifest-Bound Submission Authorization (`SubmissionAuthorizationService`)**:
+    - Created `apps/api/src/services/browser-worker/submission-authorization-service.ts`.
+    - Implemented `computeManifestChecksum`: binds `packageVersionId`, SHA-256 checksum of tailored CV, SHA-256 checksum of cover letter, and sorted canonical list of approved questions and `finalAnswer` values into a SHA-256 hash.
+    - Implemented `issueSubmissionAuthorization`: generates base64url signed token with HMAC-SHA256 containing candidate identity (`sub`), `appId`, `pkgVerId`, manifest checksum (`mHash`), issued timestamp (`iat`), and expiration (`exp`, 15-minute validity).
+    - Implemented `verifySubmissionAuthorization`: validates HMAC-SHA256 signature, enforces token expiration, prevents cross-candidate usage (`sub === userId`), recomputes manifest hash from live database records, and rejects any submission where files or answers were altered after human approval.
+  - **2. Browser Worker Submission Gate Enforcement**:
+    - Guarded `POST /browser-runs` in `BrowserWorkerService.createBrowserRun`:
+      - In `SUBMIT` mode, if `policy.autoApplyEnabled` is false, strictly requires a verified `submissionToken`.
+      - External spoofing via `userConfirmed: true` without a valid token is blocked with `403 FORBIDDEN`.
+      - Exposes new endpoint `POST /applications/:id/submission-authorization` in `apps/api/src/routes/browser-worker-routes.ts`.
+  - **3. Frontend Client & UI Integration**:
+    - Added `requestSubmissionAuthorization` in `apps/web/src/api/browser-worker-client.ts`.
+    - Updated `apps/web/src/components/ApplicationDetailView.tsx`: triggers authorization ticket issuance prior to dispatching browser run in `SUBMIT` mode.
+  - **4. Orchestrator Preparation Status Integrity**:
+    - Updated `runPreparationStage` in `apps/worker/src/engine/autonomous-orchestrator.ts`: transitions newly generated application packages to `NEEDS_REVIEW` rather than premature `READY_TO_APPLY`.
+- **Verification Records**:
+  - `npm run db:check`: PASSED (PostgreSQL connected, 18ms latency).
+  - `npm run db:migrate`: PASSED (15 migrations up to date).
+  - `npm run typecheck`: PASSED (0 errors across all 6 workspaces).
+  - `npm run lint`: PASSED (0 errors across codebase).
+  - `npm run test`: PASSED (36 test files, 271/271 tests passed, including `submission-authorization-service.test.ts`).
+  - `npm run build`: PASSED (All 6 workspaces built cleanly including Vite web bundle).
+  - `npm run format`: PASSED (Prettier checked across entire repository).

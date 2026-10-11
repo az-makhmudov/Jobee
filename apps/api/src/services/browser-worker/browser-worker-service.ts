@@ -4,8 +4,6 @@ import {
   applications,
   jobs,
   applicationPolicy,
-  applicationPackages,
-  approvalRequests,
   browserApplicationRuns,
   type BrowserApplicationRun,
 } from '@job-agent/database';
@@ -17,6 +15,7 @@ import {
   type BrowserApplicationRunDto,
   type StartBrowserRunRequest,
 } from '@job-agent/shared';
+import { SubmissionAuthorizationService } from './submission-authorization-service.js';
 
 export class BrowserWorkerService {
   /**
@@ -76,6 +75,9 @@ export class BrowserWorkerService {
     const atsProvider = this.inferAtsProvider(targetUrl);
     const mode = input.mode ?? BrowserRunMode.DRY_RUN;
 
+    let verifiedManifestChecksum: string | null = null;
+    let verifiedVersionId: string | null = null;
+
     // Strict Backend Authorization Guard for SUBMIT mode
     if (mode === BrowserRunMode.SUBMIT) {
       const [policy] = await db
@@ -84,60 +86,33 @@ export class BrowserWorkerService {
         .where(eq(applicationPolicy.userId, userId))
         .limit(1);
 
-      if (!policy?.autoApplyEnabled && !input.userConfirmed) {
-        throw AppError.forbidden(
-          'Automated submission is blocked: Direct external submission requires explicit candidate confirmation or autoApplyEnabled authorization.',
+      if (policy?.autoApplyEnabled) {
+        // Mode A: Autonomous auto-apply path (candidate authorized autoApply in settings)
+        const { manifest } = await SubmissionAuthorizationService.buildManifest(
+          userId,
+          applicationId,
+          db,
         );
-      }
+        verifiedManifestChecksum = manifest.manifestChecksum;
+        verifiedVersionId = manifest.packageVersionId;
+      } else {
+        // Mode B: Supervised/Manual submission path
+        // Invariant: MUST provide cryptographic submissionToken bound to the approved package manifest.
+        // A simple userConfirmed=true boolean without a valid token is REJECTED.
+        if (!input.submissionToken) {
+          throw AppError.forbidden(
+            'Automated submission is blocked: Direct external submission requires a cryptographic human submission authorization token bound to the approved package manifest. Raw unverified boolean confirmation is rejected.',
+          );
+        }
 
-      // Verify associated Application Package
-      const packageId = appRecord.application.currentPackageId;
-      const [pkg] = packageId
-        ? await db
-            .select()
-            .from(applicationPackages)
-            .where(eq(applicationPackages.id, packageId))
-            .limit(1)
-        : await db
-            .select()
-            .from(applicationPackages)
-            .where(
-              and(
-                eq(applicationPackages.jobId, appRecord.application.jobId),
-                eq(applicationPackages.userId, userId),
-              ),
-            )
-            .limit(1);
-
-      if (!pkg || pkg.status !== 'READY') {
-        throw AppError.badRequest(
-          `Cannot execute browser submission: Application package is not ready (status: ${pkg?.status ?? 'MISSING'}). Human preparation and review required.`,
+        const manifest = await SubmissionAuthorizationService.verifySubmissionAuthorization(
+          userId,
+          applicationId,
+          input.submissionToken,
+          db,
         );
-      }
-
-      if (pkg.hasPolicyBlocker && !pkg.blockerOverridden) {
-        throw AppError.badRequest(
-          'Cannot execute browser submission: Job matching has active hard policy blocker not overridden by candidate.',
-        );
-      }
-
-      // Verify all package approvals are resolved by human user
-      const pkgApprovals = await db
-        .select()
-        .from(approvalRequests)
-        .where(eq(approvalRequests.packageId, pkg.id));
-
-      const unverified = pkgApprovals.filter(
-        (a) =>
-          a.status === 'PENDING' ||
-          a.status === 'NEEDS_USER_RECONFIRMATION' ||
-          ((a.status === 'APPROVED' || a.status === 'RESOLVED') && a.resolvedBy !== 'USER'),
-      );
-
-      if (unverified.length > 0) {
-        throw AppError.badRequest(
-          `Cannot execute browser submission: ${unverified.length} approval request(s) require human authorization or reconfirmation.`,
-        );
+        verifiedManifestChecksum = manifest.manifestChecksum;
+        verifiedVersionId = manifest.packageVersionId;
       }
     }
 
@@ -146,7 +121,9 @@ export class BrowserWorkerService {
 
     const initialStepLog = {
       step: 'QUEUED',
-      action: `Application form run queued in ${mode} mode for ${atsProvider} (${targetUrl})`,
+      action: verifiedManifestChecksum
+        ? `Application form run queued in ${mode} mode for ${atsProvider} (${targetUrl}) [Manifest: ${verifiedManifestChecksum.slice(0, 12)}...]`
+        : `Application form run queued in ${mode} mode for ${atsProvider} (${targetUrl})`,
       timestamp: now.toISOString(),
       status: 'OK',
     };
@@ -158,7 +135,11 @@ export class BrowserWorkerService {
         applicationId,
         userId,
         packageVersionId:
-          input.packageVersionId ?? appRecord.application.submittedPackageVersionId ?? null,
+          verifiedVersionId ??
+          input.packageVersionId ??
+          appRecord.application.submittedPackageVersionId ??
+          appRecord.application.currentPackageId ??
+          null,
         atsProvider,
         targetUrl,
         mode,
