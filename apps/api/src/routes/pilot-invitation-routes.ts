@@ -3,10 +3,14 @@ import { z } from 'zod';
 import { AppError } from '@job-agent/shared';
 import type { Database } from '@job-agent/database';
 import { PilotInvitationService } from '../services/auth/pilot-invitation-service.js';
+import type { AppConfig } from '@job-agent/config';
+import type { TransactionalEmailService } from '../services/email/transactional-email-service.js';
 
 export interface PilotInvitationRoutesOptions {
   db: Database;
   invitationService?: PilotInvitationService;
+  emailService?: TransactionalEmailService;
+  config?: AppConfig;
 }
 
 const createInviteSchema = z.object({
@@ -64,6 +68,22 @@ export const pilotInvitationRoutes: FastifyPluginAsync<PilotInvitationRoutesOpti
         inviterUserId: adminUserId,
         ...parseResult.data,
       });
+
+      // Automatically dispatch invitation email if recipient email is specified
+      if (parseResult.data.invitedEmail && options.emailService) {
+        try {
+          const clientBaseUrl = options.config?.BETTER_AUTH_URL || 'http://localhost:5173';
+          const inviteUrl = `${clientBaseUrl}/?invite=${encodeURIComponent(invitation.code)}`;
+          await options.emailService.sendInvitationEmail(
+            parseResult.data.invitedEmail,
+            invitation.code,
+            inviteUrl,
+            req.user?.name || 'The Jobee Team',
+          );
+        } catch (err) {
+          req.log.warn({ err }, 'Failed to deliver pilot invitation email');
+        }
+      }
 
       return reply.status(201).send({
         status: 'success',

@@ -141,12 +141,13 @@ const authPluginCallback: FastifyPluginAsync<AuthPluginOptions> = async (fastify
         throw AppError.unauthorized('Authentication required to access this resource');
       }
       const testUserId = request.headers['x-test-user-id'] as string;
+      const isPrimaryAdmin = !testUserId || testUserId === '00000000-0000-0000-0000-000000000001';
       const testUserRole =
-        (request.headers['x-test-user-role'] as string) || (testUserId ? 'user' : 'admin');
+        (request.headers['x-test-user-role'] as string) || (isPrimaryAdmin ? 'admin' : 'user');
       request.user = {
         id: testUserId || '00000000-0000-0000-0000-000000000001',
-        name: testUserId ? 'Test User' : 'Asadbek Makhmudov',
-        email: testUserId ? 'test@example.com' : 'asadbek.mzw@gmail.com',
+        name: isPrimaryAdmin ? 'Asadbek Makhmudov' : 'Test User',
+        email: isPrimaryAdmin ? 'asadbek.mzw@gmail.com' : 'test@example.com',
         role: testUserRole,
         emailVerified: true,
       };

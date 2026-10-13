@@ -871,3 +871,50 @@ This document tracks execution history and verification state for all official m
   - `scripts/verify-pilot-readiness.ts`: PASSED (11/11 sections passed cleanly with 0 failures, 100% clean teardown).
   - `scripts/verify-operational-acceptance.ts`: PASSED (Real Playwright Chromium driving React UI across all 10 views, ATS fixture submission, crash invariants, 100% clean teardown).
   - Primary Candidate Profile Audit: `Asadbek Makhmudov | asadbek.mzw@gmail.com | Role: admin` verified 100% intact in database with 14 skills, 2 certifications, and 6 quarantined facts.
+
+---
+
+### `JOB-PROD-05` — Multi-Tenant Isolation, Dynamic AI Configuration, Cloud Storage & Deep-Link Onboarding
+
+- **Status**: COMPLETED (LOCAL CHECKPOINT)
+- **Completed**: 2026-10-13
+- **Scope**:
+  - **1. Multi-Tenant Cross-User Isolation Penetration Suite (BL-01)**:
+    - Created `apps/api/src/routes/multi-tenant-isolation.test.ts` executing 17 targeted penetration attack attempts across two independent authenticated sessions.
+    - Verified strict boundary isolation on: candidate profile, documents, binary downloads, verified facts, private jobs, application packages, package versions, approval requests, CRM applications, CRM mutations, browser automation runs, calendar accounts, availability queries, and system notifications.
+    - 100% of cross-tenant access attempts rejected with `403 Forbidden` or `404 Not Found`.
+  - **2. Dynamic AI Provider Switching & DB Persistence (BL-02)**:
+    - Added `activeAiProvider` and `activeAiModel` columns to `application_policy` table (`packages/database/src/schema/application-policy.ts`).
+    - Created migration `0016_ai_provider_settings.sql` and updated journal; applied cleanly.
+    - Implemented `DynamicAiProvider` (`apps/api/src/ai/dynamic-ai-provider.ts`) implementing `AiProvider` and dynamically routing calls to the user's active provider (`gemini`, `openai`, `disabled`) with model override.
+    - Added `POST /api/settings/ai` and updated `GET /api/settings/ai` with Zod schema validation, credential checks, and database persistence.
+    - Enhanced `apps/web/src/components/SettingsView.tsx` with dynamic model selector dropdown, active provider switcher, and "Save AI Configuration" button.
+    - All 9 integration tests in `apps/api/src/routes/settings-routes.test.ts` pass cleanly.
+  - **3. Transactional Invitation Emails & Deep-Link Onboarding (BL-03)**:
+    - Added `sendInvitationEmail(to, code, inviteUrl, inviterName)` to `apps/api/src/services/email/transactional-email-service.ts` with Jobee branding and deep-link generation.
+    - Added `findValidInvitationByEmail` to `PilotInvitationService`.
+    - Updated `databaseHooks.user.create.before` in `apps/api/src/auth/better-auth-instance.ts` to automatically validate invitations by email for Google Sign-In and email sign-up without manual code entry.
+    - Wired invitation email dispatch into `POST /api/pilot/invitations` when `invitedEmail` is specified.
+    - Updated `apps/web/src/App.tsx` and `AuthModal.tsx` to detect `?invite=<CODE>` query parameters, cache in `sessionStorage`, and auto-open `AuthModal` in prefilled signup mode.
+    - Added `apps/api/src/routes/pilot-invitation-routes.test.ts` (10 tests, all passing).
+  - **4. Document Storage Abstraction (S3 / R2 Cloud Ready) (BL-04)**:
+    - Added storage config schema (`STORAGE_BACKEND`, `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`) in `packages/config/src/env.ts` and `.env.example`.
+    - Implemented `S3StorageProvider` in `apps/api/src/storage/s3-storage.ts` using zero-dependency AWS Signature Version 4 (AWS4-HMAC-SHA256) signing for broad S3/Cloudflare R2/MinIO compatibility.
+    - Implemented `createStorageProvider(config)` factory in `apps/api/src/storage/index.ts` and wired into `apps/api/src/app.ts`.
+    - Created `apps/api/src/storage/s3-storage.test.ts` (9 tests, all passing).
+  - **5. Production Single-Port Static Web Assets Serving (BL-05)**:
+    - Updated `apps/api/src/app.ts` to resolve `apps/web/dist` across Docker and monorepo working directories.
+    - Created `apps/api/src/routes/production-static-serving.test.ts` (4 tests, all passing).
+  - **6. Full Multi-User End-to-End Workflow Validation (BL-06)**:
+    - Created `scripts/verify-multi-user-e2e.ts` validating complete lifecycle: Primary Admin -> Invitation Creation -> Email Dispatch -> Tester Onboarding -> Isolated Resource Creation -> Zero Cross-Tenant Visibility -> Dynamic AI Switching -> Clean Teardown.
+- **Verification Records**:
+  - `npm run db:check`: PASSED (PostgreSQL connected, 37ms latency).
+  - `npm run db:migrate`: PASSED (17 migrations up to date).
+  - `npm run typecheck`: PASSED (0 errors across all 6 workspaces).
+  - `npm run lint`: PASSED (0 errors across codebase).
+  - `npm test`: PASSED (43 test files, 329/329 tests passed in 19.43s).
+  - `npm run build`: PASSED (API, Worker, Config, Shared, Database, and Web SPA bundle compile cleanly).
+  - `npm run format`: PASSED (All files formatted cleanly).
+  - `scripts/verify-multi-user-e2e.ts`: PASSED (All steps passed, 0 orphans left).
+  - Primary Candidate Profile Audit: `Asadbek Makhmudov | asadbek.mzw@gmail.com | Role: admin` verified 100% intact in database with 14 skills, 2 certifications, and 6 quarantined facts.
+

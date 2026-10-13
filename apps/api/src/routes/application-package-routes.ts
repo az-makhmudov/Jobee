@@ -20,11 +20,9 @@ export function createApplicationPackageRoutes(
   _candidateService?: CandidateService,
 ): FastifyPluginAsync {
   return async (app) => {
-    const getUserId = async (req?: any) => requireCurrentUserId(req);
-
     // 1. Create Package from Job
     app.post('/jobs/:jobId/application-package', async (req: any, reply) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { jobId } = req.params;
       const body = createPackageSchema.parse(req.body || {});
 
@@ -38,8 +36,8 @@ export function createApplicationPackageRoutes(
     });
 
     // 2. Metrics
-    app.get('/application-packages/metrics', async () => {
-      const userId = await getUserId();
+    app.get('/application-packages/metrics', async (req: any) => {
+      const userId = requireCurrentUserId(req);
       const metrics = await service.getMetrics(userId);
       return {
         status: 'ok',
@@ -50,7 +48,7 @@ export function createApplicationPackageRoutes(
 
     // 3. List Packages
     app.get('/application-packages', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { status, jobId } = req.query as { status?: string; jobId?: string };
       const packages = await service.listPackages(userId, { status, jobId });
       return {
@@ -62,7 +60,7 @@ export function createApplicationPackageRoutes(
 
     // 4. Get Package Details
     app.get('/application-packages/:id', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const result = await service.getPackage(id, userId);
       return {
@@ -74,7 +72,7 @@ export function createApplicationPackageRoutes(
 
     // 5. List Versions
     app.get('/application-packages/:id/versions', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const versions = await service.listVersions(id, userId);
       return {
@@ -86,7 +84,7 @@ export function createApplicationPackageRoutes(
 
     // 6. Regenerate Package (create new version)
     app.post('/application-packages/:id/regenerate', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = regeneratePackageSchema.parse(req.body || {});
       const result = await service.regeneratePackage(id, userId, body.manualBaseDocumentId);
@@ -99,7 +97,7 @@ export function createApplicationPackageRoutes(
 
     // 7. Update CV Summary
     app.put('/application-packages/:id/cv', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = updateCvSchema.parse(req.body);
       const updatedVersion = await service.updateCv(id, userId, body.summary);
@@ -112,7 +110,7 @@ export function createApplicationPackageRoutes(
 
     // 8. Update Cover Letter
     app.put('/application-packages/:id/cover-letter', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = updateCoverLetterSchema.parse(req.body);
       const updatedVersion = await service.updateCoverLetter(id, userId, body.content);
@@ -125,7 +123,7 @@ export function createApplicationPackageRoutes(
 
     // 9. Add Question
     app.post('/application-packages/:id/questions', async (req: any, reply) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = addQuestionSchema.parse(req.body);
       const newQuestion = await service.addQuestion(id, userId, body);
@@ -139,7 +137,7 @@ export function createApplicationPackageRoutes(
 
     // 10. Answer/Edit Question
     app.put('/application-packages/:id/questions/:questionId', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id, questionId } = req.params;
       const body = answerQuestionSchema.parse(req.body);
       const updatedQuestion = await service.answerQuestion(id, questionId, userId, body.answerText);
@@ -152,7 +150,7 @@ export function createApplicationPackageRoutes(
 
     // 11. Override Policy Blocker
     app.post('/application-packages/:id/override-blocker', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = overrideBlockerSchema.parse(req.body);
       const updatedPkg = await service.overrideBlocker(id, userId, body.reason);
@@ -165,7 +163,7 @@ export function createApplicationPackageRoutes(
 
     // 12. Download Artifact
     app.get('/application-packages/:id/artifacts/:artifactId/download', async (req: any, reply) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id, artifactId } = req.params;
       const fileData = await service.getArtifactFile(id, artifactId, userId);
 
@@ -177,7 +175,7 @@ export function createApplicationPackageRoutes(
 
     // 13. List Global Approvals
     app.get('/approvals', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { status } = req.query as { status?: string };
       const approvals = await service.listApprovals(userId, { status });
       return {
@@ -189,7 +187,7 @@ export function createApplicationPackageRoutes(
 
     // 14. Approve Request
     app.post('/approvals/:id/approve', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
 
       // Reject automated agent / script bypasses
@@ -213,7 +211,7 @@ export function createApplicationPackageRoutes(
 
     // 15. Reject Request
     app.post('/approvals/:id/reject', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const result = await service.rejectRequest(id, userId);
       return {

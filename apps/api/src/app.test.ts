@@ -26,6 +26,8 @@ const testConfig: AppConfig = {
   BETTER_AUTH_TRUSTED_ORIGINS: 'http://localhost:5173',
   SMTP_FROM: 'noreply@jobee.local',
   INVITE_ONLY_REGISTRATION: true,
+  STORAGE_BACKEND: 'local',
+  S3_REGION: 'auto',
 };
 
 describe('API Foundation', () => {

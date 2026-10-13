@@ -43,7 +43,9 @@ export function createReadyRoutes(config: AppConfig, aiProvider?: AiProvider): F
             provider: aiProviderName,
             isConfigured: isAiConfigured,
             model:
-              config.AI_MODEL || (config.AI_PROVIDER === 'gemini' ? 'gemini-2.5-flash' : 'none'),
+              (aiProvider as any)?.activeModel ||
+              config.AI_MODEL ||
+              (aiProviderName === 'gemini' ? 'gemini-2.5-flash' : 'none'),
             mode: aiMode,
           },
           integrations: {

@@ -66,6 +66,12 @@ export function SettingsView() {
     provider?: string;
   } | null>(null);
   const [selectedProviderId, setSelectedProviderId] = useState<string>('gemini');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash');
+  const [savingAi, setSavingAi] = useState<boolean>(false);
+  const [saveResult, setSaveResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
 
   const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
 
@@ -97,6 +103,9 @@ export function SettingsView() {
         if (aiJson.data?.activeProvider) {
           setSelectedProviderId(aiJson.data.activeProvider);
         }
+        if (aiJson.data?.activeModel && aiJson.data.activeModel !== 'none') {
+          setSelectedModel(aiJson.data.activeModel);
+        }
       }
     } catch (err) {
       setApiError(err instanceof Error ? err.message : 'Failed to reach API server');
@@ -104,6 +113,58 @@ export function SettingsView() {
       setReady(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveAiSettings = async () => {
+    setSavingAi(true);
+    setSaveResult(null);
+    try {
+      const res = await fetch(`${apiBaseUrl}/settings/ai`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          provider: selectedProviderId,
+          model: selectedModel,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'ok') {
+        setSaveResult({
+          success: true,
+          message:
+            data.message ||
+            `Successfully switched AI provider to ${selectedProviderId.toUpperCase()}`,
+        });
+        setAiSettings(data.data);
+        if (ready?.checks?.ai) {
+          setReady({
+            ...ready,
+            checks: {
+              ...ready.checks,
+              ai: {
+                provider: data.data.activeProvider,
+                isConfigured: data.data.isAvailable,
+                model: data.data.activeModel,
+                mode: data.data.mode,
+              },
+            },
+          });
+        }
+      } else {
+        setSaveResult({
+          success: false,
+          message: data.error?.message || 'Failed to save AI configuration',
+        });
+      }
+    } catch (err) {
+      setSaveResult({
+        success: false,
+        message: err instanceof Error ? err.message : 'Network error saving AI settings',
+      });
+    } finally {
+      setSavingAi(false);
     }
   };
 
@@ -333,7 +394,12 @@ export function SettingsView() {
               return (
                 <div
                   key={prov.id}
-                  onClick={() => setSelectedProviderId(prov.id)}
+                  onClick={() => {
+                    setSelectedProviderId(prov.id);
+                    if (prov.id === 'gemini') setSelectedModel('gemini-2.5-flash');
+                    else if (prov.id === 'openai') setSelectedModel('gpt-4o-mini');
+                    else setSelectedModel('none');
+                  }}
                   style={{
                     padding: '1rem',
                     borderRadius: '0.375rem',
@@ -392,6 +458,106 @@ export function SettingsView() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Interactive AI Runtime Configurator */}
+          <div
+            style={{
+              marginTop: '1.25rem',
+              padding: '1rem',
+              backgroundColor: 'rgba(15, 23, 42, 0.6)',
+              borderRadius: '0.375rem',
+              border: '1px solid var(--accent)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '1rem',
+              }}
+            >
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+                  ⚙️ Active Engine Configuration
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Selected Provider:{' '}
+                  <strong style={{ color: 'var(--text-primary)' }}>
+                    {selectedProviderId.toUpperCase()}
+                  </strong>
+                </div>
+              </div>
+
+              <div
+                style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Model:
+                  </label>
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    style={{
+                      padding: '0.4rem 0.65rem',
+                      borderRadius: '0.25rem',
+                      backgroundColor: 'var(--surface-color)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--surface-border)',
+                      fontSize: '0.85rem',
+                    }}
+                  >
+                    {selectedProviderId === 'gemini' && (
+                      <>
+                        <option value="gemini-2.5-flash">
+                          gemini-2.5-flash (Fast & Structured)
+                        </option>
+                        <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Multimodal)</option>
+                      </>
+                    )}
+                    {selectedProviderId === 'openai' && (
+                      <>
+                        <option value="gpt-4o-mini">gpt-4o-mini (Fast & Cost Efficient)</option>
+                        <option value="gpt-4o">gpt-4o (High Performance Reasoning)</option>
+                      </>
+                    )}
+                    {selectedProviderId === 'disabled' && (
+                      <option value="none">none (Offline Rule-Based Deterministic)</option>
+                    )}
+                  </select>
+                </div>
+
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleSaveAiSettings}
+                  disabled={savingAi}
+                >
+                  {savingAi ? 'Saving...' : 'Save AI Configuration'}
+                </button>
+              </div>
+            </div>
+
+            {saveResult && (
+              <div
+                style={{
+                  marginTop: '0.75rem',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '0.25rem',
+                  fontSize: '0.825rem',
+                  backgroundColor: saveResult.success
+                    ? 'rgba(16, 185, 129, 0.15)'
+                    : 'rgba(239, 68, 68, 0.15)',
+                  border: `1px solid ${saveResult.success ? '#10b981' : '#ef4444'}`,
+                  color: saveResult.success ? '#34d399' : '#f87171',
+                }}
+              >
+                {saveResult.success ? '✓ ' : '✗ '}
+                {saveResult.message}
+              </div>
+            )}
           </div>
         </div>
 

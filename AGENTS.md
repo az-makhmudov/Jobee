@@ -61,8 +61,11 @@ Canonical project context lives in `docs/` and root mirrors:
 - `docs/DATA_MODEL.md`: Schema, entity definitions, and relationship maps.
 - `docs/SECURITY.md`: Security controls, encryption envelopes, and threat models.
 - `docs/APPLICATION_POLICY.md` & `docs/AGENT_POLICY.md`: Policy engine and agent behavior limits.
+- `docs/PRODUCT_COMPLETION_DIRECTIVE.md`: The authoritative enduring product completion directive, autonomy boundaries, and acceptance criteria.
 - `docs/AUTONOMOUS_OPERATING_PLAN.md`: Autonomous development methodology and operating procedures.
 - `docs/AUTONOMOUS_STATE.md`: Real-time durable progress, blocker, and execution state tracker.
+- `docs/IMPLEMENTATION_BACKLOG.md`: Internal engineering backlog prioritized and maintained by the agent.
+- `docs/OWNER_ACTIONS_REQUIRED.md`: Consolidated external dependencies and required human approvals.
 - `docs/TASK_LOG.md`: Chronological milestone delivery audit and verification logs.
 
 ---

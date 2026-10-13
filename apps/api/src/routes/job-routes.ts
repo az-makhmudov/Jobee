@@ -19,12 +19,10 @@ export function createJobRoutes(
   discoveryService?: JobDiscoveryService,
 ): FastifyPluginAsync {
   return async (app) => {
-    const getUserId = async (req?: any) => requireCurrentUserId(req);
-
     // --- On-Demand Public Discovery ---
     app.post('/jobs/discover', async (req) => {
       if (!discoveryService) throw AppError.internal('Discovery service is not initialized');
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const options = (req.body as any) || {};
       const result = await discoveryService.discoverForCandidate(userId, options);
       return { status: 'ok', data: result, timestamp: new Date().toISOString() };
@@ -32,7 +30,7 @@ export function createJobRoutes(
 
     // --- Ingestion: Pasted Text ---
     const handleIngestText = async (req: any, reply: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const body = ingestTextSchema.parse(req.body);
       const result = await service.ingestText(userId, body);
 
@@ -53,7 +51,7 @@ export function createJobRoutes(
 
     // --- Ingestion: URL Import ---
     const handleIngestUrl = async (req: any, reply: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const body = ingestUrlSchema.parse(req.body);
       const result = await service.ingestUrl(userId, body);
 
@@ -73,15 +71,15 @@ export function createJobRoutes(
     app.post('/jobs/url', handleIngestUrl);
 
     // --- Dashboard Ingestion & Matching Metrics ---
-    app.get('/jobs/metrics', async () => {
-      const userId = await getUserId();
+    app.get('/jobs/metrics', async (req: any) => {
+      const userId = requireCurrentUserId(req);
       const metrics = await service.getDashboardMetrics(userId);
       return { status: 'ok', data: metrics, timestamp: new Date().toISOString() };
     });
 
     // --- Job Inbox Listing with Filtering & Pagination ---
     app.get('/jobs', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const query = jobListQuerySchema.parse(req.query);
       const result = await service.getJobs(userId, query);
       return { status: 'ok', data: result, timestamp: new Date().toISOString() };
@@ -90,7 +88,7 @@ export function createJobRoutes(
     // --- Batch Analyze Jobs ---
     app.post<{ Body?: unknown }>('/jobs/analyze', async (req) => {
       if (!matchService) throw AppError.internal('Match service is not initialized');
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const body = batchAnalyzeSchema.parse(req.body ?? {});
       const result = await matchService.batchAnalyzeJobs(userId, body);
       return { status: 'ok', data: result, timestamp: new Date().toISOString() };
@@ -98,14 +96,14 @@ export function createJobRoutes(
 
     // --- Job Detail ---
     app.get<{ Params: { id: string } }>('/jobs/:id', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const job = await service.getJobById(userId, req.params.id);
       return { status: 'ok', data: job, timestamp: new Date().toISOString() };
     });
 
     // --- Manual Edit / Correction ---
     app.put<{ Params: { id: string } }>('/jobs/:id', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const body = updateJobSchema.parse(req.body);
       const updated = await service.updateJob(userId, req.params.id, body);
       return { status: 'ok', data: updated, timestamp: new Date().toISOString() };
@@ -115,7 +113,7 @@ export function createJobRoutes(
     app.post<{ Params: { id: string }; Body?: { reason?: string } }>(
       '/jobs/:id/archive',
       async (req) => {
-        const userId = await getUserId();
+        const userId = requireCurrentUserId(req);
         const reason = (req.body as any)?.reason;
         const archived = await service.archiveJob(userId, req.params.id, reason);
         return { status: 'ok', data: archived, timestamp: new Date().toISOString() };
@@ -127,7 +125,7 @@ export function createJobRoutes(
       '/jobs/:id/analyze',
       async (req) => {
         if (!matchService) throw AppError.internal('Match service is not initialized');
-        const userId = await getUserId();
+        const userId = requireCurrentUserId(req);
         const body = analyzeJobSchema.parse(req.body ?? {});
         const analysis = await matchService.analyzeJob(req.params.id, userId, {
           force: body.force,
@@ -139,7 +137,7 @@ export function createJobRoutes(
     // --- Match Intelligence: Get Latest Job Analysis ---
     app.get<{ Params: { id: string } }>('/jobs/:id/analysis', async (req) => {
       if (!matchService) throw AppError.internal('Match service is not initialized');
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const analysis = await matchService.getJobAnalysis(req.params.id, userId);
       if (!analysis) {
         throw AppError.notFound(`No match analysis found for job ${req.params.id}`);
@@ -149,14 +147,14 @@ export function createJobRoutes(
 
     // --- Provenance & Sources ---
     app.get<{ Params: { id: string } }>('/jobs/:id/sources', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const job = await service.getJobById(userId, req.params.id);
       return { status: 'ok', data: job.sources || [], timestamp: new Date().toISOString() };
     });
 
     // --- Extracted Requirements ---
     app.get<{ Params: { id: string } }>('/jobs/:id/requirements', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const job = await service.getJobById(userId, req.params.id);
       return { status: 'ok', data: job.requirements || [], timestamp: new Date().toISOString() };
     });

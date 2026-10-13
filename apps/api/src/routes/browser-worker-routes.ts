@@ -14,11 +14,9 @@ export function createBrowserWorkerRoutes(
   _candidateService?: CandidateService,
 ): FastifyPluginAsync {
   return async (app) => {
-    const getUserId = async (req?: any) => requireCurrentUserId(req);
-
     // 1. Queue or trigger browser run for an application
     app.post('/applications/:id/browser-runs', async (req: any, reply) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const params = applicationRunParamsSchema.parse(req.params);
       const body = startBrowserRunSchema.parse(req.body ?? {});
 
@@ -33,7 +31,7 @@ export function createBrowserWorkerRoutes(
 
     // 2. List browser runs for an application
     app.get('/applications/:id/browser-runs', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const params = applicationRunParamsSchema.parse(req.params);
 
       const runs = await BrowserWorkerService.listBrowserRuns(userId, params.id);
@@ -46,7 +44,7 @@ export function createBrowserWorkerRoutes(
 
     // 3. Get specific browser run details and step logs
     app.get('/browser-runs/:runId', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const params = browserRunParamsSchema.parse(req.params);
 
       const run = await BrowserWorkerService.getBrowserRun(userId, params.runId);
@@ -59,7 +57,7 @@ export function createBrowserWorkerRoutes(
 
     // 4. Request cryptographic submission authorization ticket
     app.post('/applications/:id/submission-authorization', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const params = applicationRunParamsSchema.parse(req.params);
 
       const isAutomation =

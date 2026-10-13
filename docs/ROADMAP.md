@@ -110,3 +110,9 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
 
 - **Status**: COMPLETED
 - **Scope**: Strict multi-tenant route protection (`requireCurrentUserId`), pluggable AI providers (`GeminiAiProvider`, `OpenAiAiProvider`, `DisabledAiProvider`), settings UI with live connectivity diagnostics, and certified responsive mobile layouts.
+
+### `JOB-PROD-05 — Multi-Tenant Isolation, Dynamic AI Configuration, Cloud Storage & Deep-Link Onboarding`
+
+- **Status**: COMPLETED
+- **Scope**: Multi-tenant cross-user penetration testing suite (`multi-tenant-isolation.test.ts`), dynamic database-persisted AI provider selection with UI switching (`DynamicAiProvider`), transactional invitation email dispatch with deep-link URL onboarding (`?invite=...`), pluggable cloud document storage abstraction (`S3StorageProvider` with AWS4-HMAC-SHA256 signing), single-port production static asset serving verification, and full multi-user end-to-end workflow validation (`verify-multi-user-e2e.ts`).
+

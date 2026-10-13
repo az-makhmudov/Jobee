@@ -116,4 +116,36 @@ export class TransactionalEmailService {
 
     await this.sendEmail({ to, subject, html, text });
   }
+
+  /**
+   * Helper to send pilot invitation email.
+   */
+  async sendInvitationEmail(
+    to: string,
+    code: string,
+    inviteUrl: string,
+    inviterName: string = 'The Jobee Team',
+  ): Promise<void> {
+    const subject = "You're invited to the Jobee Private Pilot";
+    const html = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+        <h2 style="color: #111827; margin-bottom: 16px;">Welcome to Jobee Private Pilot</h2>
+        <p style="color: #374151; font-size: 16px; line-height: 24px;">
+          ${inviterName} has invited you to join the private pilot of <strong>Jobee</strong> — your personal AI job search partner.
+        </p>
+        <div style="background-color: #f3f4f6; padding: 16px; border-radius: 6px; margin: 20px 0; border: 1px solid #e5e7eb;">
+          <div style="font-size: 13px; color: #6b7280; margin-bottom: 4px;">Your Invitation Code:</div>
+          <code style="font-size: 18px; font-weight: 700; color: #1f2937; letter-spacing: 1px;">${code}</code>
+        </div>
+        <div style="margin: 28px 0;">
+          <a href="${inviteUrl}" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600; display: inline-block;">Get Started on Jobee</a>
+        </div>
+        <p style="color: #6b7280; font-size: 14px;">Or copy and paste this link into your browser:<br/><a href="${inviteUrl}">${inviteUrl}</a></p>
+        <p style="color: #9ca3af; font-size: 12px; margin-top: 32px;">This invitation was issued specifically for ${to}. If you were not expecting this, you can safely ignore this email.</p>
+      </div>
+    `;
+    const text = `Welcome to Jobee Private Pilot!\n\n${inviterName} has invited you to join Jobee.\n\nYour Invitation Code: ${code}\nGet Started: ${inviteUrl}\n\nThis invitation was issued specifically for ${to}.`;
+
+    await this.sendEmail({ to, subject, html, text });
+  }
 }

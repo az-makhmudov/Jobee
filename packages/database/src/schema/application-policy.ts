@@ -1,4 +1,4 @@
-import { pgTable, uuid, timestamp, boolean, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, timestamp, boolean, integer, text } from 'drizzle-orm/pg-core';
 import { users } from './users.js';
 
 export const applicationPolicy = pgTable('application_policy', {
@@ -14,6 +14,8 @@ export const applicationPolicy = pgTable('application_policy', {
   blockOnUnresolvedReview: boolean('block_on_unresolved_review').default(true).notNull(),
   blockOnManual: boolean('block_on_manual').default(true).notNull(),
   blockOnUnknownSensitive: boolean('block_on_unknown_sensitive').default(true).notNull(),
+  activeAiProvider: text('active_ai_provider').default('gemini').notNull(),
+  activeAiModel: text('active_ai_model').default('gemini-2.5-flash').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
     .defaultNow()

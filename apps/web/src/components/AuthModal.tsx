@@ -26,6 +26,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    try {
+      const storedInvite = sessionStorage.getItem('jobee_invite_code');
+      if (storedInvite && storedInvite.trim().length > 0) {
+        setInvitationCode(storedInvite.trim());
+        setMode('signup');
+        handleVerifyInvite(storedInvite.trim());
+      }
+    } catch {
+      // safe fallback
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleVerifyInvite = async (codeToVerify: string) => {

@@ -26,12 +26,11 @@ export function createEmailRoutes(options: {
   const { emailSyncService, emailReviewService, oauthStateService, tokenCryptoService } = options;
 
   return async (app) => {
-    const getUserId = async (req?: any) => requireCurrentUserId(req);
     const db = getDb();
 
     // 1. List connected email accounts
-    app.get('/email/accounts', async () => {
-      const userId = await getUserId();
+    app.get('/email/accounts', async (req: any) => {
+      const userId = requireCurrentUserId(req);
       const accounts = await db
         .select({
           id: emailAccounts.id,
@@ -64,7 +63,7 @@ export function createEmailRoutes(options: {
 
     // 2. Generate authorization URL for connecting account
     app.post('/email/accounts/connect-url', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const body = connectUrlSchema.parse(req.body || {});
       const state = await oauthStateService.generateState(userId, body.provider);
       const provider = emailSyncService.getProvider(body.provider);
@@ -83,7 +82,7 @@ export function createEmailRoutes(options: {
 
     // 3. Connect Fixture account directly for local demo / testing without external OAuth
     app.post('/email/accounts/fixture-connect', async (req, reply) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const body = fixtureConnectSchema.parse(req.body || {});
       const emailAddress = body.emailAddress || 'bek.fixture.candidate@example.com';
 
@@ -177,7 +176,7 @@ export function createEmailRoutes(options: {
 
     // 5. Trigger manual synchronization for an account
     app.post('/email/accounts/:accountId/sync', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const accountId = req.params.accountId;
       const body = syncAccountSchema.parse(req.body || {});
 
@@ -195,7 +194,7 @@ export function createEmailRoutes(options: {
 
     // 6. Disconnect / delete an email account
     app.delete('/email/accounts/:accountId', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const accountId = req.params.accountId;
       const purge = req.query?.purge === 'true';
 
@@ -245,8 +244,8 @@ export function createEmailRoutes(options: {
     });
 
     // 7. High-level dashboard statistics
-    app.get('/email/stats', async () => {
-      const userId = await getUserId();
+    app.get('/email/stats', async (req: any) => {
+      const userId = requireCurrentUserId(req);
       const stats = await emailSyncService.getStats(userId);
 
       return {
@@ -258,7 +257,7 @@ export function createEmailRoutes(options: {
 
     // 8. List ingested messages
     app.get('/email/messages', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const query = listMessagesQuerySchema.parse(req.query || {});
 
       const conditions = [eq(emailMessages.userId, userId)];
@@ -319,7 +318,7 @@ export function createEmailRoutes(options: {
 
     // 9. List pending email review items
     app.get('/email/review-queue', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const status = req.query?.status;
       const items = await emailReviewService.listReviewItems(userId, { status });
 
@@ -332,7 +331,7 @@ export function createEmailRoutes(options: {
 
     // 10. Resolve review item
     app.post('/email/review-queue/:id/resolve', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const reviewItemId = req.params.id;
       const body = resolveReviewItemSchema.parse(req.body);
 

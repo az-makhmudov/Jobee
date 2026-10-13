@@ -114,11 +114,20 @@ export function createBetterAuthInstance(
             const isOwnerEmail = user.email && user.email.toLowerCase() === 'asadbek.mzw@gmail.com';
 
             if (config.INVITE_ONLY_REGISTRATION && !isOwnerEmail) {
-              const code = user.invitationCode;
+              let code = user.invitationCode;
+              if (!code && user.email) {
+                // Check if user.email was explicitly invited in pilot_invitations (e.g. Google Sign-In onboarding)
+                const matchedInvite = await invites.findValidInvitationByEmail(user.email);
+                if (matchedInvite) {
+                  code = matchedInvite.code;
+                  user.invitationCode = matchedInvite.code;
+                }
+              }
+
               if (!code) {
                 throw new APIError('FORBIDDEN', {
                   message:
-                    'Jobee private pilot registration is by invitation only. Please provide a valid invitation code.',
+                    'Jobee private pilot registration is by invitation only. Please provide a valid invitation code or request an invite for your email address.',
                 });
               }
 

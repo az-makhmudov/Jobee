@@ -22,11 +22,9 @@ export function createApplicationCrmRoutes(
   _candidateService?: CandidateService,
 ): FastifyPluginAsync {
   return async (app) => {
-    const getUserId = async (req?: any) => requireCurrentUserId(req);
-
     // 1. Create or get application
     app.post('/applications', async (req: any, reply) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const body = createApplicationSchema.parse(req.body);
 
       const result = await ApplicationCrmService.createOrGetApplication(userId, body);
@@ -39,8 +37,8 @@ export function createApplicationCrmRoutes(
     });
 
     // 2. Metrics summary
-    app.get('/applications/metrics', async () => {
-      const userId = await getUserId();
+    app.get('/applications/metrics', async (req: any) => {
+      const userId = requireCurrentUserId(req);
       const metrics = await ApplicationCrmService.getMetrics(userId);
       return {
         status: 'ok',
@@ -50,8 +48,8 @@ export function createApplicationCrmRoutes(
     });
 
     // 3. Analytics (Funnel, Conversions, Time to Stage, Sources)
-    app.get('/applications/analytics', async () => {
-      const userId = await getUserId();
+    app.get('/applications/analytics', async (req: any) => {
+      const userId = requireCurrentUserId(req);
       const analytics = await ApplicationCrmService.getAnalytics(userId);
       return {
         status: 'ok',
@@ -62,7 +60,7 @@ export function createApplicationCrmRoutes(
 
     // 4. List applications
     app.get('/applications', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const query = listApplicationsQuerySchema.parse(req.query);
 
       const result = await ApplicationCrmService.listApplications(userId, query);
@@ -80,7 +78,7 @@ export function createApplicationCrmRoutes(
 
     // 5. Get application for specific job ID (helper for JobDetail / Studio)
     app.get('/jobs/:jobId/application', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { jobId } = req.params;
 
       const list = await ApplicationCrmService.listApplications(userId, { limit: 1 });
@@ -95,7 +93,7 @@ export function createApplicationCrmRoutes(
 
     // 6. Get single application detail
     app.get('/applications/:id', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
 
       const detail = await ApplicationCrmService.getApplicationDetail(userId, id);
@@ -108,7 +106,7 @@ export function createApplicationCrmRoutes(
 
     // 7. Transition status
     app.post('/applications/:id/transition', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = transitionStatusSchema.parse(req.body);
 
@@ -122,7 +120,7 @@ export function createApplicationCrmRoutes(
 
     // 8. Mark as applied
     app.post('/applications/:id/mark-applied', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = markAppliedSchema.parse(req.body || {});
 
@@ -136,7 +134,7 @@ export function createApplicationCrmRoutes(
 
     // 9. Update next action & follow-up
     app.put('/applications/:id/next-action', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = updateNextActionSchema.parse(req.body);
 
@@ -150,7 +148,7 @@ export function createApplicationCrmRoutes(
 
     // 9b. Archive application (soft-hide from pipeline)
     app.post('/applications/:id/archive', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
 
       const updated = await ApplicationCrmService.archiveApplication(userId, id);
@@ -163,7 +161,7 @@ export function createApplicationCrmRoutes(
 
     // 9c. Unarchive application (restore to pipeline)
     app.post('/applications/:id/unarchive', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
 
       const updated = await ApplicationCrmService.unarchiveApplication(userId, id);
@@ -176,7 +174,7 @@ export function createApplicationCrmRoutes(
 
     // 9d. Purge application (deliberate privacy/cleanup hard delete)
     app.delete('/applications/:id/purge', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
 
       const result = await ApplicationCrmService.purgeApplication(userId, id);
@@ -189,7 +187,7 @@ export function createApplicationCrmRoutes(
 
     // 10. Notes: Add note
     app.post('/applications/:id/notes', async (req: any, reply) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = addNoteSchema.parse(req.body);
 
@@ -204,7 +202,7 @@ export function createApplicationCrmRoutes(
 
     // 11. Notes: Delete note
     app.delete('/applications/:id/notes/:noteId', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id, noteId } = req.params;
 
       await ApplicationCrmService.deleteNote(userId, id, noteId);
@@ -217,7 +215,7 @@ export function createApplicationCrmRoutes(
 
     // 12. Contacts: Add contact
     app.post('/applications/:id/contacts', async (req: any, reply) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = createContactSchema.parse(req.body);
 
@@ -232,7 +230,7 @@ export function createApplicationCrmRoutes(
 
     // 13. Contacts: Update contact
     app.put('/applications/:id/contacts/:contactId', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id, contactId } = req.params;
       const body = updateContactSchema.parse(req.body);
 
@@ -246,7 +244,7 @@ export function createApplicationCrmRoutes(
 
     // 14. Contacts: Delete contact
     app.delete('/applications/:id/contacts/:contactId', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id, contactId } = req.params;
 
       await ApplicationCrmService.deleteContact(userId, id, contactId);
@@ -259,7 +257,7 @@ export function createApplicationCrmRoutes(
 
     // 15. Assessments: Add assessment
     app.post('/applications/:id/assessments', async (req: any, reply) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = createAssessmentSchema.parse(req.body);
 
@@ -274,7 +272,7 @@ export function createApplicationCrmRoutes(
 
     // 16. Assessments: Update assessment
     app.put('/applications/:id/assessments/:assessmentId', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id, assessmentId } = req.params;
       const body = updateAssessmentSchema.parse(req.body);
 
@@ -293,7 +291,7 @@ export function createApplicationCrmRoutes(
 
     // 17. Assessments: Delete assessment
     app.delete('/applications/:id/assessments/:assessmentId', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id, assessmentId } = req.params;
 
       await ApplicationCrmService.deleteAssessment(userId, id, assessmentId);
@@ -306,7 +304,7 @@ export function createApplicationCrmRoutes(
 
     // 18. Interviews: Add interview
     app.post('/applications/:id/interviews', async (req: any, reply) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = createInterviewSchema.parse(req.body);
 
@@ -321,7 +319,7 @@ export function createApplicationCrmRoutes(
 
     // 19. Interviews: Update interview
     app.put('/applications/:id/interviews/:interviewId', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id, interviewId } = req.params;
       const body = updateInterviewSchema.parse(req.body);
 
@@ -335,7 +333,7 @@ export function createApplicationCrmRoutes(
 
     // 20. Interviews: Delete interview
     app.delete('/applications/:id/interviews/:interviewId', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id, interviewId } = req.params;
 
       await ApplicationCrmService.deleteInterview(userId, id, interviewId);
@@ -348,7 +346,7 @@ export function createApplicationCrmRoutes(
 
     // 21. Offers: Update offer
     app.put('/applications/:id/offer', async (req: any) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params;
       const body = updateOfferSchema.parse(req.body);
 

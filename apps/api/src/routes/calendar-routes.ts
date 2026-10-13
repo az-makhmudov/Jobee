@@ -30,20 +30,16 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
   const { calendarService, prepService, oauthStateService } = options;
 
   return async (app) => {
-    const getUserId = async (req?: any) => requireCurrentUserId(req);
-
-    // ─── Calendar Accounts ───────────────────────────────────────────────
-
     // 1. List connected calendar accounts
-    app.get('/calendar/accounts', async () => {
-      const userId = await getUserId();
+    app.get('/calendar/accounts', async (req: any) => {
+      const userId = requireCurrentUserId(req);
       const accounts = await calendarService.listAccounts(userId);
       return { status: 'ok', data: accounts };
     });
 
     // 2. Connect fixture account (offline dev and test)
     app.post('/calendar/accounts/fixture/connect', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       fixtureConnectSchema.parse(req.body);
       const account = await calendarService.connectAccount(
         userId,
@@ -55,7 +51,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
 
     // 3. Generate Google Calendar OAuth URL
     app.get('/calendar/google/auth-url', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const query = googleAuthUrlSchema.parse(req.query);
       const state = await oauthStateService.generateState(userId, 'CALENDAR_OAUTH');
       const authUrl = calendarService.getAuthorizationUrl(
@@ -89,7 +85,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
 
     // 5. Get calendar account details
     app.get('/calendar/accounts/:id', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params as { id: string };
       const account = await calendarService.getAccount(id, userId);
       return { status: 'ok', data: account };
@@ -97,7 +93,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
 
     // 6. Disconnect or delete calendar account
     app.delete('/calendar/accounts/:id', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params as { id: string };
       const { purge } = req.query as { purge?: string };
       await calendarService.disconnectAccount(id, userId, purge === 'true');
@@ -106,7 +102,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
 
     // 7. List calendars for account
     app.get('/calendar/accounts/:id/calendars', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params as { id: string };
       const calendars = await calendarService.getCalendarsForAccount(id, userId);
       return { status: 'ok', data: calendars };
@@ -114,7 +110,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
 
     // 8. Update calendar selection
     app.patch('/calendar/accounts/:id/selection', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { id } = req.params as { id: string };
       const body = calendarSelectionSchema.parse(req.body);
       const updated = await calendarService.updateCalendarSelection(id, userId, body);
@@ -125,7 +121,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
 
     // 9. Query combined availability across active calendars
     app.post('/calendar/availability', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const body = availabilityQuerySchema.parse(req.body);
       const result = await calendarService.getCombinedAvailability(userId, body);
       return { status: 'ok', data: result };
@@ -133,7 +129,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
 
     // 10. Check interview scheduling conflicts
     app.post('/calendar/check-conflict', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const body = checkConflictSchema.parse(req.body);
       const result = await calendarService.checkInterviewConflict(
         userId,
@@ -146,15 +142,15 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
     });
 
     // 11. Interview and calendar metrics
-    app.get('/calendar/metrics', async () => {
-      const userId = await getUserId();
+    app.get('/calendar/metrics', async (req: any) => {
+      const userId = requireCurrentUserId(req);
       const metrics = await calendarService.getDashboardMetrics(userId);
       return { status: 'ok', data: metrics };
     });
 
     // 11b. List all scheduled interviews with calendar and brief status
-    app.get('/calendar/interviews', async () => {
-      const userId = await getUserId();
+    app.get('/calendar/interviews', async (req: any) => {
+      const userId = requireCurrentUserId(req);
       const items = await calendarService.listInterviews(userId);
       return { status: 'ok', data: items };
     });
@@ -163,7 +159,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
 
     // 12. Book/link calendar event for an interview
     app.post('/applications/:applicationId/interviews/:interviewId/calendar-event', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { applicationId, interviewId } = req.params as {
         applicationId: string;
         interviewId: string;
@@ -180,7 +176,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
 
     // 13. Get linked calendar event
     app.get('/applications/:applicationId/interviews/:interviewId/calendar-event', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { interviewId } = req.params as { interviewId: string };
       const result = await calendarService.getInterviewCalendarLink(interviewId, userId);
       if (!result) {
@@ -193,7 +189,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
     app.delete(
       '/applications/:applicationId/interviews/:interviewId/calendar-event',
       async (req) => {
-        const userId = await getUserId();
+        const userId = requireCurrentUserId(req);
         const { interviewId } = req.params as { interviewId: string };
         await calendarService.deleteInterviewCalendarEvent(interviewId, userId);
         return { status: 'ok', message: 'Calendar event unlinked and deleted' };
@@ -206,7 +202,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
     app.post(
       '/applications/:applicationId/interviews/:interviewId/preparation-brief',
       async (req) => {
-        const userId = await getUserId();
+        const userId = requireCurrentUserId(req);
         const { interviewId } = req.params as { interviewId: string };
         const body = generatePreparationSchema.parse(req.body);
         const brief = await prepService.generatePreparationBrief(
@@ -222,7 +218,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
     app.get(
       '/applications/:applicationId/interviews/:interviewId/preparation-brief',
       async (req) => {
-        const userId = await getUserId();
+        const userId = requireCurrentUserId(req);
         const { interviewId } = req.params as { interviewId: string };
         const brief = await prepService.getPreparationBrief(interviewId, userId);
         if (!brief) {
@@ -236,7 +232,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
     app.patch(
       '/applications/:applicationId/interviews/:interviewId/preparation-brief',
       async (req) => {
-        const userId = await getUserId();
+        const userId = requireCurrentUserId(req);
         const { interviewId } = req.params as { interviewId: string };
         const body = updateHumanNotesSchema.parse(req.body);
         const brief = await prepService.updateHumanNotes(interviewId, userId, body.humanNotes);
@@ -246,7 +242,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
 
     // 18. Update checklist items
     app.patch('/applications/:applicationId/interviews/:interviewId/checklist', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { interviewId } = req.params as { interviewId: string };
       const body = updateChecklistSchema.parse(req.body);
       const brief = await prepService.updateChecklist(interviewId, userId, body.checklist);
@@ -255,7 +251,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
 
     // 19. Record post-interview debrief
     app.patch('/applications/:applicationId/interviews/:interviewId/debrief', async (req) => {
-      const userId = await getUserId();
+      const userId = requireCurrentUserId(req);
       const { interviewId } = req.params as { interviewId: string };
       const body = updateDebriefSchema.parse(req.body);
       const interview = await prepService.updateDebrief(interviewId, userId, body);

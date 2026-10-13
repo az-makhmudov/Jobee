@@ -24,7 +24,7 @@ import { createApplicationCrmRoutes } from './routes/application-crm-routes.js';
 import { createBrowserWorkerRoutes } from './routes/browser-worker-routes.js';
 import { ApplicationPackageService } from './services/application-package-service.js';
 import { createAiProvider, type AiProvider } from './ai/index.js';
-import { LocalStorageProvider } from './storage/local-storage.js';
+import { createStorageProvider } from './storage/index.js';
 import { createEmailRoutes } from './routes/email-routes.js';
 import { EmailSyncService } from './services/email/email-sync-service.js';
 import { EmailReviewService } from './services/email/email-review-service.js';
@@ -122,14 +122,25 @@ export function buildApp(options: AppOptions): FastifyInstance {
     if (!invitationService) {
       invitationService = new PilotInvitationService(db);
     }
+    const emailService = options.transactionalEmailService ?? new TransactionalEmailService(config);
     if (!authInstance) {
-      const emailService =
-        options.transactionalEmailService ?? new TransactionalEmailService(config);
       authInstance = createBetterAuthInstance(db, config, emailService, invitationService);
     }
     app.register(authPlugin, { auth: authInstance, config, db });
-    app.register(pilotInvitationRoutes, { prefix: '/api/pilot', db, invitationService });
-    app.register(pilotInvitationRoutes, { prefix: '/pilot', db, invitationService });
+    app.register(pilotInvitationRoutes, {
+      prefix: '/api/pilot',
+      db,
+      invitationService,
+      emailService,
+      config,
+    });
+    app.register(pilotInvitationRoutes, {
+      prefix: '/pilot',
+      db,
+      invitationService,
+      emailService,
+      config,
+    });
   }
 
   // Register baseline routes
@@ -137,12 +148,12 @@ export function buildApp(options: AppOptions): FastifyInstance {
   app.register(healthRoutes, { prefix: '/api' });
   app.register(createReadyRoutes(config, aiProvider));
   app.register(createReadyRoutes(config, aiProvider), { prefix: '/api' });
-  app.register(createSettingsRoutes({ config, aiProvider }));
+  app.register(createSettingsRoutes({ config, aiProvider, db: db ?? undefined }));
 
   // Initialize and register Candidate Brain routes
   let candidateService = options.candidateService;
   if (!candidateService && db) {
-    const storage = options.storage ?? new LocalStorageProvider();
+    const storage = options.storage ?? createStorageProvider(config);
     candidateService = new CandidateService(db, storage);
   }
 
@@ -177,7 +188,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   // Initialize and register Application Studio & Human Approval routes
   let packageService = options.packageService;
   if (!packageService && db) {
-    const storage = options.storage ?? new LocalStorageProvider();
+    const storage = options.storage ?? createStorageProvider(config);
     packageService = new ApplicationPackageService(db, storage);
   }
 
@@ -300,8 +311,16 @@ export function buildApp(options: AppOptions): FastifyInstance {
   }
 
   // Production static web assets & SPA fallback
-  const webDistPath = path.resolve(process.cwd(), 'apps/web/dist');
-  const serveWeb = config.NODE_ENV === 'production' && fs.existsSync(webDistPath);
+  let webDistPath = path.resolve(process.cwd(), 'apps/web/dist');
+  if (!fs.existsSync(webDistPath)) {
+    webDistPath = path.resolve(process.cwd(), '../web/dist');
+  }
+  if (!fs.existsSync(webDistPath)) {
+    webDistPath = path.resolve(process.cwd(), '../../apps/web/dist');
+  }
+  const serveWeb =
+    (config.NODE_ENV === 'production' || process.env.SERVE_STATIC === 'true') &&
+    fs.existsSync(webDistPath);
 
   if (serveWeb) {
     app.register(fastifyStatic, {

@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import crypto from 'node:crypto';
 import type { Database } from '@job-agent/database';
 import {
@@ -110,6 +110,36 @@ export class PilotInvitationService {
       throw AppError.forbidden(
         `This invitation was issued specifically for ${invitation.invitedEmail}`,
       );
+    }
+
+    return invitation;
+  }
+
+  /**
+   * Find a valid, active pending invitation specifically reserved for an email address.
+   * Returns null if not found or expired.
+   */
+  async findValidInvitationByEmail(email: string): Promise<PilotInvitation | null> {
+    const cleanEmail = email.toLowerCase().trim();
+    const [invitation] = await this.db
+      .select()
+      .from(pilotInvitations)
+      .where(
+        and(
+          eq(pilotInvitations.invitedEmail, cleanEmail),
+          eq(pilotInvitations.status, PilotInvitationStatus.PENDING),
+        ),
+      )
+      .limit(1);
+
+    if (!invitation) return null;
+
+    if (new Date() > invitation.expiresAt) {
+      await this.db
+        .update(pilotInvitations)
+        .set({ status: PilotInvitationStatus.EXPIRED, updatedAt: new Date() })
+        .where(eq(pilotInvitations.id, invitation.id));
+      return null;
     }
 
     return invitation;

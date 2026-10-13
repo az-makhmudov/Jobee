@@ -63,6 +63,21 @@ export default function App() {
   useEffect(() => {
     fetchUnread();
     const interval = setInterval(fetchUnread, 15000);
+
+    // Deep-link invite query parameter support (?invite=...)
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const inviteCode = params.get('invite');
+      if (inviteCode && inviteCode.trim().length > 0) {
+        sessionStorage.setItem('jobee_invite_code', inviteCode.trim());
+        setIsAuthModalOpen(true);
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    } catch {
+      // Safe fallback
+    }
+
     return () => clearInterval(interval);
   }, []);
 
