@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { getConfig } from '@job-agent/config';
-import { getDb, getOrCreatePrimaryUser, closeDbPool, type Database } from '@job-agent/database';
+import { eq } from 'drizzle-orm';
+import {
+  getDb,
+  getOrCreatePrimaryUser,
+  closeDbPool,
+  calendarAccounts,
+  type Database,
+} from '@job-agent/database';
 import { CalendarProviderType, CalendarAccountStatus, ConflictSeverity } from '@job-agent/shared';
 import { CalendarService } from './calendar-service.js';
 import { FixtureCalendarProvider } from './fixture-calendar-provider.js';
@@ -20,9 +27,10 @@ describe('CalendarService Unit & Integration Tests (JOB-P4-T02)', () => {
     const user = await getOrCreatePrimaryUser(db);
     userId = user.id;
 
-    cryptoService = new TokenCryptoService(
-      'test-encryption-key-for-calendar-unit-tests-32-chars-min',
-    );
+    // Purge any stale calendar accounts for clean isolated test state
+    await db.delete(calendarAccounts).where(eq(calendarAccounts.userId, userId));
+
+    cryptoService = new TokenCryptoService(config.EMAIL_TOKEN_ENCRYPTION_KEY);
     fixtureProvider = new FixtureCalendarProvider();
     const googleProvider = new GoogleCalendarProvider({
       clientId: 'mock-google-client-id',
@@ -40,10 +48,7 @@ describe('CalendarService Unit & Integration Tests (JOB-P4-T02)', () => {
 
   afterAll(async () => {
     // Clean up any accounts created for the test user
-    const accounts = await calendarService.listAccounts(userId);
-    for (const acc of accounts) {
-      await calendarService.disconnectAccount(acc.id, userId, true);
-    }
+    await db.delete(calendarAccounts).where(eq(calendarAccounts.userId, userId));
     await closeDbPool();
   });
 

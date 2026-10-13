@@ -47,9 +47,6 @@ ENV PORT=3000
 ENV API_PORT=3000
 ENV API_HOST=0.0.0.0
 
-# Install Chromium browser binary for Playwright
-RUN npx playwright install --with-deps chromium
-
 COPY package.json package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
@@ -59,6 +56,9 @@ COPY --from=builder /app/apps/worker/dist ./apps/worker/dist
 COPY --from=builder /app/apps/worker/package.json ./apps/worker/package.json
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
 COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
+
+# Install Chromium browser binary for Playwright
+RUN npx playwright install chromium
 
 EXPOSE 3000
 

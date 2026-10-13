@@ -830,3 +830,44 @@ This document tracks execution history and verification state for all official m
   - `scripts/verify-pilot-readiness.ts`: PASSED (11/11 sections passed cleanly with 0 failures, 100% clean teardown).
   - `scripts/verify-operational-acceptance.ts`: PASSED (Real Playwright Chromium driving React UI across all 10 views, ATS fixture submission, crash invariants, 100% clean teardown).
   - Primary Candidate Profile Audit: `Asadbek Makhmudov | asadbek.mzw@gmail.com | Role: admin` verified 100% intact in database with 14 skills, 2 certifications, and 6 facts.
+
+---
+
+### `JOB-PROD-04` — Multi-Tenant Auth Hardening, Open AI Architecture & Mobile Responsiveness
+
+- **Status**: COMPLETED (LOCAL CHECKPOINT)
+- **Completed**: 2026-10-13
+- **Scope**:
+  - **1. Multi-Tenant Authentication Hardening & Fallback Elimination**:
+    - Created `requireCurrentUserId(request)` in `apps/api/src/plugins/auth-plugin.ts` enforcing strict session authentication in production and throwing `401 Unauthorized` for unauthenticated requests.
+    - Updated all 9 domain route handlers (`candidate.ts`, `job-routes.ts`, `application-package-routes.ts`, `application-crm-routes.ts`, `browser-worker-routes.ts`, `calendar-routes.ts`, `email-routes.ts`, `notification-routes.ts`, `orchestrator-routes.ts`) to use `requireCurrentUserId` and eliminated silent fallbacks to `getPrimaryUserId()` or hardcoded candidate identifiers.
+    - Hardened integration test suite `apps/api/src/routes/auth-routes.test.ts` to verify that unauthenticated calls across all domain endpoints (`/api/candidate/*`, `/api/jobs/*`, `/api/applications/*`, `/api/email/*`, `/api/calendar/*`) are strictly rejected with 401 UNAUTHORIZED.
+  - **2. Open AI Provider Architecture & Settings Integration**:
+    - Implemented `OpenAiAiProvider` (`apps/api/src/ai/openai-ai-provider.ts`) supporting `gpt-4o-mini` and `gpt-4o` with strict JSON schema response formatting and candidate fact boundary validation.
+    - Created alias `apps/api/src/ai/gemini-provider.ts` for unified Gemini provider imports.
+    - Updated `createAiProvider` in `apps/api/src/ai/index.ts` supporting `gemini`, `openai`, and `disabled` providers.
+    - Added `OPENAI_API_KEY` to Zod environment schema in `packages/config/src/env.ts` and `.env.example`.
+    - Created settings routes (`apps/api/src/routes/settings-routes.ts`): added `GET /api/settings/ai` and `POST /api/settings/ai/test` for runtime AI provider inspection and live connectivity testing.
+    - Added test suite `apps/api/src/routes/settings-routes.test.ts` (6/6 tests passing).
+  - **3. Interactive Settings UI & Credential Documentation**:
+    - Enhanced `apps/web/src/components/SettingsView.tsx` with interactive AI Provider architecture cards (`Google Gemini`, `OpenAI GPT`, `Deterministic Grounded Offline`).
+    - Added live "Test AI Connectivity" probe with latency and response validation.
+    - Documented exact environment variable setup (`GEMINI_API_KEY`, `OPENAI_API_KEY`) and security guarantees (zero plaintext key leakage, zero unverified fact fabrication).
+  - **4. Mobile Responsiveness Audit & Remediation**:
+    - Audited frontend viewport layouts down to 375px mobile viewports.
+    - Added sticky mobile header bar with hamburger drawer toggle in `apps/web/src/App.tsx`.
+    - Implemented off-canvas slide-out drawer navigation with semi-transparent backdrop blur and automatic close on navigation.
+    - Added responsive CSS media queries in `apps/web/src/index.css`: mobile content padding scaling (from 3rem down to 1rem), single-column status grid layout, and responsive modal containment (`max-width: 95vw`).
+  - **5. Docker Containerization Layer Ordering Fix**:
+    - Corrected Dockerfile runner stage layer order: copied `node_modules` before executing `npx playwright install chromium` to guarantee version alignment.
+- **Verification Records**:
+  - `npm run db:check`: PASSED (PostgreSQL connected, 18ms latency).
+  - `npm run db:migrate`: PASSED (16 migrations up to date).
+  - `npm run typecheck`: PASSED (0 errors across all 6 workspaces).
+  - `npm run lint`: PASSED (0 errors across codebase).
+  - `npm test`: PASSED (39 test files, 286/286 tests passed).
+  - `npm run build`: PASSED (API, Worker, Config, Shared, Database, and Web SPA bundle compile cleanly in 1.42s).
+  - `npm run format`: PASSED (All files formatted cleanly).
+  - `scripts/verify-pilot-readiness.ts`: PASSED (11/11 sections passed cleanly with 0 failures, 100% clean teardown).
+  - `scripts/verify-operational-acceptance.ts`: PASSED (Real Playwright Chromium driving React UI across all 10 views, ATS fixture submission, crash invariants, 100% clean teardown).
+  - Primary Candidate Profile Audit: `Asadbek Makhmudov | asadbek.mzw@gmail.com | Role: admin` verified 100% intact in database with 14 skills, 2 certifications, and 6 quarantined facts.

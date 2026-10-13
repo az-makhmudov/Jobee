@@ -16,11 +16,13 @@ import {
   updateOfferSchema,
   listApplicationsQuerySchema,
 } from './application-crm-schemas.js';
-import { getCurrentUserId } from '../plugins/auth-plugin.js';
+import { requireCurrentUserId } from '../plugins/auth-plugin.js';
 
-export function createApplicationCrmRoutes(candidateService: CandidateService): FastifyPluginAsync {
+export function createApplicationCrmRoutes(
+  _candidateService?: CandidateService,
+): FastifyPluginAsync {
   return async (app) => {
-    const getUserId = async () => getCurrentUserId() ?? (await candidateService.getPrimaryUserId());
+    const getUserId = async (req?: any) => requireCurrentUserId(req);
 
     // 1. Create or get application
     app.post('/applications', async (req: any, reply) => {

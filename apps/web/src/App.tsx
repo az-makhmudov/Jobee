@@ -45,6 +45,7 @@ export default function App() {
   const [, setRefreshKey] = useState<number>(0);
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const { data: session, isPending: isSessionPending } = authClient.useSession();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -99,8 +100,57 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {/* Mobile Top Header */}
+      <header className="mobile-topbar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            style={{ padding: '0.25rem 0.5rem', fontSize: '1.1rem', cursor: 'pointer' }}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Toggle navigation menu"
+          >
+            ☰
+          </button>
+          <div className="sidebar-title" style={{ fontSize: '1.1rem' }}>
+            <span>Jobee</span>
+            <span className="sidebar-badge">v0.1</span>
+          </div>
+        </div>
+        <button
+          className="btn btn-secondary btn-sm"
+          style={{ padding: '0.2rem 0.5rem', fontSize: '0.85rem', position: 'relative' }}
+          onClick={() => setIsNotifModalOpen(true)}
+          title="Mobile Notification Alerts"
+        >
+          🔔
+          {unreadNotifsCount > 0 && (
+            <span
+              style={{
+                position: 'absolute',
+                top: '-5px',
+                right: '-5px',
+                backgroundColor: '#ef4444',
+                color: '#fff',
+                borderRadius: '10px',
+                padding: '0.1rem 0.35rem',
+                fontSize: '0.65rem',
+                fontWeight: 700,
+                lineHeight: 1,
+              }}
+            >
+              {unreadNotifsCount}
+            </span>
+          )}
+        </button>
+      </header>
+
+      {/* Mobile Backdrop */}
+      {isMobileMenuOpen && (
+        <div className="sidebar-backdrop" onClick={() => setIsMobileMenuOpen(false)} />
+      )}
+
       {/* Sidebar Navigation */}
-      <aside className="sidebar">
+      <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
         <div
           className="sidebar-header"
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
@@ -109,32 +159,41 @@ export default function App() {
             <span>Jobee</span>
             <span className="sidebar-badge">v0.1</span>
           </div>
-          <button
-            className="btn btn-secondary btn-sm"
-            style={{ padding: '0.2rem 0.5rem', fontSize: '0.85rem', position: 'relative' }}
-            onClick={() => setIsNotifModalOpen(true)}
-            title="Notification Center & Alerts"
-          >
-            🔔
-            {unreadNotifsCount > 0 && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: '-5px',
-                  right: '-5px',
-                  backgroundColor: '#ef4444',
-                  color: '#fff',
-                  borderRadius: '10px',
-                  padding: '0.1rem 0.35rem',
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
-                  lineHeight: 1,
-                }}
-              >
-                {unreadNotifsCount}
-              </span>
-            )}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              style={{ padding: '0.2rem 0.5rem', fontSize: '0.85rem', position: 'relative' }}
+              onClick={() => setIsNotifModalOpen(true)}
+              title="Notification Center & Alerts"
+            >
+              🔔
+              {unreadNotifsCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-5px',
+                    right: '-5px',
+                    backgroundColor: '#ef4444',
+                    color: '#fff',
+                    borderRadius: '10px',
+                    padding: '0.1rem 0.35rem',
+                    fontSize: '0.65rem',
+                    fontWeight: 700,
+                    lineHeight: 1,
+                  }}
+                >
+                  {unreadNotifsCount}
+                </span>
+              )}
+            </button>
+            <button
+              className="sidebar-close-btn"
+              onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="Close menu"
+            >
+              ✕
+            </button>
+          </div>
         </div>
         <ul className="nav-list">
           {navItems.map((item) => (
@@ -143,6 +202,7 @@ export default function App() {
                 className={`nav-button ${currentSection === item.id ? 'active' : ''}`}
                 onClick={() => {
                   setCurrentSection(item.id);
+                  setIsMobileMenuOpen(false);
                   if (item.id === 'profile') setProfileTab(undefined);
                   if (item.id === 'jobs') setSelectedJobId(null);
                   if (item.id === 'applications') {

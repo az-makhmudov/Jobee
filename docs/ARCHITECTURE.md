@@ -718,5 +718,26 @@ The identity management subsystem integrates **Better Auth** as the authoritativ
 - **Dockerfile**:
   - `base`: Node.js 22-bookworm-slim with Linux runtime packages for Chromium / Playwright.
   - `builder`: Compiles all TypeScript packages and builds Vite web bundle.
-  - `runner`: Lightweight production container with pre-installed Chromium binaries (`npx playwright install --with-deps chromium`) serving port 3000.
+  - `runner`: Lightweight production container with pre-installed Chromium binaries (`npx playwright install chromium`) serving port 3000.
 - **docker-compose.yml**: Orchestrates `postgres:16-alpine`, `api` (unified server), and `worker` (background orchestrator daemon) with healthchecks and persistent storage.
+
+---
+
+## 13. Open AI Architecture & Mobile Responsiveness
+
+### 13.1. Open AI Provider Architecture
+
+- **Pluggable Providers**: Standardized `AiProvider` interface with three supported execution modes:
+  1. `GeminiAiProvider` (`apps/api/src/ai/gemini-ai-provider.ts`): Google Gemini models (`gemini-2.5-flash`, `gemini-1.5-pro`) with structured JSON outputs and high-speed multimodal evaluation.
+  2. `OpenAiAiProvider` (`apps/api/src/ai/openai-ai-provider.ts`): OpenAI GPT models (`gpt-4o-mini`, `gpt-4o`) with JSON schema enforcement.
+  3. `DisabledAiProvider` (`apps/api/src/ai/disabled-ai-provider.ts`): Deterministic 100% offline rule-based scoring engine with zero hallucination and zero API cost.
+- **Runtime Introspection & Live Testing**:
+  - `GET /api/settings/ai`: Reports active provider, model, availability, and credential detection flags without exposing API keys.
+  - `POST /api/settings/ai/test`: Tests live API connectivity and reports roundtrip latency.
+- **Strict Anti-Hallucination Boundaries**: Even in LLM mode, all outputs are validated against the Candidate Brain using `validateAndSanitizeAiOutput`. Unverified facts are never passed to AI prompts.
+
+### 13.2. Responsive Mobile Design
+
+- **Mobile Viewport Support**: Certified compatibility across screen widths from 375px (mobile phones) to 4K displays.
+- **Drawer Navigation**: Sticky mobile header with hamburger toggle, slide-out drawer navigation, and semi-transparent backdrop blur.
+- **Responsive Layout**: Padding scales dynamically from 3rem (desktop) to 1rem (mobile), with single-column status cards and responsive modal sizing (`max-width: 95vw`).

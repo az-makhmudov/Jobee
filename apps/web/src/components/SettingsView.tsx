@@ -30,11 +30,42 @@ interface ReadyData {
   };
 }
 
+interface AiProviderInfo {
+  id: string;
+  name: string;
+  recommendedModel: string;
+  description: string;
+  credentialEnv: string;
+  isConfigured: boolean;
+}
+
+interface AiSettingsData {
+  activeProvider: string;
+  activeModel: string;
+  isAvailable: boolean;
+  mode: 'deterministic' | 'llm';
+  credentialsDetected: {
+    gemini: boolean;
+    openai: boolean;
+  };
+  supportedProviders: AiProviderInfo[];
+  availableModels: string[];
+}
+
 export function SettingsView() {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [ready, setReady] = useState<ReadyData | null>(null);
+  const [aiSettings, setAiSettings] = useState<AiSettingsData | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
+  const [testingAi, setTestingAi] = useState<boolean>(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message: string;
+    latencyMs?: number;
+    provider?: string;
+  } | null>(null);
+  const [selectedProviderId, setSelectedProviderId] = useState<string>('gemini');
 
   const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
 
@@ -42,9 +73,10 @@ export function SettingsView() {
     setLoading(true);
     setApiError(null);
     try {
-      const [healthRes, readyRes] = await Promise.all([
-        fetch(`${apiBaseUrl}/health`),
-        fetch(`${apiBaseUrl}/ready`),
+      const [healthRes, readyRes, aiRes] = await Promise.all([
+        fetch(`${apiBaseUrl}/health`, { credentials: 'include' }),
+        fetch(`${apiBaseUrl}/ready`, { credentials: 'include' }),
+        fetch(`${apiBaseUrl}/settings/ai`, { credentials: 'include' }),
       ]);
 
       if (healthRes.ok) {
@@ -58,12 +90,52 @@ export function SettingsView() {
         const readyJson = await readyRes.json();
         setReady(readyJson);
       }
+
+      if (aiRes.ok) {
+        const aiJson = await aiRes.json();
+        setAiSettings(aiJson.data);
+        if (aiJson.data?.activeProvider) {
+          setSelectedProviderId(aiJson.data.activeProvider);
+        }
+      }
     } catch (err) {
       setApiError(err instanceof Error ? err.message : 'Failed to reach API server');
       setHealth(null);
       setReady(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTestAi = async () => {
+    setTestingAi(true);
+    setTestResult(null);
+    try {
+      const res = await fetch(`${apiBaseUrl}/settings/ai/test`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'ok') {
+        setTestResult({
+          success: true,
+          message: data.data.message,
+          latencyMs: data.data.latencyMs,
+          provider: data.data.provider,
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: data.error?.message || 'Failed to test AI connectivity',
+        });
+      }
+    } catch (err) {
+      setTestResult({
+        success: false,
+        message: err instanceof Error ? err.message : 'Network error testing AI provider',
+      });
+    } finally {
+      setTestingAi(false);
     }
   };
 
@@ -148,20 +220,66 @@ export function SettingsView() {
         )}
       </div>
 
-      {/* AI Intelligence Engine */}
+      {/* AI Intelligence Engine & Provider Configuration */}
       <div className="card">
-        <div className="card-title">AI Intelligence Engine</div>
-        <div className="status-grid">
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1rem',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+          }}
+        >
+          <div className="card-title" style={{ marginBottom: 0 }}>
+            AI Intelligence Engine & Provider Architecture
+          </div>
+          <button className="btn btn-secondary btn-sm" onClick={handleTestAi} disabled={testingAi}>
+            {testingAi ? 'Testing AI Pipeline...' : '⚡ Test AI Connectivity'}
+          </button>
+        </div>
+
+        {testResult && (
+          <div
+            style={{
+              padding: '0.75rem 1rem',
+              borderRadius: '0.375rem',
+              marginBottom: '1rem',
+              backgroundColor: testResult.success
+                ? 'rgba(16, 185, 129, 0.15)'
+                : 'rgba(239, 68, 68, 0.15)',
+              border: `1px solid ${testResult.success ? '#10b981' : '#ef4444'}`,
+              color: testResult.success ? '#34d399' : '#f87171',
+              fontSize: '0.875rem',
+            }}
+          >
+            <strong>
+              {testResult.success ? '✓ AI Connection Test Successful' : '✗ AI Connection Failed'}
+            </strong>
+            {testResult.latencyMs !== undefined && (
+              <span style={{ marginLeft: '0.5rem', opacity: 0.9 }}>
+                ({testResult.latencyMs}ms latency)
+              </span>
+            )}
+            <div style={{ marginTop: '0.25rem', color: 'var(--text-primary)' }}>
+              {testResult.message}
+            </div>
+          </div>
+        )}
+
+        {/* Active Runtime Status */}
+        <div className="status-grid" style={{ marginBottom: '1.25rem' }}>
           <div className="status-item">
             <div className="status-item-header">
-              <span className="status-item-label">Operating Mode</span>
+              <span className="status-item-label">Active Intelligence Engine</span>
               <span className={`status-badge ${aiChecks?.isConfigured ? 'ok' : 'connected'}`}>
                 {aiChecks?.isConfigured ? 'LLM AUGMENTED' : 'DETERMINISTIC GROUNDED'}
               </span>
             </div>
             <div className="status-item-meta">
-              Provider: <strong>{aiChecks?.provider || 'disabled'}</strong> | Model:{' '}
-              <code>{aiChecks?.model || 'none'}</code>
+              Active Provider: <strong>{aiChecks?.provider?.toUpperCase() || 'DISABLED'}</strong> |
+              Model: <code>{aiChecks?.model || 'none'}</code>
             </div>
             <div
               style={{
@@ -172,8 +290,8 @@ export function SettingsView() {
               }}
             >
               {aiChecks?.isConfigured
-                ? 'Gemini LLM enabled for semantic reasoning, match extraction, and drafting. All outputs are strictly validated against verified candidate facts.'
-                : '100% deterministic rule-based matching. Zero external AI API calls. Zero hallucination risk.'}
+                ? 'High-speed generative reasoning active with candidate truthfulness verification.'
+                : '100% deterministic rule-based matching. Zero external API calls. Zero hallucination risk.'}
             </div>
           </div>
 
@@ -191,9 +309,130 @@ export function SettingsView() {
                 lineHeight: '1.4',
               }}
             >
-              Candidate Brain acts as the immutable ground truth. Facts marked unverified are
-              strictly quarantined from AI prompts and application answers.
+              Candidate Brain acts as immutable ground truth. Facts marked unverified are strictly
+              quarantined from AI prompts and application answers.
             </div>
+          </div>
+        </div>
+
+        {/* Supported AI Providers Architecture */}
+        <div style={{ marginBottom: '1rem' }}>
+          <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.75rem' }}>
+            Supported AI Providers & Credentials:
+          </div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: '1rem',
+            }}
+          >
+            {aiSettings?.supportedProviders.map((prov) => {
+              const isActive = (aiSettings?.activeProvider || 'disabled') === prov.id;
+              const isSelected = selectedProviderId === prov.id;
+              return (
+                <div
+                  key={prov.id}
+                  onClick={() => setSelectedProviderId(prov.id)}
+                  style={{
+                    padding: '1rem',
+                    borderRadius: '0.375rem',
+                    border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--surface-border)'}`,
+                    backgroundColor: isSelected
+                      ? 'rgba(59, 130, 246, 0.08)'
+                      : 'rgba(15, 23, 42, 0.5)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease-in-out',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '0.4rem',
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{prov.name}</span>
+                    {isActive ? (
+                      <span className="status-badge ok" style={{ fontSize: '0.7rem' }}>
+                        ACTIVE
+                      </span>
+                    ) : prov.isConfigured ? (
+                      <span className="status-badge connected" style={{ fontSize: '0.7rem' }}>
+                        KEY DETECTED
+                      </span>
+                    ) : (
+                      <span className="status-badge unconfigured" style={{ fontSize: '0.7rem' }}>
+                        OPTIONAL
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.8rem',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    {prov.description}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#93c5fd' }}>
+                    Recommended Model: <code>{prov.recommendedModel}</code>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--text-secondary)',
+                      marginTop: '0.2rem',
+                    }}
+                  >
+                    Env: <code>{prov.credentialEnv}</code>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Configuration Instructions Box */}
+        <div
+          style={{
+            padding: '1rem',
+            borderRadius: '0.375rem',
+            backgroundColor: 'rgba(30, 41, 59, 0.7)',
+            border: '1px solid var(--surface-border)',
+            fontSize: '0.85rem',
+            lineHeight: '1.5',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+            📖 How to Switch Providers & Configure Credentials
+          </div>
+          <p style={{ marginBottom: '0.5rem' }}>
+            To activate or switch providers, configure the corresponding environment variables in
+            your <code>.env</code> file or container runtime:
+          </p>
+          <ul style={{ paddingLeft: '1.25rem', marginBottom: '0.5rem' }}>
+            <li>
+              <strong>Google Gemini:</strong> Set <code>AI_PROVIDER=gemini</code> and{' '}
+              <code>GEMINI_API_KEY=your_gemini_api_key</code>. Recommended model:{' '}
+              <code>gemini-2.5-flash</code>.
+            </li>
+            <li>
+              <strong>OpenAI:</strong> Set <code>AI_PROVIDER=openai</code> and{' '}
+              <code>OPENAI_API_KEY=your_openai_api_key</code>. Recommended model:{' '}
+              <code>gpt-4o-mini</code>.
+            </li>
+            <li>
+              <strong>Deterministic (Offline):</strong> Set <code>AI_PROVIDER=disabled</code>. Zero
+              API keys needed; runs 100% locally with zero hallucination.
+            </li>
+          </ul>
+          <div style={{ fontSize: '0.8rem', color: '#fbbf24' }}>
+            🔒 <em>Security Invariant:</em> API keys are held strictly in backend server memory and
+            are never committed to Git or exposed over client bundles.
           </div>
         </div>
       </div>

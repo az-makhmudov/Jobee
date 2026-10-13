@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { getOrCreatePrimaryUser, type Database } from '@job-agent/database';
+import type { Database } from '@job-agent/database';
 import { NotificationService } from '../services/notifications/notification-service.js';
 import {
   listNotificationsQuerySchema,
@@ -18,10 +18,10 @@ export const notificationRoutes: FastifyPluginAsync<NotificationRoutesOptions> =
 ) => {
   const service = new NotificationService(opts.db, fastify.log as any);
 
-  const { getCurrentUserId } = await import('../plugins/auth-plugin.js');
+  const { requireCurrentUserId } = await import('../plugins/auth-plugin.js');
 
   const getUserId = async (request: any): Promise<string> => {
-    return getCurrentUserId() ?? request.userId ?? (await getOrCreatePrimaryUser(opts.db)).id;
+    return requireCurrentUserId(request);
   };
 
   // GET /api/notifications

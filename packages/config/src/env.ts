@@ -33,6 +33,7 @@ export const envSchema = z
     AI_PROVIDER: z.enum(['disabled', 'gemini', 'openai']).default('disabled'),
     AI_API_KEY: z.string().optional(),
     GEMINI_API_KEY: z.string().optional(),
+    OPENAI_API_KEY: z.string().optional(),
     AI_MODEL: z.string().optional(),
     EMAIL_TOKEN_ENCRYPTION_KEY: z
       .string()

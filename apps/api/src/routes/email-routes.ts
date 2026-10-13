@@ -14,25 +14,19 @@ import {
   listMessagesQuerySchema,
   resolveReviewItemSchema,
 } from './email-schemas.js';
-import { getCurrentUserId } from '../plugins/auth-plugin.js';
+import { requireCurrentUserId } from '../plugins/auth-plugin.js';
 
 export function createEmailRoutes(options: {
-  candidateService: CandidateService;
+  candidateService?: CandidateService;
   emailSyncService: EmailSyncService;
   emailReviewService: EmailReviewService;
   oauthStateService: OAuthStateService;
   tokenCryptoService: TokenCryptoService;
 }): FastifyPluginAsync {
-  const {
-    candidateService,
-    emailSyncService,
-    emailReviewService,
-    oauthStateService,
-    tokenCryptoService,
-  } = options;
+  const { emailSyncService, emailReviewService, oauthStateService, tokenCryptoService } = options;
 
   return async (app) => {
-    const getUserId = async () => getCurrentUserId() ?? (await candidateService.getPrimaryUserId());
+    const getUserId = async (req?: any) => requireCurrentUserId(req);
     const db = getDb();
 
     // 1. List connected email accounts

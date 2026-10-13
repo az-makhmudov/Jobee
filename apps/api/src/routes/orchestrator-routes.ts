@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from 'fastify';
-import { getOrCreatePrimaryUser, type Database } from '@job-agent/database';
+import type { Database } from '@job-agent/database';
 import type { AppConfig } from '@job-agent/config';
 import { OrchestratorService } from '../services/orchestrator/orchestrator-service.js';
 import {
@@ -18,10 +18,10 @@ export const orchestratorRoutes: FastifyPluginAsync<OrchestratorRoutesOptions> =
   opts,
 ) => {
   const service = new OrchestratorService(opts.db, opts.config, fastify.log as any);
-  const { getCurrentUserId } = await import('../plugins/auth-plugin.js');
+  const { requireCurrentUserId } = await import('../plugins/auth-plugin.js');
 
   const getUserId = async (request: any): Promise<string> => {
-    return getCurrentUserId() ?? request.userId ?? (await getOrCreatePrimaryUser(opts.db)).id;
+    return requireCurrentUserId(request);
   };
 
   // POST /api/orchestrator/runs - Enqueue an on-demand orchestration run

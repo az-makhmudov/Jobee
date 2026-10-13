@@ -17,20 +17,20 @@ import {
   updateChecklistSchema,
   updateDebriefSchema,
 } from './calendar-schemas.js';
-import { getCurrentUserId } from '../plugins/auth-plugin.js';
+import { requireCurrentUserId } from '../plugins/auth-plugin.js';
 
 export interface CalendarRoutesOptions {
-  candidateService: CandidateService;
+  candidateService?: CandidateService;
   calendarService: CalendarService;
   prepService: InterviewPreparationService;
   oauthStateService: OAuthStateService;
 }
 
 export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPluginAsync {
-  const { candidateService, calendarService, prepService, oauthStateService } = options;
+  const { calendarService, prepService, oauthStateService } = options;
 
   return async (app) => {
-    const getUserId = async () => getCurrentUserId() ?? (await candidateService.getPrimaryUserId());
+    const getUserId = async (req?: any) => requireCurrentUserId(req);
 
     // ─── Calendar Accounts ───────────────────────────────────────────────
 

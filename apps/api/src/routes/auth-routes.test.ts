@@ -206,6 +206,38 @@ describe('Better Auth, Multi-User Isolation & Private Pilot Integration Tests', 
       const body = JSON.parse(res.body);
       expect(body.status).toBe('error');
       expect(body.error.code).toBe('UNAUTHORIZED');
+
+      // Check job routes reject unauthenticated
+      const jobsRes = await app.inject({
+        method: 'GET',
+        url: '/api/jobs',
+        headers: { 'x-require-auth': 'true' },
+      });
+      expect(jobsRes.statusCode).toBe(401);
+
+      // Check application routes reject unauthenticated
+      const appsRes = await app.inject({
+        method: 'GET',
+        url: '/api/applications',
+        headers: { 'x-require-auth': 'true' },
+      });
+      expect(appsRes.statusCode).toBe(401);
+
+      // Check email routes reject unauthenticated
+      const emailRes = await app.inject({
+        method: 'GET',
+        url: '/api/email/accounts',
+        headers: { 'x-require-auth': 'true' },
+      });
+      expect(emailRes.statusCode).toBe(401);
+
+      // Check calendar routes reject unauthenticated
+      const calRes = await app.inject({
+        method: 'GET',
+        url: '/api/calendar/accounts',
+        headers: { 'x-require-auth': 'true' },
+      });
+      expect(calRes.statusCode).toBe(401);
     });
 
     it('allows public health and readiness checks without authentication', async () => {

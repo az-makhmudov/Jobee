@@ -11,7 +11,7 @@ import {
   analyzeJobSchema,
   batchAnalyzeSchema,
 } from './job-schemas.js';
-import { getCurrentUserId } from '../plugins/auth-plugin.js';
+import { requireCurrentUserId } from '../plugins/auth-plugin.js';
 
 export function createJobRoutes(
   service: JobService,
@@ -19,7 +19,7 @@ export function createJobRoutes(
   discoveryService?: JobDiscoveryService,
 ): FastifyPluginAsync {
   return async (app) => {
-    const getUserId = async () => getCurrentUserId() ?? (await service.getPrimaryUserId());
+    const getUserId = async (req?: any) => requireCurrentUserId(req);
 
     // --- On-Demand Public Discovery ---
     app.post('/jobs/discover', async (req) => {

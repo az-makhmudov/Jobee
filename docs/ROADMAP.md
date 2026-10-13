@@ -81,3 +81,32 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
 
 - **Status**: COMPLETED
 - **Scope**: Scheduled discovery/analysis runs, background queues, retry/backoff, concurrency controls, auto-apply authorization evaluation, rate limiting, notification/approval reminders, end-to-end observability, security hardening, activity dashboard, and runbooks.
+
+---
+
+## Phase 6 — Production Readiness & Autonomous Completion
+
+### `JOB-PROD-01 — Backend Authorization, Submission Guardrails & Profile Sandbox`
+
+- **Status**: COMPLETED
+- **Scope**: Backend authorization for candidate actions, auto-apply circuit breakers, submission approval guards, and test profile preservation sandbox.
+
+### `JOB-PROD-02 — Cryptographic Manifest-Bound Submission Authorization`
+
+- **Status**: COMPLETED
+- **Scope**: SHA-256 submission manifest binding, tamper-evident answers, and replay prevention.
+
+### `JOB-AUTH-01 — Better Auth Identity, Multi-Tenant Isolation & Private Pilot`
+
+- **Status**: COMPLETED
+- **Scope**: Better Auth integration, Google OAuth & Email/Password, invitation-only onboarding, and session management.
+
+### `JOB-PROD-03 — Public Job Discovery, Ingestion & Containerized Cloud Deployment`
+
+- **Status**: COMPLETED
+- **Scope**: Public job feeds (Arbeitnow & Greenhouse API), single-port production serving via Fastify static, and Docker multi-stage containerization.
+
+### `JOB-PROD-04 — Multi-Tenant Auth Hardening, Open AI Architecture & Mobile Responsiveness`
+
+- **Status**: COMPLETED
+- **Scope**: Strict multi-tenant route protection (`requireCurrentUserId`), pluggable AI providers (`GeminiAiProvider`, `OpenAiAiProvider`, `DisabledAiProvider`), settings UI with live connectivity diagnostics, and certified responsive mobile layouts.

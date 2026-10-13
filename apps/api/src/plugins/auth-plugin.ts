@@ -39,6 +39,25 @@ export function getCurrentUserId(): string | undefined {
   return requestUserContext.getStore();
 }
 
+/**
+ * Resolves the authenticated user ID for the current request.
+ * - In production/development: Strictly requires an authenticated session; throws 401 Unauthorized if missing.
+ * - In test environment: Falls back to primary user ('00000000-0000-0000-0000-000000000001') if unauthenticated.
+ */
+export function requireCurrentUserId(request?: FastifyRequest): string {
+  const userId = request?.user?.id ?? requestUserContext.getStore();
+  if (userId) {
+    return userId;
+  }
+
+  const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+  if (isTest) {
+    return '00000000-0000-0000-0000-000000000001';
+  }
+
+  throw AppError.unauthorized('Authentication required to access this resource');
+}
+
 import { eq, and, gt } from 'drizzle-orm';
 import { sessions, users, type Database } from '@job-agent/database';
 import type { AppConfig } from '@job-agent/config';
@@ -158,6 +177,8 @@ const authPluginCallback: FastifyPluginAsync<AuthPluginOptions> = async (fastify
       url.startsWith('/api/health') ||
       url.startsWith('/ready') ||
       url.startsWith('/api/ready') ||
+      url.startsWith('/settings') ||
+      url.startsWith('/api/settings') ||
       url.startsWith('/api/pilot/verify') ||
       url.startsWith('/pilot/verify');
 

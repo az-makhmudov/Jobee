@@ -47,6 +47,7 @@ import fs from 'node:fs';
 import { PilotInvitationService } from './services/auth/pilot-invitation-service.js';
 import { TransactionalEmailService } from './services/email/transactional-email-service.js';
 import { JobDiscoveryService } from './services/job-discovery-service.js';
+import { createSettingsRoutes } from './routes/settings-routes.js';
 
 export interface AppOptions {
   config: AppConfig;
@@ -136,6 +137,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
   app.register(healthRoutes, { prefix: '/api' });
   app.register(createReadyRoutes(config, aiProvider));
   app.register(createReadyRoutes(config, aiProvider), { prefix: '/api' });
+  app.register(createSettingsRoutes({ config, aiProvider }));
 
   // Initialize and register Candidate Brain routes
   let candidateService = options.candidateService;
