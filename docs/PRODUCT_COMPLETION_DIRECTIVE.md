@@ -18,6 +18,7 @@
 5. **Multi-User Data Isolation**: User A can never inspect, modify, download, approve, or execute User B's resources.
 6. **Zero Secrets in Git**: No credentials, private CVs, personal database dumps, or API keys in version control.
 7. **Zero Remote Push Without Approval**: The agent never executes `git push` without explicit Product Owner authorization.
+8. **Free-First Hosting Mandate & Zero Unauthorized Spend**: Prioritize approved free tiers (Oracle Cloud Always Free, Neon Free, Cloudflare R2) for private pilot operations. The agent is strictly prohibited from purchasing or activating paid cloud infrastructure or incurring fees without explicit Product Owner approval.
 
 ---
 
@@ -87,4 +88,67 @@ The Jobee application is deemed complete only when:
 - [ ] **Communication & Calendar**: Scoped Gmail and Google Calendar OAuth integration ready for live credentials; fixture providers for offline testing.
 - [ ] **Autonomous Orchestrator**: Background pipeline cycles executing discovery, matching, preparation, and notifications with full observability.
 - [ ] **Cross-Device UI**: Responsive web app verified across desktop and mobile viewports.
-- [ ] **Cloud Deployment Readiness**: Multi-stage Docker container verified, single-port production serving, persistent storage abstraction, and deployment runbooks ready for cloud launch.
+- [ ] **Cloud Deployment Readiness**: Multi-stage Docker container verified, single-port production serving, persistent storage abstraction, and deployment runbooks ready for free-first cloud launch on Oracle Cloud Always Free, Neon PostgreSQL, and Cloudflare R2.
+
+---
+
+## 5. Free-First Hosting & Infrastructure Strategy
+
+### 5.1 Architectural Blueprint (Approved Free-First Stack)
+
+| Component               | Provider / Tier                    | Specifications & Allocation                                                                                                                 | Est. Monthly Cost | Role in Jobee Architecture                                                                                                               |
+| :---------------------- | :--------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------ | :---------------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
+| **Compute & Runtime**   | **Oracle Cloud Always Free (OCI)** | Ampere A1 Compute (`VM.Standard.A1.Flex`): up to 4 OCPUs, 24 GB RAM, 200 GB block volume, 10 TB outbound bandwidth, dedicated IPv4 address. | **$0.00**         | Runs single-port unified Jobee container (Fastify API, React 19 SPA) and Autonomous Background Worker with Playwright headless Chromium. |
+| **Managed Database**    | **Neon Free PostgreSQL**           | Serverless PostgreSQL 16: 0.5 GB storage, autoscaling compute (0.25 vCPU), connection pooling via PgBouncer (`-pooler`), SSL enabled.       | **$0.00**         | Houses relational multi-tenant schema, candidate brain, CRM states, encryption metadata, and dynamic AI configurations.                  |
+| **Document Storage**    | **Cloudflare R2**                  | S3-Compatible Object Storage: 10 GB free monthly storage, 1M Class A operations, 10M Class B operations, **zero egress bandwidth fees**.    | **$0.00**         | Stores candidate master CVs, tailored resumes/cover letters, and application artifacts via `S3StorageProvider`.                          |
+| **Transactional Email** | **Resend Free Tier**               | 3,000 emails/month free, 100 emails/day, custom domain verification.                                                                        | **$0.00**         | Sends verification tokens, password resets, and pilot invitations.                                                                       |
+
+### 5.2 Technical Compatibility & Feasibility Evaluation
+
+1. **ARM Compatibility (Ampere A1)**:
+   - Node.js 22 (`node:22-bookworm-slim`) provides official, optimized Linux ARM64 (`linux/arm64`) runtimes.
+   - Jobee's dependency tree contains zero native C/C++ compilation bindings (`node-gyp` is not required). All packages (`fastify`, `drizzle-orm`, `pg`, `zod`, `cheerio`, `docx`, `better-auth`) are pure TypeScript/JavaScript.
+   - Verified locally on `darwin/arm64` and containerized on `linux/arm64`.
+
+2. **Docker Containerization**:
+   - Multi-stage Dockerfile utilizes `node:22-bookworm-slim` multi-arch base.
+   - Builds natively on ARM64 or cross-compiles seamlessly with `docker buildx`.
+   - Single-port architecture serves API endpoints (`/api/*`), health probes (`/health/*`), and React 19 client assets (`/*`) through Fastify static serving on port 3000.
+
+3. **Playwright & Headless Browser Automation**:
+   - Playwright officially distributes pre-compiled Chromium builds for Linux ARM64.
+   - All underlying Linux shared libraries (`libnss3`, `libatk`, `libcups`, `libgbm1`, etc.) are installed via Debian Bookworm package management.
+   - **Critical Memory Advantage**: Oracle Ampere A1's 24 GB RAM eliminates the chronic out-of-memory (OOM) crashing typical of 512 MB PaaS free tiers (Render, Fly.io) when running Chromium.
+
+4. **Background Workers & Autonomous Orchestrator**:
+   - Because Oracle Cloud provides full IaaS Virtual Machines (rather than ephemeral serverless containers), Jobee's background worker runs continuously 24/7.
+   - Orchestrator tasks (discovery polling, email sync, reminders, application processing) execute on scheduled intervals without sleeping or timing out.
+   - Managed via Docker Compose or systemd service units with `restart: unless-stopped`.
+
+5. **Operational Reliability, Risks & Mitigations**:
+   - **OCI Idle Instance Reclamation**: Oracle reclaims Always Free instances if CPU, memory, and network fall below 20% utilization for 7 days.
+     _Mitigation_: Jobee's periodic background orchestrator polling, automated test suites, and optional synthetic cron keepalive guarantee active threshold compliance. Alternatively, upgrading account to Pay-As-You-Go ($0 balance) permanently disables idle reclamation while preserving Always Free allowances.
+   - **OCI Regional Capacity**: Ampere A1 instances occasionally experience temporary capacity constraints in high-demand regions during provisioning.
+     _Mitigation_: Use automated provisioning retry scripts, choose low-contention availability domains, or deploy temporarily on Always Free AMD micro shapes (`VM.Standard.E2.1.Micro`, 1 GB RAM) for web while running browser automation locally.
+   - **OCI VCN Ingress Security**: Oracle Virtual Cloud Network blocks inbound ports by default.
+     _Mitigation_: Ingress rules for TCP ports 80, 443, and 3000 must be explicitly added to the VCN Security List and OS `iptables`/`ufw`.
+   - **Neon Free Scale-to-Zero Latency**: Neon compute pauses after 5 minutes of inactivity; resuming takes ~500ms–2s.
+     _Mitigation_: Database pool timeout configured with 10,000ms ceiling and auto-SSL detection (`packages/database/src/client.ts`).
+
+### 5.3 Simplest Reliable Paid Alternative (Contingency Option)
+
+If Oracle Cloud Always Free capacity is inaccessible or free tiers prove insufficient for pilot operations, the approved paid fallback path is:
+
+1. **Recommended Primary Paid Option: Hetzner Cloud VPS**
+   - **Shape**: `CAX11` (Ampere ARM64, 2 vCPU, 4 GB RAM, 40 GB NVMe SSD, 20 TB traffic, IPv4) or `CX22` (x86_64, 2 vCPU, 4 GB RAM, 40 GB NVMe SSD).
+   - **Estimated Cost**: **~€3.79 – €3.99 / month (~$4.15 – $4.35 USD / month)**.
+   - **Rationale**: Unmatched price-to-performance, instantaneous provisioning, dedicated resources without idle shutdowns, European data privacy alignment, and ample 4 GB RAM to host both Jobee and Dockerized PostgreSQL.
+
+2. **Alternative PaaS Option: Railway Developer Plan**
+   - **Estimated Cost**: **~$8.00 – $12.00 / month** ($5.00 platform subscription + usage).
+   - **Rationale**: Minimal DevOps overhead, automated Git deployments, managed SSL, and integrated Postgres.
+
+### 5.4 Human Authorization & Spend Boundary
+
+> [!CAUTION]
+> **Strict Spend Invariant**: The agent must never purchase, provision, or bind credit cards to paid cloud infrastructure without explicit, advance Product Owner approval. All development and staging verification must execute on local fixtures or approved free tiers.

@@ -116,3 +116,8 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
 - **Status**: COMPLETED
 - **Scope**: Multi-tenant cross-user penetration testing suite (`multi-tenant-isolation.test.ts`), dynamic database-persisted AI provider selection with UI switching (`DynamicAiProvider`), transactional invitation email dispatch with deep-link URL onboarding (`?invite=...`), pluggable cloud document storage abstraction (`S3StorageProvider` with AWS4-HMAC-SHA256 signing), single-port production static asset serving verification, and full multi-user end-to-end workflow validation (`verify-multi-user-e2e.ts`).
 
+### `JOB-HOST-01 — Free-First Hosting Policy (Oracle Cloud ARM64, Neon & Cloudflare R2)`
+
+- **Status**: COMPLETED
+- **Scope**: Formalization of Free-First hosting policy across permanent directives; evaluation of Oracle Cloud Always Free Ampere A1 (ARM64), multi-arch Docker, Playwright headless Chromium on ARM, 24/7 background worker execution, Neon Free PostgreSQL with auto-SSL detection and cold start pooling, Cloudflare R2 zero-egress document storage, paid fallback contingency (Hetzner CAX11 at ~€3.79/mo), and automated infrastructure verification suite (`scripts/verify-free-first-infrastructure.ts`).
+

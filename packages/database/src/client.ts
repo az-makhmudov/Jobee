@@ -13,11 +13,17 @@ export function getDbPool(connectionString?: string): pg.Pool {
     if (!connStr) {
       throw new Error('DATABASE_URL is not configured');
     }
+    const isSsl =
+      connStr.includes('sslmode=require') ||
+      connStr.includes('neon.tech') ||
+      process.env.DATABASE_SSL === 'true';
+
     pool = new Pool({
       connectionString: connStr,
       max: 10,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
+      connectionTimeoutMillis: 10000,
+      ssl: isSsl ? { rejectUnauthorized: false } : undefined,
     });
 
     pool.on('error', (err) => {

@@ -22,4 +22,20 @@ describe('checkDatabaseHealth', () => {
     expect(health.message).toBeDefined();
     expect(health.latencyMs).toBeTypeOf('number');
   });
+
+  it('configures SSL parameters when neon.tech or sslmode=require is in connection string', async () => {
+    const { getDbPool, closeDbPool } = await import('./client.js');
+    await closeDbPool();
+    const neonPool = getDbPool(
+      'postgresql://user:pass@ep-demo-123456.eu-central-1.aws.neon.tech/neondb?sslmode=require',
+    );
+    // Verify pool is instantiated with SSL options
+    expect(neonPool).toBeDefined();
+    expect(
+      (neonPool as unknown as { options: { ssl?: { rejectUnauthorized: boolean } } }).options.ssl,
+    ).toEqual({
+      rejectUnauthorized: false,
+    });
+    await closeDbPool();
+  });
 });

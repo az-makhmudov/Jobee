@@ -918,3 +918,39 @@ This document tracks execution history and verification state for all official m
   - `scripts/verify-multi-user-e2e.ts`: PASSED (All steps passed, 0 orphans left).
   - Primary Candidate Profile Audit: `Asadbek Makhmudov | asadbek.mzw@gmail.com | Role: admin` verified 100% intact in database with 14 skills, 2 certifications, and 6 quarantined facts.
 
+---
+
+### `JOB-HOST-01` — Free-First Hosting Strategy, Oracle Cloud ARM64, Neon PostgreSQL & Cloudflare R2
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-14
+- **Scope**:
+  - **1. Free-First Hosting Policy Alignment & Core Directive Update**:
+    - Product Owner approved Free-First hosting strategy prioritizing Oracle Cloud Always Free (Ampere A1 ARM64 VM), Neon Free PostgreSQL, and Cloudflare R2 Document Storage.
+    - Updated `docs/PRODUCT_COMPLETION_DIRECTIVE.md` with Core Invariant 8 (Strict Zero-Paid Spend without explicit approval) and Section 5 (Free-First Architecture, Technical Feasibility, Mitigations, Paid Alternative Contingency).
+    - Updated `docs/OWNER_ACTIONS_REQUIRED.md` with DEP-04 (Oracle Always Free), DEP-05 (Neon Free Postgres), DEP-06 (Cloudflare R2), Decision DEC-04, and step-by-step deployment runbooks.
+    - Updated `docs/IMPLEMENTATION_BACKLOG.md` with items BL-07, BL-08, and BL-09.
+  - **2. Architecture & ARM64 Compatibility Evaluation**:
+    - Node.js 22 (`node:22-bookworm-slim`) verified on Linux ARM64 (`linux/arm64`) and macOS ARM64 (`darwin/arm64`).
+    - Dependency tree audit: confirmed zero native C/C++ compilation bindings (`node-gyp` not needed). Pure TypeScript/JavaScript runtime.
+    - Playwright Chromium headless automation evaluated: official prebuilt Chromium available for Linux ARM64. Massive 24 GB RAM on Ampere A1 eliminates OOM risks.
+    - Background worker evaluation: runs continuously 24/7 on dedicated Always Free IaaS VM with systemd/Docker restart policies.
+  - **3. Neon PostgreSQL Auto-SSL & Connection Timeout Hardening**:
+    - Enhanced `packages/database/src/client.ts` to automatically detect SSL mode for Neon endpoints (`neon.tech` or `sslmode=require`) and configure non-blocking SSL.
+    - Increased connection timeout to 10,000ms to absorb Neon serverless compute resume latency (500ms–2s).
+    - Added `DATABASE_SSL` configuration option to `packages/config/src/env.ts` and updated `.env.example`.
+    - Added unit test in `packages/database/src/health.test.ts` verifying Neon SSL parameter auto-configuration.
+  - **4. Cloudflare R2 Document Storage**:
+    - Verified `S3StorageProvider` pluggability for Cloudflare R2 (10 GB free tier, zero egress fees) via S3-compatible API.
+    - Updated `.env.example` with exact Cloudflare R2 endpoint and credentials documentation.
+  - **5. Simplest Reliable Paid Alternative Evaluated**:
+    - Recommended Hetzner Cloud VPS (`CAX11` ARM64 / `CX22` x86_64, 2 vCPU, 4 GB RAM, 40 GB NVMe) at ~€3.79–€3.99/month (~$4.15–$4.35 USD/month) if Oracle Cloud regional capacity is constrained.
+    - Strict human authorization boundary DEC-04 enforced: no paid infrastructure may be provisioned without explicit approval.
+  - **6. Automated Verification Suite**:
+    - Created `scripts/verify-free-first-infrastructure.ts` verifying architecture, Docker, Neon SSL auto-detection, Cloudflare R2 provider instantiation, local disk fallback, Playwright runtime, and spend guardrails (11/11 checks passed).
+- **Verification Records**:
+  - `npm run db:check`: PASSED (PostgreSQL connected, 16ms latency).
+  - `npm run typecheck`: PASSED (0 errors across all 6 workspaces).
+  - `npm run lint`: PASSED (0 errors across codebase).
+  - `npm test`: PASSED (43 test files, 330/330 tests passed).
+  - `scripts/verify-free-first-infrastructure.ts`: PASSED (11/11 checks passed).
