@@ -89,4 +89,12 @@ describe('validateEnv', () => {
       }),
     ).toThrow(/secure non-default BETTER_AUTH_SECRET/);
   });
+
+  it('respects PORT environment variable when API_PORT is not provided (Railway support)', () => {
+    const config = validateEnv({
+      NODE_ENV: 'development',
+      PORT: '8080',
+    });
+    expect(config.API_PORT).toBe(8080);
+  });
 });

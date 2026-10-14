@@ -9,17 +9,17 @@
 
 ## 1. Backlog Summary & Prioritization
 
-| Item ID   | Title / Subsystem                                                 | Priority            | Status        | Description                                                                                                                                                                                                            |
-| :-------- | :---------------------------------------------------------------- | :------------------ | :------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **BL-01** | **Multi-Tenant Cross-User Isolation Test Suite**                  | **P0 (Security)**   | **COMPLETED** | Build dedicated end-to-end security test suite (`multi-tenant-isolation.test.ts`) asserting zero cross-user access across all 10 domain entity categories with two independent authenticated users.                    |
-| **BL-02** | **Dynamic AI Provider Switching & DB Persistence**                | **P0 (Core)**       | **COMPLETED** | Add persistent AI configuration in PostgreSQL (`application_policy` or `ai_settings`), dynamic provider resolution in matching/tailoring/prep engines, and interactive model switcher in `SettingsView.tsx`.           |
-| **BL-03** | **Transactional Invitation Emails & Deep-Link Onboarding**        | **P1 (Auth)**       | **COMPLETED** | Add `sendInvitationEmail` with Jobee branding in `TransactionalEmailService`, trigger it upon invite creation, support Google Sign-In pre-matched invite resolution, and handle `?invite=<CODE>` URL parameters.       |
-| **BL-04** | **Document Storage Abstraction (S3 / R2 Cloud Ready)**            | **P1 (Cloud)**      | **COMPLETED** | Enhance document storage layer with pluggable interface supporting local filesystem and S3/R2 cloud storage for containerized deployments.                                                                             |
-| **BL-05** | **Production Docker Build & Single-Port Verification**            | **P1 (Deploy)**     | **COMPLETED** | Validate `docker build` and single-port production static asset serving with Playwright browser installation.                                                                                                          |
-| **BL-06** | **Full Multi-User End-to-End Workflow Validation**                | **P0 (Quality)**    | **COMPLETED** | Comprehensive validation script asserting invited tester onboarding, candidate brain isolation, job discovery, match, tailored application, and approval boundaries.                                                   |
-| **BL-07** | **Free-First Hosting Infrastructure & Multi-Arch ARM Validation** | **P0 (Deploy)**     | **COMPLETED** | Validate Oracle Cloud Always Free Ampere A1 (ARM64) runtime compatibility, multi-arch Docker base, Playwright Chromium on ARM, and zero-cost infrastructure readiness (`scripts/verify-free-first-infrastructure.ts`). |
-| **BL-08** | **Neon PostgreSQL Connectivity, SSL & Cold-Start Resilience**     | **P0 (Database)**   | **COMPLETED** | Implement automated SSL parameter detection for Neon serverless pooler endpoints (`ep-...-pooler`), configure 10s connection timeout for cold starts, and verify in database test suite.                               |
-| **BL-09** | **Continuous Pilot Operation & Oracle Idle Keepalive Guard**      | **P1 (Operations)** | **READY**     | Implement synthetic keepalive ping in background orchestrator to prevent Oracle Always Free 7-day idle instance reclamation, and provide production deployment automation script.                                      |
+| Item ID   | Title / Subsystem                                                 | Priority           | Status        | Description                                                                                                                                                                                                                                                                                                                                 |
+| :-------- | :---------------------------------------------------------------- | :----------------- | :------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **BL-01** | **Multi-Tenant Cross-User Isolation Test Suite**                  | **P0 (Security)**  | **COMPLETED** | Build dedicated end-to-end security test suite (`multi-tenant-isolation.test.ts`) asserting zero cross-user access across all 10 domain entity categories with two independent authenticated users.                                                                                                                                         |
+| **BL-02** | **Dynamic AI Provider Switching & DB Persistence**                | **P0 (Core)**      | **COMPLETED** | Add persistent AI configuration in PostgreSQL (`application_policy` or `ai_settings`), dynamic provider resolution in matching/tailoring/prep engines, and interactive model switcher in `SettingsView.tsx`.                                                                                                                                |
+| **BL-03** | **Transactional Invitation Emails & Deep-Link Onboarding**        | **P1 (Auth)**      | **COMPLETED** | Add `sendInvitationEmail` with Jobee branding in `TransactionalEmailService`, trigger it upon invite creation, support Google Sign-In pre-matched invite resolution, and handle `?invite=<CODE>` URL parameters.                                                                                                                            |
+| **BL-04** | **Document Storage Abstraction (S3 / R2 Cloud Ready)**            | **P1 (Cloud)**     | **COMPLETED** | Enhance document storage layer with pluggable interface supporting local filesystem and S3/R2 cloud storage for containerized deployments.                                                                                                                                                                                                  |
+| **BL-05** | **Production Docker Build & Single-Port Verification**            | **P1 (Deploy)**    | **COMPLETED** | Validate `docker build` and single-port production static asset serving with Playwright browser installation.                                                                                                                                                                                                                               |
+| **BL-06** | **Full Multi-User End-to-End Workflow Validation**                | **P0 (Quality)**   | **COMPLETED** | Comprehensive validation script asserting invited tester onboarding, candidate brain isolation, job discovery, match, tailored application, and approval boundaries.                                                                                                                                                                        |
+| **BL-07** | **Free-First Hosting Infrastructure & Multi-Arch ARM Validation** | **P0 (Deploy)**    | **COMPLETED** | Validate Oracle Cloud Always Free Ampere A1 (ARM64) runtime compatibility, multi-arch Docker base, Playwright Chromium on ARM, and zero-cost infrastructure readiness (`scripts/verify-free-first-infrastructure.ts`).                                                                                                                      |
+| **BL-09** | **Railway Multi-Service Deployment Preparation & Hardening**      | **P0 (Deploy)**    | **COMPLETED** | Configure Fastify dynamic `$PORT`, reverse-proxy trust (`trustProxy: true`), `BETTER_AUTH_URL` CORS, Playwright container flags (`--no-sandbox`, `--disable-dev-shm-usage`), declarative multi-service Railway configs (`railway.json`, `railway.worker.json`), and deployment verification suite (`scripts/verify-railway-deployment.ts`). |
+| **BL-10** | **Live Pilot Cloud Staging & External Integration Verification**  | **P1 (Cloud/Ops)** | **READY**     | Validate live cloud staging on Railway with remote Neon PostgreSQL and Cloudflare R2, verifying Better Auth session propagation behind reverse proxies, transactional invite emails via Resend, and background worker health.                                                                                                               |
 
 ---
 
@@ -109,10 +109,24 @@
   - Add `DATABASE_SSL` configuration option to `packages/config/src/env.ts`.
   - Add unit tests in `packages/database/src/health.test.ts` verifying SSL configuration behavior.
 
-### BL-09: Continuous Pilot Operation & Oracle Idle Keepalive Guard
+### BL-09: Railway Multi-Service Deployment Preparation & Production Hardening
 
-- **Objective**: Prevent Oracle Cloud Always Free compute instances from being reclaimed due to the 7-day idle policy (<20% CPU/RAM/bandwidth).
+- **Objective**: Establish Railway as the official cloud hosting platform for Jobee with isolated API (`jobee-api`) and Background Worker (`jobee-worker`) services.
 - **Scope**:
-  - Ensure background orchestrator runs periodic health checks and discovery polls.
-  - Document cron keepalive or Pay-As-You-Go account upgrade ($0 spending) in deployment runbook.
-  - Provide automated deploy/health verification script for live pilot staging.
+  - Implement dynamic `$PORT` environment variable handling in `packages/config/src/env.ts` so Fastify binds to Railway's assigned port dynamically while maintaining port 3000 default.
+  - Configure `trustProxy: true` on Fastify in `apps/api/src/app.ts` for Railway's Cloudflare/Envoy edge reverse proxies, ensuring secure cookie handling, HTTPS detection, and correct Better Auth redirect generation.
+  - Whitelist `BETTER_AUTH_URL` dynamically in Fastify CORS origin policy.
+  - Harden Playwright browser launcher in `apps/worker/src/browser/playwright-browser-controller.ts` with container flags (`--no-sandbox`, `--disable-setuid-sandbox`, `--disable-dev-shm-usage`, `--disable-gpu`) to avoid Docker 64 MB `/dev/shm` exhaustion.
+  - Create declarative Railway deployment manifests: `railway.json` for API service (Dockerfile build, `/api/health` healthcheck, `ON_FAILURE` restart policy) and `railway.worker.json` for background worker daemon.
+  - Develop comprehensive deployment verification test suite (`scripts/verify-railway-deployment.ts`) covering all 13 critical cloud runtime behaviors.
+
+### BL-10: Live Pilot Cloud Staging & External Integration Verification
+
+- **Objective**: Execute end-to-end cloud staging and production verification once external accounts and credentials are provided by the Product Owner.
+- **Scope**:
+  - Connect live Neon PostgreSQL free-tier instance (`DATABASE_URL`) with connection pooling and automated SSL.
+  - Provision Cloudflare R2 bucket (`STORAGE_BACKEND=s3`, `S3_BUCKET`, `S3_ENDPOINT`) for persistent document and CV artifact storage.
+  - Deploy `jobee-api` and `jobee-worker` to Railway from GitHub repository (`az-makhmudov/Jobee`).
+  - Verify Better Auth session propagation across Railway custom domain / `.up.railway.app` URL with HTTPS cookies.
+  - Validate Resend transactional email delivery for pilot invitations.
+  - Confirm background worker autonomous discovery and analysis scheduling within Railway memory limits (~250 MB).

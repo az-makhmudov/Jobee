@@ -83,11 +83,17 @@ export function buildApp(options: AppOptions): FastifyInstance {
 
   const app = fastify({
     logger: false, // We use our structured logger integration
+    trustProxy: true, // Required for Railway and cloud reverse proxies to correctly detect HTTPS and host
   });
 
   // Enable CORS
+  const corsOrigins = [config.WEB_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'];
+  if (config.BETTER_AUTH_URL && !corsOrigins.includes(config.BETTER_AUTH_URL)) {
+    corsOrigins.push(config.BETTER_AUTH_URL);
+  }
+
   app.register(cors, {
-    origin: [config.WEB_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: corsOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
   });

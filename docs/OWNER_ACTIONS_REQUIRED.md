@@ -8,14 +8,14 @@
 
 ## 1. External Credentials & Third-Party Service Dependencies
 
-| Item #     | Dependency Name                                         | Why Needed                                                                                                                                            | How to Provide                                                                                                                                                                                                                                                                                | Est. Cost                                                                                                 | Unblocked Feature                                                                                 | Independent Work Continuing                                                                                                            |
-| :--------- | :------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------- |
-| **DEP-01** | **Google OAuth 2.0 Client Credentials**                 | Authenticates real users via Google Sign-In, accesses recruiter messages via Gmail API, and synchronizes interview schedules via Google Calendar API. | Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` in production `.env`. Configure authorized redirect URIs in Google Cloud Console.                                                      | Free tier (Google Cloud OAuth)                                                                            | Live Google Sign-In, real Gmail monitoring, real Google Calendar scheduling.                      | Local authentication with Better Auth session emulation, offline `FixtureEmailProvider`, and `FixtureCalendarProvider` continue fully. |
-| **DEP-02** | **Transactional Email Service API Key (e.g. Resend)**   | Delivers email verification codes, password reset links, and invitation emails to new invited pilot testers.                                          | Create free account on Resend (resend.com), verify sending domain or use onboarding email, set `RESEND_API_KEY` and `EMAIL_FROM` in `.env`.                                                                                                                                                   | Free tier (up to 3,000 emails/month on Resend)                                                            | Real transactional email delivery for email/password registration and password recovery.          | Local mock email logger, deterministic test token generation, and Better Auth flows continue fully.                                    |
-| **DEP-03** | **Live AI Provider API Keys (Google Gemini / OpenAI)**  | Powers semantic job description parsing, requirement classification, cover letter drafting, and STAR interview prep frameworks.                       | Set `GEMINI_API_KEY` (Google AI Studio) or `OPENAI_API_KEY` (OpenAI Platform) in `.env` or configure via Settings view.                                                                                                                                                                       | Pay-as-you-go (Gemini free tier available; OpenAI ~$0.001/run)                                            | Live LLM semantic matching, reasoning, and document tailoring.                                    | Pluggable `DisabledAiProvider` and deterministic scoring rule engine execute with 100% anti-hallucination guarantees.                  |
-| **DEP-04** | **Free-First Cloud Hosting (Oracle Cloud Always Free)** | Hosts the unified Jobee web application, static SPA, and background worker with Playwright browser automation on a dedicated cloud VM.                | Create Oracle Cloud Always Free account (cloud.oracle.com), launch Ampere A1 Compute VM (`VM.Standard.A1.Flex`, 2–4 OCPUs, 12–24 GB RAM, Ubuntu/Debian ARM64). Add ingress rules for TCP 80, 443, 3000 in VCN Security List. Provide SSH access or install Docker.                            | **$0.00 / month** (Always Free tier). Paid fallback (Hetzner CAX11 ~€3.79/mo) requires explicit approval. | Public HTTPS access, 24/7 background worker execution, live browser prefill.                      | Local multi-stage Docker build (`node:22-bookworm-slim`), Playwright on ARM/x86, and single-port production server verified locally.   |
-| **DEP-05** | **Free-First Database (Neon Free PostgreSQL)**          | Hosts the production multi-tenant database with serverless scaling and connection pooling.                                                            | Create free project at neon.tech, copy connection string with PgBouncer pooler (`-pooler`), set `DATABASE_URL=postgresql://...neon.tech/neondb?sslmode=require`.                                                                                                                              | **$0.00 / month** (0.5 GB storage, serverless compute).                                                   | Live persistent database accessible from cloud instance without managing local PostgreSQL server. | Local PostgreSQL with automated schema migrations (`npm run db:migrate`) and health checks verified.                                   |
-| **DEP-06** | **Free-First Document Storage (Cloudflare R2)**         | Persistent, durable storage for candidate CV uploads, tailored documents, and job application artifacts with zero egress fees.                        | Create Cloudflare account, enable R2, create bucket `jobee-documents`, generate S3-compatible R2 API token. Set `STORAGE_BACKEND=s3`, `S3_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com`, `S3_BUCKET=jobee-documents`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION=auto`. | **$0.00 / month** (10 GB free, zero egress fees).                                                         | High-availability cloud document persistence independent of local file storage.                   | Local filesystem storage abstraction (`LocalStorageProvider`) and `S3StorageProvider` verified with unit tests.                        |
+| Item #     | Dependency Name                                        | Why Needed                                                                                                                                                                             | How to Provide                                                                                                                                                                                                                                                                                | Est. Cost                                                                                                 | Unblocked Feature                                                                                           | Independent Work Continuing                                                                                                                                      |
+| :--------- | :----------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **DEP-01** | **Google OAuth 2.0 Client Credentials**                | Authenticates real users via Google Sign-In, accesses recruiter messages via Gmail API, and synchronizes interview schedules via Google Calendar API.                                  | Set `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` in production `.env`. Configure authorized redirect URIs in Google Cloud Console.                                                      | Free tier (Google Cloud OAuth)                                                                            | Live Google Sign-In, real Gmail monitoring, real Google Calendar scheduling.                                | Local authentication with Better Auth session emulation, offline `FixtureEmailProvider`, and `FixtureCalendarProvider` continue fully.                           |
+| **DEP-02** | **Transactional Email Service API Key (e.g. Resend)**  | Delivers email verification codes, password reset links, and invitation emails to new invited pilot testers.                                                                           | Create free account on Resend (resend.com), verify sending domain or use onboarding email, set `RESEND_API_KEY` and `EMAIL_FROM` in `.env`.                                                                                                                                                   | Free tier (up to 3,000 emails/month on Resend)                                                            | Real transactional email delivery for email/password registration and password recovery.                    | Local mock email logger, deterministic test token generation, and Better Auth flows continue fully.                                                              |
+| **DEP-03** | **Live AI Provider API Keys (Google Gemini / OpenAI)** | Powers semantic job description parsing, requirement classification, cover letter drafting, and STAR interview prep frameworks.                                                        | Set `GEMINI_API_KEY` (Google AI Studio) or `OPENAI_API_KEY` (OpenAI Platform) in `.env` or configure via Settings view.                                                                                                                                                                       | Pay-as-you-go (Gemini free tier available; OpenAI ~$0.001/run)                                            | Live LLM semantic matching, reasoning, and document tailoring.                                              | Pluggable `DisabledAiProvider` and deterministic scoring rule engine execute with 100% anti-hallucination guarantees.                                            |
+| **DEP-04** | **Official Cloud Hosting (Railway)**                   | Hosts the unified Jobee web application/API (`jobee-api`) and background worker (`jobee-worker`) as two separated containerized services with public HTTPS and automated healthchecks. | Create Railway account (railway.com), create a new Project, and connect the GitHub repository. Deploy `jobee-api` (using root `railway.json`) and `jobee-worker` (start command `node apps/worker/dist/index.js`).                                                                            | **$0.00 – $8.00 / month** (Free trial credits first; Hobby plan $5.00 base + ~$1–$3 usage when upgraded). | Public HTTPS access, 24/7 background worker execution, automated SSL termination, and live browser prefill. | Local multi-stage Docker build (`node:22-bookworm-slim`), Playwright container flags, single-port production server, and Railway configuration verified locally. |
+| **DEP-05** | **Free-First Database (Neon Free PostgreSQL)**         | Hosts the production multi-tenant database with serverless scaling and connection pooling.                                                                                             | Create free project at neon.tech, copy connection string with PgBouncer pooler (`-pooler`), set `DATABASE_URL=postgresql://...neon.tech/neondb?sslmode=require`.                                                                                                                              | **$0.00 / month** (0.5 GB storage, serverless compute).                                                   | Live persistent database accessible from cloud instance without managing local PostgreSQL server.           | Local PostgreSQL with automated schema migrations (`npm run db:migrate`) and health checks verified.                                                             |
+| **DEP-06** | **Free-First Document Storage (Cloudflare R2)**        | Persistent, durable storage for candidate CV uploads, tailored documents, and job application artifacts with zero egress fees.                                                         | Create Cloudflare account, enable R2, create bucket `jobee-documents`, generate S3-compatible R2 API token. Set `STORAGE_BACKEND=s3`, `S3_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com`, `S3_BUCKET=jobee-documents`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_REGION=auto`. | **$0.00 / month** (10 GB free, zero egress fees).                                                         | High-availability cloud document persistence independent of local file storage.                             | Local filesystem storage abstraction (`LocalStorageProvider`) and `S3StorageProvider` verified with unit tests.                                                  |
 
 ---
 
@@ -26,42 +26,25 @@
 | **DEC-01** | **Confirmation of 6 Quarantined Candidate Facts**      | Candidate Asadbek Makhmudov has 6 sensitive candidate facts (`driver_license`, `gender`, `marital_status`, `personal_summary_hook`, `relocation_preference`, `target_annual_compensation_eur`) quarantined as `UNVERIFIED` with `allowAiUse = false`. | Awaiting user explicit confirmation in Profile UI before facts can be used in job applications.                                    |
 | **DEC-02** | **Real External ATS Submission Authorization**         | Jobee strictly forbids submitting real job applications to live employer systems without explicit human confirmation.                                                                                                                                 | Invariant strictly enforced by cryptographic manifest (`JOB-PROD-02`). All test runs remain in `DRY_RUN` or local fixture mode.    |
 | **DEC-03** | **Git Push Authorization**                             | Git commits are created locally with clean checkpoints. No commits are pushed to remote without explicit user command.                                                                                                                                | Checkpoints kept locally on `main` branch.                                                                                         |
-| **DEC-04** | **Paid Cloud Infrastructure Activation Authorization** | Product Owner has approved a Free-First strategy (Oracle Cloud Always Free + Neon Free + Cloudflare R2). No paid infrastructure may be purchased or activated without explicit approval.                                                              | **ENFORCED (Free-First Active)**. If free capacity is constrained, user must authorize fallback (e.g. Hetzner CAX11 at ~€3.79/mo). |
+| **DEC-04** | **Paid Cloud Infrastructure Activation Authorization** | Product Owner has approved Railway as official host, Neon for database, and Cloudflare R2 for storage. While the Product Owner is willing to pay for hosting, **no paid plan (e.g. Railway Hobby $5/mo) may be activated without explicit approval**. | **ENFORCED (Free Resources Prioritized)**. Explicit confirmation required before attaching credit card or upgrading to Hobby plan. |
 
 ---
 
-## 3. Step-by-Step Free-First Deployment Runbook (For Product Owner)
+## 3. Step-by-Step Railway Deployment Runbook (For Product Owner)
 
-### Step 1: Provision Oracle Cloud Always Free VM
+### Step 1: Set Up Neon Free PostgreSQL
 
-1. Log in to [Oracle Cloud Console](https://cloud.oracle.com/).
-2. Navigate to **Compute** -> **Instances** -> **Create Instance**.
-3. Choose **Image**: Ubuntu 24.04 LTS (aarch64) or Debian 12 (arm64).
-4. Choose **Shape**: `VM.Standard.A1.Flex` (Ampere ARM64). Allocate 2 to 4 OCPUs and 12 to 24 GB RAM (all within Always Free allowance).
-5. Add your SSH Public Key.
-6. Under **Networking**, create or select a VCN with a public subnet and assign a public IPv4 address.
-7. **Configure VCN Ingress Rules**:
-   - Go to **Virtual Cloud Networks** -> your VCN -> **Security Lists** -> **Default Security List**.
-   - Add Ingress Rule: Source `0.0.0.0/0`, IP Protocol `TCP`, Destination Port Range: `80, 443, 3000`.
-8. Once provisioned, connect via SSH and install Docker:
-   ```bash
-   ssh ubuntu@<YOUR_INSTANCE_IP>
-   sudo apt-get update && sudo apt-get install -y docker.io docker-compose
-   sudo usermod -aG docker ubuntu
-   ```
-
-### Step 2: Set Up Neon Free PostgreSQL
-
-1. Sign up at [neon.tech](https://neon.tech).
+1. Sign up or log in at [neon.tech](https://neon.tech).
 2. Create a project named `jobee-prod`.
 3. Under **Dashboard** -> **Connection Details**, ensure **Pooled connection** is checked.
-4. Copy the connection string (`postgresql://<user>:<password>@ep-...-pooler.region.aws.neon.tech/neondb?sslmode=require`).
+4. Copy the connection string:
+   `postgresql://<user>:<password>@ep-...-pooler.region.aws.neon.tech/neondb?sslmode=require`
 5. Run migrations from your local workspace to initialize the remote database:
    ```bash
    DATABASE_URL="<NEON_CONNECTION_STRING>" npm run db:migrate
    ```
 
-### Step 3: Set Up Cloudflare R2 Object Storage
+### Step 2: Set Up Cloudflare R2 Object Storage
 
 1. Sign up or log in at [cloudflare.com](https://dash.cloudflare.com/).
 2. Navigate to **R2 Object Storage** and click **Create bucket**. Name it `jobee-documents`.
@@ -72,13 +55,46 @@
    - Access Key ID
    - Secret Access Key
 
-### Step 4: Launch Jobee on the Server
+### Step 3: Deploy `jobee-api` on Railway
 
-1. Clone the repository on the instance and copy your `.env` containing:
-   ```bash
+1. Log in to [railway.com](https://railway.com/).
+2. Click **New Project** -> **Deploy from GitHub repo** -> select the Jobee repository.
+3. Rename the created service to `jobee-api`.
+4. Railway automatically detects `railway.json` which specifies:
+   - Builder: `DOCKERFILE` (`Dockerfile`)
+   - Start Command: `node apps/api/dist/index.js`
+   - Healthcheck Path: `/api/health`
+5. Go to **Settings** -> **Networking** -> click **Generate Domain** (e.g. `jobee-production.up.railway.app`).
+6. Under **Variables**, add the production environment variables:
+   ```env
    NODE_ENV=production
-   PORT=3000
-   API_HOST=0.0.0.0
+   DATABASE_URL=<NEON_CONNECTION_STRING>
+   DATABASE_SSL=true
+   STORAGE_BACKEND=s3
+   S3_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+   S3_BUCKET=jobee-documents
+   S3_REGION=auto
+   S3_ACCESS_KEY_ID=<R2_ACCESS_KEY_ID>
+   S3_SECRET_ACCESS_KEY=<R2_SECRET_ACCESS_KEY>
+   BETTER_AUTH_SECRET=<SECURE_RANDOM_32_BYTES>
+   BETTER_AUTH_URL=https://<YOUR_RAILWAY_DOMAIN>
+   BETTER_AUTH_TRUSTED_ORIGINS=https://<YOUR_RAILWAY_DOMAIN>
+   EMAIL_TOKEN_ENCRYPTION_KEY=<SECURE_RANDOM_32_BYTES>
+   INVITE_ONLY_REGISTRATION=true
+   LOG_LEVEL=info
+   ```
+
+### Step 4: Deploy `jobee-worker` on Railway
+
+1. In the same Railway project, click **+ New** -> **GitHub Repo** -> select the same repository again.
+2. Rename this second service to `jobee-worker`.
+3. Go to **Settings** -> **Deploy**:
+   - Custom Start Command: `node apps/worker/dist/index.js`
+   - Restart Policy: `Always`
+4. Go to **Settings** -> **Networking**: ensure no public domain is generated (internal service only).
+5. Under **Variables**, link the same shared variables as `jobee-api`:
+   ```env
+   NODE_ENV=production
    DATABASE_URL=<NEON_CONNECTION_STRING>
    DATABASE_SSL=true
    STORAGE_BACKEND=s3
@@ -89,24 +105,32 @@
    S3_SECRET_ACCESS_KEY=<R2_SECRET_ACCESS_KEY>
    BETTER_AUTH_SECRET=<SECURE_RANDOM_32_BYTES>
    EMAIL_TOKEN_ENCRYPTION_KEY=<SECURE_RANDOM_32_BYTES>
-   INVITE_ONLY_REGISTRATION=true
+   ORCHESTRATOR_ENABLED=true
+   WORKER_POLL_INTERVAL_MS=5000
+   LOG_LEVEL=info
    ```
-2. Build and run with Docker:
+
+### Step 5: Verification & Health Check
+
+1. Test public health endpoint:
    ```bash
-   docker build -t jobee:latest .
-   docker run -d --name jobee -p 3000:3000 --env-file .env --restart unless-stopped jobee:latest
+   curl -i https://<YOUR_RAILWAY_DOMAIN>/api/health
    ```
-3. Test health: `curl http://localhost:3000/api/health`
+   Should return `200 OK` with `{"status":"ok","service":"api"}`.
+2. Test readiness endpoint:
+   ```bash
+   curl -i https://<YOUR_RAILWAY_DOMAIN>/api/ready
+   ```
+   Should report database connectivity as `connected`.
 
 ---
 
-## 4. Paid Fallback Evaluation (If Free Tier Encounters Capacity Constraints)
+## 4. Railway Plan & Pricing Evaluation (Hobby vs. Free Tier)
 
-If Oracle Cloud Ampere A1 is out of capacity in your chosen region or registration verification issues arise, the simplest reliable paid alternative is:
+| Plan                                   | Base Cost         | Compute Inclusions                                                                                                        | Suitability for Jobee                                          | Estimated Monthly Cost            |
+| :------------------------------------- | :---------------- | :------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------- | :-------------------------------- |
+| **Free / Trial Credits**               | **$0.00**         | $5.00 one-time credit, 512 MB – 8 GB execution                                                                            | Suitable for initial verification testing.                     | **$0.00** until credit exhaustion |
+| **Hobby Plan (Recommended for Pilot)** | **$5.00 / month** | Includes $5.00 usage credit, 8 GB RAM per service, 8 vCPUs, continuous 24/7 background worker execution, zero idle sleep. | **Fully supports Jobee** (API + Worker + Playwright Chromium). | **~$5.00 – $8.00 / month** total  |
 
-- **Provider**: [Hetzner Cloud](https://www.hetzner.com/cloud)
-- **Server Type**: `CAX11` (Ampere ARM64, 2 vCPU, 4 GB RAM, 40 GB NVMe, 20 TB traffic) or `CX22` (x86_64, 2 vCPU, 4 GB RAM, 40 GB NVMe).
-- **Location**: Nuremberg / Falkenstein (Germany), Helsinki (Finland), or Ashburn (US).
-- **Monthly Cost**: **~€3.79 – €3.99 / month (~$4.15 – $4.35 USD)**.
-- **Benefits**: Instant provisioning, no idle shutdown policies, high-speed networking, GDPR compliant.
-- **Rule**: Await explicit Product Owner approval before signing up or entering payment details.
+> [!NOTE]
+> Even on the Hobby plan, compute consumption for Jobee's two lightweight services (~200 MB API + ~250 MB Worker) is largely offset by the $5.00 base credit, keeping ongoing monthly expenses extraordinarily low.

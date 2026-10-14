@@ -741,3 +741,76 @@ The identity management subsystem integrates **Better Auth** as the authoritativ
 - **Mobile Viewport Support**: Certified compatibility across screen widths from 375px (mobile phones) to 4K displays.
 - **Drawer Navigation**: Sticky mobile header with hamburger toggle, slide-out drawer navigation, and semi-transparent backdrop blur.
 - **Responsive Layout**: Padding scales dynamically from 3rem (desktop) to 1rem (mobile), with single-column status cards and responsive modal sizing (`max-width: 95vw`).
+
+---
+
+## 14. Cloud Deployment & Railway Production Infrastructure (`JOB-HOST-02`)
+
+The official cloud hosting architecture for Jobee is deployed on **Railway**, orchestrating separated container services with managed external serverless database and object storage.
+
+```text
+                                  ┌────────────────────────┐
+                                  │   Public Internet /    │
+                                  │   Candidate Browser    │
+                                  └───────────┬────────────┘
+                                              │ HTTPS (Port 443)
+                                              ▼
+                                  ┌────────────────────────┐
+                                  │ Railway Edge Ingress   │
+                                  │ (Cloudflare SSL/Envoy) │
+                                  └───────────┬────────────┘
+                                              │ HTTP ($PORT) + x-forwarded-*
+                                              ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ Railway Project: jobee                                                                 │
+│                                                                                        │
+│  ┌─────────────────────────────────────────┐  ┌─────────────────────────────────────┐  │
+│  │ Service: jobee-api                      │  │ Service: jobee-worker               │  │
+│  │ - Fastify 5 (`trustProxy: true`)        │  │ - Autonomous Orchestrator Daemon    │  │
+│  │ - Dynamic $PORT Binding (Default 3000)  │  │ - Playwright Chromium Headless      │  │
+│  │ - Static React 19 SPA Serving           │  │   (`--no-sandbox`, `--disable-shm`) │  │
+│  │ - Better Auth Engine & REST Routes      │  │ - Job Discovery & Analysis Poll     │  │
+│  │ - Health Probes: `/api/health`          │  │ - Memory: ~250 MB (Hobby/Free)      │  │
+│  │ - Restart Policy: `ON_FAILURE`          │  │ - Restart Policy: `ON_FAILURE`      │  │
+│  └────────────────────┬────────────────────┘  └──────────────────┬──────────────────┘  │
+│                       │                                          │                     │
+└───────────────────────┼──────────────────────────────────────────┼─────────────────────┘
+                        │                                          │
+                        ▼                                          ▼
+       ┌─────────────────────────────────┐        ┌──────────────────────────────────┐
+       │ Neon PostgreSQL Free Tier       │        │ Cloudflare R2 Storage (S3 API)   │
+       │ - Serverless Postgres 16        │        │ - Zero Egress Fees (10 GB Free)  │
+       │ - Pooled Endpoint (PgBouncer)   │        │ - CVs, Cover Letters & Artifacts │
+       │ - Non-blocking SSL Enforced     │        │ - AES-256 Checksum Verified      │
+       │ - 10s Cold-Start Timeout Guard  │        │ - Direct S3StorageProvider       │
+       └─────────────────────────────────┘        └──────────────────────────────────┘
+```
+
+### 14.1. Multi-Service Separation
+
+- **`jobee-api` Service**: Serves the unified Fastify REST API, Better Auth authentication routes, and the compiled React 19 single-page application from `apps/web/dist`. It exposes public HTTP ingress via Railway edge routers.
+- **`jobee-worker` Service**: Runs as a headless daemon executing `AutonomousOrchestrator` periodic cycles and the Playwright Chromium automation worker. It has no public HTTP exposure and communicates directly with PostgreSQL and external job platforms.
+- **Declarative Configuration**: Governed by `railway.json` (API) and `railway.worker.json` (Worker), specifying the unified multi-stage `Dockerfile`, explicit start commands (`node apps/api/dist/index.js` and `node apps/worker/dist/index.js`), `/api/health` health probes, and restart policies.
+
+### 14.2. Reverse Proxy Trust & Protocol Awareness
+
+- **`fastify({ trustProxy: true })`**: Behind Railway's Cloudflare/Envoy ingress proxies, incoming connections terminate SSL at the edge and arrive via HTTP with `x-forwarded-proto: https` and `x-forwarded-for` headers. Enabling `trustProxy: true` ensures:
+  1. `request.protocol` evaluates accurately to `https`.
+  2. Better Auth securely sets and reads `__Secure-` session cookies.
+  3. Dynamic OAuth callback URLs and invitation deep-links construct valid `https://` absolute URLs.
+  4. Real client IP addresses are preserved for audit logging and rate limiting.
+- **Dynamic `$PORT` Handling**: Railway dynamically assigns arbitrary external listening ports via `$PORT`. The configuration layer (`packages/config/src/env.ts`) seamlessly maps `$PORT` to `API_PORT` while defaulting to 3000 locally.
+- **CORS Whitelist**: Dynamically includes `BETTER_AUTH_URL` and custom domain origins to prevent cross-origin issues during cloud deployment.
+
+### 14.3. Playwright Containerization Hardening
+
+- **Resource Limits in Containers**: Headless Chromium inside Linux Docker containers default to 64 MB of shared memory (`/dev/shm`), which causes unpredictable crashes during complex DOM rendering.
+- **Container Execution Flags**: `PlaywrightBrowserController` explicitly injects container flags when running in Docker/Linux environments:
+  - `--no-sandbox` & `--disable-setuid-sandbox`: Disables Linux SUID sandboxes inside isolated Docker containers.
+  - `--disable-dev-shm-usage`: Forces Chromium to write temporary shared memory buffers to `/tmp` instead of `/dev/shm`, preventing memory crashes on Railway.
+  - `--disable-gpu`: Eliminates unnecessary GPU hardware acceleration overhead in headless server containers.
+
+### 14.4. Serverless Database & Storage Integration
+
+- **Neon PostgreSQL Free Tier**: Uses serverless PostgreSQL 16 with PgBouncer connection pooling (`-pooler` connection strings). Client connection automatically configures non-blocking SSL (`rejectUnauthorized: false`) and a 10,000ms connection timeout to absorb serverless compute resume latency (500ms–2s).
+- **Cloudflare R2 Storage**: Persistent candidate CVs, Cover Letters, and application artifacts are stored in Cloudflare R2 via `S3StorageProvider` using AWS Signature Version 4 (AWS4-HMAC-SHA256). Provides 10 GB free storage with zero egress bandwidth charges.

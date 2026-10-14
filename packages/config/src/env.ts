@@ -22,93 +22,107 @@ function findAndLoadDotenv(): void {
 findAndLoadDotenv();
 
 export const envSchema = z
-  .object({
-    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-    DATABASE_URL: z.string().optional(),
-    DATABASE_SSL: z
-      .preprocess((val) => {
-        if (typeof val === 'string') {
-          return val.toLowerCase() === 'true' || val === '1';
+  .preprocess(
+    (raw: unknown) => {
+      if (typeof raw === 'object' && raw !== null) {
+        const r = raw as Record<string, unknown>;
+        const port = r.API_PORT ?? r.PORT;
+        if (port !== undefined && port !== '') {
+          return { ...r, API_PORT: port };
         }
-        return val ?? false;
-      }, z.boolean())
-      .default(false),
-    API_HOST: z.string().default('127.0.0.1'),
-    API_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-    WEB_ORIGIN: z.string().default('http://localhost:5173'),
-    LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'fatal']).default('info'),
-    WORKER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
-    AI_PROVIDER: z.enum(['disabled', 'gemini', 'openai']).default('disabled'),
-    AI_API_KEY: z.string().optional(),
-    GEMINI_API_KEY: z.string().optional(),
-    OPENAI_API_KEY: z.string().optional(),
-    AI_MODEL: z.string().optional(),
-    EMAIL_TOKEN_ENCRYPTION_KEY: z
-      .string()
-      .min(32, 'EMAIL_TOKEN_ENCRYPTION_KEY must be at least 32 characters')
-      .refine(
-        (val) => {
-          const uniqueChars = new Set(val);
-          return uniqueChars.size >= 8;
-        },
-        {
-          message:
-            'EMAIL_TOKEN_ENCRYPTION_KEY has insufficient entropy (must contain at least 8 distinct characters)',
-        },
-      )
-      .default('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
-    GMAIL_CLIENT_ID: z.string().optional(),
-    GMAIL_CLIENT_SECRET: z.string().optional(),
-    GMAIL_REDIRECT_URI: z
-      .string()
-      .default('http://127.0.0.1:3000/api/email/accounts/gmail/callback'),
-    GOOGLE_CALENDAR_CLIENT_ID: z.string().optional(),
-    GOOGLE_CALENDAR_CLIENT_SECRET: z.string().optional(),
-    GOOGLE_CALENDAR_REDIRECT_URI: z
-      .string()
-      .default('http://127.0.0.1:3000/api/calendar/google/callback'),
-    ORCHESTRATOR_ENABLED: z
-      .preprocess((val) => {
-        if (typeof val === 'string') {
-          return val.toLowerCase() === 'true' || val === '1';
-        }
-        return val ?? true;
-      }, z.boolean())
-      .default(true),
-    ORCHESTRATOR_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
-    DISCOVERY_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
-    EMAIL_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(15),
-    REMINDERS_INTERVAL_MINUTES: z.coerce.number().int().positive().default(30),
-    RATE_LIMIT_DAILY_APPLICATIONS_DEFAULT: z.coerce.number().int().positive().default(10),
-    BETTER_AUTH_SECRET: z
-      .string()
-      .min(32, 'BETTER_AUTH_SECRET must be at least 32 characters')
-      .default('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
-    BETTER_AUTH_URL: z.string().default('http://127.0.0.1:3000'),
-    BETTER_AUTH_TRUSTED_ORIGINS: z.string().default('http://localhost:5173,http://127.0.0.1:5173'),
-    GOOGLE_CLIENT_ID: z.string().optional(),
-    GOOGLE_CLIENT_SECRET: z.string().optional(),
-    RESEND_API_KEY: z.string().optional(),
-    SMTP_HOST: z.string().optional(),
-    SMTP_PORT: z.coerce.number().int().positive().optional(),
-    SMTP_USER: z.string().optional(),
-    SMTP_PASS: z.string().optional(),
-    SMTP_FROM: z.string().default('Jobee <notifications@jobee.local>'),
-    INVITE_ONLY_REGISTRATION: z
-      .preprocess((val) => {
-        if (typeof val === 'string') {
-          return val.toLowerCase() === 'true' || val === '1';
-        }
-        return val ?? true;
-      }, z.boolean())
-      .default(true),
-    STORAGE_BACKEND: z.enum(['local', 's3']).default('local'),
-    S3_BUCKET: z.string().optional(),
-    S3_REGION: z.string().default('auto'),
-    S3_ENDPOINT: z.string().optional(),
-    S3_ACCESS_KEY_ID: z.string().optional(),
-    S3_SECRET_ACCESS_KEY: z.string().optional(),
-  })
+      }
+      return raw;
+    },
+    z.object({
+      NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+      DATABASE_URL: z.string().optional(),
+      DATABASE_SSL: z
+        .preprocess((val) => {
+          if (typeof val === 'string') {
+            return val.toLowerCase() === 'true' || val === '1';
+          }
+          return val ?? false;
+        }, z.boolean())
+        .default(false),
+      API_HOST: z.string().default('127.0.0.1'),
+      API_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+      WEB_ORIGIN: z.string().default('http://localhost:5173'),
+      LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+      WORKER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
+      AI_PROVIDER: z.enum(['disabled', 'gemini', 'openai']).default('disabled'),
+      AI_API_KEY: z.string().optional(),
+      GEMINI_API_KEY: z.string().optional(),
+      OPENAI_API_KEY: z.string().optional(),
+      AI_MODEL: z.string().optional(),
+      EMAIL_TOKEN_ENCRYPTION_KEY: z
+        .string()
+        .min(32, 'EMAIL_TOKEN_ENCRYPTION_KEY must be at least 32 characters')
+        .refine(
+          (val) => {
+            const uniqueChars = new Set(val);
+            return uniqueChars.size >= 8;
+          },
+          {
+            message:
+              'EMAIL_TOKEN_ENCRYPTION_KEY has insufficient entropy (must contain at least 8 distinct characters)',
+          },
+        )
+        .default('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
+      GMAIL_CLIENT_ID: z.string().optional(),
+      GMAIL_CLIENT_SECRET: z.string().optional(),
+      GMAIL_REDIRECT_URI: z
+        .string()
+        .default('http://127.0.0.1:3000/api/email/accounts/gmail/callback'),
+      GOOGLE_CALENDAR_CLIENT_ID: z.string().optional(),
+      GOOGLE_CALENDAR_CLIENT_SECRET: z.string().optional(),
+      GOOGLE_CALENDAR_REDIRECT_URI: z
+        .string()
+        .default('http://127.0.0.1:3000/api/calendar/google/callback'),
+      ORCHESTRATOR_ENABLED: z
+        .preprocess((val) => {
+          if (typeof val === 'string') {
+            return val.toLowerCase() === 'true' || val === '1';
+          }
+          return val ?? true;
+        }, z.boolean())
+        .default(true),
+      ORCHESTRATOR_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(15000),
+      DISCOVERY_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
+      EMAIL_SYNC_INTERVAL_MINUTES: z.coerce.number().int().positive().default(15),
+      REMINDERS_INTERVAL_MINUTES: z.coerce.number().int().positive().default(30),
+      RATE_LIMIT_DAILY_APPLICATIONS_DEFAULT: z.coerce.number().int().positive().default(10),
+      BETTER_AUTH_SECRET: z
+        .string()
+        .min(32, 'BETTER_AUTH_SECRET must be at least 32 characters')
+        .default('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
+      BETTER_AUTH_URL: z.string().default('http://127.0.0.1:3000'),
+      BETTER_AUTH_TRUSTED_ORIGINS: z
+        .string()
+        .default('http://localhost:5173,http://127.0.0.1:5173'),
+      GOOGLE_CLIENT_ID: z.string().optional(),
+      GOOGLE_CLIENT_SECRET: z.string().optional(),
+      RESEND_API_KEY: z.string().optional(),
+      SMTP_HOST: z.string().optional(),
+      SMTP_PORT: z.coerce.number().int().positive().optional(),
+      SMTP_USER: z.string().optional(),
+      SMTP_PASS: z.string().optional(),
+      SMTP_FROM: z.string().default('Jobee <notifications@jobee.local>'),
+      INVITE_ONLY_REGISTRATION: z
+        .preprocess((val) => {
+          if (typeof val === 'string') {
+            return val.toLowerCase() === 'true' || val === '1';
+          }
+          return val ?? true;
+        }, z.boolean())
+        .default(true),
+      STORAGE_BACKEND: z.enum(['local', 's3']).default('local'),
+      S3_BUCKET: z.string().optional(),
+      S3_REGION: z.string().default('auto'),
+      S3_ENDPOINT: z.string().optional(),
+      S3_ACCESS_KEY_ID: z.string().optional(),
+      S3_SECRET_ACCESS_KEY: z.string().optional(),
+    }),
+  )
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production') {
       if (!data.DATABASE_URL || data.DATABASE_URL.trim() === '') {

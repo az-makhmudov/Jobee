@@ -147,6 +147,12 @@ export class PlaywrightBrowserController implements BrowserController {
       this.browser = await chromium.launch({
         headless: this.options.headless ?? true,
         slowMo: this.options.slowMo,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+        ],
       });
     }
 

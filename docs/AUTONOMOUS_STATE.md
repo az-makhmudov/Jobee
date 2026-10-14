@@ -12,42 +12,43 @@
 ## 1. Roadmap Snapshot
 
 - **Current Official Mode:** Autonomous Product Completion & Production Readiness
-- **Active Backlog Item:** `BL-07 & BL-08: COMPLETED`, `BL-09: READY` (`JOB-HOST-01` Verified)
+- **Active Backlog Item:** `BL-09: COMPLETED`, `BL-10: READY` (`JOB-HOST-02` Verified)
 - **Milestone Status:** COMPLETED
-- **Previous Completed Milestone:** `JOB-HOST-01` (Free-First Hosting Policy: Oracle Cloud Always Free ARM64, Neon Free PostgreSQL & Cloudflare R2 Storage)
-- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 6) — FREE-FIRST CLOUD PILOT READY**
-- **Active Git Checkpoint:** `dcba669` (`JOB-HOST-01`)
+- **Previous Completed Milestone:** `JOB-HOST-02` (Official Railway Hosting Architecture & Multi-Service Deployment)
+- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 6) — OFFICIAL RAILWAY CLOUD PILOT READY**
+- **Active Git Checkpoint:** `dcba669` (`JOB-HOST-01`), pending commit for `JOB-HOST-02`
 
 ---
 
 ## 2. Milestone Progress Tracker
 
-| Milestone ID               | Description                                                       | Status        | Verification & Checkpoint                                                 |
-| -------------------------- | ----------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------- |
-| `JOB-P0-T01`               | Project Foundation, Architecture, Policies                        | COMPLETED     | Verified in `docs/`                                                       |
-| `JOB-P1-T01`               | Workspace, DB & Core Platform Foundation                          | COMPLETED     | `e4e4815`                                                                 |
-| `JOB-P1-T02`               | Candidate Brain, Documents, Answer Library                        | COMPLETED     | `e4e4815`                                                                 |
-| `JOB-P2-T01`               | Job Ingestion, Parsing, Normalization, Inbox                      | COMPLETED     | `b7e7e80`                                                                 |
-| `JOB-P2-T02`               | Requirement Analysis, Matching & Policy Engine                    | COMPLETED     | `432cfa0`                                                                 |
-| `JOB-P3-T01`               | Application Studio & Tailored Materials                           | COMPLETED     | `024c742`                                                                 |
-| `JOB-P3-T02`               | Application CRM, Lifecycle & Analytics (MVP)                      | COMPLETED     | `6941d1f`                                                                 |
-| `JOB-P4-T01`               | Email Intelligence & CRM Status Sync                              | COMPLETED     | `6591f44`                                                                 |
-| `JOB-P4-T02`               | Calendar, Interview Scheduling & Prep Workspace                   | COMPLETED     | `2de982d`                                                                 |
-| `JOB-P5-T01`               | Browser Application Worker & Initial ATS Adapters                 | COMPLETED     | `d9006e7`                                                                 |
-| `JOB-P5-T02`               | Autonomous Orchestrator, Scheduling & Hardening                   | COMPLETED     | `9a1c56b`                                                                 |
-| `REAL-ACT`                 | Real Functionality Activation & Truthful De-bias                  | PARTIAL       | Remediated in `REAL-ACT-REMEDIATION` (`c7537b4`)                          |
-| `REAL-ACT-REMEDIATION`     | Candidate Data Integrity, Human Authorization & Safety Boundaries | COMPLETED     | `bd28ca8`                                                                 |
-| `JOB-P0-T01`               | Jobee Foundation, Rebrand & Private GitHub Repo Setup             | COMPLETED     | `4f932fe`                                                                 |
-| `JOB-P0-T01-REMEDIATION`   | Post-Migration Security & CI Remediation                          | COMPLETED     | `442fa23`                                                                 |
-| `JOB-P0-T01-CLEANUP`       | Git History Security Cleanup & Sensitive SQL Purge                | COMPLETED     | `1b62e69`                                                                 |
-| `JOB-P0-T01-STABILIZATION` | Autonomous Stabilization & Readiness Hardening                    | COMPLETED     | `696b1cc`                                                                 |
-| `JOB-PROD-01`              | Backend Authorization, Submission Guardrails & Profile Sandbox    | COMPLETED     | `904c19f`                                                                 |
-| `JOB-PROD-02`              | Cryptographic Manifest-Bound Submission Authorization             | COMPLETED     | `8f58075`                                                                 |
-| `JOB-AUTH-01`              | Better Auth Identity, Multi-Tenant Isolation & Private Pilot      | COMPLETED     | `f04ca1a`                                                                 |
-| `JOB-PROD-03`              | Public Job Discovery, Ingestion & Containerized Cloud Deployment  | COMPLETED     | `d65c337`                                                                 |
-| `JOB-PROD-04`              | Multi-Tenant Auth Hardening, Open AI Architecture & Mobile UI     | COMPLETED     | `9806b7d`                                                                 |
-| `JOB-PROD-05`              | Multi-Tenant Isolation, Dynamic AI, Cloud Storage & Onboarding    | COMPLETED     | `30c843a` (BL-01 to BL-06)                                                |
-| `JOB-HOST-01`              | Free-First Hosting Policy (Oracle ARM64, Neon, Cloudflare R2)     | **COMPLETED** | `dcba669` (BL-07, BL-08)                                                  |
+| Milestone ID               | Description                                                       | Status        | Verification & Checkpoint                        |
+| -------------------------- | ----------------------------------------------------------------- | ------------- | ------------------------------------------------ |
+| `JOB-P0-T01`               | Project Foundation, Architecture, Policies                        | COMPLETED     | Verified in `docs/`                              |
+| `JOB-P1-T01`               | Workspace, DB & Core Platform Foundation                          | COMPLETED     | `e4e4815`                                        |
+| `JOB-P1-T02`               | Candidate Brain, Documents, Answer Library                        | COMPLETED     | `e4e4815`                                        |
+| `JOB-P2-T01`               | Job Ingestion, Parsing, Normalization, Inbox                      | COMPLETED     | `b7e7e80`                                        |
+| `JOB-P2-T02`               | Requirement Analysis, Matching & Policy Engine                    | COMPLETED     | `432cfa0`                                        |
+| `JOB-P3-T01`               | Application Studio & Tailored Materials                           | COMPLETED     | `024c742`                                        |
+| `JOB-P3-T02`               | Application CRM, Lifecycle & Analytics (MVP)                      | COMPLETED     | `6941d1f`                                        |
+| `JOB-P4-T01`               | Email Intelligence & CRM Status Sync                              | COMPLETED     | `6591f44`                                        |
+| `JOB-P4-T02`               | Calendar, Interview Scheduling & Prep Workspace                   | COMPLETED     | `2de982d`                                        |
+| `JOB-P5-T01`               | Browser Application Worker & Initial ATS Adapters                 | COMPLETED     | `d9006e7`                                        |
+| `JOB-P5-T02`               | Autonomous Orchestrator, Scheduling & Hardening                   | COMPLETED     | `9a1c56b`                                        |
+| `REAL-ACT`                 | Real Functionality Activation & Truthful De-bias                  | PARTIAL       | Remediated in `REAL-ACT-REMEDIATION` (`c7537b4`) |
+| `REAL-ACT-REMEDIATION`     | Candidate Data Integrity, Human Authorization & Safety Boundaries | COMPLETED     | `bd28ca8`                                        |
+| `JOB-P0-T01`               | Jobee Foundation, Rebrand & Private GitHub Repo Setup             | COMPLETED     | `4f932fe`                                        |
+| `JOB-P0-T01-REMEDIATION`   | Post-Migration Security & CI Remediation                          | COMPLETED     | `442fa23`                                        |
+| `JOB-P0-T01-CLEANUP`       | Git History Security Cleanup & Sensitive SQL Purge                | COMPLETED     | `1b62e69`                                        |
+| `JOB-P0-T01-STABILIZATION` | Autonomous Stabilization & Readiness Hardening                    | COMPLETED     | `696b1cc`                                        |
+| `JOB-PROD-01`              | Backend Authorization, Submission Guardrails & Profile Sandbox    | COMPLETED     | `904c19f`                                        |
+| `JOB-PROD-02`              | Cryptographic Manifest-Bound Submission Authorization             | COMPLETED     | `8f58075`                                        |
+| `JOB-AUTH-01`              | Better Auth Identity, Multi-Tenant Isolation & Private Pilot      | COMPLETED     | `f04ca1a`                                        |
+| `JOB-PROD-03`              | Public Job Discovery, Ingestion & Containerized Cloud Deployment  | COMPLETED     | `d65c337`                                        |
+| `JOB-PROD-04`              | Multi-Tenant Auth Hardening, Open AI Architecture & Mobile UI     | COMPLETED     | `9806b7d`                                        |
+| `JOB-PROD-05`              | Multi-Tenant Isolation, Dynamic AI, Cloud Storage & Onboarding    | COMPLETED     | `30c843a` (BL-01 to BL-06)                       |
+| `JOB-HOST-01`              | Free-First Hosting Policy (Oracle ARM64, Neon, Cloudflare R2)     | COMPLETED     | `dcba669` (BL-07, BL-08)                         |
+| `JOB-HOST-02`              | Official Railway Hosting (Multi-Service, Neon, Cloudflare R2)     | **COMPLETED** | Pending commit (BL-09)                           |
 
 ---
 
@@ -126,4 +127,4 @@
 1. **Google OAuth 2.0 Credentials**: `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` for live Google account sync.
 2. **Live External ATS Submissions**: Executing live submissions (instead of `DRY_RUN` / `PREFILL_ONLY`) requires explicit human approval and candidates enabling `auto_apply_enabled: true` in policy settings.
 3. **Headless Browser Runtime**: Deployment container requires Playwright browser binaries (`npx playwright install --with-deps chromium`).
-4. **Free-First Hosting Stack**: Oracle Cloud Always Free Ampere A1 (ARM64), Neon Free PostgreSQL, and Cloudflare R2 Document Storage verified (`JOB-HOST-01`). Strict zero-paid-activation policy enforced without explicit owner approval.
+4. **Official Railway Hosting Stack**: Railway multi-service deployment (`jobee-api` and `jobee-worker`), Neon Free PostgreSQL, and Cloudflare R2 Document Storage verified (`JOB-HOST-02`). Strict zero-paid-activation policy enforced without explicit owner approval (`DEC-04`).

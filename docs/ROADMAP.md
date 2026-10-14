@@ -121,3 +121,7 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
 - **Status**: COMPLETED
 - **Scope**: Formalization of Free-First hosting policy across permanent directives; evaluation of Oracle Cloud Always Free Ampere A1 (ARM64), multi-arch Docker, Playwright headless Chromium on ARM, 24/7 background worker execution, Neon Free PostgreSQL with auto-SSL detection and cold start pooling, Cloudflare R2 zero-egress document storage, paid fallback contingency (Hetzner CAX11 at ~€3.79/mo), and automated infrastructure verification suite (`scripts/verify-free-first-infrastructure.ts`).
 
+### `JOB-HOST-02 — Official Railway Hosting Architecture & Production Multi-Service Deployment`
+
+- **Status**: COMPLETED
+- **Scope**: Formalization of Railway as the official cloud hosting platform for Jobee; dynamic `$PORT` environment variable preprocessing in Fastify; `trustProxy: true` configuration for Railway Cloudflare/Envoy SSL termination; Playwright container stability flags (`--no-sandbox`, `--disable-dev-shm-usage`, `--disable-gpu`); declarative multi-service Railway deployment configurations (`railway.json` for API service, `railway.worker.json` for autonomous background worker); Neon Free PostgreSQL and Cloudflare R2 integration; deployment runbooks and Hobby plan cost evaluation (~$5.00–$8.00/mo); and automated deployment verification suite (`scripts/verify-railway-deployment.ts`).

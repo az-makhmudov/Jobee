@@ -954,3 +954,35 @@ This document tracks execution history and verification state for all official m
   - `npm run lint`: PASSED (0 errors across codebase).
   - `npm test`: PASSED (43 test files, 330/330 tests passed).
   - `scripts/verify-free-first-infrastructure.ts`: PASSED (11/11 checks passed).
+
+---
+
+### `JOB-HOST-02` — Official Railway Hosting Architecture & Production Multi-Service Deployment
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-14
+- **Scope**:
+  - **1. Railway Official Hosting Architecture Alignment**:
+    - Product Owner established Railway as the official cloud hosting platform for Jobee, superseding Oracle Always Free while preserving `JOB-HOST-01` as completed historical engineering documentation.
+    - Updated permanent project documents: `PRODUCT_COMPLETION_DIRECTIVE.md`, `OWNER_ACTIONS_REQUIRED.md`, `IMPLEMENTATION_BACKLOG.md`, `AUTONOMOUS_STATE.md`, `ARCHITECTURE.md`, `ROADMAP.md`.
+    - Detailed Railway multi-service topology: `jobee-api` (Fastify + static React 19 SPA) and `jobee-worker` (Autonomous Orchestrator daemon + Playwright), backed by Neon PostgreSQL Free and Cloudflare R2 Document Storage.
+  - **2. Dynamic Port Binding & Reverse Proxy Trust Hardening**:
+    - Enhanced `packages/config/src/env.ts` with dynamic `$PORT` environment variable preprocessing to bind to Railway's assigned port dynamically while maintaining port 3000 default.
+    - Configured `fastify({ trustProxy: true })` in `apps/api/src/app.ts` for Railway edge ingress (Cloudflare/Envoy SSL termination), ensuring secure cookie handling (`__Secure-`), accurate `request.protocol === 'https'`, real client IP extraction, and correct Better Auth redirect generation.
+    - Whitelisted `BETTER_AUTH_URL` dynamically in Fastify CORS origin whitelist.
+  - **3. Playwright Containerization Hardening**:
+    - Added container runtime flags (`--no-sandbox`, `--disable-setuid-sandbox`, `--disable-dev-shm-usage`, `--disable-gpu`) in `PlaywrightBrowserController` to prevent Linux container crashes from 64 MB `/dev/shm` exhaustion.
+  - **4. Declarative Railway Multi-Service Deployment Manifests**:
+    - Created `railway.json` for API service (Dockerfile build, `/api/health` healthcheck, `ON_FAILURE` restart policy).
+    - Created `railway.worker.json` for background worker daemon.
+  - **5. Hosting Cost Analysis & Authorization Boundaries**:
+    - Evaluated Railway Hobby plan (~$5.00–$8.00/month) with $5.00 monthly platform credit offsetting the majority of resource usage (~200 MB API + ~250 MB Worker).
+    - Enforced strict human authorization boundary `DEC-04`: no paid plans may be activated or public deployments executed without explicit Product Owner approval.
+  - **6. Automated Deployment Verification Suite**:
+    - Created `scripts/verify-railway-deployment.ts` with 13 comprehensive checks across environment schemas, dynamic `$PORT` preprocessing, `trustProxy` protocol and IP reflection via `app.inject`, CORS whitelist, Playwright container flags, Neon SSL detection, Cloudflare R2 instantiation, and spend guardrails (13/13 passed).
+- **Verification Records**:
+  - `npm run db:check`: PASSED (PostgreSQL connected).
+  - `npm run typecheck`: PASSED (0 errors across all 6 workspaces).
+  - `npm run lint`: PASSED (0 errors across codebase).
+  - `npm test`: PASSED (43 test files, 330/330 tests passed).
+  - `scripts/verify-railway-deployment.ts`: PASSED (13/13 checks passed).
