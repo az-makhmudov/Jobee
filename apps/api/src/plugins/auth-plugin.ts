@@ -171,7 +171,7 @@ const authPluginCallback: FastifyPluginAsync<AuthPluginOptions> = async (fastify
   // Enforce authentication on all private endpoints by default
   fastify.addHook('preHandler', async (request, reply) => {
     const url = request.url;
-    const pathname = url.split('?')[0];
+    const pathname = url.split('?')[0] ?? '';
 
     // Static assets & frontend SPA entry points are public
     const isStatic =
