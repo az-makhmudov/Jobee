@@ -1,7 +1,7 @@
 # Jobee — Autonomous Execution State
 
 **Document Status:** Canonical Durable Execution State  
-**Updated At:** 2026-10-14 06:20:00 UTC  
+**Updated At:** 2026-10-14 07:50:00 UTC  
 **Active Lead Engineer:** Antigravity (Goal-Driven Autonomous Delivery Mode)  
 **Governing Directive:** `docs/PRODUCT_COMPLETION_DIRECTIVE.md`  
 **Active Backlog:** `docs/IMPLEMENTATION_BACKLOG.md`  
@@ -16,7 +16,7 @@
 - **Milestone Status:** COMPLETED
 - **Previous Completed Milestone:** `JOB-HOST-02` (Official Railway Hosting Architecture & Multi-Service Deployment)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 6) — OFFICIAL RAILWAY CLOUD PILOT READY**
-- **Active Git Checkpoint:** `2ebf5ab` (`JOB-HOST-02`)
+- **Active Git Checkpoint:** `0d6a0ed` (`JOB-HOST-02`)
 
 ---
 
@@ -48,7 +48,7 @@
 | `JOB-PROD-04`              | Multi-Tenant Auth Hardening, Open AI Architecture & Mobile UI     | COMPLETED     | `9806b7d`                                        |
 | `JOB-PROD-05`              | Multi-Tenant Isolation, Dynamic AI, Cloud Storage & Onboarding    | COMPLETED     | `30c843a` (BL-01 to BL-06)                       |
 | `JOB-HOST-01`              | Free-First Hosting Policy (Oracle ARM64, Neon, Cloudflare R2)     | COMPLETED     | `dcba669` (BL-07, BL-08)                         |
-| `JOB-HOST-02`              | Official Railway Hosting (Multi-Service, Neon, Cloudflare R2)     | **COMPLETED** | `2ebf5ab` (BL-09)                                |
+| `JOB-HOST-02`              | Official Railway Hosting (Multi-Service, Neon, Cloudflare R2, IaC) | **COMPLETED** | `0d6a0ed` (BL-09)                                |
 
 ---
 
@@ -95,16 +95,18 @@
 
 ## 4. Current Quality & Build Status
 
-- **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 37ms latency)
+- **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 17ms latency)
 - **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0016 up to date)
-- **Unit & Integration Tests:** `npm test` -> PASSED (43 test files, 329/329 tests passing)
+- **Unit & Integration Tests:** `npm test` -> PASSED (43 test files, 331/331 tests passing)
 - **TypeScript Typecheck:** `npm run typecheck` -> PASSED (0 errors across 6 workspaces)
-- **ESLint:** `npm run lint` -> PASSED (0 errors across codebase)
+- **ESLint:** `npm run lint` -> PASSED (0 errors across codebase, 326 warnings)
 - **Build:** `npm run build` -> PASSED (API, Worker, and Web SPA bundle compile cleanly)
 - **Prettier:** `npm run format` -> PASSED (All matched files conform)
 - **Multi-User E2E Suite (BL-06):** `scripts/verify-multi-user-e2e.ts` -> PASSED (Primary Admin -> Invitation -> Tester Onboarding -> Data Isolation -> Dynamic AI -> Clean Teardown)
 - **Live Pilot Readiness Suite:** `scripts/verify-pilot-readiness.ts` -> PASSED (11/11 sections passed cleanly with 0 failures, 100% clean teardown)
 - **Live Operational Acceptance Suite:** `scripts/verify-operational-acceptance.ts` -> PASSED (Real Playwright Chromium driving React 19 UI across all 10 views, ATS fixture submission, crash invariants, 100% clean teardown)
+- **Railway Cloud Deployment Suite (BL-09):** `scripts/verify-railway-deployment.ts` -> PASSED (17/17 checks passed: `.railway/railway.ts` IaC, reverse-proxy trust, non-root `USER node` sandbox, compile artifacts)
+- **Live Container Build & Execution Verification:** Built actual container image `jobee:test` via Docker/Colima; verified unprivileged non-root execution (`USER node`, UID 1000) and headless Chromium DOM rendering inside container.
 
 ---
 
@@ -126,5 +128,5 @@
 
 1. **Google OAuth 2.0 Credentials**: `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET` for live Google account sync.
 2. **Live External ATS Submissions**: Executing live submissions (instead of `DRY_RUN` / `PREFILL_ONLY`) requires explicit human approval and candidates enabling `auto_apply_enabled: true` in policy settings.
-3. **Headless Browser Runtime**: Deployment container requires Playwright browser binaries (`npx playwright install --with-deps chromium`).
-4. **Official Railway Hosting Stack**: Railway multi-service deployment (`jobee-api` and `jobee-worker`), Neon Free PostgreSQL, and Cloudflare R2 Document Storage verified (`JOB-HOST-02`). Strict zero-paid-activation policy enforced without explicit owner approval (`DEC-04`).
+3. **Headless Browser Runtime**: Deployment container includes pre-installed Playwright Chromium browser binaries and system libraries, running unprivileged as `USER node` (UID 1000).
+4. **Official Railway Hosting Stack**: Railway multi-service Infrastructure as Code (`.railway/railway.ts`), Neon Free PostgreSQL, and Cloudflare R2 Document Storage verified (`JOB-HOST-02`). Strict zero-paid-activation policy enforced without explicit owner approval (`DEC-04`).
