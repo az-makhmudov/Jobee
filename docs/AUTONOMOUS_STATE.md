@@ -12,11 +12,11 @@
 ## 1. Roadmap Snapshot
 
 - **Current Official Mode:** Autonomous Product Completion & Production Deployment
-- **Active Backlog Item:** `BL-15: COMPLETED` (`JOB-PROD-MIGRATION` Production Data & R2 Migration Complete)
-- **Milestone Status:** PRODUCTION DATA & DOCUMENT MIGRATION COMPLETE — WORKSPACE FULLY POPULATED
-- **Previous Completed Milestone:** `JOB-POST-DEPLOY`
-- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA FULLY POPULATED & VERIFIED**
-- **Active Git Checkpoint:** `JOB-PROD-MIGRATION`
+- **Active Backlog Item:** `BL-16: COMPLETED` (`JOB-AI-MGMT` AI Integration Repair, Gemini 3.8/3.5 Models & Resilient Failover)
+- **Milestone Status:** AI INTEGRATION REPAIR & PRODUCTION CONNECTIVITY FULLY VERIFIED
+- **Previous Completed Milestone:** `JOB-PROD-MIGRATION`
+- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED & TESTED**
+- **Active Git Checkpoint:** `a12fd9e` (`JOB-AI-MGMT`)
 
 ---
 
@@ -106,12 +106,13 @@
 
 - **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 17ms latency)
 - **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0017 up to date)
-- **Unit & Integration Tests:** `npm test` -> PASSED (43 test files, 343/343 tests passing)
+- **Unit & Integration Tests:** `npm test` -> PASSED (45 test files, 362/362 tests passing)
 - **TypeScript Typecheck:** `npm run typecheck` -> PASSED (0 errors across monorepo)
 - **ESLint:** `npm run lint` -> PASSED (0 errors across codebase)
 - **Build:** `npm run build` -> PASSED (API, Worker, and Web SPA bundle compile cleanly)
-- **GitHub Actions CI:** Run `38568490182` -> **PASSED** (clean checkout verification)
-- **Railway Cloud Deployment:** `jobee-api` and `jobee-worker` -> **SUCCESS / ONLINE**
+- **GitHub Actions CI:** Run `38590191781` (`a12fd9e`) -> **PASSED** (clean checkout verification)
+- **Railway Cloud Deployment:** `jobee-api` and `jobee-worker` -> **SUCCESS / ONLINE** (deployments `5c499361` and `c1cd3492`)
+- **Live AI Connectivity Test:** `POST /api/settings/ai/test` -> **PASSED** (200 OK, valid structured evaluation via Google Gemini)
 - **Prettier:** `npm run format` -> PASSED (All matched files conform)
 - **Multi-User E2E Suite (BL-06):** `scripts/verify-multi-user-e2e.ts` -> PASSED (Primary Admin -> Invitation -> Tester Onboarding -> Data Isolation -> Dynamic AI -> Clean Teardown)
 - **Live Pilot Readiness Suite:** `scripts/verify-pilot-readiness.ts` -> PASSED (11/11 sections passed cleanly with 0 failures, 100% clean teardown)
