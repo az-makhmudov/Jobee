@@ -171,7 +171,19 @@ const authPluginCallback: FastifyPluginAsync<AuthPluginOptions> = async (fastify
   // Enforce authentication on all private endpoints by default
   fastify.addHook('preHandler', async (request, reply) => {
     const url = request.url;
+    const pathname = url.split('?')[0];
+
+    // Static assets & frontend SPA entry points are public
+    const isStatic =
+      request.method === 'GET' &&
+      (pathname === '/' ||
+        pathname === '/index.html' ||
+        pathname.startsWith('/assets/') ||
+        pathname.startsWith('/favicon') ||
+        /\.(js|css|png|svg|ico|woff2?|json|map)$/i.test(pathname));
+
     const isPublic =
+      isStatic ||
       url.startsWith('/api/auth') ||
       url.startsWith('/auth') ||
       url.startsWith('/health') ||
@@ -183,7 +195,22 @@ const authPluginCallback: FastifyPluginAsync<AuthPluginOptions> = async (fastify
       url.startsWith('/api/pilot/verify') ||
       url.startsWith('/pilot/verify');
 
-    if (!isPublic) {
+    // Also allow client-side SPA navigation routes (non-API GET requests that 404 to index.html)
+    const isSpaNavigation =
+      request.method === 'GET' &&
+      !url.startsWith('/api') &&
+      !url.startsWith('/candidate') &&
+      !url.startsWith('/jobs') &&
+      !url.startsWith('/applications') &&
+      !url.startsWith('/email') &&
+      !url.startsWith('/calendar') &&
+      !url.startsWith('/notifications') &&
+      !url.startsWith('/orchestrator') &&
+      !url.startsWith('/browser-runs') &&
+      !url.startsWith('/application-packages') &&
+      !url.startsWith('/approvals');
+
+    if (!isPublic && !isSpaNavigation) {
       await requireAuth(request, reply);
     }
   });
