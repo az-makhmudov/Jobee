@@ -125,3 +125,19 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
 
 - **Status**: COMPLETED
 - **Scope**: Formalization of Railway as the official cloud hosting platform for Jobee; Infrastructure as Code (`.railway/railway.ts`) migration eliminating deprecated `railway.json` configurations; dynamic `$PORT` environment variable preprocessing in Fastify; `trustProxy: true` configuration for Railway Cloudflare/Envoy SSL termination; Playwright container stability and defense-in-depth non-root execution (`USER node`, UID 1000); actual container build and dual-service execution verification; Neon Free PostgreSQL and Cloudflare R2 integration; deployment runbooks and Hobby plan cost evaluation (~$5.00–$8.00/mo); and automated deployment verification suite (`scripts/verify-railway-deployment.ts`).
+
+### `JOB-PROD-DEPLOY — Production Multi-Service Launch & Topological Build Fix`
+
+- **Status**: COMPLETED
+- **Scope**: Solved monorepo workspace topological build order for clean container and CI environments; deployed dual services (`jobee-api` and `jobee-worker`) on Railway; wired shared variables and verified single-port SPA serving with Neon PostgreSQL connectivity.
+
+### `JOB-POST-DEPLOY — UI Layout Stabilization & Google Integrations Audit`
+
+- **Status**: COMPLETED
+- **Scope**: Fixed pilot invitation modal CSS styling and layout; configured dynamic fallback for Google Calendar/Gmail credentials via shared OAuth variables; stabilized production container execution and verified live health probes.
+
+### `JOB-PROD-MIGRATION — Production Data Migration & Cloudflare R2 Document Vault Sync`
+
+- **Status**: COMPLETED
+- **Scope**: Connection pool isolation and cross-database safety checks (`createDatabaseClient`); secured pre-migration backups; mapped single-tenant local candidate data (`00000000-0000-0000-0000-000000000001`) to authenticated Google OAuth owner (`asadbek.mzw@gmail.com`); migrated all profile tables, candidate facts, jobs, applications, and audit history to Neon PostgreSQL; trimmed trailing whitespace from Railway S3 credentials; uploaded and verified 11/11 documents to private Cloudflare R2; and verified live authenticated downloads.
+
