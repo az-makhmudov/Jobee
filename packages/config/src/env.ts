@@ -71,6 +71,20 @@ export const envSchema = z
           }
         }
 
+        // Canonicalize EMAIL_FROM and SMTP_FROM
+        const rawEmailFrom = (r.EMAIL_FROM || r.SMTP_FROM) as string | undefined;
+        if (rawEmailFrom && typeof rawEmailFrom === 'string' && rawEmailFrom.trim() !== '') {
+          r.EMAIL_FROM = rawEmailFrom.trim();
+          r.SMTP_FROM = rawEmailFrom.trim();
+        } else if (
+          r.RESEND_API_KEY &&
+          (!r.SMTP_FROM || (typeof r.SMTP_FROM === 'string' && r.SMTP_FROM.includes('.local')))
+        ) {
+          // If Resend is configured without a verified domain sender, fallback to Resend's verified domain
+          r.SMTP_FROM = 'Jobee <onboarding@resend.dev>';
+          r.EMAIL_FROM = 'Jobee <onboarding@resend.dev>';
+        }
+
         // In production, default API_HOST to 0.0.0.0 for container accessibility
         if (r.NODE_ENV === 'production' && (!r.API_HOST || r.API_HOST === '127.0.0.1')) {
           r.API_HOST = '0.0.0.0';
@@ -149,6 +163,7 @@ export const envSchema = z
       GOOGLE_CLIENT_ID: z.string().optional(),
       GOOGLE_CLIENT_SECRET: z.string().optional(),
       RESEND_API_KEY: z.string().optional(),
+      EMAIL_FROM: z.string().optional(),
       SMTP_HOST: z.string().optional(),
       SMTP_PORT: z.coerce.number().int().positive().optional(),
       SMTP_USER: z.string().optional(),

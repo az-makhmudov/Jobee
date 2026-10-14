@@ -10,6 +10,7 @@ import {
   candidateProfiles,
   jobPreferences,
   applicationPolicy,
+  eq,
 } from '@job-agent/database';
 import type { AppConfig } from '@job-agent/config';
 import { TransactionalEmailService } from '../services/email/transactional-email-service.js';
@@ -153,10 +154,41 @@ export function createBetterAuthInstance(
                 await invites.redeemInvitation(code, user.id);
               }
 
-              // 2. Initialize isolated candidate workspace for the new user
-              const existingProfile = await db.query.candidateProfiles.findFirst({
+              // 2. Initialize or re-link candidate workspace for the new user
+              let existingProfile = await db.query.candidateProfiles.findFirst({
                 where: (cp, { eq }) => eq(cp.userId, user.id),
               });
+
+              if (!existingProfile && user.email) {
+                // Check if a pre-existing profile was migrated for this email address
+                const profileByEmail = await db.query.candidateProfiles.findFirst({
+                  where: (cp, { eq }) => eq(cp.email, user.email),
+                });
+
+                if (profileByEmail && profileByEmail.userId !== user.id) {
+                  const oldUserId = profileByEmail.userId;
+                  logger.info(
+                    `Re-linking pre-existing candidate profile (${profileByEmail.id}) from ${oldUserId} to authenticated user ${user.id}`,
+                  );
+                  await db
+                    .update(candidateProfiles)
+                    .set({ userId: user.id })
+                    .where(eq(candidateProfiles.id, profileByEmail.id));
+
+                  existingProfile = { ...profileByEmail, userId: user.id };
+
+                  // Also re-link job preferences & application policy if present
+                  await db
+                    .update(jobPreferences)
+                    .set({ userId: user.id })
+                    .where(eq(jobPreferences.userId, oldUserId));
+
+                  await db
+                    .update(applicationPolicy)
+                    .set({ userId: user.id })
+                    .where(eq(applicationPolicy.userId, oldUserId));
+                }
+              }
 
               if (!existingProfile) {
                 await db.insert(candidateProfiles).values({

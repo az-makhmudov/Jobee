@@ -133,4 +133,35 @@ describe('validateEnv', () => {
 
     expect(config.AI_PROVIDER).toBe('gemini');
   });
+
+  it('normalizes EMAIL_FROM and SMTP_FROM interchangeably', () => {
+    const config = validateEnv({
+      NODE_ENV: 'development',
+      EMAIL_FROM: 'Jobee Team <hello@example.com>',
+    });
+
+    expect(config.EMAIL_FROM).toBe('Jobee Team <hello@example.com>');
+    expect(config.SMTP_FROM).toBe('Jobee Team <hello@example.com>');
+  });
+
+  it('falls back to Resend verified testing sender if default .local address is present', () => {
+    const config = validateEnv({
+      NODE_ENV: 'development',
+      RESEND_API_KEY: 're_test_12345',
+    });
+
+    expect(config.EMAIL_FROM).toBe('Jobee <onboarding@resend.dev>');
+    expect(config.SMTP_FROM).toBe('Jobee <onboarding@resend.dev>');
+  });
+
+  it('preserves custom verified sender with Resend', () => {
+    const config = validateEnv({
+      NODE_ENV: 'development',
+      RESEND_API_KEY: 're_test_12345',
+      EMAIL_FROM: 'Jobee <notifications@asadbek.dev>',
+    });
+
+    expect(config.EMAIL_FROM).toBe('Jobee <notifications@asadbek.dev>');
+    expect(config.SMTP_FROM).toBe('Jobee <notifications@asadbek.dev>');
+  });
 });

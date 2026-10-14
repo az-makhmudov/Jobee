@@ -30,7 +30,7 @@ export class TransactionalEmailService {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            from: this.config.SMTP_FROM,
+            from: this.config.EMAIL_FROM || this.config.SMTP_FROM,
             to: [to],
             subject,
             html,
