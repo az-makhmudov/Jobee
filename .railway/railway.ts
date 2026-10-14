@@ -40,6 +40,7 @@ export default defineRailway(({ shared }) => {
       GEMINI_API_KEY: shared.GEMINI_API_KEY,
       GOOGLE_CLIENT_ID: shared.GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET: shared.GOOGLE_CLIENT_SECRET,
+      OWNER_EMAIL: shared.OWNER_EMAIL,
     },
   });
 
