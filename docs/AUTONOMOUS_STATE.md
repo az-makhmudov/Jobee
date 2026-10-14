@@ -12,11 +12,11 @@
 ## 1. Roadmap Snapshot
 
 - **Current Official Mode:** Autonomous Product Completion & Production Readiness
-- **Active Backlog Item:** `BL-10: COMPLETED` (`JOB-FINAL-FIXES` Verified)
-- **Milestone Status:** FINAL PRE-DEPLOYMENT FIXES COMPLETE — 100% READY FOR PRODUCTION
-- **Previous Completed Milestone:** `JOB-FINAL-FIXES` (Email Unification, Data Migration Tool & Better Auth Linking)
+- **Active Backlog Item:** `BL-11: COMPLETED` (`JOB-RAILWAY-PREP` Verified)
+- **Milestone Status:** RAILWAY DEPLOYMENT PREPARATION COMPLETE — READY FOR SAFE DEPLOYMENT
+- **Previous Completed Milestone:** `JOB-RAILWAY-PREP` (Railway CLI Linked, IaC Plan Audited, Service Reconciled)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 6) + PRODUCTION HARDENED**
-- **Active Git Checkpoint:** `48ee22d` (`JOB-FINAL-FIXES`)
+- **Active Git Checkpoint:** `51d7d0d` (`JOB-RAILWAY-PREP`)
 
 ---
 
@@ -50,7 +50,8 @@
 | `JOB-HOST-01`              | Free-First Hosting Policy (Oracle ARM64, Neon, Cloudflare R2)      | COMPLETED     | `dcba669` (BL-07, BL-08)                         |
 | `JOB-HOST-02`              | Official Railway Hosting (Multi-Service, Neon, Cloudflare R2, IaC) | COMPLETED     | `0d6a0ed` (BL-09)                                |
 | `JOB-DEPLOY-AUDIT`         | Pre-Deployment Readiness Check, Auto-Migrations & Zero-Config IaC  | COMPLETED     | `5309898` (BL-10)                                |
-| `JOB-FINAL-FIXES`          | Email Sender Unification, Migration Script & Auth Profile Linking  | **COMPLETED** | Verified (BL-10)                                 |
+| `JOB-FINAL-FIXES`          | Email Sender Unification, Migration Script & Auth Profile Linking  | COMPLETED     | `48ee22d` (BL-10)                                |
+| `JOB-RAILWAY-PREP`         | Railway CLI Link, IaC Read-Only Plan & Service Topology Reconcile  | **COMPLETED** | `51d7d0d` (BL-11)                                |
 
 ---
 
