@@ -16,7 +16,7 @@
 - **Milestone Status:** COMPLETED
 - **Previous Completed Milestone:** `JOB-HOST-01` (Free-First Hosting Policy: Oracle Cloud Always Free ARM64, Neon Free PostgreSQL & Cloudflare R2 Storage)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 6) — FREE-FIRST CLOUD PILOT READY**
-- **Active Git Checkpoint:** `ab8221b` (`JOB-PROD-05`)
+- **Active Git Checkpoint:** `dcba669` (`JOB-HOST-01`)
 
 ---
 
@@ -47,7 +47,7 @@
 | `JOB-PROD-03`              | Public Job Discovery, Ingestion & Containerized Cloud Deployment  | COMPLETED     | `d65c337`                                                                 |
 | `JOB-PROD-04`              | Multi-Tenant Auth Hardening, Open AI Architecture & Mobile UI     | COMPLETED     | `9806b7d`                                                                 |
 | `JOB-PROD-05`              | Multi-Tenant Isolation, Dynamic AI, Cloud Storage & Onboarding    | COMPLETED     | `30c843a` (BL-01 to BL-06)                                                |
-| `JOB-HOST-01`              | Free-First Hosting Policy (Oracle ARM64, Neon, Cloudflare R2)     | **COMPLETED** | Verified via `scripts/verify-free-first-infrastructure.ts` (BL-07, BL-08) |
+| `JOB-HOST-01`              | Free-First Hosting Policy (Oracle ARM64, Neon, Cloudflare R2)     | **COMPLETED** | `dcba669` (BL-07, BL-08)                                                  |
 
 ---
 
