@@ -1092,3 +1092,51 @@ This document tracks execution history and verification state for all official m
   - Live Railway Deployments: `jobee-api` (`3a30fdbc`) and `jobee-worker` (`ec8330f2`) both deployed and in `SUCCESS` state.
   - Live API Probes: `GET /health` returned HTTP 200 OK (`uptimeSeconds: 40`), `GET /ready` returned HTTP 200 OK with Neon PostgreSQL connected (20ms latency), Gemini AI online, `gmail.isConfigured: true`, and `googleCalendar.isConfigured: true`.
   - Live Web Assets: Verified HTTP 200 for root HTML, Vite JavaScript bundle, and CSS stylesheet containing all native modal and dark-theme tokens.
+
+---
+
+### `JOB-PROD-MIGRATION` — Production Data Migration & Cloudflare R2 Document Sync
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-14
+- **Scope**:
+  - **1. Database Connection Isolation & Singleton Guard**:
+    - Resolved singleton connection-pool caching bug in `packages/database/src/client.ts`.
+    - Added `createDatabaseClient(connectionString)` for independent, un-cached connection pools with their own Drizzle instances.
+    - Added collision detection in `getDbPool(connectionString)`: explicitly throws if called with a conflicting connection string while an active pool exists, preventing silent cross-database leakage.
+    - Added regression tests in `packages/database/src/client.test.ts` (3 tests passed).
+  - **2. Pre-Migration Backups Outside Git**:
+    - Created local PostgreSQL backup: `/Users/bek/.jobee-backups/migration-20261014/local_db_backup.sql` (2.2 MB).
+    - Created production Neon data dump: `/Users/bek/.jobee-backups/migration-20261014/neon_data_backup.json` (44.8 KB).
+    - Created local document archive: `/Users/bek/.jobee-backups/migration-20261014/documents/` (426 files).
+    - All backups secured outside the repository under mode 700.
+  - **3. Account Ownership & Identity Mapping**:
+    - Identified authenticated Google OAuth owner in Neon: `81d5cb73-3c7f-48ec-88b9-52ce39ed0fbf` (`asadbek.mzw@gmail.com`).
+    - Identified local source user: `00000000-0000-0000-0000-000000000001` (`asadbek.mzw@gmail.com`).
+    - Remapped all candidate records, job records, and application records from `00000000-0000-0000-0000-000000000001` to `81d5cb73-3c7f-48ec-88b9-52ce39ed0fbf`.
+    - Enforced multi-tenant isolation guard: excluded unrelated test accounts (e.g. Alice).
+    - Preserved existing Better Auth credentials, OAuth tokens, and active sessions without overwriting.
+  - **4. Production Neon PostgreSQL Migration**:
+    - Migrated tables in strict dependency order (Levels 0 through 3).
+    - Merged candidate profile: populated `phone` (+48884665207), `city` (Warsaw), `country` (Poland), `summary`, and `availability` into production profile `dd300db8-9079-469f-b718-4439e1e274c0`.
+    - Migrated: 1 candidate experience, 1 candidate education, 14 verified skills, 1 language, 2 certifications, 1 professional link.
+    - Preserved candidate facts: 6 explicit facts migrated with original `UNVERIFIED` status and `allowAiUse: false` (truthfulness invariant).
+    - Migrated: 2 answer library entries, 12 jobs (totaling 18 in Neon), 119 job sources, 8 job requirements, 3 job sections, 5 job match analyses, 40 match dimensions, 40 requirement evaluations.
+    - Migrated: 12 application packages (totaling 18), 3 package versions, 10 application artifacts, 12 applications (totaling 18), 9 application questions, 9 approval requests, 4 lifecycle events, 1491 candidate audit events.
+    - Merged preferences & policy: transferred candidate search preferences while preserving production `activeAiProvider: 'gemini'`.
+  - **5. Cloudflare R2 Document Sync & Whitespace Sanitization**:
+    - Fixed trailing newline bug in `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY` that triggered HTTP header validation errors in Node.js `fetch()`. Added auto-trimming in `packages/config/src/env.ts` and `apps/api/src/storage/s3-storage.ts`.
+    - Cleaned Shared Variables in Railway via CLI.
+    - Uploaded and verified 11/11 referenced candidate documents in Cloudflare R2 bucket `jobee-private-documents`:
+      - Master CV: `23bea6bf-5517-4066-a823-a4431803c333.pdf` (29,686 bytes, SHA-256 verified)
+      - 10 application artifacts (.docx tailored resumes and cover letters)
+    - All storage keys preserved matching database references; private bucket permissions maintained.
+  - **6. End-to-End Live Production Verification**:
+    - Authenticated API endpoints verified with owner session: Profile (200), Skills (14 items), Facts (6 items), Documents (1 item), Preferences (200), Policy (200), Answer Library (2 items), Jobs (200), Applications (18 items), Approvals (3 items), Calendar Auth URL (200).
+- **Verification Records**:
+  - `npm run lint`: PASSED (0 errors, 332 warnings).
+  - `npm run typecheck`: PASSED (0 errors across monorepo).
+  - `npm test`: PASSED (44 test files, 350/350 tests passed).
+  - `npm run build`: PASSED (Packages, API, Worker, and Web SPA built cleanly).
+  - `scripts/verify-railway-deployment.ts`: PASSED (17/17 checks passed).
+

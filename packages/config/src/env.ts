@@ -113,6 +113,23 @@ export const envSchema = z
           }
         }
 
+        // Sanitize and trim S3 / R2 credentials and configuration
+        if (typeof r.S3_ACCESS_KEY_ID === 'string') {
+          r.S3_ACCESS_KEY_ID = r.S3_ACCESS_KEY_ID.trim();
+        }
+        if (typeof r.S3_SECRET_ACCESS_KEY === 'string') {
+          r.S3_SECRET_ACCESS_KEY = r.S3_SECRET_ACCESS_KEY.trim();
+        }
+        if (typeof r.S3_ENDPOINT === 'string') {
+          r.S3_ENDPOINT = r.S3_ENDPOINT.trim();
+        }
+        if (typeof r.S3_BUCKET === 'string') {
+          r.S3_BUCKET = r.S3_BUCKET.trim();
+        }
+        if (typeof r.S3_REGION === 'string') {
+          r.S3_REGION = r.S3_REGION.trim();
+        }
+
         // Auto-detect STORAGE_BACKEND if Cloudflare R2 / S3 credentials are provided
         if (!r.STORAGE_BACKEND || r.STORAGE_BACKEND === 'local') {
           if (r.S3_BUCKET && r.S3_ACCESS_KEY_ID && r.S3_SECRET_ACCESS_KEY) {

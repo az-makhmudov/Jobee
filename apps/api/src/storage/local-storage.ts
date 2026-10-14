@@ -167,4 +167,10 @@ export class LocalStorageProvider implements FileStorageProvider {
       return false;
     }
   }
+
+  public async putFile(storageKey: string, fileBuffer: Buffer, _mimeType: string): Promise<void> {
+    await this.ensureBaseDir();
+    const safePath = this.resolveSafePath(storageKey);
+    await fs.writeFile(safePath, fileBuffer);
+  }
 }

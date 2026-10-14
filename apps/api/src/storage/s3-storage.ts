@@ -35,14 +35,14 @@ export class S3StorageProvider implements FileStorageProvider {
         'S3StorageProvider requires bucket, accessKeyId, and secretAccessKey',
       );
     }
-    this.bucket = options.bucket;
-    this.region = options.region || 'auto';
-    this.accessKeyId = options.accessKeyId;
-    this.secretAccessKey = options.secretAccessKey;
+    this.bucket = options.bucket.trim();
+    this.region = (options.region || 'auto').trim();
+    this.accessKeyId = options.accessKeyId.trim();
+    this.secretAccessKey = options.secretAccessKey.trim();
 
     if (options.endpoint) {
       // Custom endpoint (e.g. Cloudflare R2, MinIO, or local mock)
-      this.endpoint = options.endpoint.replace(/\/+$/, '');
+      this.endpoint = options.endpoint.trim().replace(/\/+$/, '');
     } else {
       // Standard AWS S3 endpoint
       this.endpoint = `https://${this.bucket}.s3.${this.region === 'auto' ? 'us-east-1' : this.region}.amazonaws.com`;
@@ -246,6 +246,33 @@ export class S3StorageProvider implements FileStorageProvider {
       return response.status === 200;
     } catch {
       return false;
+    }
+  }
+
+  public async putFile(storageKey: string, fileBuffer: Buffer, mimeType: string): Promise<void> {
+    const checksum = this.sha256Hex(fileBuffer);
+    const url = this.getObjectUrl(storageKey);
+    const headers = this.signRequest(
+      'PUT',
+      url,
+      {
+        'content-type': mimeType,
+        'content-length': String(fileBuffer.length),
+      },
+      checksum,
+    );
+
+    const response = await fetch(url.toString(), {
+      method: 'PUT',
+      headers,
+      body: fileBuffer,
+    });
+
+    if (!response.ok) {
+      const errText = await response.text().catch(() => '');
+      throw AppError.internal(
+        `S3 upload failed with status ${response.status}: ${errText.slice(0, 150)}`,
+      );
     }
   }
 }

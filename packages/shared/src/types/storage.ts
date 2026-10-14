@@ -20,6 +20,8 @@ export interface FileStorageProvider {
   deleteFile(storageKey: string): Promise<void>;
 
   exists(storageKey: string): Promise<boolean>;
+
+  putFile?(storageKey: string, fileBuffer: Buffer, mimeType: string): Promise<void>;
 }
 
 export const ALLOWED_DOCUMENT_MIME_TYPES = [

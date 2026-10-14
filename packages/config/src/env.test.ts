@@ -240,4 +240,24 @@ describe('validateEnv', () => {
       'https://jobee-api-production.up.railway.app/api/calendar/google/callback',
     );
   });
+
+  it('sanitizes and trims whitespace and trailing newlines from S3 credentials', () => {
+    const config = validateEnv({
+      NODE_ENV: 'development',
+      S3_BUCKET: '  jobee-private-documents \n',
+      S3_ACCESS_KEY_ID: '013c353b145aaa8e113791e4c74d6af4\n',
+      S3_SECRET_ACCESS_KEY: 'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210\n',
+      S3_ENDPOINT: '  https://account.r2.cloudflarestorage.com/  \n',
+      S3_REGION: ' auto \n',
+    });
+
+    expect(config.S3_BUCKET).toBe('jobee-private-documents');
+    expect(config.S3_ACCESS_KEY_ID).toBe('013c353b145aaa8e113791e4c74d6af4');
+    expect(config.S3_SECRET_ACCESS_KEY).toBe(
+      'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
+    );
+    expect(config.S3_ENDPOINT).toBe('https://account.r2.cloudflarestorage.com/');
+    expect(config.S3_REGION).toBe('auto');
+    expect(config.STORAGE_BACKEND).toBe('s3');
+  });
 });
