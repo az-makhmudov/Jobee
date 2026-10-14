@@ -147,7 +147,7 @@ const authPluginCallback: FastifyPluginAsync<AuthPluginOptions> = async (fastify
       request.user = {
         id: testUserId || '00000000-0000-0000-0000-000000000001',
         name: isPrimaryAdmin ? 'Asadbek Makhmudov' : 'Test User',
-        email: isPrimaryAdmin ? 'asadbek.mzw@gmail.com' : 'test@example.com',
+        email: isPrimaryAdmin ? config.OWNER_EMAIL || 'asadbek.mzw@gmail.com' : 'test@example.com',
         role: testUserRole,
         emailVerified: true,
       };

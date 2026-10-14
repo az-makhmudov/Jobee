@@ -169,6 +169,7 @@ export const envSchema = z
       SMTP_USER: z.string().optional(),
       SMTP_PASS: z.string().optional(),
       SMTP_FROM: z.string().default('Jobee <notifications@jobee.local>'),
+      OWNER_EMAIL: z.string().email().default('asadbek.mzw@gmail.com'),
       INVITE_ONLY_REGISTRATION: z
         .preprocess((val) => {
           if (typeof val === 'string') {

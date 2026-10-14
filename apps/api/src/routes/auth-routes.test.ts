@@ -342,4 +342,141 @@ describe('Better Auth, Multi-User Isolation & Private Pilot Integration Tests', 
       expect(profileB.city).toBe('Tokyo');
     });
   });
+
+  describe('4. Owner Account & Data Isolation Verification', () => {
+    it('verifies owner account bypasses invitation, receives admin role, and handles case-insensitivity', async () => {
+      const { createBetterAuthInstance } = await import('../auth/better-auth-instance.js');
+      const auth = createBetterAuthInstance(db, config);
+      const userCreateBefore = (auth.options as any).databaseHooks?.user?.create?.before;
+      expect(userCreateBefore).toBeDefined();
+
+      // 1. Owner exact email
+      const ownerUser = { email: 'asadbek.mzw@gmail.com' } as any;
+      await expect(userCreateBefore(ownerUser)).resolves.not.toThrow();
+      expect(ownerUser.role).toBe('admin');
+
+      // 2. Owner uppercase email (case-insensitive recognition)
+      const ownerUpperUser = { email: 'ASADBEK.MZW@GMAIL.COM' } as any;
+      await expect(userCreateBefore(ownerUpperUser)).resolves.not.toThrow();
+      expect(ownerUpperUser.role).toBe('admin');
+
+      // 3. Non-owner without invitation must be forbidden
+      const nonOwnerUser = { email: 'unauthorized_stranger@example.com' } as any;
+      await expect(userCreateBefore(nonOwnerUser)).rejects.toThrow();
+    });
+
+    it('verifies owner account uniqueness, seed candidate linking, and multi-tenant data isolation', async () => {
+      const { createBetterAuthInstance } = await import('../auth/better-auth-instance.js');
+      const auth = createBetterAuthInstance(db, config);
+      const userCreateAfter = (auth.options as any).databaseHooks?.user?.create?.after;
+      expect(userCreateAfter).toBeDefined();
+
+      const seedUserId = '00000000-0000-0000-0000-000000000001';
+
+      // 1. Verify primary owner user exists in database with admin role
+      const [existingOwner] = await db.select().from(users).where(eq(users.id, seedUserId));
+      expect(existingOwner).toBeDefined();
+      expect(existingOwner?.email).toBe('asadbek.mzw@gmail.com');
+      expect(existingOwner?.role).toBe('admin');
+
+      // 2. Verify candidate profile is linked to primary owner
+      const [seedProfile] = await db
+        .select()
+        .from(candidateProfiles)
+        .where(eq(candidateProfiles.userId, seedUserId));
+      expect(seedProfile).toBeDefined();
+      expect(seedProfile?.userId).toBe(seedUserId);
+
+      // 3. Verify unique constraint prevents duplicate owner accounts
+      const duplicateOwnerId = '22222222-2222-2222-2222-222222222222';
+      await expect(
+        db.insert(users).values({
+          id: duplicateOwnerId,
+          name: 'Fake Owner',
+          email: 'asadbek.mzw@gmail.com',
+          role: 'user',
+          emailVerified: true,
+        }),
+      ).rejects.toThrow();
+
+      // 4. Verify candidate profile 1:1 uniqueness constraint
+      await expect(
+        db.insert(candidateProfiles).values({
+          userId: seedUserId,
+          fullName: 'Duplicate Profile Attempt',
+          email: 'duplicate@example.com',
+        }),
+      ).rejects.toThrow();
+
+      // 5. Verify owner registration hook execution preserves existing profile
+      await userCreateAfter({
+        id: seedUserId,
+        email: 'asadbek.mzw@gmail.com',
+        name: 'Asadbek Makhmudov',
+      });
+
+      const [preservedProfile] = await db
+        .select()
+        .from(candidateProfiles)
+        .where(eq(candidateProfiles.userId, seedUserId));
+      expect(preservedProfile).toBeDefined();
+      expect(preservedProfile?.id).toBe(seedProfile?.id);
+      expect(preservedProfile?.email).toBe('asadbek.mzw@gmail.com');
+
+      // 6. Test data isolation guard: non-seed user profile CANNOT be re-linked to another user
+      const victimUserId = '44444444-4444-4444-4444-444444444444';
+      const attackerUserId = '55555555-5555-5555-5555-555555555555';
+      const victimEmail = `victim_${Date.now()}@example.com`;
+
+      const [victimUser] = await db
+        .insert(users)
+        .values({
+          id: victimUserId,
+          name: 'Victim User',
+          email: victimEmail,
+          role: 'user',
+          emailVerified: true,
+        })
+        .returning();
+      createdUserIds.push(victimUser!.id);
+
+      const [attackerUser] = await db
+        .insert(users)
+        .values({
+          id: attackerUserId,
+          name: 'Attacker User',
+          email: `attacker_${Date.now()}@example.com`,
+          role: 'user',
+          emailVerified: true,
+        })
+        .returning();
+      createdUserIds.push(attackerUser!.id);
+
+      const [victimProfile] = await db
+        .insert(candidateProfiles)
+        .values({
+          userId: victimUserId,
+          fullName: 'Victim Profile',
+          email: victimEmail,
+        })
+        .returning();
+
+      // Attacker attempts to claim victim profile by presenting victimEmail in hook
+      await userCreateAfter({
+        id: attackerUserId,
+        email: victimEmail,
+        name: 'Attacker User',
+      });
+
+      // Verify victim profile userId remains strictly victimUserId (NEVER relinked to attacker)
+      const [protectedProfile] = await db
+        .select()
+        .from(candidateProfiles)
+        .where(eq(candidateProfiles.id, victimProfile!.id));
+      expect(protectedProfile?.userId).toBe(victimUserId);
+
+      // Clean up victim profile
+      await db.delete(candidateProfiles).where(eq(candidateProfiles.id, victimProfile!.id));
+    });
+  });
 });

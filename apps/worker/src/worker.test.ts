@@ -26,6 +26,7 @@ const testConfig: AppConfig = {
   BETTER_AUTH_URL: 'http://localhost:3000',
   BETTER_AUTH_TRUSTED_ORIGINS: 'http://localhost:5173',
   SMTP_FROM: 'noreply@jobee.local',
+  OWNER_EMAIL: 'asadbek.mzw@gmail.com',
   INVITE_ONLY_REGISTRATION: true,
   STORAGE_BACKEND: 'local',
   S3_REGION: 'auto',

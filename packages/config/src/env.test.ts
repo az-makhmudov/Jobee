@@ -164,4 +164,30 @@ describe('validateEnv', () => {
     expect(config.EMAIL_FROM).toBe('Jobee <notifications@asadbek.dev>');
     expect(config.SMTP_FROM).toBe('Jobee <notifications@asadbek.dev>');
   });
+
+  it('defaults OWNER_EMAIL to asadbek.mzw@gmail.com', () => {
+    const config = validateEnv({
+      NODE_ENV: 'development',
+    });
+
+    expect(config.OWNER_EMAIL).toBe('asadbek.mzw@gmail.com');
+  });
+
+  it('accepts valid custom OWNER_EMAIL', () => {
+    const config = validateEnv({
+      NODE_ENV: 'development',
+      OWNER_EMAIL: 'custom.owner@example.com',
+    });
+
+    expect(config.OWNER_EMAIL).toBe('custom.owner@example.com');
+  });
+
+  it('rejects invalid OWNER_EMAIL format', () => {
+    expect(() =>
+      validateEnv({
+        NODE_ENV: 'development',
+        OWNER_EMAIL: 'not-an-email',
+      }),
+    ).toThrow();
+  });
 });

@@ -8,8 +8,21 @@ import {
   accounts,
   verifications,
   candidateProfiles,
+  candidateExperiences,
+  candidateEducation,
+  candidateProjects,
+  candidateSkills,
+  candidateLanguages,
+  candidateCertifications,
+  candidateLinks,
+  candidateFacts,
+  candidateDocuments,
+  answerLibrary,
   jobPreferences,
   applicationPolicy,
+  jobs,
+  applications,
+  systemNotifications,
   eq,
 } from '@job-agent/database';
 import type { AppConfig } from '@job-agent/config';
@@ -112,7 +125,9 @@ export function createBetterAuthInstance(
         create: {
           before: async (user: any) => {
             // Check Private Pilot invitation requirement
-            const isOwnerEmail = user.email && user.email.toLowerCase() === 'asadbek.mzw@gmail.com';
+            const ownerEmail = (config.OWNER_EMAIL || 'asadbek.mzw@gmail.com').trim().toLowerCase();
+            const userEmail = (user.email || '').trim().toLowerCase();
+            const isOwnerEmail = Boolean(userEmail && userEmail === ownerEmail);
 
             if (config.INVITE_ONLY_REGISTRATION && !isOwnerEmail) {
               let code = user.invitationCode;
@@ -148,6 +163,12 @@ export function createBetterAuthInstance(
           },
           after: async (user: any) => {
             try {
+              const ownerEmail = (config.OWNER_EMAIL || 'asadbek.mzw@gmail.com')
+                .trim()
+                .toLowerCase();
+              const userEmail = (user.email || '').trim().toLowerCase();
+              const isOwnerEmail = Boolean(userEmail && userEmail === ownerEmail);
+
               // 1. Redeem invitation code if provided
               const code = (user as any).invitationCode;
               if (code) {
@@ -162,40 +183,71 @@ export function createBetterAuthInstance(
               if (!existingProfile && user.email) {
                 // Check if a pre-existing profile was migrated for this email address
                 const profileByEmail = await db.query.candidateProfiles.findFirst({
-                  where: (cp, { eq }) => eq(cp.email, user.email),
+                  where: (cp, { eq }) => eq(cp.email, userEmail),
                 });
 
                 if (profileByEmail && profileByEmail.userId !== user.id) {
                   const oldUserId = profileByEmail.userId;
-                  logger.info(
-                    `Re-linking pre-existing candidate profile (${profileByEmail.id}) from ${oldUserId} to authenticated user ${user.id}`,
-                  );
-                  await db
-                    .update(candidateProfiles)
-                    .set({ userId: user.id })
-                    .where(eq(candidateProfiles.id, profileByEmail.id));
+                  const isSeedUser = oldUserId === '00000000-0000-0000-0000-000000000001';
 
-                  existingProfile = { ...profileByEmail, userId: user.id };
+                  // Security guard: Only allow re-linking if it is the verified owner or the unauthenticated seed user
+                  if (isOwnerEmail || isSeedUser) {
+                    logger.info(
+                      `Re-linking pre-existing candidate data (${profileByEmail.id}) from ${oldUserId} to authenticated user ${user.id}`,
+                    );
 
-                  // Also re-link job preferences & application policy if present
-                  await db
-                    .update(jobPreferences)
-                    .set({ userId: user.id })
-                    .where(eq(jobPreferences.userId, oldUserId));
+                    // Re-link all tables with userId
+                    const tablesToRelink = [
+                      candidateProfiles,
+                      candidateExperiences,
+                      candidateEducation,
+                      candidateProjects,
+                      candidateSkills,
+                      candidateLanguages,
+                      candidateCertifications,
+                      candidateLinks,
+                      candidateFacts,
+                      candidateDocuments,
+                      answerLibrary,
+                      jobPreferences,
+                      applicationPolicy,
+                      jobs,
+                      applications,
+                      systemNotifications,
+                    ];
 
-                  await db
-                    .update(applicationPolicy)
-                    .set({ userId: user.id })
-                    .where(eq(applicationPolicy.userId, oldUserId));
+                    for (const table of tablesToRelink) {
+                      try {
+                        await db
+                          .update(table)
+                          .set({ userId: user.id })
+                          .where(eq(table.userId, oldUserId));
+                      } catch (relinkErr: any) {
+                        logger.warn(
+                          `Could not re-link table for user ${user.id}: ${relinkErr.message}`,
+                        );
+                      }
+                    }
+
+                    existingProfile = { ...profileByEmail, userId: user.id };
+                  } else {
+                    logger.warn(
+                      `Security: Refused to re-link candidate profile for email ${user.email} from non-seed user ${oldUserId} to ${user.id}`,
+                    );
+                  }
                 }
               }
 
               if (!existingProfile) {
                 await db.insert(candidateProfiles).values({
                   userId: user.id,
-                  fullName: user.name || 'Candidate',
+                  fullName: user.name || (isOwnerEmail ? 'Asadbek Makhmudov' : 'Candidate'),
                   email: user.email,
-                  preferredName: user.name ? user.name.split(' ')[0] : 'Candidate',
+                  preferredName: user.name
+                    ? user.name.split(' ')[0]
+                    : isOwnerEmail
+                      ? 'Asadbek'
+                      : 'Candidate',
                 });
               }
 

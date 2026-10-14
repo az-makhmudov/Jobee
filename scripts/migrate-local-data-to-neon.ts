@@ -248,7 +248,10 @@ async function main() {
               'content-length': String(content.length),
             };
 
-            const signedHeaders = Object.keys(headers).sort().map((k) => k.toLowerCase()).join(';');
+            const signedHeaders = Object.keys(headers)
+              .sort()
+              .map((k) => k.toLowerCase())
+              .join(';');
             const canonicalHeaders = Object.keys(headers)
               .sort()
               .map((k) => `${k.toLowerCase()}:${headers[k]}\n`)
@@ -271,13 +274,20 @@ async function main() {
               crypto.createHash('sha256').update(canonicalRequest).digest('hex'),
             ].join('\n');
 
-            const kDate = crypto.createHmac('sha256', `AWS4${s3SecretKey}`).update(dateStamp).digest();
+            const kDate = crypto
+              .createHmac('sha256', `AWS4${s3SecretKey}`)
+              .update(dateStamp)
+              .digest();
             const kRegion = crypto.createHmac('sha256', kDate).update(region).digest();
             const kService = crypto.createHmac('sha256', kRegion).update('s3').digest();
             const kSigning = crypto.createHmac('sha256', kService).update('aws4_request').digest();
-            const signature = crypto.createHmac('sha256', kSigning).update(stringToSign).digest('hex');
+            const signature = crypto
+              .createHmac('sha256', kSigning)
+              .update(stringToSign)
+              .digest('hex');
 
-            headers['Authorization'] = `AWS4-HMAC-SHA256 Credential=${s3AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+            headers['Authorization'] =
+              `AWS4-HMAC-SHA256 Credential=${s3AccessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
 
             const res = await fetch(url.toString(), {
               method: 'PUT',
