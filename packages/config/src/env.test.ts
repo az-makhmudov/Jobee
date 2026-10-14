@@ -97,4 +97,40 @@ describe('validateEnv', () => {
     });
     expect(config.API_PORT).toBe(8080);
   });
+
+  it('auto-detects Railway public domain for Better Auth and Web Origin', () => {
+    const config = validateEnv({
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/testdb',
+      EMAIL_TOKEN_ENCRYPTION_KEY:
+        'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
+      BETTER_AUTH_SECRET: 'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
+      RAILWAY_PUBLIC_DOMAIN: 'jobee.up.railway.app',
+    });
+
+    expect(config.BETTER_AUTH_URL).toBe('https://jobee.up.railway.app');
+    expect(config.WEB_ORIGIN).toBe('https://jobee.up.railway.app');
+    expect(config.BETTER_AUTH_TRUSTED_ORIGINS).toBe('https://jobee.up.railway.app');
+    expect(config.API_HOST).toBe('0.0.0.0');
+  });
+
+  it('auto-detects S3 storage backend when R2 credentials are provided', () => {
+    const config = validateEnv({
+      NODE_ENV: 'development',
+      S3_BUCKET: 'jobee-bucket',
+      S3_ACCESS_KEY_ID: 'key123',
+      S3_SECRET_ACCESS_KEY: 'secret123',
+    });
+
+    expect(config.STORAGE_BACKEND).toBe('s3');
+  });
+
+  it('auto-detects Gemini AI provider when GEMINI_API_KEY is provided', () => {
+    const config = validateEnv({
+      NODE_ENV: 'development',
+      GEMINI_API_KEY: 'test-gemini-key',
+    });
+
+    expect(config.AI_PROVIDER).toBe('gemini');
+  });
 });

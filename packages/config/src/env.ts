@@ -25,11 +25,58 @@ export const envSchema = z
   .preprocess(
     (raw: unknown) => {
       if (typeof raw === 'object' && raw !== null) {
-        const r = raw as Record<string, unknown>;
+        const r = { ...(raw as Record<string, unknown>) };
         const port = r.API_PORT ?? r.PORT;
         if (port !== undefined && port !== '') {
-          return { ...r, API_PORT: port };
+          r.API_PORT = port;
         }
+
+        // Auto-detect Railway public domain for Better Auth & CORS
+        const railwayDomain = (r.RAILWAY_PUBLIC_DOMAIN || r.RAILWAY_STATIC_URL) as
+          string | undefined;
+        if (railwayDomain && typeof railwayDomain === 'string' && railwayDomain.trim() !== '') {
+          const publicUrl = railwayDomain.startsWith('http')
+            ? railwayDomain.trim()
+            : `https://${railwayDomain.trim()}`;
+          if (!r.BETTER_AUTH_URL || r.BETTER_AUTH_URL === 'http://127.0.0.1:3000') {
+            r.BETTER_AUTH_URL = publicUrl;
+          }
+          if (!r.WEB_ORIGIN || r.WEB_ORIGIN === 'http://localhost:5173') {
+            r.WEB_ORIGIN = publicUrl;
+          }
+          if (
+            !r.BETTER_AUTH_TRUSTED_ORIGINS ||
+            r.BETTER_AUTH_TRUSTED_ORIGINS === 'http://localhost:5173,http://127.0.0.1:5173'
+          ) {
+            r.BETTER_AUTH_TRUSTED_ORIGINS = publicUrl;
+          }
+        }
+
+        // Auto-detect STORAGE_BACKEND if Cloudflare R2 / S3 credentials are provided
+        if (!r.STORAGE_BACKEND || r.STORAGE_BACKEND === 'local') {
+          if (r.S3_BUCKET && r.S3_ACCESS_KEY_ID && r.S3_SECRET_ACCESS_KEY) {
+            r.STORAGE_BACKEND = 's3';
+          }
+        }
+
+        // Auto-detect AI_PROVIDER if GEMINI_API_KEY is provided
+        if (!r.AI_PROVIDER || r.AI_PROVIDER === 'disabled') {
+          if (
+            (r.GEMINI_API_KEY &&
+              typeof r.GEMINI_API_KEY === 'string' &&
+              r.GEMINI_API_KEY.trim() !== '') ||
+            (r.AI_API_KEY && typeof r.AI_API_KEY === 'string' && r.AI_API_KEY.trim() !== '')
+          ) {
+            r.AI_PROVIDER = 'gemini';
+          }
+        }
+
+        // In production, default API_HOST to 0.0.0.0 for container accessibility
+        if (r.NODE_ENV === 'production' && (!r.API_HOST || r.API_HOST === '127.0.0.1')) {
+          r.API_HOST = '0.0.0.0';
+        }
+
+        return r;
       }
       return raw;
     },

@@ -11,6 +11,24 @@ async function bootstrap() {
     environment: config.NODE_ENV,
   });
 
+  // Ensure database migrations are up to date before launching in production
+  if (
+    config.DATABASE_URL &&
+    (config.NODE_ENV === 'production' || process.env.AUTO_MIGRATE === 'true')
+  ) {
+    try {
+      logger.info('Verifying database schema migrations...');
+      const { runDatabaseMigrations } = await import('@job-agent/database');
+      await runDatabaseMigrations(config.DATABASE_URL);
+      logger.info('Database schema migrations verified and up to date.');
+    } catch (migErr) {
+      logger.error('Database migration check encountered an error:', undefined, migErr);
+      if (config.NODE_ENV === 'production') {
+        throw migErr;
+      }
+    }
+  }
+
   const app = buildApp({ config, logger });
 
   // Graceful shutdown handling
