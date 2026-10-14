@@ -31,11 +31,12 @@ export const envSchema = z
           r.API_PORT = port;
         }
 
-        // Auto-detect Railway public domain for Better Auth & CORS
+        // Auto-detect Railway public domain or HTTPS BETTER_AUTH_URL for Better Auth, CORS, and OAuth redirects
         const railwayDomain = (r.RAILWAY_PUBLIC_DOMAIN || r.RAILWAY_STATIC_URL) as
           string | undefined;
+        let publicUrl: string | undefined = undefined;
         if (railwayDomain && typeof railwayDomain === 'string' && railwayDomain.trim() !== '') {
-          const publicUrl = railwayDomain.startsWith('http')
+          publicUrl = railwayDomain.startsWith('http')
             ? railwayDomain.trim()
             : `https://${railwayDomain.trim()}`;
           if (!r.BETTER_AUTH_URL || r.BETTER_AUTH_URL === 'http://127.0.0.1:3000') {
@@ -49,6 +50,66 @@ export const envSchema = z
             r.BETTER_AUTH_TRUSTED_ORIGINS === 'http://localhost:5173,http://127.0.0.1:5173'
           ) {
             r.BETTER_AUTH_TRUSTED_ORIGINS = publicUrl;
+          }
+        } else if (
+          typeof r.BETTER_AUTH_URL === 'string' &&
+          r.BETTER_AUTH_URL.startsWith('https://')
+        ) {
+          publicUrl = r.BETTER_AUTH_URL.trim();
+        }
+
+        // Reuse existing Google OAuth credentials for Gmail and Calendar if not explicitly configured
+        const googleClientId = (r.GOOGLE_CLIENT_ID ||
+          r.GMAIL_CLIENT_ID ||
+          r.GOOGLE_CALENDAR_CLIENT_ID) as string | undefined;
+        const googleClientSecret = (r.GOOGLE_CLIENT_SECRET ||
+          r.GMAIL_CLIENT_SECRET ||
+          r.GOOGLE_CALENDAR_CLIENT_SECRET) as string | undefined;
+
+        if (googleClientId && typeof googleClientId === 'string' && googleClientId.trim() !== '') {
+          const cid = googleClientId.trim();
+          if (!r.GMAIL_CLIENT_ID || r.GMAIL_CLIENT_ID === '') {
+            r.GMAIL_CLIENT_ID = cid;
+          }
+          if (!r.GOOGLE_CALENDAR_CLIENT_ID || r.GOOGLE_CALENDAR_CLIENT_ID === '') {
+            r.GOOGLE_CALENDAR_CLIENT_ID = cid;
+          }
+        }
+
+        if (
+          googleClientSecret &&
+          typeof googleClientSecret === 'string' &&
+          googleClientSecret.trim() !== ''
+        ) {
+          const csec = googleClientSecret.trim();
+          if (!r.GMAIL_CLIENT_SECRET || r.GMAIL_CLIENT_SECRET === '') {
+            r.GMAIL_CLIENT_SECRET = csec;
+          }
+          if (!r.GOOGLE_CALENDAR_CLIENT_SECRET || r.GOOGLE_CALENDAR_CLIENT_SECRET === '') {
+            r.GOOGLE_CALENDAR_CLIENT_SECRET = csec;
+          }
+        }
+
+        // Auto-configure production OAuth redirect URIs when publicUrl is present
+        if (publicUrl) {
+          if (
+            !r.GMAIL_REDIRECT_URI ||
+            r.GMAIL_REDIRECT_URI === 'http://127.0.0.1:3000/api/email/accounts/gmail/callback' ||
+            (typeof r.GMAIL_REDIRECT_URI === 'string' &&
+              (r.GMAIL_REDIRECT_URI.includes('127.0.0.1') ||
+                r.GMAIL_REDIRECT_URI.includes('localhost')))
+          ) {
+            r.GMAIL_REDIRECT_URI = `${publicUrl}/api/email/accounts/gmail/callback`;
+          }
+          if (
+            !r.GOOGLE_CALENDAR_REDIRECT_URI ||
+            r.GOOGLE_CALENDAR_REDIRECT_URI ===
+              'http://127.0.0.1:3000/api/calendar/google/callback' ||
+            (typeof r.GOOGLE_CALENDAR_REDIRECT_URI === 'string' &&
+              (r.GOOGLE_CALENDAR_REDIRECT_URI.includes('127.0.0.1') ||
+                r.GOOGLE_CALENDAR_REDIRECT_URI.includes('localhost')))
+          ) {
+            r.GOOGLE_CALENDAR_REDIRECT_URI = `${publicUrl}/api/calendar/google/callback`;
           }
         }
 

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { authClient, verifyPilotInvite } from '../api/auth-client';
+import React, { useState, useEffect } from 'react';
+import { authClient, verifyPilotInvite } from '../api/auth-client.js';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -26,7 +26,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isOpen) return;
     try {
       const storedInvite = sessionStorage.getItem('jobee_invite_code');
@@ -38,7 +38,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } catch {
       // safe fallback
     }
-  }, [isOpen]);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -145,7 +160,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
-      setError('Please enter your email address to reset your password.');
+      setError('Please enter your email address to reset password');
       return;
     }
     setError(null);
@@ -166,39 +181,69 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+    <div className="modal-backdrop" onClick={() => onClose?.()} role="presentation">
+      <div
+        className="modal-dialog modal-dialog-sm modal-dialog-clean"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="auth-modal-title"
+      >
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-50 text-blue-600 mb-3 font-bold text-xl">
-            🐝
+        <div className="modal-header">
+          <div className="modal-header-content">
+            <span className="modal-icon" aria-hidden="true">
+              🐝
+            </span>
+            <div>
+              <h3 id="auth-modal-title" className="modal-title">
+                {mode === 'signin' && 'Welcome to Jobee'}
+                {mode === 'signup' && 'Join Private Pilot'}
+                {mode === 'forgot' && 'Reset Password'}
+              </h3>
+              <p className="modal-subtitle">
+                {mode === 'signin' && 'Autonomous AI Job Search Agent'}
+                {mode === 'signup' && 'Invitation-only pilot onboarding'}
+                {mode === 'forgot' && 'Enter email for reset link'}
+              </p>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            {mode === 'signin' && 'Welcome back to Jobee'}
-            {mode === 'signup' && 'Join Jobee Private Pilot'}
-            {mode === 'forgot' && 'Reset your password'}
-          </h2>
-          <p className="text-sm text-gray-500 mt-1">
-            {mode === 'signin' && 'Sign in to your autonomous job search workspace'}
-            {mode === 'signup' && 'Invitation-only pilot onboarding for AI job assistance'}
-            {mode === 'forgot' && 'Enter your email to receive a password reset link'}
-          </p>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="modal-close-btn"
+              aria-label="Close dialog"
+            >
+              ✕
+            </button>
+          )}
         </div>
 
         {/* Tab Switcher (if not in forgot mode) */}
         {mode !== 'forgot' && (
-          <div className="flex border-b border-gray-200 px-6">
+          <div
+            style={{
+              display: 'flex',
+              borderBottom: '1px solid var(--surface-border)',
+              backgroundColor: 'rgba(15, 23, 42, 0.3)',
+            }}
+          >
             <button
               type="button"
               onClick={() => {
                 setMode('signin');
                 setError(null);
               }}
-              className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                mode === 'signin'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+              className={`btn btn-ghost ${mode === 'signin' ? 'btn-primary' : ''}`}
+              style={{
+                flex: 1,
+                borderRadius: 0,
+                borderBottom:
+                  mode === 'signin' ? '2px solid var(--accent)' : '2px solid transparent',
+                padding: '0.75rem',
+                fontSize: '0.85rem',
+              }}
             >
               Sign In
             </button>
@@ -208,11 +253,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 setMode('signup');
                 setError(null);
               }}
-              className={`flex-1 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                mode === 'signup'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+              className={`btn btn-ghost ${mode === 'signup' ? 'btn-primary' : ''}`}
+              style={{
+                flex: 1,
+                borderRadius: 0,
+                borderBottom:
+                  mode === 'signup' ? '2px solid var(--accent)' : '2px solid transparent',
+                padding: '0.75rem',
+                fontSize: '0.85rem',
+              }}
             >
               Sign Up (Invite Only)
             </button>
@@ -220,31 +269,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         )}
 
         {/* Content Body */}
-        <div className="p-6">
+        <div className="modal-body">
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 flex items-start gap-2">
-              <span className="font-bold">Error:</span>
+            <div className="alert alert-error" role="alert">
+              <span>⚠️</span>
               <span>{error}</span>
             </div>
           )}
 
           {successMessage && (
-            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 flex items-start gap-2">
-              <span className="font-bold">Success:</span>
+            <div className="alert alert-success" role="status">
+              <span>✓</span>
               <span>{successMessage}</span>
             </div>
           )}
 
           {/* Social Sign-in (Google) */}
           {mode !== 'forgot' && (
-            <div className="mb-4">
+            <div>
               <button
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 py-2.5 px-4 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 transition-colors disabled:opacity-50"
+                className="btn btn-outline"
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.75rem',
+                  padding: '0.65rem 1rem',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                }}
               >
-                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                   <path
                     fill="#4285F4"
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -262,40 +322,59 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                   />
                 </svg>
-                {loading ? 'Connecting to Google...' : 'Continue with Google'}
+                <span>{loading ? 'Connecting to Google...' : 'Sign in with Google'}</span>
               </button>
 
-              <div className="relative my-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-white px-2 text-gray-400">or with email</span>
-                </div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  margin: '1.25rem 0',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.75rem',
+                }}
+              >
+                <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--surface-border)' }} />
+                <span
+                  style={{
+                    padding: '0 0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  or continue with email
+                </span>
+                <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--surface-border)' }} />
               </div>
             </div>
           )}
 
           {/* Sign In Form */}
           {mode === 'signin' && (
-            <form onSubmit={handleEmailSignIn} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+            <form
+              onSubmit={handleEmailSignIn}
+              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            >
+              <div className="form-group">
+                <label className="form-label" htmlFor="signin-email">
                   Email Address
                 </label>
                 <input
+                  id="signin-email"
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="you@example.com"
+                  className="form-input"
                 />
               </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+              <div className="form-group">
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <label className="form-label" htmlFor="signin-password">
                     Password
                   </label>
                   <button
@@ -304,25 +383,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       setMode('forgot');
                       setError(null);
                     }}
-                    className="text-xs text-blue-600 hover:underline"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--accent)',
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
                   >
                     Forgot password?
                   </button>
                 </div>
                 <input
+                  id="signin-password"
                   type="password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="form-input"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm shadow transition-colors disabled:opacity-50"
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '0.65rem' }}
               >
                 {loading ? 'Signing in...' : 'Sign In'}
               </button>
@@ -331,13 +419,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           {/* Sign Up Form (Invite Only) */}
           {mode === 'signup' && (
-            <form onSubmit={handleEmailSignUp} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Invitation Code <span className="text-red-500">*</span>
+            <form
+              onSubmit={handleEmailSignUp}
+              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            >
+              <div className="form-group">
+                <label className="form-label" htmlFor="signup-invite">
+                  Invitation Code <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
-                <div className="relative">
+                <div style={{ position: 'relative' }}>
                   <input
+                    id="signup-invite"
                     type="text"
                     required
                     value={invitationCode}
@@ -347,131 +439,168 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     }}
                     onBlur={() => handleVerifyInvite(invitationCode)}
                     placeholder="pilot_..."
-                    className={`w-full px-3 py-2 border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 ${
-                      inviteStatus === 'valid'
-                        ? 'border-green-500 focus:ring-green-500'
-                        : inviteStatus === 'invalid'
-                          ? 'border-red-500 focus:ring-red-500'
-                          : 'border-gray-300 focus:ring-blue-500'
-                    }`}
+                    className="form-input table-mono"
+                    style={{
+                      borderColor:
+                        inviteStatus === 'valid'
+                          ? 'var(--success)'
+                          : inviteStatus === 'invalid'
+                            ? 'var(--danger)'
+                            : undefined,
+                    }}
                   />
                   {inviteStatus === 'checking' && (
-                    <span className="absolute right-3 top-2.5 text-xs text-gray-400 animate-pulse">
+                    <span
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '10px',
+                        fontSize: '0.75rem',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
                       Checking...
                     </span>
                   )}
                   {inviteStatus === 'valid' && (
-                    <span className="absolute right-3 top-2.5 text-xs font-semibold text-green-600">
+                    <span
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '10px',
+                        fontSize: '0.75rem',
+                        color: 'var(--success)',
+                        fontWeight: 600,
+                      }}
+                    >
                       ✓ Valid
                     </span>
                   )}
                   {inviteStatus === 'invalid' && (
-                    <span className="absolute right-3 top-2.5 text-xs font-semibold text-red-600">
+                    <span
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '10px',
+                        fontSize: '0.75rem',
+                        color: 'var(--danger)',
+                        fontWeight: 600,
+                      }}
+                    >
                       ✕ Invalid
                     </span>
                   )}
                 </div>
                 {inviteFeedback && (
                   <p
-                    className={`text-xs mt-1 ${
-                      inviteStatus === 'valid' ? 'text-green-600' : 'text-red-600'
-                    }`}
+                    style={{
+                      fontSize: '0.75rem',
+                      marginTop: '0.25rem',
+                      color: inviteStatus === 'valid' ? 'var(--success)' : 'var(--danger)',
+                    }}
                   >
                     {inviteFeedback}
                   </p>
                 )}
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              <div className="form-group">
+                <label className="form-label" htmlFor="signup-name">
                   Full Name
                 </label>
                 <input
+                  id="signup-name"
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Your Name"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Asadbek Makhmudov"
+                  className="form-input"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              <div className="form-group">
+                <label className="form-label" htmlFor="signup-email">
                   Email Address
                 </label>
                 <input
+                  id="signup-email"
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="you@example.com"
+                  className="form-input"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+              <div className="form-group">
+                <label className="form-label" htmlFor="signup-password">
                   Password
                 </label>
                 <input
+                  id="signup-password"
                   type="password"
                   required
-                  minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading || inviteStatus === 'invalid'}
-                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm shadow transition-colors disabled:opacity-50"
-              >
-                {loading ? 'Creating Account...' : 'Create Pilot Account'}
-              </button>
-            </form>
-          )}
-
-          {/* Forgot Password Form */}
-          {mode === 'forgot' && (
-            <form onSubmit={handleForgotPassword} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="••••••••"
+                  className="form-input"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg text-sm shadow transition-colors disabled:opacity-50"
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '0.65rem' }}
               >
-                {loading ? 'Sending...' : 'Send Reset Link'}
+                {loading ? 'Creating Account...' : 'Complete Pilot Registration'}
+              </button>
+            </form>
+          )}
+
+          {/* Forgot Password Form */}
+          {mode === 'forgot' && (
+            <form
+              onSubmit={handleForgotPassword}
+              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            >
+              <div className="form-group">
+                <label className="form-label" htmlFor="forgot-email">
+                  Email Address
+                </label>
+                <input
+                  id="forgot-email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="form-input"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '0.65rem' }}
+              >
+                {loading ? 'Sending Instructions...' : 'Send Password Reset Link'}
               </button>
 
-              <div className="text-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('signin');
-                    setError(null);
-                  }}
-                  className="text-xs text-gray-600 hover:underline font-medium"
-                >
-                  ← Back to Sign In
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('signin');
+                  setError(null);
+                }}
+                className="btn btn-ghost btn-sm"
+                style={{ alignSelf: 'center' }}
+              >
+                ← Back to Sign In
+              </button>
             </form>
           )}
         </div>

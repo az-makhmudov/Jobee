@@ -16,7 +16,7 @@
 - **Milestone Status:** PRODUCTION DEPLOYMENT COMPLETE — SERVICES ONLINE & VERIFIED
 - **Previous Completed Milestone:** `JOB-AUTH-VERIFY` & `JOB-DEPLOY-STEP-1`
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 6) + PRODUCTION DEPLOYED**
-- **Active Git Checkpoint:** `d3ffc70` (`JOB-AUTH-REPAIR`)
+- **Active Git Checkpoint:** `e875038` (`JOB-POST-DEPLOY`)
 
 ---
 
@@ -54,7 +54,8 @@
 | `JOB-RAILWAY-PREP`         | Railway CLI Link, IaC Read-Only Plan & Service Topology Reconcile  | COMPLETED     | `51d7d0d` (BL-11)                                |
 | `JOB-AUTH-VERIFY`          | Owner Email Config, Google Auth Linking & Tenant Isolation Guards  | COMPLETED     | `151f2c8` (BL-11)                                |
 | `JOB-PROD-DEPLOY`          | Topological Build Fix, Dual Railway Services Online, SPA Verified  | COMPLETED     | `a9c0f98` (BL-12)                                |
-| `JOB-AUTH-REPAIR`          | Google Sign-In Verification ID Fix, Error Handling & CI Guardrails | **COMPLETED** | `d3ffc70` (BL-13)                                |
+| `JOB-AUTH-REPAIR`          | Google Sign-In Verification ID Fix, Error Handling & CI Guardrails | COMPLETED     | `d3ffc70` (BL-13)                                |
+| `JOB-POST-DEPLOY`          | UI Repair, Google Integrations & Production Stabilization          | **COMPLETED** | `e875038` (BL-14)                                |
 
 ---
 

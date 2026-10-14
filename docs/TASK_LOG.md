@@ -1056,7 +1056,34 @@ This document tracks execution history and verification state for all official m
   - `npm run test`: PASSED (43 test files, 343/343 tests passed).
   - `npm run build`: PASSED (API, Worker, Web SPA built cleanly).
   - GitHub Actions CI (Run `38568490182`): **PASSED** (exit code 0, all jobs green).
-  - Railway Deployments: `jobee-api` (`71de105e`) and `jobee-worker` (`ad7e695a`) deployed successfully to production.
   - Production Google Sign-In Endpoint: `POST https://jobee-api-production.up.railway.app/api/auth/sign-in/social` returns HTTP 200 with Google OAuth authorization URL.
   - Production Health Check: `GET /health` returns HTTP 200 OK.
 
+---
+
+### `JOB-POST-DEPLOY` — UI Repair, Google Integrations & Production Stabilization
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-14
+- **Scope**:
+  - **1. Frontend Design System & Modal Repair**:
+    - Identified that `PilotInvitationsModal.tsx` and `AuthModal.tsx` relied on uninstalled Tailwind CSS classes (`fixed`, `inset-0`, `z-50`, `bg-white`, `border-gray-100`), causing unstyled/broken layouts.
+    - Upgraded `apps/web/src/index.css` with native modal design tokens (`.modal-backdrop` with backdrop-filter blur, `.modal-dialog`, `.modal-dialog-large`, `.modal-dialog-sm`, `.modal-dialog-clean`, `.modal-header`, `.modal-body`, `.modal-footer`, `.modal-card-section`, `.spotlight-box`).
+    - Added comprehensive table utility styles (`.table-container`, `.table`, `.table-mono`) and form helper styles (`.form-grid-4`, `.alert-error`, `.alert-success`, `.alert-info`).
+    - Redesigned `PilotInvitationsModal.tsx` using Jobee's native dark-theme system, including keyboard accessibility (`Escape` keydown to close), backdrop click dismissal, body scroll locking, responsive invitation generator form, high-contrast spotlight code card with copy-to-clipboard feedback, and responsive invitations table.
+    - Redesigned `AuthModal.tsx` using Jobee's native dark-theme system, adding an accessible close button (✕), backdrop dismissal, `Escape` keydown handler, and unified dark styling.
+    - Unified sidebar footer in `App.tsx` with dark theme CSS variables (`--surface-border`, `rgba(15, 23, 42, 0.4)`), eliminating light-mode visual artifacts.
+  - **2. Gmail & Google Calendar OAuth Integration**:
+    - Updated `packages/config/src/env.ts` preprocess to automatically reuse `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` for `GMAIL_CLIENT_ID` / `GMAIL_CLIENT_SECRET` and `GOOGLE_CALENDAR_CLIENT_ID` / `GOOGLE_CALENDAR_CLIENT_SECRET` when not explicitly overridden.
+    - Added dynamic resolution of production OAuth redirect URIs (`${publicUrl}/api/email/accounts/gmail/callback` and `${publicUrl}/api/calendar/google/callback`) when `RAILWAY_PUBLIC_DOMAIN` or HTTPS `BETTER_AUTH_URL` is detected.
+    - Updated `.railway/railway.ts` to map `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GOOGLE_CALENDAR_CLIENT_ID`, and `GOOGLE_CALENDAR_CLIENT_SECRET` using secure variable references (`${{GOOGLE_CLIENT_ID}}`, `${{GOOGLE_CLIENT_SECRET}}`) and production callback URLs.
+    - Configured Railway service variables for `jobee-api` with secure variable references and validated with `railway config plan` (0 additions, 2 changes, 0 destructions).
+  - **3. Unit Testing & Verification**:
+    - Added unit tests in `packages/config/src/env.test.ts` verifying Google OAuth credential reuse, dedicated override preservation, and dynamic redirect URI resolution from `RAILWAY_PUBLIC_DOMAIN`.
+- **Verification Records**:
+  - `npm run lint`: PASSED (0 errors, 332 warnings).
+  - `npm run typecheck`: PASSED (0 errors across monorepo).
+  - `npm test`: PASSED (43 test files, 346/346 tests passed).
+  - `npm run build`: PASSED (Packages, API, Worker, and Web SPA built cleanly).
+  - `scripts/verify-railway-deployment.ts`: PASSED (17/17 checks passed).
+  - `railway config plan`: PASSED (0 destructive changes).

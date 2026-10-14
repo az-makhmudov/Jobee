@@ -190,4 +190,54 @@ describe('validateEnv', () => {
       }),
     ).toThrow();
   });
+
+  it('reuses GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET for Gmail and Calendar when omitted', () => {
+    const config = validateEnv({
+      NODE_ENV: 'development',
+      GOOGLE_CLIENT_ID: 'google-oauth-client-id-123.apps.googleusercontent.com',
+      GOOGLE_CLIENT_SECRET: 'GOCSPX-secret-abc-123',
+    });
+
+    expect(config.GOOGLE_CLIENT_ID).toBe('google-oauth-client-id-123.apps.googleusercontent.com');
+    expect(config.GMAIL_CLIENT_ID).toBe('google-oauth-client-id-123.apps.googleusercontent.com');
+    expect(config.GMAIL_CLIENT_SECRET).toBe('GOCSPX-secret-abc-123');
+    expect(config.GOOGLE_CALENDAR_CLIENT_ID).toBe(
+      'google-oauth-client-id-123.apps.googleusercontent.com',
+    );
+    expect(config.GOOGLE_CALENDAR_CLIENT_SECRET).toBe('GOCSPX-secret-abc-123');
+  });
+
+  it('preserves dedicated Gmail credentials when explicitly configured', () => {
+    const config = validateEnv({
+      NODE_ENV: 'development',
+      GOOGLE_CLIENT_ID: 'google-oauth-client-id-123.apps.googleusercontent.com',
+      GMAIL_CLIENT_ID: 'dedicated-gmail-client-id-456.apps.googleusercontent.com',
+    });
+
+    expect(config.GOOGLE_CLIENT_ID).toBe('google-oauth-client-id-123.apps.googleusercontent.com');
+    expect(config.GMAIL_CLIENT_ID).toBe('dedicated-gmail-client-id-456.apps.googleusercontent.com');
+    expect(config.GOOGLE_CALENDAR_CLIENT_ID).toBe(
+      'google-oauth-client-id-123.apps.googleusercontent.com',
+    );
+  });
+
+  it('automatically configures production OAuth redirect URIs from RAILWAY_PUBLIC_DOMAIN', () => {
+    const config = validateEnv({
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/testdb',
+      EMAIL_TOKEN_ENCRYPTION_KEY:
+        'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
+      BETTER_AUTH_SECRET: 'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
+      RAILWAY_PUBLIC_DOMAIN: 'jobee-api-production.up.railway.app',
+      GOOGLE_CLIENT_ID: 'google-oauth-client-id-123.apps.googleusercontent.com',
+    });
+
+    expect(config.BETTER_AUTH_URL).toBe('https://jobee-api-production.up.railway.app');
+    expect(config.GMAIL_REDIRECT_URI).toBe(
+      'https://jobee-api-production.up.railway.app/api/email/accounts/gmail/callback',
+    );
+    expect(config.GOOGLE_CALENDAR_REDIRECT_URI).toBe(
+      'https://jobee-api-production.up.railway.app/api/calendar/google/callback',
+    );
+  });
 });

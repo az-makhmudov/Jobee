@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { createPilotInvite, listPilotInvites, revokePilotInvite } from '../api/auth-client';
+import React, { useState, useEffect, useCallback } from 'react';
+import { createPilotInvite, listPilotInvites, revokePilotInvite } from '../api/auth-client.js';
 import type { PilotInvitationDto } from '@job-agent/shared';
 
 interface PilotInvitationsModalProps {
@@ -22,8 +22,9 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
   const [expiresInDays, setExpiresInDays] = useState(7);
   const [generating, setGenerating] = useState(false);
   const [newlyCreatedCode, setNewlyCreatedCode] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
-  const fetchInvitations = async () => {
+  const fetchInvitations = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -34,13 +35,29 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
+  // Keyboard accessibility (Esc to close) & scroll lock
   useEffect(() => {
-    if (isOpen) {
-      fetchInvitations();
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
+
+    fetchInvitations();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, fetchInvitations, onClose]);
 
   if (!isOpen) return null;
 
@@ -67,9 +84,17 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
   };
 
   const handleRevoke = async (id: string) => {
-    if (!confirm('Are you sure you want to revoke this invitation?')) return;
+    if (
+      !window.confirm(
+        'Are you sure you want to revoke this invitation? Once revoked, it cannot be used.',
+      )
+    ) {
+      return;
+    }
     try {
+      setError(null);
       await revokePilotInvite(id);
+      setSuccess('Invitation revoked successfully.');
       await fetchInvitations();
     } catch (err: any) {
       setError(err.message || 'Failed to revoke invitation');
@@ -78,118 +103,145 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Copied to clipboard!');
+    setCopiedCode(text);
+    setTimeout(() => {
+      setCopiedCode((prev) => (prev === text ? null : prev));
+    }, 2000);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="relative w-full max-w-3xl bg-white rounded-2xl shadow-2xl border border-gray-100 max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">🎟️</span>
+    <div className="modal-backdrop" onClick={onClose} role="presentation">
+      <div
+        className="modal-dialog modal-dialog-large modal-dialog-clean"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pilot-invitations-title"
+      >
+        {/* Modal Header */}
+        <div className="modal-header">
+          <div className="modal-header-content">
+            <span className="modal-icon" aria-hidden="true">
+              🎟️
+            </span>
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Pilot Invitation Management</h3>
-              <p className="text-xs text-gray-500">
-                Generate and monitor invite-only private pilot access
+              <h3 id="pilot-invitations-title" className="modal-title">
+                Pilot Invitation Management
+              </h3>
+              <p className="modal-subtitle">
+                Generate and monitor invite-only private pilot access for candidate testers
               </p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            className="modal-close-btn"
+            aria-label="Close dialog"
           >
             ✕
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        {/* Modal Body */}
+        <div className="modal-body">
           {error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-              {error}
+            <div className="alert alert-error" role="alert">
+              <span>⚠️</span>
+              <span>{error}</span>
             </div>
           )}
 
           {success && (
-            <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
-              {success}
+            <div className="alert alert-success" role="status">
+              <span>✓</span>
+              <span>{success}</span>
             </div>
           )}
 
           {/* Newly created code spotlight */}
           {newlyCreatedCode && (
-            <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
+            <div className="spotlight-box">
               <div>
-                <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">
-                  Active Invitation Code
-                </p>
-                <p className="text-lg font-mono font-bold text-blue-700 select-all">
-                  {newlyCreatedCode}
-                </p>
+                <div className="spotlight-box-title">New Active Invitation Code</div>
+                <div className="spotlight-box-code">{newlyCreatedCode}</div>
+                <div
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--text-secondary)',
+                    marginTop: '0.25rem',
+                  }}
+                >
+                  Share this code with the invited tester or send the registration link.
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => copyToClipboard(newlyCreatedCode)}
-                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow transition-colors"
+                className="btn btn-primary btn-sm"
               >
-                Copy Code
+                {copiedCode === newlyCreatedCode ? '✓ Copied!' : 'Copy Code'}
               </button>
             </div>
           )}
 
-          {/* Generate New Invitation */}
-          <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-            <h4 className="text-sm font-semibold text-gray-900 mb-3">Generate New Invitation</h4>
-            <form
-              onSubmit={handleCreateInvitation}
-              className="grid grid-cols-1 sm:grid-cols-4 gap-3"
-            >
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-gray-700 mb-1">
-                  Recipient Email (Optional)
-                </label>
-                <input
-                  type="email"
-                  value={invitedEmail}
-                  onChange={(e) => setInvitedEmail(e.target.value)}
-                  placeholder="candidate@company.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+          {/* Generate New Invitation Form */}
+          <div className="modal-card-section">
+            <div className="modal-card-title">Generate New Invitation</div>
+            <form onSubmit={handleCreateInvitation}>
+              <div className="form-grid-4">
+                <div className="form-group">
+                  <label htmlFor="invite-email" className="form-label">
+                    Recipient Email{' '}
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>
+                      (Optional)
+                    </span>
+                  </label>
+                  <input
+                    id="invite-email"
+                    type="email"
+                    value={invitedEmail}
+                    onChange={(e) => setInvitedEmail(e.target.value)}
+                    placeholder="candidate@company.com"
+                    className="form-input"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="invite-role" className="form-label">
+                    Role
+                  </label>
+                  <select
+                    id="invite-role"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value as 'user' | 'admin')}
+                    className="form-input"
+                  >
+                    <option value="user">User (Tester)</option>
+                    <option value="admin">Administrator</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="invite-expiry" className="form-label">
+                    Expires In
+                  </label>
+                  <select
+                    id="invite-expiry"
+                    value={expiresInDays}
+                    onChange={(e) => setExpiresInDays(Number(e.target.value))}
+                    className="form-input"
+                  >
+                    <option value={7}>7 Days</option>
+                    <option value={14}>14 Days</option>
+                    <option value={30}>30 Days</option>
+                    <option value={90}>90 Days</option>
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Role</label>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="user">User (Tester)</option>
-                  <option value="admin">Administrator</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Expires In</label>
-                <select
-                  value={expiresInDays}
-                  onChange={(e) => setExpiresInDays(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value={7}>7 Days</option>
-                  <option value={14}>14 Days</option>
-                  <option value={30}>30 Days</option>
-                  <option value={90}>90 Days</option>
-                </select>
-              </div>
-
-              <div className="sm:col-span-4 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={generating}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold shadow transition-colors disabled:opacity-50"
-                >
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                <button type="submit" disabled={generating} className="btn btn-primary">
                   {generating ? 'Generating...' : '+ Generate Invitation Code'}
                 </button>
               </div>
@@ -198,86 +250,131 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
 
           {/* Existing Invitations List */}
           <div>
-            <div className="flex justify-between items-center mb-3">
-              <h4 className="text-sm font-semibold text-gray-900">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.75rem',
+              }}
+            >
+              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                 Issued Invitations ({invitations.length})
-              </h4>
+              </div>
               <button
                 type="button"
                 onClick={fetchInvitations}
                 disabled={loading}
-                className="text-xs text-blue-600 hover:underline font-medium"
+                className="btn btn-ghost btn-sm"
               >
-                Refresh
+                {loading ? 'Refreshing...' : '↻ Refresh'}
               </button>
             </div>
 
-            {loading ? (
-              <p className="text-sm text-gray-400 py-6 text-center">Loading invitations...</p>
+            {loading && invitations.length === 0 ? (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '2rem',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.9rem',
+                }}
+              >
+                Loading invitations...
+              </div>
             ) : invitations.length === 0 ? (
-              <p className="text-sm text-gray-400 py-6 text-center bg-gray-50 rounded-xl">
-                No invitations issued yet.
-              </p>
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '2rem',
+                  backgroundColor: 'rgba(15, 23, 42, 0.4)',
+                  borderRadius: '0.5rem',
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.85rem',
+                }}
+              >
+                No pilot invitations have been issued yet. Generate an invitation code above.
+              </div>
             ) : (
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                  <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wider text-left">
+              <div className="table-container">
+                <table className="table">
+                  <thead>
                     <tr>
-                      <th className="px-4 py-3">Code</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Reserved For</th>
-                      <th className="px-4 py-3">Role</th>
-                      <th className="px-4 py-3">Expires</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
+                      <th>Code</th>
+                      <th>Status</th>
+                      <th>Reserved For</th>
+                      <th>Role</th>
+                      <th>Expires</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-200 font-mono text-xs">
+                  <tbody>
                     {invitations.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-gray-50/50">
-                        <td className="px-4 py-3 font-semibold text-gray-900 select-all">
+                      <tr key={inv.id}>
+                        <td className="table-mono" style={{ fontWeight: 700, color: '#60a5fa' }}>
                           {inv.code}
                         </td>
-                        <td className="px-4 py-3 font-sans">
+                        <td>
                           <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
-                              inv.status === 'PENDING'
-                                ? 'bg-amber-100 text-amber-800'
-                                : inv.status === 'ACCEPTED'
-                                  ? 'bg-green-100 text-green-800'
-                                  : inv.status === 'REVOKED'
-                                    ? 'bg-red-100 text-red-800'
-                                    : 'bg-gray-100 text-gray-600'
+                            className={`status-badge ${
+                              inv.status === 'ACCEPTED'
+                                ? 'ok'
+                                : inv.status === 'PENDING'
+                                  ? 'degraded'
+                                  : 'error'
                             }`}
                           >
                             {inv.status}
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-sans text-gray-600">
-                          {inv.invitedEmail || (
-                            <span className="text-gray-400">Anyone with code</span>
-                          )}
+                        <td
+                          style={{
+                            color: inv.invitedEmail
+                              ? 'var(--text-primary)'
+                              : 'var(--text-secondary)',
+                          }}
+                        >
+                          {inv.invitedEmail || 'Anyone with code'}
                         </td>
-                        <td className="px-4 py-3 font-sans capitalize text-gray-700">{inv.role}</td>
-                        <td className="px-4 py-3 font-sans text-gray-500">
+                        <td style={{ textTransform: 'capitalize', color: 'var(--text-secondary)' }}>
+                          {inv.role}
+                        </td>
+                        <td
+                          style={{
+                            color: 'var(--text-secondary)',
+                            fontSize: '0.8rem',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
                           {new Date(inv.expiresAt).toLocaleDateString()}
                         </td>
-                        <td className="px-4 py-3 font-sans text-right space-x-2">
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(inv.code)}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              gap: '0.4rem',
+                              justifyContent: 'flex-end',
+                            }}
                           >
-                            Copy
-                          </button>
-                          {inv.status === 'PENDING' && (
                             <button
                               type="button"
-                              onClick={() => handleRevoke(inv.id)}
-                              className="text-red-600 hover:text-red-800 font-medium"
+                              onClick={() => copyToClipboard(inv.code)}
+                              className="btn btn-secondary btn-sm"
+                              title="Copy invitation code"
                             >
-                              Revoke
+                              {copiedCode === inv.code ? '✓ Copied' : 'Copy'}
                             </button>
-                          )}
+                            {inv.status === 'PENDING' && (
+                              <button
+                                type="button"
+                                onClick={() => handleRevoke(inv.id)}
+                                className="btn btn-danger btn-sm"
+                                title="Revoke this invitation"
+                              >
+                                Revoke
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -286,6 +383,13 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
               </div>
             )}
           </div>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="modal-footer">
+          <button type="button" onClick={onClose} className="btn btn-secondary">
+            Close
+          </button>
         </div>
       </div>
     </div>

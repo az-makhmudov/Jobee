@@ -41,6 +41,14 @@ export default defineRailway(({ shared }) => {
       GOOGLE_CLIENT_ID: shared.GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET: shared.GOOGLE_CLIENT_SECRET,
       OWNER_EMAIL: shared.OWNER_EMAIL,
+      GMAIL_CLIENT_ID: '${{GOOGLE_CLIENT_ID}}',
+      GMAIL_CLIENT_SECRET: '${{GOOGLE_CLIENT_SECRET}}',
+      GMAIL_REDIRECT_URI:
+        'https://jobee-api-production.up.railway.app/api/email/accounts/gmail/callback',
+      GOOGLE_CALENDAR_CLIENT_ID: '${{GOOGLE_CLIENT_ID}}',
+      GOOGLE_CALENDAR_CLIENT_SECRET: '${{GOOGLE_CLIENT_SECRET}}',
+      GOOGLE_CALENDAR_REDIRECT_URI:
+        'https://jobee-api-production.up.railway.app/api/calendar/google/callback',
     },
   });
 

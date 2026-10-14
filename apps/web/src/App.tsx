@@ -239,12 +239,14 @@ export default function App() {
           style={{
             marginTop: 'auto',
             padding: '1rem',
-            borderTop: '1px solid var(--border-color, #e5e7eb)',
-            backgroundColor: 'var(--bg-subtle, #f9fafb)',
+            borderTop: '1px solid var(--surface-border)',
+            backgroundColor: 'rgba(15, 23, 42, 0.4)',
           }}
         >
           {isSessionPending ? (
-            <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>Loading session...</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              Loading session...
+            </div>
           ) : session?.user ? (
             <div>
               <div
@@ -260,7 +262,7 @@ export default function App() {
                     width: '32px',
                     height: '32px',
                     borderRadius: '50%',
-                    backgroundColor: '#3b82f6',
+                    backgroundColor: 'var(--accent)',
                     color: '#fff',
                     display: 'flex',
                     alignItems: 'center',
@@ -279,6 +281,7 @@ export default function App() {
                       whiteSpace: 'nowrap',
                       textOverflow: 'ellipsis',
                       overflow: 'hidden',
+                      color: 'var(--text-primary)',
                     }}
                   >
                     {session.user.name || 'Candidate'}
@@ -286,7 +289,7 @@ export default function App() {
                   <div
                     style={{
                       fontSize: '0.75rem',
-                      color: '#6b7280',
+                      color: 'var(--text-secondary)',
                       whiteSpace: 'nowrap',
                       textOverflow: 'ellipsis',
                       overflow: 'hidden',
@@ -311,8 +314,12 @@ export default function App() {
                     fontWeight: 700,
                     padding: '0.1rem 0.4rem',
                     borderRadius: '4px',
-                    backgroundColor: (session.user as any).role === 'admin' ? '#dbeafe' : '#f3f4f6',
-                    color: (session.user as any).role === 'admin' ? '#1d4ed8' : '#374151',
+                    backgroundColor:
+                      (session.user as any).role === 'admin'
+                        ? 'rgba(59, 130, 246, 0.2)'
+                        : 'rgba(255, 255, 255, 0.08)',
+                    color:
+                      (session.user as any).role === 'admin' ? '#93c5fd' : 'var(--text-secondary)',
                     textTransform: 'uppercase',
                   }}
                 >
@@ -347,7 +354,13 @@ export default function App() {
             </div>
           ) : (
             <div>
-              <div style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+              <div
+                style={{
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '0.5rem',
+                }}
+              >
                 Not authenticated
               </div>
               <button
