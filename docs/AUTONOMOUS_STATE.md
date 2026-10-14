@@ -11,12 +11,12 @@
 
 ## 1. Roadmap Snapshot
 
-- **Current Official Mode:** Autonomous Product Completion & Production Readiness
-- **Active Backlog Item:** `BL-11: COMPLETED` (`JOB-AUTH-VERIFY` Verified & Step 1 Pushed)
-- **Milestone Status:** STEP 1 GITHUB SYNCHRONIZATION COMPLETE — READY FOR RAILWAY DEPLOYMENT
-- **Previous Completed Milestone:** `JOB-AUTH-VERIFY` (Owner Email Configured, Google Sign-In Linked, Invitation Bypass & Multi-Tenant Isolation Guards)
-- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 6) + PRODUCTION HARDENED**
-- **Active Git Checkpoint:** `c40978e` (`JOB-DEPLOY-STEP-1`)
+- **Current Official Mode:** Autonomous Product Completion & Production Deployment
+- **Active Backlog Item:** `BL-12: COMPLETED` (`JOB-PROD-DEPLOY` Production Deployment Complete)
+- **Milestone Status:** PRODUCTION DEPLOYMENT COMPLETE — SERVICES ONLINE & VERIFIED
+- **Previous Completed Milestone:** `JOB-AUTH-VERIFY` & `JOB-DEPLOY-STEP-1`
+- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 6) + PRODUCTION DEPLOYED**
+- **Active Git Checkpoint:** `a9c0f98` (`JOB-PROD-DEPLOY`)
 
 ---
 
@@ -52,7 +52,8 @@
 | `JOB-DEPLOY-AUDIT`         | Pre-Deployment Readiness Check, Auto-Migrations & Zero-Config IaC  | COMPLETED     | `5309898` (BL-10)                                |
 | `JOB-FINAL-FIXES`          | Email Sender Unification, Migration Script & Auth Profile Linking  | COMPLETED     | `48ee22d` (BL-10)                                |
 | `JOB-RAILWAY-PREP`         | Railway CLI Link, IaC Read-Only Plan & Service Topology Reconcile  | COMPLETED     | `51d7d0d` (BL-11)                                |
-| `JOB-AUTH-VERIFY`          | Owner Email Config, Google Auth Linking & Tenant Isolation Guards  | **COMPLETED** | `151f2c8` (BL-11)                                |
+| `JOB-AUTH-VERIFY`          | Owner Email Config, Google Auth Linking & Tenant Isolation Guards  | COMPLETED     | `151f2c8` (BL-11)                                |
+| `JOB-PROD-DEPLOY`          | Topological Build Fix, Dual Railway Services Online, SPA Verified | **COMPLETED** | `a9c0f98` (BL-12)                                |
 
 ---
 
