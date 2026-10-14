@@ -1026,3 +1026,37 @@ This document tracks execution history and verification state for all official m
   - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors).
   - `npm run test`: PASSED (Vitest, 43 test files, 342/342 tests passed).
   - `npm run build`: PASSED (All 6 workspaces built cleanly including Vite web bundle).
+
+---
+
+### `JOB-AUTH-REPAIR` — Production Google Sign-In Verification ID Fix & CI Pipeline Stabilization
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-14
+- **Scope**:
+  - **1. Better Auth Verification ID Default Generation**:
+    - Identified root cause of production HTTP 500 on `POST /api/auth/sign-in/social`: `@better-auth/drizzle-adapter` omitted `id` when creating OAuth state tokens in the `verifications` table, which violated the PostgreSQL NOT NULL primary key constraint without a default.
+    - Updated `packages/database/src/schema/auth.ts` to assign `.$defaultFn(() => crypto.randomUUID())` to `verifications.id`, `sessions.id`, and `accounts.id`.
+    - Generated migration `packages/database/drizzle/0017_verifications_id_default.sql` (`ALTER TABLE "verifications" ALTER COLUMN "id" SET DEFAULT gen_random_uuid()::text;`) and registered it in `_journal.json`.
+    - Added defense-in-depth `verification.create.before` hook in `apps/api/src/auth/better-auth-instance.ts` ensuring `id` is populated before insertion.
+  - **2. Frontend Unfreeze & Error Surfacing**:
+    - In `apps/web/src/components/AuthModal.tsx`, handled `{ data, error }` return object from Better Auth client calls (`signIn.social` does not throw exceptions).
+    - Added error message state rendering and reset `loading` flag on failure.
+    - Added informative button state ("Connecting to Google...") while waiting for the OAuth authorization redirect.
+  - **3. Clean Database Seeding & CI Test Stability**:
+    - Fixed foreign key failures on fresh databases by updating `getOrCreatePrimaryUser` in `packages/database/src/user.ts` to ensure the candidate profile exists for the seed user.
+    - Provisioned the seed user in `packages/database/src/scripts/migrate.ts`.
+    - Ensured tests in `candidate.test.ts` and `auth-routes.test.ts` call `getOrCreatePrimaryUser(db)` in `beforeAll`.
+  - **4. GitHub CI Dependency Ordering**:
+    - Updated `.github/workflows/ci.yml` to compile internal packages (`npm run build:packages`) before running Lint and Typecheck.
+    - Updated root `package.json` `typecheck` script to build packages first.
+- **Verification Records**:
+  - `npm run lint`: PASSED (0 errors).
+  - `npm run typecheck`: PASSED (0 errors across monorepo).
+  - `npm run test`: PASSED (43 test files, 343/343 tests passed).
+  - `npm run build`: PASSED (API, Worker, Web SPA built cleanly).
+  - GitHub Actions CI (Run `38568490182`): **PASSED** (exit code 0, all jobs green).
+  - Railway Deployments: `jobee-api` (`71de105e`) and `jobee-worker` (`ad7e695a`) deployed successfully to production.
+  - Production Google Sign-In Endpoint: `POST https://jobee-api-production.up.railway.app/api/auth/sign-in/social` returns HTTP 200 with Google OAuth authorization URL.
+  - Production Health Check: `GET /health` returns HTTP 200 OK.
+
