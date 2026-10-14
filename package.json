@@ -18,7 +18,7 @@
     "build": "npm run build:packages && npm run build:apps",
     "typecheck:packages": "npm run --workspace=@job-agent/shared typecheck && npm run --workspace=@job-agent/config typecheck && npm run --workspace=@job-agent/database typecheck",
     "typecheck:apps": "npm run --workspace=@job-agent/api typecheck && npm run --workspace=@job-agent/worker typecheck && npm run --workspace=@job-agent/web typecheck",
-    "typecheck": "npm run typecheck:packages && npm run typecheck:apps",
+    "typecheck": "npm run build:packages && npm run typecheck:packages && npm run typecheck:apps",
     "lint": "eslint .",
     "format": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
