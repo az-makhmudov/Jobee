@@ -3,13 +3,30 @@ import type { AppConfig } from '@job-agent/config';
 import type { Database } from '@job-agent/database';
 import { applicationPolicy, eq } from '@job-agent/database';
 import { z } from 'zod';
-import type { AiProvider } from '../ai/index.js';
+import type { AiProvider, AiMatchContext } from '../ai/index.js';
+import {
+  PRIMARY_GEMINI_MODEL,
+  FALLBACK_GEMINI_MODEL,
+  OBSOLETE_GEMINI_MODELS,
+  normalizeGeminiModel,
+} from '../ai/gemini-ai-provider.js';
 
 export interface SettingsRoutesOptions {
   config: AppConfig;
   aiProvider: AiProvider;
   db?: Database;
 }
+
+export const ALLOWED_GEMINI_MODELS = [
+  'gemini-3.8-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-pro-preview',
+  'gemini-3.1-flash-lite',
+  'gemini-3-flash-preview',
+  'gemini-flash-latest',
+];
+
+export const ALLOWED_OPENAI_MODELS = ['gpt-4o-mini', 'gpt-4o'];
 
 const updateAiSettingsSchema = z.object({
   provider: z.enum(['gemini', 'openai', 'disabled']),
@@ -47,9 +64,8 @@ export const createSettingsRoutes = (options: SettingsRoutesOptions): FastifyPlu
           {
             id: 'gemini',
             name: 'Google Gemini',
-            recommendedModel: 'gemini-2.5-flash',
-            description:
-              'High-speed multimodal LLM with structured output enforcement and zero-hallucination verification.',
+            recommendedModel: PRIMARY_GEMINI_MODEL,
+            description: `High-speed multimodal LLM with structured output enforcement and zero-hallucination verification. Primary model: ${PRIMARY_GEMINI_MODEL} (with automatic ${FALLBACK_GEMINI_MODEL} failover).`,
             credentialEnv: 'GEMINI_API_KEY',
             isConfigured: isGeminiKeySet,
           },
@@ -72,7 +88,14 @@ export const createSettingsRoutes = (options: SettingsRoutesOptions): FastifyPlu
             isConfigured: true,
           },
         ],
-        availableModels: ['gemini-2.5-flash', 'gemini-1.5-pro', 'gpt-4o-mini', 'gpt-4o', 'none'],
+        availableModels: [
+          'gemini-3.8-flash',
+          'gemini-3.5-flash-lite',
+          'gemini-3.1-pro-preview',
+          'gpt-4o-mini',
+          'gpt-4o',
+          'none',
+        ],
       };
     };
 
@@ -97,13 +120,30 @@ export const createSettingsRoutes = (options: SettingsRoutesOptions): FastifyPlu
         }
       }
 
-      if (!currentModel || currentModel === 'none') {
-        currentModel =
-          currentProvider === 'gemini'
-            ? 'gemini-2.5-flash'
-            : currentProvider === 'openai'
-              ? 'gpt-4o-mini'
-              : 'none';
+      // Automatically repair obsolete or empty models in memory and database
+      if (currentProvider === 'gemini') {
+        if (!currentModel || currentModel === 'none' || OBSOLETE_GEMINI_MODELS.has(currentModel)) {
+          currentModel = PRIMARY_GEMINI_MODEL;
+          if (typeof (aiProvider as any).setActiveProvider === 'function') {
+            try {
+              (aiProvider as any).setActiveProvider('gemini', PRIMARY_GEMINI_MODEL);
+            } catch {
+              // ignore
+            }
+          }
+          if (userId && db) {
+            db.update(applicationPolicy)
+              .set({ activeAiModel: PRIMARY_GEMINI_MODEL, updatedAt: new Date() })
+              .where(eq(applicationPolicy.userId, userId))
+              .catch(() => {});
+          }
+        }
+      } else if (currentProvider === 'openai') {
+        if (!currentModel || currentModel === 'none') {
+          currentModel = 'gpt-4o-mini';
+        }
+      } else {
+        currentModel = 'none';
       }
 
       return reply.status(200).send({
@@ -164,14 +204,37 @@ export const createSettingsRoutes = (options: SettingsRoutesOptions): FastifyPlu
         }
       }
 
-      const resolvedModel =
-        model && model.trim().length > 0
-          ? model.trim()
-          : provider === 'gemini'
-            ? 'gemini-2.5-flash'
-            : provider === 'openai'
-              ? 'gpt-4o-mini'
-              : 'none';
+      let resolvedModel = 'none';
+      if (provider === 'gemini') {
+        resolvedModel = normalizeGeminiModel(model);
+        // Validate against known allowed models if user explicitly supplied an unknown custom string
+        if (
+          model &&
+          !OBSOLETE_GEMINI_MODELS.has(model.trim()) &&
+          !ALLOWED_GEMINI_MODELS.includes(model.trim())
+        ) {
+          return reply.status(400).send({
+            status: 'error',
+            error: {
+              code: 'INVALID_MODEL',
+              message: `Unsupported Gemini model '${model}'. Supported models: ${ALLOWED_GEMINI_MODELS.join(', ')}`,
+            },
+            timestamp: new Date().toISOString(),
+          });
+        }
+      } else if (provider === 'openai') {
+        resolvedModel = model && model.trim().length > 0 ? model.trim() : 'gpt-4o-mini';
+        if (model && !ALLOWED_OPENAI_MODELS.includes(model.trim())) {
+          return reply.status(400).send({
+            status: 'error',
+            error: {
+              code: 'INVALID_MODEL',
+              message: `Unsupported OpenAI model '${model}'. Supported models: ${ALLOWED_OPENAI_MODELS.join(', ')}`,
+            },
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
 
       // Update runtime dynamic provider if supported
       if (typeof (aiProvider as any).setActiveProvider === 'function') {
@@ -232,27 +295,39 @@ export const createSettingsRoutes = (options: SettingsRoutesOptions): FastifyPlu
       }
 
       try {
-        const testContext = {
+        const testContext: AiMatchContext = {
+          jobId: 'job-test-connectivity',
           jobTitle: 'Software Engineer',
           jobCompany: 'Acme Corp',
-          workplaceType: 'REMOTE' as const,
+          workplaceType: 'REMOTE',
+          location: 'Remote',
           descriptionSnippet: 'Looking for a software engineer proficient in TypeScript.',
           requirements: [
             {
               id: 'req-test-1',
-              category: 'MUST_HAVE' as const,
-              text: 'Proficiency in TypeScript',
-              dimension: 'SKILLS' as const,
+              rawText: 'Proficiency in TypeScript',
+              category: 'MUST_HAVE' as any,
+              strength: 'MANDATORY' as any,
             },
           ],
           candidateContext: {
-            skills: ['TypeScript', 'Node.js'],
+            targetRoles: ['Software Engineer'],
+            skills: [
+              {
+                id: 'candidate_skill:test-ts',
+                name: 'TypeScript',
+                proficiency: 'ADVANCED',
+              },
+            ],
             experiences: [],
-            projects: [],
+            education: [],
+            languages: [],
+            certifications: [],
+            verifiedFacts: [],
           },
         };
 
-        const result = await aiProvider.analyzeMatch(testContext as any);
+        const result = await aiProvider.analyzeMatch(testContext);
         const latencyMs = Date.now() - startTime;
 
         return reply.status(200).send({
@@ -260,10 +335,7 @@ export const createSettingsRoutes = (options: SettingsRoutesOptions): FastifyPlu
           data: {
             success: true,
             provider: aiProvider.name,
-            model:
-              (aiProvider as any).activeModel ||
-              config.AI_MODEL ||
-              (aiProvider.name === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini'),
+            model: result.model || (aiProvider as any).activeModel || PRIMARY_GEMINI_MODEL,
             latencyMs,
             message: `Successfully connected to ${aiProvider.name.toUpperCase()} API. Match analysis validated in ${latencyMs}ms.`,
             sampleSummary: result.semanticSummary,
@@ -271,14 +343,15 @@ export const createSettingsRoutes = (options: SettingsRoutesOptions): FastifyPlu
           timestamp: new Date().toISOString(),
         });
       } catch (err: unknown) {
+        const errCode = (err as any)?.code || 'SERVICE_UNAVAILABLE';
+        const errMsg =
+          err instanceof Error ? err.message : `Failed to test ${aiProvider.name} API connectivity`;
+
         return reply.status(200).send({
           status: 'error',
           error: {
-            code: 'SERVICE_UNAVAILABLE',
-            message:
-              err instanceof Error
-                ? err.message
-                : `Failed to test ${aiProvider.name} API connectivity`,
+            code: errCode,
+            message: errMsg,
           },
           timestamp: new Date().toISOString(),
         });

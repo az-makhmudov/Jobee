@@ -23,13 +23,19 @@ const aiClassificationSchema = z.object({
     .default({}),
 });
 
+import {
+  PRIMARY_GEMINI_MODEL,
+  FALLBACK_GEMINI_MODEL,
+  normalizeGeminiModel,
+} from '../../ai/gemini-ai-provider.js';
+
 export class AiEmailClassifier {
   private apiKey?: string;
   private model: string;
 
-  constructor(apiKey?: string, model = 'gemini-2.5-flash') {
+  constructor(apiKey?: string, model = PRIMARY_GEMINI_MODEL) {
     this.apiKey = apiKey;
-    this.model = model;
+    this.model = normalizeGeminiModel(model);
   }
 
   public get isAvailable(): boolean {
@@ -91,11 +97,38 @@ Return a strict JSON object with:
 
       clearTimeout(timeout);
 
-      if (!response.ok) {
+      let activeRes = response;
+      if (
+        !activeRes.ok &&
+        (activeRes.status === 503 || activeRes.status === 404) &&
+        this.model === PRIMARY_GEMINI_MODEL
+      ) {
+        try {
+          const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(FALLBACK_GEMINI_MODEL)}:generateContent?key=${encodeURIComponent(this.apiKey!)}`;
+          const fallbackRes = await fetch(fallbackUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: 'application/json',
+                temperature: 0.1,
+              },
+            }),
+          });
+          if (fallbackRes.ok) {
+            activeRes = fallbackRes;
+          }
+        } catch {
+          // ignore fallback error
+        }
+      }
+
+      if (!activeRes.ok) {
         return null;
       }
 
-      const resData = (await response.json()) as {
+      const resData = (await activeRes.json()) as {
         candidates?: Array<{
           content?: {
             parts?: Array<{ text?: string }>;

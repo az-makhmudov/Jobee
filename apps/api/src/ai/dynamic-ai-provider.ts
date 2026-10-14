@@ -1,7 +1,7 @@
 import { AppConfig } from '@job-agent/config';
 import { AiProvider, AiMatchContext, AiMatchResult } from './types.js';
 import { DisabledAiProvider } from './disabled-ai-provider.js';
-import { GeminiAiProvider } from './gemini-ai-provider.js';
+import { GeminiAiProvider, normalizeGeminiModel } from './gemini-ai-provider.js';
 import { OpenAiAiProvider } from './openai-ai-provider.js';
 
 export interface ProviderSelection {
@@ -22,7 +22,10 @@ export class DynamicAiProvider implements AiProvider {
     this.currentProvider = new DisabledAiProvider();
 
     const requestedProvider = initial?.provider || (config.AI_PROVIDER as any) || 'disabled';
-    const requestedModel = initial?.model || config.AI_MODEL;
+    const requestedModel =
+      requestedProvider === 'gemini'
+        ? normalizeGeminiModel(initial?.model || config.AI_MODEL)
+        : initial?.model || config.AI_MODEL;
 
     try {
       this.setActiveProvider(requestedProvider, requestedModel);
@@ -52,8 +55,7 @@ export class DynamicAiProvider implements AiProvider {
   setActiveProvider(providerName: 'gemini' | 'openai' | 'disabled', modelName?: string): void {
     if (providerName === 'gemini') {
       const apiKey = this.config.GEMINI_API_KEY || this.config.AI_API_KEY;
-      const model =
-        modelName && modelName.trim().length > 0 ? modelName.trim() : 'gemini-2.5-flash';
+      const model = normalizeGeminiModel(modelName);
       if (apiKey && apiKey.trim().length > 0) {
         this.currentProvider = new GeminiAiProvider(apiKey.trim(), model);
         this.activeProviderName = 'gemini';

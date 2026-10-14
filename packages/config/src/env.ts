@@ -149,6 +149,23 @@ export const envSchema = z
           }
         }
 
+        // Canonicalize and normalize AI_MODEL
+        if (typeof r.AI_MODEL === 'string') {
+          const m = r.AI_MODEL.trim();
+          if (
+            m === 'gemini-2.5-flash' ||
+            m === 'gemini-2.5-pro' ||
+            m.startsWith('gemini-1.5') ||
+            m.startsWith('gemini-2.0')
+          ) {
+            r.AI_MODEL = 'gemini-3.8-flash';
+          } else {
+            r.AI_MODEL = m;
+          }
+        } else if (r.AI_PROVIDER === 'gemini') {
+          r.AI_MODEL = 'gemini-3.8-flash';
+        }
+
         // Canonicalize EMAIL_FROM and SMTP_FROM
         const rawEmailFrom = (r.EMAIL_FROM || r.SMTP_FROM) as string | undefined;
         if (rawEmailFrom && typeof rawEmailFrom === 'string' && rawEmailFrom.trim() !== '') {
@@ -192,7 +209,7 @@ export const envSchema = z
       AI_API_KEY: z.string().optional(),
       GEMINI_API_KEY: z.string().optional(),
       OPENAI_API_KEY: z.string().optional(),
-      AI_MODEL: z.string().optional(),
+      AI_MODEL: z.string().default('gemini-3.8-flash'),
       EMAIL_TOKEN_ENCRYPTION_KEY: z
         .string()
         .min(32, 'EMAIL_TOKEN_ENCRYPTION_KEY must be at least 32 characters')

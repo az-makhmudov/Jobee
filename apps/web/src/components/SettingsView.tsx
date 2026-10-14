@@ -66,7 +66,7 @@ export function SettingsView() {
     provider?: string;
   } | null>(null);
   const [selectedProviderId, setSelectedProviderId] = useState<string>('gemini');
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3.8-flash');
   const [savingAi, setSavingAi] = useState<boolean>(false);
   const [saveResult, setSaveResult] = useState<{
     success: boolean;
@@ -396,7 +396,7 @@ export function SettingsView() {
                   key={prov.id}
                   onClick={() => {
                     setSelectedProviderId(prov.id);
-                    if (prov.id === 'gemini') setSelectedModel('gemini-2.5-flash');
+                    if (prov.id === 'gemini') setSelectedModel('gemini-3.8-flash');
                     else if (prov.id === 'openai') setSelectedModel('gpt-4o-mini');
                     else setSelectedModel('none');
                   }}
@@ -512,10 +512,15 @@ export function SettingsView() {
                   >
                     {selectedProviderId === 'gemini' && (
                       <>
-                        <option value="gemini-2.5-flash">
-                          gemini-2.5-flash (Fast & Structured)
+                        <option value="gemini-3.8-flash">
+                          gemini-3.8-flash (Primary — 1M Tokens, Fast & Multimodal)
                         </option>
-                        <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Multimodal)</option>
+                        <option value="gemini-3.5-flash-lite">
+                          gemini-3.5-flash-lite (High Availability & Lowest Latency)
+                        </option>
+                        <option value="gemini-3.1-pro-preview">
+                          gemini-3.1-pro-preview (Deep Reasoning & Complex Analysis)
+                        </option>
                       </>
                     )}
                     {selectedProviderId === 'openai' && (
@@ -584,7 +589,8 @@ export function SettingsView() {
             <li>
               <strong>Google Gemini:</strong> Set <code>AI_PROVIDER=gemini</code> and{' '}
               <code>GEMINI_API_KEY=your_gemini_api_key</code>. Recommended model:{' '}
-              <code>gemini-2.5-flash</code>.
+              <code>gemini-3.8-flash</code> (with automatic <code>gemini-3.5-flash-lite</code>{' '}
+              failover).
             </li>
             <li>
               <strong>OpenAI:</strong> Set <code>AI_PROVIDER=openai</code> and{' '}

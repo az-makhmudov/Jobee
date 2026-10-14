@@ -13,6 +13,7 @@ const testConfig: AppConfig = {
   DATABASE_URL: undefined,
   DATABASE_SSL: false,
   AI_PROVIDER: 'disabled',
+  AI_MODEL: 'gemini-3.8-flash',
   EMAIL_TOKEN_ENCRYPTION_KEY: 'test-encryption-key-for-unit-testing-purposes-min-32-chars',
   GMAIL_REDIRECT_URI: 'http://localhost:3000/api/email/oauth/callback',
   GOOGLE_CALENDAR_REDIRECT_URI: 'http://localhost:3000/api/calendar/google/callback',

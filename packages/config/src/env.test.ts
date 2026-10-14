@@ -260,4 +260,23 @@ describe('validateEnv', () => {
     expect(config.S3_REGION).toBe('auto');
     expect(config.STORAGE_BACKEND).toBe('s3');
   });
+
+  it('defaults AI_MODEL to gemini-3.8-flash and upgrades obsolete models', () => {
+    const defaultConfig = validateEnv({
+      NODE_ENV: 'development',
+    });
+    expect(defaultConfig.AI_MODEL).toBe('gemini-3.8-flash');
+
+    const upgradedConfig = validateEnv({
+      NODE_ENV: 'development',
+      AI_MODEL: 'gemini-2.5-flash',
+    });
+    expect(upgradedConfig.AI_MODEL).toBe('gemini-3.8-flash');
+
+    const customValidConfig = validateEnv({
+      NODE_ENV: 'development',
+      AI_MODEL: 'gemini-3.5-flash-lite',
+    });
+    expect(customValidConfig.AI_MODEL).toBe('gemini-3.5-flash-lite');
+  });
 });

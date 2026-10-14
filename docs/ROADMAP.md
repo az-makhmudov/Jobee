@@ -141,3 +141,8 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
 - **Status**: COMPLETED
 - **Scope**: Connection pool isolation and cross-database safety checks (`createDatabaseClient`); secured pre-migration backups; mapped single-tenant local candidate data (`00000000-0000-0000-0000-000000000001`) to authenticated Google OAuth owner (`asadbek.mzw@gmail.com`); migrated all profile tables, candidate facts, jobs, applications, and audit history to Neon PostgreSQL; trimmed trailing whitespace from Railway S3 credentials; uploaded and verified 11/11 documents to private Cloudflare R2; and verified live authenticated downloads.
 
+### `JOB-AI-MGMT — AI Integration Repair, Gemini 3.8/3.5 Models & Resilient Failover`
+
+- **Status**: COMPLETED
+- **Scope**: Audited live Google Generative Language models via API; detected deprecation of `gemini-2.5-flash` (HTTP 404); preferred modern `gemini-3.8-flash` with high-availability fallback to `gemini-3.5-flash-lite` on 503 high-demand spikes; added safe model validation in settings and UI dropdowns; repaired persisted database settings referencing obsolete models; and verified truthfulness invariants and structured output validation.
+

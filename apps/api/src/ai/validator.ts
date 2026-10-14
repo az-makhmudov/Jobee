@@ -40,12 +40,24 @@ export function validateAndSanitizeAiOutput(
 
   // Build valid candidate evidence ID set
   const validEvidenceIds = new Set<string>();
-  for (const exp of context.candidateContext.experiences) validEvidenceIds.add(exp.id);
-  for (const skl of context.candidateContext.skills) validEvidenceIds.add(skl.id);
-  for (const edu of context.candidateContext.education) validEvidenceIds.add(edu.id);
-  for (const lang of context.candidateContext.languages) validEvidenceIds.add(lang.id);
-  for (const cert of context.candidateContext.certifications) validEvidenceIds.add(cert.id);
-  for (const fact of context.candidateContext.verifiedFacts) validEvidenceIds.add(fact.id);
+  for (const exp of context.candidateContext?.experiences ?? []) {
+    if (exp?.id) validEvidenceIds.add(exp.id);
+  }
+  for (const skl of context.candidateContext?.skills ?? []) {
+    if (skl?.id) validEvidenceIds.add(skl.id);
+  }
+  for (const edu of context.candidateContext?.education ?? []) {
+    if (edu?.id) validEvidenceIds.add(edu.id);
+  }
+  for (const lang of context.candidateContext?.languages ?? []) {
+    if (lang?.id) validEvidenceIds.add(lang.id);
+  }
+  for (const cert of context.candidateContext?.certifications ?? []) {
+    if (cert?.id) validEvidenceIds.add(cert.id);
+  }
+  for (const fact of context.candidateContext?.verifiedFacts ?? []) {
+    if (fact?.id) validEvidenceIds.add(fact.id);
+  }
 
   // Build valid requirement ID set
   const validRequirementIds = new Set<string>(context.requirements.map((r) => r.id));

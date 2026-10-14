@@ -1140,3 +1140,36 @@ This document tracks execution history and verification state for all official m
   - `npm run build`: PASSED (Packages, API, Worker, and Web SPA built cleanly).
   - `scripts/verify-railway-deployment.ts`: PASSED (17/17 checks passed).
 
+---
+
+### `JOB-AI-MGMT` — AI Integration Repair, Gemini 3.8/3.5 Models & Resilient Failover
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-14
+- **Scope**:
+  - **1. Google Generative Language Model Audit**:
+    - Discovered root cause of HTTP 404: Google deprecated `gemini-2.5-flash` for new accounts (`models/gemini-2.5-flash is no longer available to new users`).
+    - Queried Google Models API using production API key; identified 50 available models.
+    - Verified availability: `gemini-3.8-flash` (primary, fast, multimodal, 1M context) and `gemini-3.5-flash-lite` (high availability, lowest latency, ~1.2s response, valid structured JSON output on standard tier).
+  - **2. High-Availability Transparent Failover in `GeminiAiProvider`**:
+    - Preferred `gemini-3.8-flash` as primary model; configured `gemini-3.5-flash-lite` as alternative and resilient failover.
+    - Implemented transparent failover in `GeminiAiProvider`: if `gemini-3.8-flash` experiences a 503 high-demand spike from Google servers, the provider automatically and seamlessly evaluates the request with `gemini-3.5-flash-lite`.
+    - Added structured error mapping with specific error codes: 404 (`SERVICE_UNAVAILABLE` / deprecated model guidance), 429 (`RATE_LIMIT_EXCEEDED` / quota guidance), 401/403 (`UNAUTHORIZED` credentials error), 503 (`SERVICE_UNAVAILABLE` high demand).
+  - **3. Configuration & Frontend Normalization**:
+    - Updated `packages/config/src/env.ts` and `.env.example` to default `AI_MODEL` to `gemini-3.8-flash` and automatically normalize obsolete model IDs (`gemini-2.5-flash`, `gemini-1.5-*`, `gemini-2.0-*`).
+    - Updated `apps/web/src/components/SettingsView.tsx`: model dropdown options updated to `gemini-3.8-flash` (Primary), `gemini-3.5-flash-lite` (High Availability), and `gemini-3.1-pro-preview` (Deep Reasoning).
+    - Hardened settings API (`/settings/ai` and `/api/settings/ai`) with safe model validation before saving, rejecting unsupported custom model strings with HTTP 400 `INVALID_MODEL`.
+  - **4. Persisted Database Settings Repair**:
+    - Repaired production Neon PostgreSQL database: updated `application_policy` records where `active_ai_model` was `gemini-2.5-flash` to `gemini-3.8-flash`.
+    - Automated runtime and endpoint self-repair so any legacy persisted model is upgraded on inspection.
+  - **5. Truthfulness & Anti-Hallucination Verification**:
+    - Defensively guarded candidate evidence collection iteration in `validator.ts`.
+    - Verified that unverified candidate facts (`UNVERIFIED` / `allow_ai_use: false`) remain completely excluded from AI context.
+    - Added test verifying that fabricated evidence claims are stripped, degrading status to `UNKNOWN`.
+  - **6. Verification Records**:
+    - `npm run lint`: PASSED (0 errors, 340 warnings).
+    - `npm run typecheck`: PASSED (0 errors across 6 workspaces).
+    - `npm test`: PASSED (45 test files, 362/362 tests passed).
+    - `npm run build`: PASSED (All packages, API, Worker, and Web SPA bundle).
+    - `scripts/verify-railway-deployment.ts`: PASSED (17/17 checks passed).
+
