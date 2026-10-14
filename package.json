@@ -5,16 +5,20 @@
   "description": "Jobee — personal AI job-search and application management platform",
   "type": "module",
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "scripts": {
     "dev": "concurrently -n \"api,worker,web\" -c \"blue,green,magenta\" \"npm run dev:api\" \"npm run dev:worker\" \"npm run dev:web\"",
     "dev:web": "npm run --workspace=@job-agent/web dev",
     "dev:api": "npm run --workspace=@job-agent/api dev",
     "dev:worker": "npm run --workspace=@job-agent/worker dev",
-    "build": "npm run --workspaces --if-present build",
-    "typecheck": "npm run --workspaces --if-present typecheck",
+    "build:packages": "npm run --workspace=@job-agent/shared build && npm run --workspace=@job-agent/config build && npm run --workspace=@job-agent/database build",
+    "build:apps": "npm run --workspace=@job-agent/api build && npm run --workspace=@job-agent/worker build && npm run --workspace=@job-agent/web build",
+    "build": "npm run build:packages && npm run build:apps",
+    "typecheck:packages": "npm run --workspace=@job-agent/shared typecheck && npm run --workspace=@job-agent/config typecheck && npm run --workspace=@job-agent/database typecheck",
+    "typecheck:apps": "npm run --workspace=@job-agent/api typecheck && npm run --workspace=@job-agent/worker typecheck && npm run --workspace=@job-agent/web typecheck",
+    "typecheck": "npm run typecheck:packages && npm run typecheck:apps",
     "lint": "eslint .",
     "format": "prettier --check \"**/*.{ts,tsx,js,json,md}\"",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",

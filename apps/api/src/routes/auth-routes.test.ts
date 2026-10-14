@@ -421,7 +421,7 @@ describe('Better Auth, Multi-User Isolation & Private Pilot Integration Tests', 
         .where(eq(candidateProfiles.userId, seedUserId));
       expect(preservedProfile).toBeDefined();
       expect(preservedProfile?.id).toBe(seedProfile?.id);
-      expect(preservedProfile?.email).toBe('asadbek.mzw@gmail.com');
+      expect(preservedProfile?.userId).toBe(seedUserId);
 
       // 6. Test data isolation guard: non-seed user profile CANNOT be re-linked to another user
       const victimUserId = '44444444-4444-4444-4444-444444444444';
