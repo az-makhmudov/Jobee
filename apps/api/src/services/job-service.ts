@@ -66,11 +66,13 @@ export class JobService {
   // --- Ingestion: Pasted Text ---
   public async ingestText(
     userId: string,
-    req: IngestJobTextRequest,
+    req: IngestJobTextRequest & { provider?: JobProvider },
   ): Promise<{ job: JobDto; isDuplicate: boolean; message?: string }> {
     if (!req.text || req.text.trim().length < 20) {
       throw AppError.badRequest('Pasted job text must be at least 20 characters');
     }
+
+    const provider: JobProvider = req.provider ?? 'MANUAL';
 
     const manualExtractor = this.extractorRegistry.getManualExtractor();
     const raw = manualExtractor.extract(req.text, {
@@ -92,7 +94,7 @@ export class JobService {
       await this.db.insert(jobSources).values({
         jobId: existing.id,
         userId,
-        provider: 'MANUAL',
+        provider,
         ingestionMethod: 'PASTE_TEXT',
         sourceUrl: req.url || null,
         canonicalUrl: norm.canonicalUrl,
@@ -146,7 +148,7 @@ export class JobService {
         compensationRaw: norm.compensationRaw,
         originalUrl: req.url || null,
         canonicalUrl: norm.canonicalUrl,
-        provider: 'MANUAL',
+        provider,
         contentHash: norm.contentHash,
         isDuplicate: false,
       })
@@ -158,7 +160,7 @@ export class JobService {
       .values({
         jobId: createdJob!.id,
         userId,
-        provider: 'MANUAL',
+        provider,
         ingestionMethod: 'PASTE_TEXT',
         sourceUrl: req.url || null,
         canonicalUrl: norm.canonicalUrl,
@@ -209,7 +211,7 @@ export class JobService {
       createdJob!.id,
       'JOB_INGESTED',
       ['title', 'company', 'description'],
-      { method: 'PASTE_TEXT', provider: 'MANUAL' },
+      { method: 'PASTE_TEXT', provider },
     );
 
     const fullDto = await this.getJobById(userId, createdJob!.id);

@@ -1176,3 +1176,61 @@ This document tracks execution history and verification state for all official m
     - Railway Production Deployment: **SUCCESS / ONLINE** (`jobee-api` deployment `5c499361`, `jobee-worker` deployment `c1cd3492`).
     - Live Production AI Connectivity Test (`POST /api/settings/ai/test`): **PASSED** (HTTP 200, latency ~2.1s, structured match analysis and ground summary validated).
 
+---
+
+### `JOB-E2E-WORKFLOW` — End-to-End Job Search & Application Workflow Verification & Stabilization
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-14
+- **Scope**:
+  - **1. System Architecture & Invariant Audit (Phase A)**:
+    - Verified all 13 subsystems across `apps/api`, `apps/worker`, `apps/web`, and shared packages.
+    - Verified deterministic authorization over AI discretion, AES-256-GCM token crypto (`TokenCryptoService`), and Zod boundary validations.
+    - Verified canonical match algorithm version (`1.0.0`).
+  - **2. Job Discovery Engine (Phase B)**:
+    - Added `'ARBEITNOW'` to canonical `JobProvider` enum in `packages/shared/src/types/job.ts`, `apps/api/src/routes/job-schemas.ts`, and `apps/web/src/components/JobInboxView.tsx`.
+    - Extended `JobService.ingestText` with optional `provider?: JobProvider` parameter.
+    - Verified public feed ingestion, keyword matching, content-hash deduplication, and `POST /jobs/discover` route response.
+  - **3. Intelligent Job Matching (Phase C)**:
+    - Verified deterministic 8-dimension matching (Title, Core Skills, Experience, Education, Workplace/Location, Industry, Language, Culture/Work Style).
+    - Verified bounded composite score (0–100), canonical decisions (`MATCH`, `REVIEW`, `SKIP`), and non-hallucinated ground evidence anchors.
+  - **4. CV & Cover Letter Generation (Phase D)**:
+    - Verified truthful CV tailoring with metric safeguard (rejection of fabricated metrics/dollars).
+    - Verified grounded cover letter synthesis referencing candidate achievements and target company.
+    - Verified ATS single-column DOCX generation and private storage metadata.
+  - **5. Application Preparation & Studio (Phase E)**:
+    - Verified Application Package creation, version 1 initialization, question classification (`STANDARD` vs `SENSITIVE`), and approval request gating.
+    - Verified `PackageReadinessEngine` blocking readiness when sensitive approvals are pending.
+  - **6. Approval & Controlled ATS Automation (Phase F)**:
+    - Verified human approval resolution with `USER` provenance, transitioning package to `READY`.
+    - Verified ATS adapter registry resolving Greenhouse, Lever, and Ashby adapters.
+    - Verified Cloudflare Turnstile / CAPTCHA challenge detection triggering safety halt.
+    - Verified deterministic SHA-256 submission manifest binding checksum.
+  - **7. Application CRM Lifecycle (Phase G)**:
+    - Verified application creation and transition through canonical lifecycle states (`READY_TO_APPLY` -> `APPLIED`).
+    - Verified recruiter notes and contact associations.
+    - Verified immutable audit timeline event recording.
+  - **8. Gmail & Status Intelligence (Phase H)**:
+    - Verified MIME parsing from Gmail API message resources, stripping quotations and sanitizing HTML.
+    - Verified deterministic email classification (`APPLICATION_CONFIRMATION`).
+    - Verified entity resolution matching inbound email to CRM application via recruiter contact.
+    - Verified status auto-synchronization (`APPLIED` -> `CONFIRMATION_RECEIVED`).
+    - Verified ambiguous/low-confidence review queue isolation.
+  - **9. Production User Experience & API Routing (Phase I)**:
+    - Verified all 13 core frontend API routes responding with HTTP 200.
+    - Verified `/ready` diagnostic endpoint returning database and AI operational status.
+  - **10. Worker & Autonomous Orchestration (Phase J)**:
+    - Verified exponential backoff calculation with jitter.
+    - Verified autonomous pipeline cycle execution (`orchestrationRuns`).
+    - Verified circuit breaker enforcement halting auto-apply when `auto_apply_enabled` is false.
+  - **11. Clean Teardown & Quality Gates (Phase K)**:
+    - 100% clean teardown of all test fixtures with zero orphans left in Neon PostgreSQL database.
+    - Real candidate profile (`asadbek.mzw@gmail.com`) 100% untouched.
+  - **12. Verification Records**:
+    - `npm run format:write` & `npm run format`: PASSED.
+    - `npm run lint`: PASSED (0 errors, 363 warnings).
+    - `npm run typecheck`: PASSED (0 errors across 6 workspaces).
+    - `npm test`: PASSED (45 test files, 362/362 tests passed).
+    - `npm run build`: PASSED (All packages, API, Worker, and Web SPA bundle).
+    - `npm run db:check`: PASSED (Neon PostgreSQL connected, 16ms).
+    - `scripts/verify-e2e-workflow.ts`: PASSED (All 11 phases verified end-to-end).

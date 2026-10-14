@@ -146,3 +146,7 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
 - **Status**: COMPLETED
 - **Scope**: Audited live Google Generative Language models via API; detected deprecation of `gemini-2.5-flash` (HTTP 404); preferred modern `gemini-3.8-flash` with high-availability fallback to `gemini-3.5-flash-lite` on 503 high-demand spikes; added safe model validation in settings and UI dropdowns; repaired persisted database settings referencing obsolete models; and verified truthfulness invariants and structured output validation.
 
+### `JOB-E2E-WORKFLOW — End-to-End Job Search & Application Workflow Verification & Stabilization`
+
+- **Status**: COMPLETED
+- **Scope**: Comprehensive 11-phase end-to-end functional verification across the complete stack: public feed discovery (Arbeitnow & Greenhouse), deterministic 8-dimension matching, tailored CV & grounded cover letter generation with metric safeguard, Application Package studio with human approval gating, controlled ATS automation with bot challenge detection and cryptographic manifest checksums, 17-state CRM lifecycle and timeline audit, Gmail MIME parsing, deterministic classification, entity resolution and status synchronization, all 13 production UI routes responding 200, autonomous background worker pipeline cycles with circuit breaker safety, and 100% clean teardown.

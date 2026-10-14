@@ -1,6 +1,7 @@
 export type JobState = 'NEW' | 'INGESTED' | 'NEEDS_REVIEW' | 'INVALID' | 'DUPLICATE' | 'ARCHIVED';
 
-export type JobProvider = 'GREENHOUSE' | 'LEVER' | 'ASHBY' | 'LINKEDIN' | 'GENERIC' | 'MANUAL';
+export type JobProvider =
+  'GREENHOUSE' | 'LEVER' | 'ASHBY' | 'LINKEDIN' | 'ARBEITNOW' | 'GENERIC' | 'MANUAL';
 
 export type WorkplaceType = 'REMOTE' | 'HYBRID' | 'ONSITE' | 'UNKNOWN';
 

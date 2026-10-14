@@ -178,6 +178,7 @@ export class JobDiscoveryService {
             company: item.company_name,
             url: item.url,
             text: fullText,
+            provider: 'ARBEITNOW',
           });
 
           if (ingestRes.isDuplicate) {

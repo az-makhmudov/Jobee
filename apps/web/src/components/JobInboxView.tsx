@@ -335,6 +335,7 @@ export function JobInboxView({ onSelectJob }: Props) {
               <option value="LEVER">Lever</option>
               <option value="ASHBY">Ashby</option>
               <option value="LINKEDIN">LinkedIn</option>
+              <option value="ARBEITNOW">Arbeitnow (Public Feed)</option>
               <option value="GENERIC">Generic</option>
               <option value="MANUAL">Pasted / Manual</option>
             </select>
