@@ -160,6 +160,9 @@ export class PlaywrightBrowserController implements BrowserController {
       userAgent:
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
       viewport: { width: 1280, height: 800 },
+      permissions: [],
+      ignoreHTTPSErrors: false,
+      bypassCSP: false,
     });
 
     const page = await context.newPage();

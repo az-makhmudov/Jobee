@@ -108,10 +108,11 @@ The Jobee application is deemed complete only when:
 
 ### 5.2 Railway Service Configuration & Resource Optimization
 
-1. **Multi-Service Architecture from Unified Repository**:
+1. **Multi-Service Architecture via Infrastructure as Code (`.railway/railway.ts`)**:
    - Both `jobee-api` and `jobee-worker` build from the root multi-stage [Dockerfile](file:///Users/bek/Job%20Agent/Dockerfile) (`node:22-bookworm-slim`).
-   - `jobee-api` runs `node apps/api/dist/index.js` as its start command (configured via root [railway.json](file:///Users/bek/Job%20Agent/railway.json)).
-   - `jobee-worker` runs `node apps/worker/dist/index.js` as its start command (configured via [railway.worker.json](file:///Users/bek/Job%20Agent/railway.worker.json)).
+   - Defined declaratively in [.railway/railway.ts](file:///Users/bek/Job%20Agent/.railway/railway.ts) using Railway's TypeScript IaC engine (`railway/iac`).
+   - `jobee-api` runs `node apps/api/dist/index.js` with `/api/health` healthcheck and `ON_FAILURE` restart policy.
+   - `jobee-worker` runs `node apps/worker/dist/index.js` with `ALWAYS` restart policy as a dedicated background daemon.
    - This service separation guarantees that high-burst browser automation tasks in the worker cannot degrade API responsiveness or interrupt interactive user sessions.
 
 2. **Dynamic Port Binding**:

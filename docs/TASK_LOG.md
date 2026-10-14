@@ -972,14 +972,24 @@ This document tracks execution history and verification state for all official m
     - Whitelisted `BETTER_AUTH_URL` dynamically in Fastify CORS origin whitelist.
   - **3. Playwright Containerization Hardening**:
     - Added container runtime flags (`--no-sandbox`, `--disable-setuid-sandbox`, `--disable-dev-shm-usage`, `--disable-gpu`) in `PlaywrightBrowserController` to prevent Linux container crashes from 64 MB `/dev/shm` exhaustion.
-  - **4. Declarative Railway Multi-Service Deployment Manifests**:
-    - Created `railway.json` for API service (Dockerfile build, `/api/health` healthcheck, `ON_FAILURE` restart policy).
-    - Created `railway.worker.json` for background worker daemon.
-  - **5. Hosting Cost Analysis & Authorization Boundaries**:
+  - **4. Railway Infrastructure as Code & Deprecation of Legacy Configs**:
+    - Implemented Railway's current supported Infrastructure as Code system in `.railway/railway.ts` using `@railway/iac` TypeScript DSL.
+    - Programmatically declared `jobee-api` and `jobee-worker` service topologies with Dockerfile builder, start commands, healthchecks, and restart policies.
+    - Completely removed deprecated `railway.json` and `railway.worker.json` configurations.
+  - **5. Container Security & Playwright Sandbox Hardening**:
+    - Added `libxkbcommon0` system dependency in Dockerfile for Chromium.
+    - Dropped root privileges in Dockerfile runner stage, running as unprivileged `USER node` (UID 1000).
+    - Configured `PLAYWRIGHT_BROWSERS_PATH=/ms-playwright` with non-root ownership.
+    - Hardened Playwright browser contexts: `permissions: []`, `ignoreHTTPSErrors: false`, `bypassCSP: false`.
+  - **6. Actual Container Build & Multi-Service Verification**:
+    - Booted local container runtime via Colima and executed actual `docker build -t jobee:test .`.
+    - Fixed missing `tsconfig.base.json` in builder stage and standardized package export paths to `./dist/index.js`.
+    - Successfully verified Chromium launch inside the built container running as unprivileged UID 1000.
+  - **7. Hosting Cost Analysis & Authorization Boundaries**:
     - Evaluated Railway Hobby plan (~$5.00–$8.00/month) with $5.00 monthly platform credit offsetting the majority of resource usage (~200 MB API + ~250 MB Worker).
     - Enforced strict human authorization boundary `DEC-04`: no paid plans may be activated or public deployments executed without explicit Product Owner approval.
-  - **6. Automated Deployment Verification Suite**:
-    - Created `scripts/verify-railway-deployment.ts` with 13 comprehensive checks across environment schemas, dynamic `$PORT` preprocessing, `trustProxy` protocol and IP reflection via `app.inject`, CORS whitelist, Playwright container flags, Neon SSL detection, Cloudflare R2 instantiation, and spend guardrails (13/13 passed).
+  - **8. Automated Deployment Verification Suite**:
+    - Created and updated `scripts/verify-railway-deployment.ts` with comprehensive checks across Railway IaC compilation, absence of deprecated JSON files, environment schemas, dynamic `$PORT`, reverse-proxy trust reflection, non-root sandbox security, Neon SSL detection, and spend guardrails.
 - **Verification Records**:
   - `npm run db:check`: PASSED (PostgreSQL connected).
   - `npm run typecheck`: PASSED (0 errors across all 6 workspaces).

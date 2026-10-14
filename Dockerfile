@@ -22,15 +22,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpango-1.0-0 \
     libcairo2 \
     libasound2 \
+    libxkbcommon0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Builder stage
 FROM base AS builder
 
+WORKDIR /app
+
 COPY package.json package-lock.json ./
 COPY packages/ ./packages/
 COPY apps/ ./apps/
-COPY tsconfig.json ./
+COPY tsconfig.json tsconfig.base.json ./
 
 # Install all dependencies including devDependencies for compilation
 RUN npm ci
@@ -47,6 +50,9 @@ ENV PORT=3000
 ENV API_PORT=3000
 ENV API_HOST=0.0.0.0
 
+# Configure Playwright shared browser cache path accessible by non-root node user
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 COPY package.json package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
@@ -57,8 +63,13 @@ COPY --from=builder /app/apps/worker/package.json ./apps/worker/package.json
 COPY --from=builder /app/apps/web/dist ./apps/web/dist
 COPY --from=builder /app/apps/web/package.json ./apps/web/package.json
 
-# Install Chromium browser binary for Playwright
-RUN npx playwright install chromium
+# Install Chromium browser binary for Playwright and grant non-root permissions
+RUN mkdir -p /ms-playwright && \
+    npx playwright install chromium && \
+    chown -R node:node /app /ms-playwright
+
+# Drop root privileges for defense-in-depth Playwright and container security
+USER node
 
 EXPOSE 3000
 

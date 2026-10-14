@@ -786,11 +786,11 @@ The official cloud hosting architecture for Jobee is deployed on **Railway**, or
        └─────────────────────────────────┘        └──────────────────────────────────┘
 ```
 
-### 14.1. Multi-Service Separation
+### 14.1. Multi-Service Separation & Infrastructure as Code
 
 - **`jobee-api` Service**: Serves the unified Fastify REST API, Better Auth authentication routes, and the compiled React 19 single-page application from `apps/web/dist`. It exposes public HTTP ingress via Railway edge routers.
 - **`jobee-worker` Service**: Runs as a headless daemon executing `AutonomousOrchestrator` periodic cycles and the Playwright Chromium automation worker. It has no public HTTP exposure and communicates directly with PostgreSQL and external job platforms.
-- **Declarative Configuration**: Governed by `railway.json` (API) and `railway.worker.json` (Worker), specifying the unified multi-stage `Dockerfile`, explicit start commands (`node apps/api/dist/index.js` and `node apps/worker/dist/index.js`), `/api/health` health probes, and restart policies.
+- **Infrastructure as Code (`.railway/railway.ts`)**: Governed by Railway's supported TypeScript IaC engine (`railway/iac`), replacing deprecated `railway.json` and `railway.worker.json` files. The IaC program programmatically declares both services, Dockerfile builders, explicit start commands (`node apps/api/dist/index.js` and `node apps/worker/dist/index.js`), `/api/health` health probes, and restart policies (`ON_FAILURE` for API, `ALWAYS` for Worker).
 
 ### 14.2. Reverse Proxy Trust & Protocol Awareness
 
@@ -802,13 +802,15 @@ The official cloud hosting architecture for Jobee is deployed on **Railway**, or
 - **Dynamic `$PORT` Handling**: Railway dynamically assigns arbitrary external listening ports via `$PORT`. The configuration layer (`packages/config/src/env.ts`) seamlessly maps `$PORT` to `API_PORT` while defaulting to 3000 locally.
 - **CORS Whitelist**: Dynamically includes `BETTER_AUTH_URL` and custom domain origins to prevent cross-origin issues during cloud deployment.
 
-### 14.3. Playwright Containerization Hardening
+### 14.3. Playwright Sandbox Security & Containerization Hardening
 
-- **Resource Limits in Containers**: Headless Chromium inside Linux Docker containers default to 64 MB of shared memory (`/dev/shm`), which causes unpredictable crashes during complex DOM rendering.
+- **Non-Root Execution (Defense-in-Depth)**: The multi-stage `Dockerfile` explicitly drops root privileges, switching to `USER node` (UID 1000). The shared browser cache is configured at `PLAYWRIGHT_BROWSERS_PATH=/ms-playwright` with appropriate non-root file ownership. If an untrusted page attempts a browser exploit, the process is contained by unprivileged user permissions and cannot manipulate container binaries or root files.
+- **Resource Limits in Containers**: Headless Chromium inside Linux Docker containers defaults to 64 MB of shared memory (`/dev/shm`), which causes unpredictable crashes during complex DOM rendering.
 - **Container Execution Flags**: `PlaywrightBrowserController` explicitly injects container flags when running in Docker/Linux environments:
-  - `--no-sandbox` & `--disable-setuid-sandbox`: Disables Linux SUID sandboxes inside isolated Docker containers.
+  - `--no-sandbox` & `--disable-setuid-sandbox`: Permits Chromium execution inside container environments that lack unprivileged kernel user namespaces, mitigated by non-root user execution.
   - `--disable-dev-shm-usage`: Forces Chromium to write temporary shared memory buffers to `/tmp` instead of `/dev/shm`, preventing memory crashes on Railway.
   - `--disable-gpu`: Eliminates unnecessary GPU hardware acceleration overhead in headless server containers.
+- **Context Security Hardening**: Browser contexts enforce strict TLS certificate validation (`ignoreHTTPSErrors: false`), deny all sensitive device permissions (`permissions: []`), and enforce Content Security Policies (`bypassCSP: false`).
 
 ### 14.4. Serverless Database & Storage Integration
 

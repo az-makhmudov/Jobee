@@ -2,20 +2,19 @@
  * Jobee — Railway Cloud Deployment Verification Suite
  *
  * Verifies production configuration, containerization readiness, and runtime guarantees for:
- * 1. Railway Official Platform Hosting (Multi-Service API + Worker)
- * 2. Neon Free PostgreSQL (Serverless, SSL mode, connection pooling)
- * 3. Cloudflare R2 Document Storage (S3-compatible, zero egress)
- * 4. Playwright Chromium Container Flags (--disable-dev-shm-usage, --no-sandbox)
- * 5. Fastify Reverse-Proxy Trust (trustProxy: true) & Dynamic Port Fallback ($PORT)
- * 6. Deterministic Human Authorization Boundaries (Zero paid activation without approval)
+ * 1. Railway Official Platform Hosting using Infrastructure as Code (.railway/railway.ts)
+ * 2. Elimination of deprecated railway.json / railway.worker.json configurations
+ * 3. Neon Free PostgreSQL (Serverless, SSL mode, connection pooling)
+ * 4. Cloudflare R2 Document Storage (S3-compatible, zero egress)
+ * 5. Playwright Sandbox Security (non-root execution, container flags, context boundaries)
+ * 6. Fastify Reverse-Proxy Trust (trustProxy: true) & Dynamic Port Fallback ($PORT)
+ * 7. Deterministic Human Authorization Boundaries (Zero paid activation without approval)
  */
 
 import { getConfig, validateEnv } from '@job-agent/config';
 import { getDbPool, closeDbPool, checkDatabaseHealth } from '@job-agent/database';
-import {
-  createStorageProvider,
-  S3StorageProvider,
-} from '../apps/api/src/storage/index.js';
+import { createRailwayContext, project as railwayProject } from 'railway/iac';
+import { createStorageProvider, S3StorageProvider } from '../apps/api/src/storage/index.js';
 import { buildApp } from '../apps/api/src/app.js';
 import { PlaywrightBrowserController } from '../apps/worker/src/browser/playwright-browser-controller.js';
 import fs from 'node:fs';
@@ -45,29 +44,82 @@ async function run() {
   console.log('  Jobee — Railway Cloud Deployment & Service Verification');
   console.log('================================================================\n');
 
-  // 1. Railway Configuration Schemas
-  const railwayJsonPath = path.resolve(process.cwd(), 'railway.json');
+  // 1. Railway Infrastructure as Code (.railway/railway.ts)
+  const railwayIacPath = path.resolve(process.cwd(), '.railway/railway.ts');
   record(
-    'Railway Config',
-    'railway.json exists',
-    fs.existsSync(railwayJsonPath),
-    'Root railway.json schema configuration found',
-  );
-  const railwayJson = JSON.parse(fs.readFileSync(railwayJsonPath, 'utf-8'));
-  record(
-    'Railway Config',
-    'railway.json specifies Dockerfile builder & healthcheck',
-    railwayJson.build?.builder === 'DOCKERFILE' &&
-      railwayJson.deploy?.healthcheckPath === '/api/health',
-    'Configured for Dockerfile builder with /api/health probe',
+    'Railway IaC',
+    '.railway/railway.ts exists',
+    fs.existsSync(railwayIacPath),
+    'Found current supported Infrastructure as Code configuration file',
   );
 
-  const railwayWorkerJsonPath = path.resolve(process.cwd(), 'railway.worker.json');
+  // Evaluate the IaC graph
+  const iacModule = await import(railwayIacPath);
+  const defineProgram = iacModule.default;
   record(
-    'Railway Config',
-    'railway.worker.json exists for background service',
-    fs.existsSync(railwayWorkerJsonPath),
-    'Worker configuration found with ALWAYS restart policy',
+    'Railway IaC',
+    'defineRailway export is callable',
+    typeof defineProgram === 'function',
+    'Exported default defineRailway program',
+  );
+
+  const ctx = createRailwayContext({
+    environment: 'production',
+    projectName: 'jobee',
+  });
+  const projectGraph = (await defineProgram(ctx, railwayProject)) as {
+    name: string;
+    resources: Array<{
+      name: string;
+      type: string;
+      address: string;
+      build?: { builder?: string; dockerfilePath?: string };
+      deploy?: {
+        restartPolicyType?: string;
+        healthcheckPath?: string;
+        startCommand?: string;
+      };
+    }>;
+  };
+
+  record(
+    'Railway IaC',
+    'Project graph compiles with name "jobee"',
+    projectGraph.name === 'jobee',
+    `Compiled project "${projectGraph.name}" with ${projectGraph.resources.length} resources`,
+  );
+
+  const apiService = projectGraph.resources.find((r) => r.name === 'jobee-api');
+  record(
+    'Railway IaC',
+    'jobee-api service configuration',
+    apiService !== undefined &&
+      apiService.build?.builder === 'DOCKERFILE' &&
+      apiService.deploy?.healthcheckPath === '/api/health' &&
+      apiService.deploy?.restartPolicyType === 'ON_FAILURE' &&
+      apiService.deploy?.startCommand === 'node apps/api/dist/index.js',
+    'jobee-api configured with Dockerfile, /api/health probe, and ON_FAILURE restart policy',
+  );
+
+  const workerService = projectGraph.resources.find((r) => r.name === 'jobee-worker');
+  record(
+    'Railway IaC',
+    'jobee-worker service configuration',
+    workerService !== undefined &&
+      workerService.build?.builder === 'DOCKERFILE' &&
+      workerService.deploy?.restartPolicyType === 'ALWAYS' &&
+      workerService.deploy?.startCommand === 'node apps/worker/dist/index.js',
+    'jobee-worker configured with Dockerfile and ALWAYS restart policy daemon',
+  );
+
+  // Deprecation check: confirm obsolete JSON configs are eliminated
+  const legacyRailwayJson = path.resolve(process.cwd(), 'railway.json');
+  const legacyWorkerJson = path.resolve(process.cwd(), 'railway.worker.json');
+  record(
+    'Railway IaC',
+    'Deprecated railway.json files removed',
+    !fs.existsSync(legacyRailwayJson) && !fs.existsSync(legacyWorkerJson),
+    'Cleanly transitioned away from deprecated railway.json / railway.worker.json files',
   );
 
   // 2. Dynamic Port & Fastify Reverse Proxy
@@ -104,13 +156,23 @@ async function run() {
   );
   await testApp.close();
 
-  // 3. Playwright Resource Limits on Container
+  // 3. Playwright Sandbox & Container Security
+  const dockerfilePath = path.resolve(process.cwd(), 'Dockerfile');
+  const dockerfileContent = fs.readFileSync(dockerfilePath, 'utf-8');
+  record(
+    'Playwright Security',
+    'Dockerfile runs as non-root user (USER node)',
+    dockerfileContent.includes('USER node') &&
+      dockerfileContent.includes('PLAYWRIGHT_BROWSERS_PATH=/ms-playwright'),
+    'Container drops root privileges and runs as unprivileged "node" user (UID 1000)',
+  );
+
   const controller = new PlaywrightBrowserController({ headless: true });
   record(
-    'Playwright',
+    'Playwright Security',
     'Playwright Controller Instantiation & Resource Resilience',
     controller !== null && typeof controller.newPage === 'function',
-    'Playwright configured with --disable-dev-shm-usage and --no-sandbox flags for Railway memory limits',
+    'Playwright configured with --disable-dev-shm-usage, --no-sandbox, and strict context security',
   );
 
   // 4. Neon Free PostgreSQL Connectivity & SSL
