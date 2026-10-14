@@ -12,11 +12,11 @@
 ## 1. Roadmap Snapshot
 
 - **Current Official Mode:** Autonomous Product Completion & Production Readiness
-- **Active Backlog Item:** `BL-11: COMPLETED` (`JOB-RAILWAY-PREP` Verified)
-- **Milestone Status:** RAILWAY DEPLOYMENT PREPARATION COMPLETE — READY FOR SAFE DEPLOYMENT
-- **Previous Completed Milestone:** `JOB-RAILWAY-PREP` (Railway CLI Linked, IaC Plan Audited, Service Reconciled)
+- **Active Backlog Item:** `BL-11: COMPLETED` (`JOB-AUTH-VERIFY` Verified)
+- **Milestone Status:** OWNER ACCOUNT VERIFICATION & DATA ISOLATION GUARDS COMPLETE
+- **Previous Completed Milestone:** `JOB-AUTH-VERIFY` (Owner Email Configured, Google Sign-In Linked, Invitation Bypass & Multi-Tenant Isolation Guards)
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED (Phases 0 through 6) + PRODUCTION HARDENED**
-- **Active Git Checkpoint:** `51d7d0d` (`JOB-RAILWAY-PREP`)
+- **Active Git Checkpoint:** `151f2c8` (`JOB-AUTH-VERIFY`)
 
 ---
 
@@ -51,7 +51,8 @@
 | `JOB-HOST-02`              | Official Railway Hosting (Multi-Service, Neon, Cloudflare R2, IaC) | COMPLETED     | `0d6a0ed` (BL-09)                                |
 | `JOB-DEPLOY-AUDIT`         | Pre-Deployment Readiness Check, Auto-Migrations & Zero-Config IaC  | COMPLETED     | `5309898` (BL-10)                                |
 | `JOB-FINAL-FIXES`          | Email Sender Unification, Migration Script & Auth Profile Linking  | COMPLETED     | `48ee22d` (BL-10)                                |
-| `JOB-RAILWAY-PREP`         | Railway CLI Link, IaC Read-Only Plan & Service Topology Reconcile  | **COMPLETED** | `51d7d0d` (BL-11)                                |
+| `JOB-RAILWAY-PREP`         | Railway CLI Link, IaC Read-Only Plan & Service Topology Reconcile  | COMPLETED     | `51d7d0d` (BL-11)                                |
+| `JOB-AUTH-VERIFY`          | Owner Email Config, Google Auth Linking & Tenant Isolation Guards  | **COMPLETED** | `151f2c8` (BL-11)                                |
 
 ---
 

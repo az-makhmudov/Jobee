@@ -996,3 +996,33 @@ This document tracks execution history and verification state for all official m
   - `npm run lint`: PASSED (0 errors across codebase).
   - `npm test`: PASSED (43 test files, 330/330 tests passed).
   - `scripts/verify-railway-deployment.ts`: PASSED (13/13 checks passed).
+
+---
+
+### `JOB-AUTH-VERIFY` — Owner Account Verification, Google Sign-In Linking & Data Isolation Guards
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-14
+- **Scope**:
+  - **1. Owner Identity & Configuration Unification**:
+    - Confirmed canonical primary administrator and candidate email: `asadbek.mzw@gmail.com`.
+    - Added `OWNER_EMAIL: z.string().email().default('asadbek.mzw@gmail.com')` to `packages/config/src/env.ts` with Zod schema validation.
+    - Updated `.env.example` with `OWNER_EMAIL=asadbek.mzw@gmail.com`.
+    - Updated `apps/api/src/plugins/auth-plugin.ts` to reference `config.OWNER_EMAIL || 'asadbek.mzw@gmail.com'`.
+    - Updated `apps/api/src/auth/better-auth-instance.ts` to reference normalized `(config.OWNER_EMAIL || 'asadbek.mzw@gmail.com').trim().toLowerCase()`.
+  - **2. Google Sign-In & Invitation Bypass**:
+    - Enabled automatic invitation bypass for `asadbek.mzw@gmail.com` when `INVITE_ONLY_REGISTRATION=true`.
+    - Ensured case-insensitive email comparison for owner detection during registration/OAuth callback.
+    - Guaranteed automatic elevation to `role = 'admin'` for the owner account upon signup/login.
+  - **3. Candidate Data Re-Linking & Security Isolation Guards**:
+    - Pre-existing seed user ID `00000000-0000-0000-0000-000000000001` candidate data (profile, facts, skills, documents, applications) is seamlessly linked to the owner.
+    - Added comprehensive cascading update across all 16 user-bound tables if Better Auth assigns a new UUID.
+    - **Security Isolation Guard**: Re-linking is strictly gated by `if (isOwnerEmail || isSeedUser)`. Non-owner/non-seed accounts cannot claim candidate profiles belonging to other user IDs, preventing account hijacking and multi-tenant data leaks.
+  - **4. Automated Integration Verification**:
+    - Added unit tests in `packages/config/src/env.test.ts` verifying default and custom `OWNER_EMAIL` parsing and validation.
+    - Added Section 4 integration tests in `apps/api/src/routes/auth-routes.test.ts` testing owner invitation bypass, case insensitivity, unique email constraint enforcement (`users_email_unique_idx`), 1:1 profile uniqueness (`candidate_profiles_user_id_unique`), and multi-tenant data isolation.
+- **Verification Records**:
+  - `npm run lint`: PASSED (ESLint 9, 0 errors).
+  - `npm run typecheck`: PASSED (TypeScript 5.8 across all 6 workspaces, 0 errors).
+  - `npm run test`: PASSED (Vitest, 43 test files, 342/342 tests passed).
+  - `npm run build`: PASSED (All 6 workspaces built cleanly including Vite web bundle).
