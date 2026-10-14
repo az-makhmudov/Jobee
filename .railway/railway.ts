@@ -1,4 +1,4 @@
-import { defineRailway, project, service } from 'railway/iac';
+import { defineRailway, project, service, github } from 'railway/iac';
 
 /**
  * Jobee — Railway Infrastructure as Code (IaC) Configuration
@@ -8,8 +8,9 @@ import { defineRailway, project, service } from 'railway/iac';
  * 2. `jobee-worker`: Autonomous Orchestrator daemon running continuous background discovery,
  *    matching intelligence, and Playwright Chromium automation.
  */
-export default defineRailway(() => {
+export default defineRailway(({ shared }) => {
   const api = service('jobee-api', {
+    source: github('az-makhmudov/Jobee'),
     build: {
       builder: 'DOCKERFILE',
       dockerfilePath: 'Dockerfile',
@@ -25,10 +26,25 @@ export default defineRailway(() => {
     env: {
       NODE_ENV: 'production',
       PORT: '3000',
+      DATABASE_URL: shared.DATABASE_URL,
+      BETTER_AUTH_SECRET: shared.BETTER_AUTH_SECRET,
+      EMAIL_TOKEN_ENCRYPTION_KEY: shared.EMAIL_TOKEN_ENCRYPTION_KEY,
+      STORAGE_BACKEND: shared.STORAGE_BACKEND,
+      S3_BUCKET: shared.S3_BUCKET,
+      S3_ENDPOINT: shared.S3_ENDPOINT,
+      S3_REGION: shared.S3_REGION,
+      S3_ACCESS_KEY_ID: shared.S3_ACCESS_KEY_ID,
+      S3_SECRET_ACCESS_KEY: shared.S3_SECRET_ACCESS_KEY,
+      RESEND_API_KEY: shared.RESEND_API_KEY,
+      EMAIL_FROM: shared.EMAIL_FROM,
+      GEMINI_API_KEY: shared.GEMINI_API_KEY,
+      GOOGLE_CLIENT_ID: shared.GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET: shared.GOOGLE_CLIENT_SECRET,
     },
   });
 
   const worker = service('jobee-worker', {
+    source: github('az-makhmudov/Jobee'),
     build: {
       builder: 'DOCKERFILE',
       dockerfilePath: 'Dockerfile',
@@ -39,6 +55,15 @@ export default defineRailway(() => {
     },
     env: {
       NODE_ENV: 'production',
+      DATABASE_URL: shared.DATABASE_URL,
+      EMAIL_TOKEN_ENCRYPTION_KEY: shared.EMAIL_TOKEN_ENCRYPTION_KEY,
+      STORAGE_BACKEND: shared.STORAGE_BACKEND,
+      S3_BUCKET: shared.S3_BUCKET,
+      S3_ENDPOINT: shared.S3_ENDPOINT,
+      S3_REGION: shared.S3_REGION,
+      S3_ACCESS_KEY_ID: shared.S3_ACCESS_KEY_ID,
+      S3_SECRET_ACCESS_KEY: shared.S3_SECRET_ACCESS_KEY,
+      GEMINI_API_KEY: shared.GEMINI_API_KEY,
     },
   });
 
