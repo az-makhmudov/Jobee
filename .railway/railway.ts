@@ -57,6 +57,7 @@ export default defineRailway(({ shared }) => {
     env: {
       NODE_ENV: 'production',
       DATABASE_URL: shared.DATABASE_URL,
+      BETTER_AUTH_SECRET: shared.BETTER_AUTH_SECRET,
       EMAIL_TOKEN_ENCRYPTION_KEY: shared.EMAIL_TOKEN_ENCRYPTION_KEY,
       STORAGE_BACKEND: shared.STORAGE_BACKEND,
       S3_BUCKET: shared.S3_BUCKET,
@@ -65,6 +66,7 @@ export default defineRailway(({ shared }) => {
       S3_ACCESS_KEY_ID: shared.S3_ACCESS_KEY_ID,
       S3_SECRET_ACCESS_KEY: shared.S3_SECRET_ACCESS_KEY,
       GEMINI_API_KEY: shared.GEMINI_API_KEY,
+      OWNER_EMAIL: shared.OWNER_EMAIL,
     },
   });
 
