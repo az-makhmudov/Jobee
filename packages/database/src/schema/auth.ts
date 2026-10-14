@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { pgTable, text, timestamp, uuid, index } from 'drizzle-orm/pg-core';
 import { users } from './users.js';
 
@@ -7,7 +8,9 @@ import { users } from './users.js';
 export const sessions = pgTable(
   'sessions',
   {
-    id: text('id').primaryKey(),
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -34,7 +37,9 @@ export const sessions = pgTable(
 export const accounts = pgTable(
   'accounts',
   {
-    id: text('id').primaryKey(),
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
@@ -71,7 +76,9 @@ export const accounts = pgTable(
 export const verifications = pgTable(
   'verifications',
   {
-    id: text('id').primaryKey(),
+    id: text('id')
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
     identifier: text('identifier').notNull(), // email address or user identifier
     value: text('value').notNull(), // verification token / code
     expiresAt: timestamp('expires_at', { withTimezone: true, mode: 'date' }).notNull(),

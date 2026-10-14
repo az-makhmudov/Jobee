@@ -53,7 +53,8 @@
 | `JOB-FINAL-FIXES`          | Email Sender Unification, Migration Script & Auth Profile Linking  | COMPLETED     | `48ee22d` (BL-10)                                |
 | `JOB-RAILWAY-PREP`         | Railway CLI Link, IaC Read-Only Plan & Service Topology Reconcile  | COMPLETED     | `51d7d0d` (BL-11)                                |
 | `JOB-AUTH-VERIFY`          | Owner Email Config, Google Auth Linking & Tenant Isolation Guards  | COMPLETED     | `151f2c8` (BL-11)                                |
-| `JOB-PROD-DEPLOY`          | Topological Build Fix, Dual Railway Services Online, SPA Verified  | **COMPLETED** | `a9c0f98` (BL-12)                                |
+| `JOB-PROD-DEPLOY`          | Topological Build Fix, Dual Railway Services Online, SPA Verified  | COMPLETED     | `a9c0f98` (BL-12)                                |
+| `JOB-AUTH-REPAIR`          | Google Sign-In Verification ID Fix, Error Handling & CI Guardrails | **COMPLETED** | `PENDING_COMMIT` (BL-13)                         |
 
 ---
 

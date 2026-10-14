@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { buildApp } from '../app.js';
 import { getConfig } from '@job-agent/config';
-import { closeDbPool } from '@job-agent/database';
+import { closeDbPool, getDb, getOrCreatePrimaryUser } from '@job-agent/database';
 
 describe('Candidate Brain API Routes', () => {
   const config = getConfig();
@@ -12,6 +12,10 @@ describe('Candidate Brain API Routes', () => {
   beforeAll(async () => {
     app = buildApp({ config });
     await app.ready();
+
+    // Ensure primary user and profile exist for deterministic test execution
+    const db = getDb(config.DATABASE_URL);
+    await getOrCreatePrimaryUser(db);
 
     // Snapshot existing profile and preferences to avoid test pollution
     const profRes = await app.inject({ method: 'GET', url: '/api/candidate/profile' });

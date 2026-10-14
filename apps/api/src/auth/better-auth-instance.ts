@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { betterAuth, APIError, type Auth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { admin } from 'better-auth/plugins';
@@ -49,6 +50,9 @@ export function createBetterAuthInstance(
 
   if (!trustedOrigins.includes(config.WEB_ORIGIN)) {
     trustedOrigins.push(config.WEB_ORIGIN);
+  }
+  if (config.BETTER_AUTH_URL && !trustedOrigins.includes(config.BETTER_AUTH_URL)) {
+    trustedOrigins.push(config.BETTER_AUTH_URL);
   }
 
   // Social providers configuration (Google)
@@ -121,6 +125,18 @@ export function createBetterAuthInstance(
       },
     },
     databaseHooks: {
+      verification: {
+        create: {
+          before: async (verification: any) => {
+            return {
+              data: {
+                ...verification,
+                id: verification.id || crypto.randomUUID(),
+              },
+            };
+          },
+        },
+      },
       user: {
         create: {
           before: async (user: any) => {

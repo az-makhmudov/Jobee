@@ -120,6 +120,13 @@
       "when": 1791154000000,
       "tag": "0016_ai_provider_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791156000000,
+      "tag": "0017_verifications_id_default",
+      "breakpoints": true
     }
   ]
 }

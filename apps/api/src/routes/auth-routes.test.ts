@@ -372,6 +372,8 @@ describe('Better Auth, Multi-User Isolation & Private Pilot Integration Tests', 
       expect(userCreateAfter).toBeDefined();
 
       const seedUserId = '00000000-0000-0000-0000-000000000001';
+      const { getOrCreatePrimaryUser } = await import('@job-agent/database');
+      await getOrCreatePrimaryUser(db);
 
       // 1. Verify primary owner user exists in database with admin role
       const [existingOwner] = await db.select().from(users).where(eq(users.id, seedUserId));
@@ -477,6 +479,36 @@ describe('Better Auth, Multi-User Isolation & Private Pilot Integration Tests', 
 
       // Clean up victim profile
       await db.delete(candidateProfiles).where(eq(candidateProfiles.id, victimProfile!.id));
+    });
+
+    it('initializes Google social sign-in successfully and persists state in verifications table', async () => {
+      const googleApp = buildApp({
+        config: {
+          ...config,
+          GOOGLE_CLIENT_ID: 'mock-google-client-id',
+          GOOGLE_CLIENT_SECRET: 'mock-google-client-secret',
+        },
+      });
+      await googleApp.ready();
+
+      const res = await googleApp.inject({
+        method: 'POST',
+        url: '/api/auth/sign-in/social',
+        headers: {
+          'Content-Type': 'application/json',
+          Origin: config.WEB_ORIGIN,
+        },
+        payload: {
+          provider: 'google',
+          callbackURL: config.WEB_ORIGIN,
+        },
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.url).toBeDefined();
+      expect(body.url).toContain('accounts.google.com');
+      await googleApp.close();
     });
   });
 });

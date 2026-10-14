@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm';
 import type { Database } from './client.js';
 import { users, type User } from './schema/users.js';
+import { candidateProfiles } from './schema/candidate-profiles.js';
 
 export const PRIMARY_USER_SYSTEM_KEY = 'default_primary_candidate';
 export const PRIMARY_USER_ID = '00000000-0000-0000-0000-000000000001';
@@ -11,49 +12,69 @@ export const PRIMARY_USER_ID = '00000000-0000-0000-0000-000000000001';
  * fully migration-friendly and ready for multi-user authentication later.
  */
 export async function getOrCreatePrimaryUser(db: Database): Promise<User> {
-  const existing = await db.query.users.findFirst({
+  let user: User | undefined = await db.query.users.findFirst({
     where: eq(users.systemKey, PRIMARY_USER_SYSTEM_KEY),
   });
 
-  if (existing) {
-    return existing;
-  }
+  if (!user) {
+    const existingById = await db.query.users.findFirst({
+      where: eq(users.id, PRIMARY_USER_ID),
+    });
 
-  const existingById = await db.query.users.findFirst({
-    where: eq(users.id, PRIMARY_USER_ID),
-  });
-
-  if (existingById) {
-    if (!existingById.systemKey) {
-      const [updated] = await db
-        .update(users)
-        .set({ systemKey: PRIMARY_USER_SYSTEM_KEY })
-        .where(eq(users.id, PRIMARY_USER_ID))
+    if (existingById) {
+      if (!existingById.systemKey) {
+        const [updated] = await db
+          .update(users)
+          .set({ systemKey: PRIMARY_USER_SYSTEM_KEY })
+          .where(eq(users.id, PRIMARY_USER_ID))
+          .returning();
+        user = updated;
+      } else {
+        user = existingById;
+      }
+    } else {
+      const [created] = await db
+        .insert(users)
+        .values({
+          id: PRIMARY_USER_ID,
+          systemKey: PRIMARY_USER_SYSTEM_KEY,
+          name: 'Asadbek Makhmudov',
+          email: 'asadbek.mzw@gmail.com',
+          emailVerified: true,
+          role: 'admin',
+        })
+        .onConflictDoNothing()
         .returning();
-      return updated!;
+
+      user =
+        created ??
+        (await db.query.users.findFirst({
+          where: eq(users.systemKey, PRIMARY_USER_SYSTEM_KEY),
+        }));
     }
-    return existingById;
   }
 
-  const [created] = await db
-    .insert(users)
-    .values({
-      id: PRIMARY_USER_ID,
-      systemKey: PRIMARY_USER_SYSTEM_KEY,
-      name: 'Asadbek Makhmudov',
-      email: 'asadbek.mzw@gmail.com',
-      emailVerified: true,
-      role: 'admin',
-    })
-    .onConflictDoNothing()
-    .returning();
-
-  if (created) {
-    return created;
-  }
-
-  const fallback = await db.query.users.findFirst({
-    where: eq(users.systemKey, PRIMARY_USER_SYSTEM_KEY),
+  // Ensure deterministic candidate profile exists for primary user
+  const existingProfile = await db.query.candidateProfiles.findFirst({
+    where: eq(candidateProfiles.userId, PRIMARY_USER_ID),
   });
-  return fallback!;
+  if (!existingProfile) {
+    await db
+      .insert(candidateProfiles)
+      .values({
+        userId: PRIMARY_USER_ID,
+        fullName: 'Asadbek Makhmudov',
+        preferredName: 'Asadbek',
+        email: 'asadbek.mzw@gmail.com',
+        headline: 'Lead Software Engineer & Cloud Architect',
+        summary:
+          'Experienced engineer specializing in distributed systems, TypeScript, and cloud architecture.',
+        city: 'Berlin',
+        country: 'Germany',
+        availability: 'Available',
+      })
+      .onConflictDoNothing();
+  }
+
+  return user!;
 }
