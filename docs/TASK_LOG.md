@@ -1234,3 +1234,12 @@ This document tracks execution history and verification state for all official m
     - `npm run build`: PASSED (All packages, API, Worker, and Web SPA bundle).
     - `npm run db:check`: PASSED (Neon PostgreSQL connected, 16ms).
     - `scripts/verify-e2e-workflow.ts`: PASSED (All 11 phases verified end-to-end).
+    - **Git & GitHub CI Sync**: Commit `f785dac` pushed to `main`; GitHub Actions CI Run `38605920711` **PASSED** (clean checkout verification).
+    - **Railway Cloud Deployment**: Dual services deployed with Dockerfile and online:
+      - `jobee-api`: Deployment `c8ea6ea7-9a50-40dd-820e-9d417224c52c` -> **SUCCESS / ONLINE**
+      - `jobee-worker`: Deployment `aee255a5-3a2b-46be-839a-fedac54e1e27` -> **SUCCESS / ONLINE**
+    - **Live Production Probes**:
+      - `GET /ready`: 200 OK (`status: ready`, database connected 21ms, AI model `gemini-3.8-flash`, Gmail and Calendar configured).
+      - `GET /api/health`: 200 OK (`status: ok`, version `0.1.0`).
+      - `GET /api/settings/ai`: 200 OK (`activeModel: gemini-3.8-flash`, `isAvailable: true`).
+    - **Worker Background Orchestration**: Verified scheduled pipeline cycles executing in production with auto-apply circuit breaker safely OFF.
