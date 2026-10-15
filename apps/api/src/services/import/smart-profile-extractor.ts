@@ -81,7 +81,7 @@ const certificationSchema = z.object({
 
 const languageSchema = z.object({
   language: z.string().optional().default(''),
-  proficiency: z.string().nullable().optional().default('UNSPECIFIED'),
+  proficiency: z.string().nullable().optional().default(null),
   cefrLevel: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   sourceReference: z.string().optional().default(''),
@@ -934,10 +934,10 @@ ${text.slice(0, 16000)}
           // Invariant: If proficiency not stated, do NOT invent it!
           languages.push({
             language: lang,
-            proficiency: proficiency || 'UNSPECIFIED',
+            proficiency: proficiency || null,
             cefrLevel,
             sourceReference: lLine,
-            confidence: proficiency ? 0.9 : 0.6,
+            confidence: 0.9,
           });
         }
       }

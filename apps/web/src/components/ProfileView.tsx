@@ -720,7 +720,7 @@ export function ProfileView({ initialTab, onUpdate }: Props) {
             <button
               className="btn btn-primary btn-sm"
               onClick={() => {
-                setActiveItem({ proficiency: 'PROFICIENT' });
+                setActiveItem({});
                 setModalMode('create');
               }}
             >
@@ -754,7 +754,9 @@ export function ProfileView({ initialTab, onUpdate }: Props) {
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{l.language}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      {l.proficiency} {l.cefrLevel ? `(${l.cefrLevel})` : ''}
+                      {[l.proficiency, l.cefrLevel ? `(${l.cefrLevel})` : null]
+                        .filter(Boolean)
+                        .join(' ') || 'Proficiency: Not specified'}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.35rem' }}>
@@ -1208,7 +1210,7 @@ export function ProfileView({ initialTab, onUpdate }: Props) {
                   } else if (tab === 'languages') {
                     const data: any = {
                       language: form.get('language') as string,
-                      proficiency: form.get('proficiency') as string,
+                      proficiency: (form.get('proficiency') as string) || null,
                       cefrLevel: (form.get('cefrLevel') as string) || null,
                     };
                     if (modalMode === 'create') await candidateApi.createLanguage(data);
@@ -1477,12 +1479,13 @@ export function ProfileView({ initialTab, onUpdate }: Props) {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Proficiency</label>
+                    <label className="form-label">Proficiency (Optional)</label>
                     <select
                       name="proficiency"
-                      defaultValue={activeItem?.proficiency || 'ADVANCED'}
+                      defaultValue={activeItem?.proficiency || ''}
                       className="form-input"
                     >
+                      <option value="">Not specified</option>
                       <option value="BEGINNER">BEGINNER</option>
                       <option value="INTERMEDIATE">INTERMEDIATE</option>
                       <option value="ADVANCED">ADVANCED</option>
@@ -1514,12 +1517,13 @@ export function ProfileView({ initialTab, onUpdate }: Props) {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Proficiency</label>
+                    <label className="form-label">Proficiency (Optional)</label>
                     <select
                       name="proficiency"
-                      defaultValue={activeItem?.proficiency || 'PROFICIENT'}
+                      defaultValue={activeItem?.proficiency || ''}
                       className="form-input"
                     >
+                      <option value="">Not specified</option>
                       <option value="NATIVE">NATIVE</option>
                       <option value="FLUENT">FLUENT</option>
                       <option value="PROFICIENT">PROFICIENT</option>

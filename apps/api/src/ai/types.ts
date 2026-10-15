@@ -27,7 +27,7 @@ export interface AiCandidateContext {
   languages: {
     id: string; // e.g. "candidate_language:<uuid>"
     language: string;
-    proficiency: string;
+    proficiency?: string | null;
     cefrLevel?: string | null;
   }[];
   certifications: {

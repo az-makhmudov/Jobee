@@ -110,10 +110,12 @@ export class MatchingContextBuilder {
     for (const lang of langRows) {
       const id = `candidate_language:${lang.id}`;
       const cefr = lang.cefrLevel ? ` [${lang.cefrLevel}]` : '';
+      const profDetails = [lang.proficiency, cefr ? cefr.trim() : null].filter(Boolean).join(' ');
+      const profSuffix = profDetails ? ` (${profDetails})` : '';
       evidenceMap.set(id, {
         id,
         type: 'language',
-        label: `Language: ${lang.language} (${lang.proficiency}${cefr})`,
+        label: `Language: ${lang.language}${profSuffix}`,
       });
     }
 

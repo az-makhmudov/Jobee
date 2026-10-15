@@ -662,7 +662,7 @@ export class CandidateService {
     userId: string,
     data: {
       language: string;
-      proficiency: string;
+      proficiency?: string | null;
       cefrLevel?: string | null;
       notes?: string | null;
       verificationStatus?: string;
@@ -673,7 +673,7 @@ export class CandidateService {
       .values({
         userId,
         language: data.language.trim(),
-        proficiency: data.proficiency.trim(),
+        proficiency: data.proficiency?.trim() || null,
         cefrLevel: data.cefrLevel?.trim() || null,
         notes: data.notes?.trim() || null,
         verificationStatus: data.verificationStatus ?? 'UNVERIFIED',
@@ -702,7 +702,7 @@ export class CandidateService {
     id: string,
     data: Partial<{
       language: string;
-      proficiency: string;
+      proficiency: string | null;
       cefrLevel: string | null;
       notes: string | null;
       verificationStatus: string;

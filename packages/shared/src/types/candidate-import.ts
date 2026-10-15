@@ -111,7 +111,7 @@ export interface ExtractedCertification {
 
 export interface ExtractedLanguage {
   language: string;
-  proficiency: string;
+  proficiency?: string | null;
   cefrLevel?: string | null;
   notes?: string | null;
 }

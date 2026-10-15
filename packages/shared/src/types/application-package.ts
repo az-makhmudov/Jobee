@@ -139,7 +139,7 @@ export interface TailoredCvSkill {
 export interface TailoredCvLanguage {
   id: string;
   language: string;
-  proficiencyLevel: string;
+  proficiencyLevel?: string | null;
   cefrLevel?: string;
 }
 

@@ -99,7 +99,7 @@ export const updateSkillSchema = createSkillSchema.partial();
 
 export const createLanguageSchema = z.object({
   language: z.string().min(1).max(100),
-  proficiency: z.string().min(1).max(50),
+  proficiency: z.string().max(50).optional().nullable(),
   cefrLevel: z.string().max(10).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
   verificationStatus: z

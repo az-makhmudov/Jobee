@@ -7,7 +7,7 @@ export const candidateLanguages = pgTable('candidate_languages', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' }),
   language: text('language').notNull(),
-  proficiency: text('proficiency').notNull(), // Explicitly supplied, never inferred
+  proficiency: text('proficiency'), // Optional, explicitly supplied, never inferred
   cefrLevel: text('cefr_level'), // Optional CEFR e.g. B2, C1, C2
   notes: text('notes'),
   verificationStatus: text('verification_status').default('UNVERIFIED').notNull(),

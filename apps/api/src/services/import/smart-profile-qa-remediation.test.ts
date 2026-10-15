@@ -109,9 +109,9 @@ Issued: November 2023
     expect(langNames).toContain('german');
     expect(langNames).toContain('russian');
 
-    // Language proficiency must NOT be hallucinated; marked as UNSPECIFIED when omitted
+    // Language proficiency must NOT be hallucinated; stored as null when omitted
     for (const lang of data.languages) {
-      expect(lang.proficiency).toBe('UNSPECIFIED');
+      expect(lang.proficiency).toBeNull();
     }
   });
 
@@ -131,19 +131,19 @@ Issued: November 2023
     expect(exp?.description).toContain('distributed engineering squads');
   });
 
-  it('6. Language with UNSPECIFIED proficiency is classified as INCOMPLETE with actionable message', () => {
+  it('6. Language with null or omitted proficiency is classified as NEW (optional proficiency)', () => {
     const comparison = ProfileComparisonEngine.compareLanguage(
       {
         language: 'German',
-        proficiency: 'UNSPECIFIED',
+        proficiency: null,
         sourceReference: 'German',
         confidence: 0.8,
       },
       [],
     );
 
-    expect(comparison.classification).toBe('INCOMPLETE');
-    expect(comparison.conflictDetails).toContain('Missing required fields: proficiency');
+    expect(comparison.classification).toBe('NEW');
+    expect(comparison.conflictDetails).toBeNull();
   });
 
   it('7. Transparent AI failure reporting throws 502 AppError instead of silent downgrade to heuristic', async () => {

@@ -157,17 +157,19 @@ export function SmartProfileImportModal({
     });
   };
 
-  const handleSaveEdit = async (itemId: string) => {
+  const handleSaveEdit = async (itemId: string, editedPayload?: Record<string, any>) => {
     if (!session) return;
+    const payloadToSend = editedPayload || editFormData;
     try {
       const updated = await candidateImportApi.updateItem(
         session.id,
         itemId,
         'EDITED',
-        editFormData,
+        payloadToSend,
       );
       setItems((prev) => prev.map((item) => (item.id === itemId ? updated : item)));
       setEditingItemId(null);
+      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save edits');
     }
@@ -801,7 +803,7 @@ export function SmartProfileImportModal({
                       isEditing={editingItemId === item.id}
                       editFormData={editFormData}
                       onStartEdit={() => handleStartEdit(item)}
-                      onSaveEdit={() => handleSaveEdit(item.id)}
+                      onSaveEdit={(payload) => handleSaveEdit(item.id, payload)}
                       onCancelEdit={() => setEditingItemId(null)}
                       onEditChange={(key, val) =>
                         setEditFormData((prev) => ({ ...prev, [key]: val }))
@@ -1102,12 +1104,13 @@ function ReviewItemCard({
   isEditing: boolean;
   editFormData: Record<string, any>;
   onStartEdit: () => void;
-  onSaveEdit: () => void;
+  onSaveEdit: (payloadToSave?: Record<string, any>) => void;
   onCancelEdit: () => void;
   onEditChange: (key: string, val: any) => void;
   onApprove: () => void;
   onReject: () => void;
 }) {
+  const [validationError, setValidationError] = useState<string | null>(null);
   const payload = item.userEditedPayload || item.extractedPayload;
 
   const classificationColor = (cls: ProfileImportClassification) => {
@@ -1135,15 +1138,114 @@ function ReviewItemCard({
       return `${String(payload.position || 'Role')} at ${String(payload.organization || 'Organization')}`;
     if (item.section === 'EDUCATION')
       return `${String(payload.degree || 'Degree')} - ${String(payload.institution || 'Institution')}`;
-    if (item.section === 'SKILL') return String(payload.name || 'Skill');
+    if (item.section === 'SKILL') {
+      const details = [payload.category, payload.proficiency].filter(Boolean).join(' • ');
+      return details
+        ? `${String(payload.name || 'Skill')} (${details})`
+        : String(payload.name || 'Skill');
+    }
     if (item.section === 'CERTIFICATION')
-      return `${String(payload.name || 'Certification')} (${String(payload.issuingOrganization || '')})`;
-    if (item.section === 'LANGUAGE')
-      return `${String(payload.language || 'Language')} - ${String(payload.proficiency || '')}`;
+      return `${String(payload.name || 'Certification')}${payload.issuingOrganization ? ` (${payload.issuingOrganization})` : ''}`;
+    if (item.section === 'LANGUAGE') {
+      const details = [payload.proficiency, payload.cefrLevel].filter(Boolean).join(', ');
+      return details
+        ? `${String(payload.language || 'Language')} (${details})`
+        : String(payload.language || 'Language');
+    }
     if (item.section === 'PROJECT') return String(payload.name || 'Project');
     if (item.section === 'LINK')
       return `${String(payload.label || 'Link')}: ${String(payload.url || '')}`;
     return String(item.section);
+  };
+
+  const handleValidateAndSave = () => {
+    setValidationError(null);
+    const data: Record<string, any> = { ...editFormData };
+
+    if (item.section === 'PROFILE') {
+      if (!data.fullName?.trim()) {
+        setValidationError('Full Name is required.');
+        return;
+      }
+    } else if (item.section === 'EXPERIENCE') {
+      if (!data.organization?.trim()) {
+        setValidationError('Organization / Company is required.');
+        return;
+      }
+      if (!data.position?.trim()) {
+        setValidationError('Position / Role is required.');
+        return;
+      }
+      if (!data.startDate?.trim()) {
+        setValidationError('Start Date is required (e.g. 2022-01 or 2022).');
+        return;
+      }
+    } else if (item.section === 'EDUCATION') {
+      if (!data.institution?.trim()) {
+        setValidationError('Institution / University name is required.');
+        return;
+      }
+    } else if (item.section === 'SKILL') {
+      if (!data.name?.trim()) {
+        setValidationError('Skill Name is required.');
+        return;
+      }
+    } else if (item.section === 'CERTIFICATION') {
+      if (!data.name?.trim()) {
+        setValidationError('Certification Name is required.');
+        return;
+      }
+      if (!data.issuingOrganization?.trim()) {
+        setValidationError('Issuing Organization is required.');
+        return;
+      }
+    } else if (item.section === 'LANGUAGE') {
+      if (!data.language?.trim()) {
+        setValidationError('Language name is required.');
+        return;
+      }
+    } else if (item.section === 'PROJECT') {
+      if (!data.name?.trim()) {
+        setValidationError('Project Name is required.');
+        return;
+      }
+    } else if (item.section === 'LINK') {
+      if (!data.label?.trim()) {
+        setValidationError('Link Label is required.');
+        return;
+      }
+      if (!data.url?.trim()) {
+        setValidationError('Link URL is required.');
+        return;
+      }
+    }
+
+    // Clean payload fields
+    if (item.section === 'LANGUAGE') {
+      data.proficiency = data.proficiency?.trim() || null;
+      data.cefrLevel = data.cefrLevel?.trim() || null;
+      data.notes = data.notes?.trim() || null;
+    }
+    if (item.section === 'SKILL') {
+      data.proficiency = data.proficiency?.trim() || null;
+      if (
+        data.yearsExperience !== undefined &&
+        data.yearsExperience !== null &&
+        data.yearsExperience !== ''
+      ) {
+        data.yearsExperience = Number(data.yearsExperience) || null;
+      } else {
+        data.yearsExperience = null;
+      }
+    }
+    if (typeof data.achievements === 'string') {
+      data.achievements = data.achievements
+        .split('\n')
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+    }
+
+    onSaveEdit(data);
   };
 
   return (
@@ -1228,7 +1330,26 @@ function ReviewItemCard({
             {getPrimaryLabel()}
           </div>
 
-          {/* Dates or Secondary Info */}
+          {/* Secondary Details for Cards */}
+          {Boolean(item.section === 'PROFILE') && (
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                marginBottom: '0.35rem',
+              }}
+            >
+              {(
+                [
+                  payload.headline,
+                  payload.email,
+                  payload.phone,
+                  payload.location || payload.city,
+                ].filter(Boolean) as string[]
+              ).join(' • ')}
+            </div>
+          )}
+
           {Boolean(payload.startDate || payload.endDate) && (
             <div
               style={{
@@ -1239,6 +1360,112 @@ function ReviewItemCard({
             >
               📅 {String(payload.startDate || '')} —{' '}
               {String(payload.endDate || (payload.isCurrent ? 'Present' : ''))}
+            </div>
+          )}
+
+          {Boolean(item.section === 'EXPERIENCE' && payload.location) && (
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                marginBottom: '0.25rem',
+              }}
+            >
+              📍 {String(payload.location)}
+            </div>
+          )}
+
+          {Boolean(item.section === 'EXPERIENCE' && payload.description) && (
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                marginBottom: '0.35rem',
+              }}
+            >
+              {String(payload.description).length > 150
+                ? `${String(payload.description).slice(0, 150)}...`
+                : String(payload.description)}
+            </div>
+          )}
+
+          {Boolean(item.section === 'EDUCATION' && payload.fieldOfStudy) && (
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                marginBottom: '0.25rem',
+              }}
+            >
+              📚 Field of Study: {String(payload.fieldOfStudy)}
+            </div>
+          )}
+
+          {Boolean(
+            item.section === 'CERTIFICATION' && (payload.issueDate || payload.expirationDate),
+          ) && (
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                marginBottom: '0.25rem',
+              }}
+            >
+              📅 Issued: {String(payload.issueDate || 'N/A')}
+              {payload.expirationDate ? ` • Expires: ${String(payload.expirationDate)}` : ''}
+            </div>
+          )}
+
+          {Boolean(item.section === 'LANGUAGE') && (
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                marginBottom: '0.25rem',
+              }}
+            >
+              Proficiency: {String(payload.proficiency || 'Not specified')}
+              {payload.cefrLevel ? ` (CEFR: ${String(payload.cefrLevel)})` : ''}
+              {payload.notes ? ` • ${String(payload.notes)}` : ''}
+            </div>
+          )}
+
+          {Boolean(item.section === 'SKILL') && (
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                marginBottom: '0.25rem',
+              }}
+            >
+              Proficiency: {String(payload.proficiency || 'Not specified')}
+              {payload.yearsExperience ? ` • ${String(payload.yearsExperience)} yrs exp` : ''}
+            </div>
+          )}
+
+          {Boolean(item.section === 'PROJECT' && (payload.projectUrl || payload.role)) && (
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                marginBottom: '0.25rem',
+              }}
+            >
+              {payload.role ? `Role: ${String(payload.role)}` : ''}
+              {payload.role && payload.projectUrl ? ' • ' : ''}
+              {payload.projectUrl ? `🔗 ${String(payload.projectUrl)}` : ''}
+            </div>
+          )}
+
+          {Boolean(item.section === 'LINK' && payload.url) && (
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                marginBottom: '0.25rem',
+              }}
+            >
+              🔗 {String(payload.url)}
             </div>
           )}
 
@@ -1328,7 +1555,10 @@ function ReviewItemCard({
                 type="button"
                 className="btn btn-secondary"
                 style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
-                onClick={onStartEdit}
+                onClick={() => {
+                  setValidationError(null);
+                  onStartEdit();
+                }}
               >
                 ✎ Edit
               </button>
@@ -1346,7 +1576,11 @@ function ReviewItemCard({
               </button>
               <button
                 type="button"
-                className={`btn ${item.reviewStatus === 'APPROVED' ? 'btn-primary' : 'btn-secondary'}`}
+                className={`btn ${
+                  item.reviewStatus === 'APPROVED' || item.reviewStatus === 'EDITED'
+                    ? 'btn-primary'
+                    : 'btn-secondary'
+                }`}
                 style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
                 onClick={onApprove}
               >
@@ -1366,94 +1600,1141 @@ function ReviewItemCard({
             borderTop: '1px solid var(--border-color)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '0.5rem',
+            gap: '0.6rem',
           }}
         >
+          {/* 1. PROFILE */}
+          {item.section === 'PROFILE' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Full Name <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. Jane Doe"
+                    value={editFormData.fullName || ''}
+                    onChange={(e) => onEditChange('fullName', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Headline (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. Senior Software Engineer"
+                    value={editFormData.headline || ''}
+                    onChange={(e) => onEditChange('headline', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Email (Optional)
+                  </label>
+                  <input
+                    type="email"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="email@example.com"
+                    value={editFormData.email || ''}
+                    onChange={(e) => onEditChange('email', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Phone (Optional)
+                  </label>
+                  <input
+                    type="tel"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="+1 555-0199"
+                    value={editFormData.phone || ''}
+                    onChange={(e) => onEditChange('phone', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Location (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="City, Country"
+                    value={
+                      editFormData.location ||
+                      (editFormData.city
+                        ? `${editFormData.city}${editFormData.country ? `, ${editFormData.country}` : ''}`
+                        : '')
+                    }
+                    onChange={(e) => onEditChange('location', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    display: 'block',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  Professional Summary (Optional)
+                </label>
+                <textarea
+                  className="input"
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  placeholder="Brief professional summary"
+                  value={editFormData.summary || ''}
+                  onChange={(e) => onEditChange('summary', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 2. EXPERIENCE */}
           {item.section === 'EXPERIENCE' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-              <input
-                type="text"
-                className="input"
-                placeholder="Position"
-                value={editFormData.position || ''}
-                onChange={(e) => onEditChange('position', e.target.value)}
-              />
-              <input
-                type="text"
-                className="input"
-                placeholder="Organization"
-                value={editFormData.organization || ''}
-                onChange={(e) => onEditChange('organization', e.target.value)}
-              />
-              <input
-                type="text"
-                className="input"
-                placeholder="Start Date (e.g. 2022-01)"
-                value={editFormData.startDate || ''}
-                onChange={(e) => onEditChange('startDate', e.target.value)}
-              />
-              <input
-                type="text"
-                className="input"
-                placeholder="End Date (or empty)"
-                value={editFormData.endDate || ''}
-                onChange={(e) => onEditChange('endDate', e.target.value)}
-              />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Position / Role <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. Lead Developer"
+                    value={editFormData.position || ''}
+                    onChange={(e) => onEditChange('position', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Organization / Company <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. Acme Corp"
+                    value={editFormData.organization || ''}
+                    onChange={(e) => onEditChange('organization', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 1fr',
+                  gap: '0.5rem',
+                  alignItems: 'flex-end',
+                }}
+              >
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Start Date <span style={{ color: 'var(--danger)' }}>*</span> (YYYY-MM or YYYY)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="2022-01"
+                    value={editFormData.startDate || ''}
+                    onChange={(e) => onEditChange('startDate', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    End Date (Optional, YYYY-MM or YYYY)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder={editFormData.isCurrent ? 'Present' : '2024-06'}
+                    disabled={Boolean(editFormData.isCurrent)}
+                    value={editFormData.isCurrent ? '' : editFormData.endDate || ''}
+                    onChange={(e) => onEditChange('endDate', e.target.value)}
+                  />
+                </div>
+                <div style={{ paddingBottom: '0.45rem' }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={Boolean(editFormData.isCurrent)}
+                      onChange={(e) => {
+                        onEditChange('isCurrent', e.target.checked);
+                        if (e.target.checked) onEditChange('endDate', null);
+                      }}
+                    />
+                    Currently working here
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    display: 'block',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  Location (Optional)
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  placeholder="e.g. San Francisco, CA or Remote"
+                  value={editFormData.location || ''}
+                  onChange={(e) => onEditChange('location', e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    display: 'block',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  Description (Optional)
+                </label>
+                <textarea
+                  className="input"
+                  rows={2}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  placeholder="Role responsibilities overview"
+                  value={editFormData.description || ''}
+                  onChange={(e) => onEditChange('description', e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    display: 'block',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  Achievements (Optional, one bullet per line)
+                </label>
+                <textarea
+                  className="input"
+                  rows={3}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  placeholder="• Architected microservices platform&#10;• Reduced latency by 35%"
+                  value={
+                    Array.isArray(editFormData.achievements)
+                      ? editFormData.achievements.join('\n')
+                      : editFormData.achievements || ''
+                  }
+                  onChange={(e) => onEditChange('achievements', e.target.value)}
+                />
+              </div>
             </div>
           )}
 
-          {item.section === 'SKILL' && (
-            <input
-              type="text"
-              className="input"
-              placeholder="Skill Name"
-              value={editFormData.name || ''}
-              onChange={(e) => onEditChange('name', e.target.value)}
-            />
-          )}
-
+          {/* 3. EDUCATION */}
           {item.section === 'EDUCATION' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-              <input
-                type="text"
-                className="input"
-                placeholder="Degree"
-                value={editFormData.degree || ''}
-                onChange={(e) => onEditChange('degree', e.target.value)}
-              />
-              <input
-                type="text"
-                className="input"
-                placeholder="Institution"
-                value={editFormData.institution || ''}
-                onChange={(e) => onEditChange('institution', e.target.value)}
-              />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Institution / University <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. Stanford University"
+                    value={editFormData.institution || ''}
+                    onChange={(e) => onEditChange('institution', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Degree (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. Bachelor of Science"
+                    value={editFormData.degree || ''}
+                    onChange={(e) => onEditChange('degree', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr 1fr',
+                  gap: '0.5rem',
+                  alignItems: 'flex-end',
+                }}
+              >
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Field of Study (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. Computer Science"
+                    value={editFormData.fieldOfStudy || ''}
+                    onChange={(e) => onEditChange('fieldOfStudy', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Start Date (Optional, YYYY-MM or YYYY)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="2018"
+                    value={editFormData.startDate || ''}
+                    onChange={(e) => onEditChange('startDate', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    End Date (Optional, YYYY-MM or YYYY)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder={editFormData.isCurrent ? 'Present' : '2022'}
+                    disabled={Boolean(editFormData.isCurrent)}
+                    value={editFormData.isCurrent ? '' : editFormData.endDate || ''}
+                    onChange={(e) => onEditChange('endDate', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Location (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="City, Country"
+                    value={editFormData.location || ''}
+                    onChange={(e) => onEditChange('location', e.target.value)}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', paddingTop: '1.25rem' }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      fontSize: '0.8rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={Boolean(editFormData.isCurrent)}
+                      onChange={(e) => {
+                        onEditChange('isCurrent', e.target.checked);
+                        if (e.target.checked) onEditChange('endDate', null);
+                      }}
+                    />
+                    Currently studying
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    display: 'block',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  Description (Optional)
+                </label>
+                <textarea
+                  className="input"
+                  rows={2}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  placeholder="Honors, thesis, or coursework"
+                  value={editFormData.description || ''}
+                  onChange={(e) => onEditChange('description', e.target.value)}
+                />
+              </div>
             </div>
           )}
 
+          {/* 4. SKILL */}
+          {item.section === 'SKILL' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Skill Name <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. TypeScript"
+                    value={editFormData.name || ''}
+                    onChange={(e) => onEditChange('name', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Category (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. Programming Languages, Cloud"
+                    value={editFormData.category || ''}
+                    onChange={(e) => onEditChange('category', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Proficiency (Optional)
+                  </label>
+                  <select
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    value={editFormData.proficiency || ''}
+                    onChange={(e) => onEditChange('proficiency', e.target.value || null)}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                    <option value="Expert">Expert</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Years of Experience (Optional)
+                  </label>
+                  <input
+                    type="number"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    min="0"
+                    max="50"
+                    step="0.5"
+                    placeholder="e.g. 5"
+                    value={editFormData.yearsExperience ?? ''}
+                    onChange={(e) => onEditChange('yearsExperience', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 5. CERTIFICATION */}
+          {item.section === 'CERTIFICATION' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Certification Name <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. AWS Certified Solutions Architect"
+                    value={editFormData.name || ''}
+                    onChange={(e) => onEditChange('name', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Issuing Organization <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. Amazon Web Services"
+                    value={editFormData.issuingOrganization || ''}
+                    onChange={(e) => onEditChange('issuingOrganization', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Issue Date (Optional, YYYY-MM or YYYY)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="2023-05"
+                    value={editFormData.issueDate || ''}
+                    onChange={(e) => onEditChange('issueDate', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Expiration Date (Optional, YYYY-MM or YYYY)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="2026-05"
+                    value={editFormData.expirationDate || ''}
+                    onChange={(e) => onEditChange('expirationDate', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Credential ID (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. ABC123XYZ"
+                    value={editFormData.credentialId || ''}
+                    onChange={(e) => onEditChange('credentialId', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Credential URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="https://..."
+                    value={editFormData.credentialUrl || ''}
+                    onChange={(e) => onEditChange('credentialUrl', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 6. LANGUAGE */}
+          {item.section === 'LANGUAGE' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Language <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. English, German, Japanese"
+                    value={editFormData.language || ''}
+                    onChange={(e) => onEditChange('language', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Proficiency (Optional)
+                  </label>
+                  <select
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    value={editFormData.proficiency || ''}
+                    onChange={(e) => onEditChange('proficiency', e.target.value || null)}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="Elementary">Elementary</option>
+                    <option value="Conversational">Conversational</option>
+                    <option value="Professional">Professional</option>
+                    <option value="Fluent">Fluent</option>
+                    <option value="Native">Native</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    CEFR Level (Optional)
+                  </label>
+                  <select
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    value={editFormData.cefrLevel || ''}
+                    onChange={(e) => onEditChange('cefrLevel', e.target.value || null)}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="A1">A1 - Beginner</option>
+                    <option value="A2">A2 - Elementary</option>
+                    <option value="B1">B1 - Intermediate</option>
+                    <option value="B2">B2 - Upper Intermediate</option>
+                    <option value="C1">C1 - Advanced</option>
+                    <option value="C2">C2 - Mastery / Native</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Notes (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. Technical reading, daily speech"
+                    value={editFormData.notes || ''}
+                    onChange={(e) => onEditChange('notes', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 7. PROJECT */}
+          {item.section === 'PROJECT' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Project Name <span style={{ color: 'var(--danger)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. Distributed Task Queue"
+                    value={editFormData.name || ''}
+                    onChange={(e) => onEditChange('name', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Role (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="e.g. Creator & Maintainer"
+                    value={editFormData.role || ''}
+                    onChange={(e) => onEditChange('role', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Start Date (Optional, YYYY-MM)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="2023-01"
+                    value={editFormData.startDate || ''}
+                    onChange={(e) => onEditChange('startDate', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    End Date (Optional, YYYY-MM)
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="2023-10"
+                    value={editFormData.endDate || ''}
+                    onChange={(e) => onEditChange('endDate', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      color: 'var(--text-secondary)',
+                      display: 'block',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
+                    Project URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    className="input"
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                    placeholder="https://github.com/..."
+                    value={editFormData.projectUrl || ''}
+                    onChange={(e) => onEditChange('projectUrl', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    display: 'block',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  Description (Optional)
+                </label>
+                <textarea
+                  className="input"
+                  rows={2}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  placeholder="Project purpose, tech stack, and impact"
+                  value={editFormData.description || ''}
+                  onChange={(e) => onEditChange('description', e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    display: 'block',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  Highlights (Optional, one bullet per line)
+                </label>
+                <textarea
+                  className="input"
+                  rows={2}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  placeholder="• Processed 10M messages daily&#10;• 99.99% uptime"
+                  value={
+                    Array.isArray(editFormData.achievements)
+                      ? editFormData.achievements.join('\n')
+                      : editFormData.achievements || ''
+                  }
+                  onChange={(e) => onEditChange('achievements', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 8. LINK */}
+          {item.section === 'LINK' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.5rem' }}>
+              <div>
+                <label
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    display: 'block',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  Label <span style={{ color: 'var(--danger)' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  placeholder="e.g. GitHub, Portfolio, LinkedIn"
+                  value={editFormData.label || ''}
+                  onChange={(e) => onEditChange('label', e.target.value)}
+                />
+              </div>
+              <div>
+                <label
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    display: 'block',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  URL <span style={{ color: 'var(--danger)' }}>*</span>
+                </label>
+                <input
+                  type="url"
+                  className="input"
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                  placeholder="https://..."
+                  value={editFormData.url || ''}
+                  onChange={(e) => onEditChange('url', e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Validation Error Banner */}
+          {validationError && (
+            <div
+              style={{
+                color: 'var(--danger, #ef4444)',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                padding: '0.35rem 0.5rem',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '4px',
+              }}
+            >
+              ⚠️ {validationError}
+            </div>
+          )}
+
+          {/* Action Buttons: Save & Cancel */}
           <div
             style={{
               display: 'flex',
               justifyContent: 'flex-end',
               gap: '0.5rem',
-              marginTop: '0.25rem',
+              marginTop: '0.4rem',
             }}
           >
             <button
               type="button"
               className="btn btn-secondary"
-              style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
-              onClick={onCancelEdit}
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
+              onClick={() => {
+                setValidationError(null);
+                onCancelEdit();
+              }}
             >
-              Cancel
+              ✕ Cancel
             </button>
             <button
               type="button"
               className="btn btn-primary"
-              style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
-              onClick={onSaveEdit}
+              style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
+              onClick={handleValidateAndSave}
             >
-              Save & Approve
+              💾 Save Changes
             </button>
           </div>
         </div>

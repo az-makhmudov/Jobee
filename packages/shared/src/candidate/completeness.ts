@@ -104,16 +104,16 @@ export function calculateProfileCompleteness(
   }
 
   // 5. Languages (10%)
-  const hasLanguages = data.languages.length > 0;
+  const hasLanguages = data.languages.some((l) => !!l.language?.trim());
   categories.push({
     category: 'languages',
-    label: 'Language Proficiencies',
+    label: 'Languages',
     weight: 10,
     completed: hasLanguages,
-    missingDetails: hasLanguages ? undefined : 'Specify at least one language proficiency.',
+    missingDetails: hasLanguages ? undefined : 'Add at least one language.',
   });
   if (!hasLanguages) {
-    missingItems.push('Add at least one language proficiency');
+    missingItems.push('Add at least one language');
   }
 
   // 6. Master CV (10%)

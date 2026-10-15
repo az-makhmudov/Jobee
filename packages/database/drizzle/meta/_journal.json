@@ -134,6 +134,13 @@
       "when": 1792036959256,
       "tag": "0018_candidate_smart_profile_import",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792040000000,
+      "tag": "0019_optional_language_proficiency",
+      "breakpoints": true
     }
   ]
 }

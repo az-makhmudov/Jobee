@@ -1393,4 +1393,16 @@ This document tracks execution history and verification state for all official m
       8. Displayed prominent Extraction Engine transparency badge in Step 3 Review header (`✨ Google Gemini 3.8 Flash AI` vs `⚙️ Basic Deterministic Parser`).
     - Added dedicated regression test suite `smart-profile-qa-remediation.test.ts` (7/7 tests passing).
     - Monorepo verification: 51 test files (415/415 tests passing), lint, typecheck, build, and format cleanly passing.
-
+  - **12. Review UI Repair & Optional Proficiency (Part 1 to Part 6)**:
+    - Overhauled `ReviewItemCard` in `SmartProfileImportModal.tsx` to provide comprehensive inline editing forms across all 8 extracted sections (`PROFILE`, `EXPERIENCE`, `EDUCATION`, `SKILL`, `CERTIFICATION`, `LANGUAGE`, `PROJECT`, `LINK`) with required-field validation, date guidance, multiline arrays, "Save Changes", and "Cancel".
+    - Added classification re-evaluation in `SmartProfileImportService.updateItem` so supplying missing required fields transitions `INCOMPLETE` items to `NEW` and clears conflict details.
+    - Made language and skill proficiency completely optional throughout the database, types, services, and UI:
+      - Generated and applied migration `0019_optional_language_proficiency.sql` (`ALTER TABLE "candidate_languages" ALTER COLUMN "proficiency" DROP NOT NULL;`).
+      - Updated shared schemas and API schemas (`candidate-languages.ts`, `candidate.ts`, `candidate-import.ts`, `application-package.ts`, `candidate-schemas.ts`, `candidate-service.ts`) to allow nullable/optional proficiency.
+      - Updated profile completeness calculator (`completeness.ts`) so language presence counts toward completeness without requiring proficiency.
+      - Updated `SmartProfileExtractor` to default omitted language proficiency to `null` (never dummy strings or `"UNSPECIFIED"`).
+      - Updated `ProfileComparisonEngine` so missing proficiency is treated as valid and not flagged as `INCOMPLETE`.
+      - Safe string formatting in `docx-generator-service.ts`, `matching-context-builder.ts`, `candidate-evidence-resolver.ts`, and `tailoring-engine.ts` preventing `" (null)"` or `" (undefined)"` artifacts and guarding CEFR rank comparisons.
+      - Updated `ProfileView.tsx` with `"Not specified"` options and optional labels for skills and languages.
+    - Added dedicated regression and unit test suite `smart-profile-review-and-proficiency.test.ts` (20/20 tests passing).
+    - Monorepo verification: 52 test files (435/435 tests passing), 0 lint errors, 0 typecheck errors, build clean, DB check passing.

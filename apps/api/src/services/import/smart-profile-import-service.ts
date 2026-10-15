@@ -346,15 +346,50 @@ export class SmartProfileImportService {
           );
         }
       } else if (existingItem.section === 'LANGUAGE') {
-        if (
-          !payloadToCheck.language?.trim() ||
-          !payloadToCheck.proficiency?.trim() ||
-          payloadToCheck.proficiency === 'UNSPECIFIED'
-        ) {
+        if (!payloadToCheck.language?.trim()) {
           throw AppError.badRequest(
-            'Cannot approve incomplete language without specifying proficiency. Please edit this item first.',
+            'Cannot approve incomplete language without language name. Please edit this item first.',
           );
         }
+      }
+    }
+
+    let updatedClassification = existingItem.classification;
+    let updatedConflictDetails = existingItem.conflictDetails;
+
+    if (userEditedPayload) {
+      let isNowComplete = false;
+      const sec = existingItem.section;
+      if (sec === 'EXPERIENCE') {
+        isNowComplete = Boolean(
+          userEditedPayload.organization?.toString().trim() &&
+          userEditedPayload.position?.toString().trim() &&
+          userEditedPayload.startDate?.toString().trim(),
+        );
+      } else if (sec === 'CERTIFICATION') {
+        isNowComplete = Boolean(
+          userEditedPayload.name?.toString().trim() &&
+          userEditedPayload.issuingOrganization?.toString().trim(),
+        );
+      } else if (sec === 'EDUCATION') {
+        isNowComplete = Boolean(userEditedPayload.institution?.toString().trim());
+      } else if (sec === 'SKILL') {
+        isNowComplete = Boolean(userEditedPayload.name?.toString().trim());
+      } else if (sec === 'LANGUAGE') {
+        isNowComplete = Boolean(userEditedPayload.language?.toString().trim());
+      } else if (sec === 'PROJECT') {
+        isNowComplete = Boolean(userEditedPayload.name?.toString().trim());
+      } else if (sec === 'LINK') {
+        isNowComplete = Boolean(
+          userEditedPayload.url?.toString().trim() && userEditedPayload.label?.toString().trim(),
+        );
+      } else if (sec === 'PROFILE') {
+        isNowComplete = Boolean(userEditedPayload.fullName?.toString().trim());
+      }
+
+      if (isNowComplete && existingItem.classification === 'INCOMPLETE') {
+        updatedClassification = 'NEW';
+        updatedConflictDetails = null;
       }
     }
 
@@ -363,6 +398,8 @@ export class SmartProfileImportService {
       .set({
         reviewStatus: action,
         userEditedPayload: userEditedPayload ?? undefined,
+        classification: updatedClassification,
+        conflictDetails: updatedConflictDetails,
         updatedAt: new Date(),
       })
       .where(
@@ -614,7 +651,7 @@ export class SmartProfileImportService {
                   .update(candidateLanguages)
                   .set({
                     language: payload.language,
-                    proficiency: payload.proficiency,
+                    proficiency: payload.proficiency ? payload.proficiency.trim() : null,
                     cefrLevel: payload.cefrLevel || null,
                     notes: payload.notes || null,
                     verificationStatus,
@@ -988,10 +1025,8 @@ export class SmartProfileImportService {
           }
 
           case 'LANGUAGE': {
-            if (!payload.language?.trim() || !payload.proficiency?.trim()) {
-              throw AppError.badRequest(
-                'Cannot commit language: missing required language or proficiency',
-              );
+            if (!payload.language?.trim()) {
+              throw AppError.badRequest('Cannot commit language: missing required language');
             }
 
             const existingLang = await tx.query.candidateLanguages.findFirst({
@@ -1009,7 +1044,7 @@ export class SmartProfileImportService {
               .values({
                 userId,
                 language: payload.language.trim(),
-                proficiency: payload.proficiency.trim(),
+                proficiency: payload.proficiency ? payload.proficiency.trim() : null,
                 cefrLevel: payload.cefrLevel || null,
                 notes: payload.notes || null,
                 verificationStatus,

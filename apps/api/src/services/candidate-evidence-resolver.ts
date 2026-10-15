@@ -193,7 +193,10 @@ export class CandidateEvidenceResolver {
         // Check CEFR level comparison if job explicitly specifies a CEFR code (A1..C2)
         const jobCefrMatch = req.rawText.match(/\b([A-C][1-2])\b/i);
         const candCefr =
-          lang.cefrLevel || (CEFR_RANKS[lang.proficiency?.toUpperCase()] ? lang.proficiency : null);
+          lang.cefrLevel ||
+          (lang.proficiency && CEFR_RANKS[lang.proficiency.toUpperCase()]
+            ? lang.proficiency
+            : null);
         if (jobCefrMatch && jobCefrMatch[1] && candCefr) {
           const reqLevel = jobCefrMatch[1].toUpperCase();
           const candLevel = candCefr.toUpperCase();
@@ -213,12 +216,14 @@ export class CandidateEvidenceResolver {
           }
         }
 
+        const details = [lang.proficiency, lang.cefrLevel].filter(Boolean).join(', ');
+        const detailsSuffix = details ? ` (${details})` : '';
         return {
           requirementId: req.id,
           status: 'MET',
           evidenceIds: [id],
           evidenceItems: items,
-          reason: `Candidate proficient in ${lang.language} (${lang.proficiency}${lang.cefrLevel ? `, ${lang.cefrLevel}` : ''})`,
+          reason: `Candidate proficient in ${lang.language}${detailsSuffix}`,
           confidence: 90,
           contributesToBlocker: false,
         };

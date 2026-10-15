@@ -113,7 +113,7 @@ export interface CandidateLanguageDto {
   id: string;
   userId: string;
   language: string;
-  proficiency: string;
+  proficiency: string | null;
   cefrLevel: string | null;
   notes: string | null;
   verificationStatus: VerificationStatus;

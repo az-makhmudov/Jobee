@@ -227,9 +227,10 @@ export class DocxGeneratorService {
           }),
         );
 
-        const langItems = cv.languages.map(
-          (l) => `${l.language} (${l.proficiencyLevel}${l.cefrLevel ? `, ${l.cefrLevel}` : ''})`,
-        );
+        const langItems = cv.languages.map((l) => {
+          const details = [l.proficiencyLevel, l.cefrLevel].filter(Boolean).join(', ');
+          return details ? `${l.language} (${details})` : l.language;
+        });
 
         docChildren.push(
           new Paragraph({

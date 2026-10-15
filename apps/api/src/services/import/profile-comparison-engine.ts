@@ -537,13 +537,7 @@ export class ProfileComparisonEngine {
   ): ComparisonItemResult {
     const payload = lang as unknown as Record<string, unknown>;
 
-    if (
-      !lang.language ||
-      !lang.language.trim() ||
-      !lang.proficiency ||
-      !lang.proficiency.trim() ||
-      lang.proficiency === 'UNSPECIFIED'
-    ) {
+    if (!lang.language || !lang.language.trim()) {
       return {
         section: 'LANGUAGE',
         classification: 'INCOMPLETE',
@@ -552,8 +546,7 @@ export class ProfileComparisonEngine {
         extractedPayload: payload,
         existingEntityId: null,
         existingPayload: null,
-        conflictDetails:
-          'Missing required fields: proficiency. Language proficiency unspecified in document; please specify proficiency before approving',
+        conflictDetails: 'Missing required fields: language. Please provide a language name.',
       };
     }
 
@@ -678,7 +671,7 @@ export class ProfileComparisonEngine {
   ): ComparisonItemResult {
     const payload = link as unknown as Record<string, unknown>;
 
-    if (!link.url || !link.url.trim()) {
+    if (!link.url || !link.url.trim() || !link.label || !link.label.trim()) {
       return {
         section: 'LINK',
         classification: 'INCOMPLETE',
@@ -687,7 +680,9 @@ export class ProfileComparisonEngine {
         extractedPayload: payload,
         existingEntityId: null,
         existingPayload: null,
-        conflictDetails: 'Missing link URL',
+        conflictDetails: !link.url?.trim()
+          ? 'Missing link URL'
+          : 'Missing link label (e.g. GitHub, Portfolio, LinkedIn)',
       };
     }
 

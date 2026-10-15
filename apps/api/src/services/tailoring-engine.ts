@@ -156,7 +156,7 @@ export class TailoringEngine {
     const tailoredLanguages: TailoredCvLanguage[] = candidate.languages.map((l) => ({
       id: l.id,
       language: l.language, // Immutable factual field
-      proficiencyLevel: l.proficiency, // Immutable factual field
+      proficiencyLevel: l.proficiency || undefined, // Immutable factual field
       cefrLevel: l.cefrLevel || undefined,
     }));
 
