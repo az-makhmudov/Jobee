@@ -16,7 +16,7 @@
 - **Milestone Status:** SMART PROFILE IMPORT REVIEW APPROVAL SAFETY FULLY VERIFIED (53/53 test files, 446/446 tests passing, editing decoupled from authorization, commit isolation strictly enforcing APPROVED status, verified status downgrade protection, React component interaction tests passing)
 - **Previous Completed Milestone:** `JOB-STUDIO-REPAIR`
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + STUDIO PACKAGE REPAIR FULLY VERIFIED + SMART PROFILE IMPORT HARDENED, QA REMEDIATED, REVIEW UI REPAIRED & APPROVAL SAFETY VERIFIED**
-- **Active Git Checkpoint:** `a163a43` (`JOB-SMART-PROFILE-IMPORT`)
+- **Active Git Checkpoint:** `972125f` (`JOB-SMART-PROFILE-IMPORT`)
 
 ---
 
@@ -60,7 +60,7 @@
 | `JOB-AI-MGMT`              | AI Integration Repair, Gemini 3.8/3.5 Models & Resilient Failover  | COMPLETED     | Verified with live Google API (BL-16)            |
 | `JOB-E2E-WORKFLOW`         | End-to-End Workflow Verification & Stabilization (Phases A-K)      | COMPLETED     | Verified across all 11 phases (BL-17)            |
 | `JOB-STUDIO-REPAIR`        | Production Studio Repair: DOCX Generation, R2 Upload & Recovery    | COMPLETED     | Verified across all 11 phases (BL-18)            |
-| `JOB-SMART-PROFILE-IMPORT` | Smart Candidate Profile Creation & Enrichment via AI Extraction    | **COMPLETED** | `a163a43` (BL-19)                                |
+| `JOB-SMART-PROFILE-IMPORT` | Smart Candidate Profile Creation & Enrichment via AI Extraction    | **COMPLETED** | `972125f` (BL-19)                                |
 
 ---
 
