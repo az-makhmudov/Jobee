@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { ProfileComparisonEngine } from './profile-comparison-engine.js';
 import { SmartProfileExtractor } from './smart-profile-extractor.js';
+import { SmartProfileImportService } from './smart-profile-import-service.js';
 import { calculateProfileCompleteness } from '@job-agent/shared';
 import { createLanguageSchema, createSkillSchema } from '../../routes/candidate-schemas.js';
 import { DocxGeneratorService } from '../docx-generator-service.js';
@@ -492,6 +493,433 @@ French (Conversational)
       expect(matchResult.reason).toBe('Candidate proficient in English');
       expect(matchResult.reason).not.toContain('null');
       expect(matchResult.reason).not.toContain('undefined');
+    });
+  });
+
+  // =========================================================================
+  // 6. REVIEW APPROVAL SAFETY & COMMIT ISOLATION
+  // =========================================================================
+  describe('Review Approval Safety & Commit Isolation', () => {
+    it('updateItem persists userEditedPayload without automatically approving the item', async () => {
+      const existingItem = {
+        id: 'item-1',
+        sessionId: 'sess-1',
+        userId: 'u1',
+        section: 'EXPERIENCE',
+        classification: 'NEW',
+        confidenceScore: 0.9,
+        sourceReference: 'Ref',
+        extractedPayload: {
+          organization: 'Acme',
+          position: 'Dev',
+          startDate: '2022-01',
+        },
+        existingEntityId: null,
+        existingPayload: null,
+        conflictDetails: null,
+        reviewStatus: 'PENDING',
+        userEditedPayload: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      let capturedUpdateData: any = null;
+
+      const mockDb: any = {
+        query: {
+          profileImportItems: {
+            findFirst: vi.fn().mockResolvedValue(existingItem),
+          },
+        },
+        update: vi.fn(() => ({
+          set: vi.fn((data) => {
+            capturedUpdateData = data;
+            return {
+              where: vi.fn(() => ({
+                returning: vi.fn().mockResolvedValue([
+                  {
+                    ...existingItem,
+                    ...data,
+                  },
+                ]),
+              })),
+            };
+          }),
+        })),
+      };
+
+      const service = new SmartProfileImportService(mockDb, {} as any, {} as any);
+
+      const result = await service.updateItem('u1', 'sess-1', 'item-1', 'EDITED', {
+        organization: 'Acme Corp',
+        position: 'Senior Engineer',
+        startDate: '2022-01',
+      });
+
+      // Status is EDITED (NOT APPROVED)
+      expect(result.reviewStatus).toBe('EDITED');
+      expect(capturedUpdateData.reviewStatus).toBe('EDITED');
+      // userEditedPayload is persisted
+      expect(capturedUpdateData.userEditedPayload).toEqual({
+        organization: 'Acme Corp',
+        position: 'Senior Engineer',
+        startDate: '2022-01',
+      });
+    });
+
+    it('updateItem preserves userEditedPayload when explicitly approving an edited item', async () => {
+      const existingEditedItem = {
+        id: 'item-1',
+        sessionId: 'sess-1',
+        userId: 'u1',
+        section: 'EXPERIENCE',
+        classification: 'NEW',
+        confidenceScore: 0.9,
+        sourceReference: 'Ref',
+        extractedPayload: {
+          organization: 'Acme',
+          position: 'Dev',
+          startDate: '2022-01',
+        },
+        existingEntityId: null,
+        existingPayload: null,
+        conflictDetails: null,
+        reviewStatus: 'EDITED',
+        userEditedPayload: {
+          organization: 'Acme Corp',
+          position: 'Senior Engineer',
+          startDate: '2022-01',
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      let capturedUpdateData: any = null;
+
+      const mockDb: any = {
+        query: {
+          profileImportItems: {
+            findFirst: vi.fn().mockResolvedValue(existingEditedItem),
+          },
+        },
+        update: vi.fn(() => ({
+          set: vi.fn((data) => {
+            capturedUpdateData = data;
+            return {
+              where: vi.fn(() => ({
+                returning: vi.fn().mockResolvedValue([
+                  {
+                    ...existingEditedItem,
+                    ...data,
+                  },
+                ]),
+              })),
+            };
+          }),
+        })),
+      };
+
+      const service = new SmartProfileImportService(mockDb, {} as any, {} as any);
+
+      // User clicks Accept: action is 'APPROVED', userEditedPayload is undefined
+      const result = await service.updateItem('u1', 'sess-1', 'item-1', 'APPROVED');
+
+      expect(result.reviewStatus).toBe('APPROVED');
+      expect(capturedUpdateData.reviewStatus).toBe('APPROVED');
+      // Crucial: userEditedPayload was NOT overwritten with undefined or null
+      expect(capturedUpdateData.userEditedPayload).toBeUndefined();
+    });
+
+    it('commitSession commits ONLY items with reviewStatus === APPROVED and ignores EDITED/PENDING items', async () => {
+      const mockSession = {
+        id: 'sess-1',
+        userId: 'u1',
+        status: 'REVIEW_READY',
+        sourceType: 'CV',
+        documentId: null,
+      };
+
+      // In this session, item-1 was EDITED (not approved), item-2 was APPROVED, item-3 was PENDING
+      const approvedOnlyItem = {
+        id: 'item-2',
+        sessionId: 'sess-1',
+        userId: 'u1',
+        section: 'SKILL',
+        classification: 'NEW',
+        reviewStatus: 'APPROVED',
+        extractedPayload: { name: 'PostgreSQL', category: 'Database', proficiency: null },
+        userEditedPayload: null,
+        existingEntityId: null,
+        existingPayload: null,
+      };
+
+      let insertedSkill: any = null;
+
+      const mockDb: any = {
+        query: {
+          profileImportSessions: {
+            findFirst: vi.fn().mockResolvedValue(mockSession),
+          },
+          profileImportItems: {
+            findMany: vi.fn(() => {
+              // Simulating DB filtering: returns only APPROVED items
+              return [approvedOnlyItem];
+            }),
+          },
+        },
+        transaction: vi.fn(async (cb) => {
+          const tx: any = {
+            query: {
+              candidateSkills: {
+                findFirst: vi.fn().mockResolvedValue(null),
+              },
+            },
+            insert: vi.fn(() => ({
+              values: vi.fn((val) => {
+                if (val.name) {
+                  insertedSkill = val;
+                }
+                return {
+                  returning: vi.fn().mockResolvedValue([val]),
+                };
+              }),
+            })),
+            update: vi.fn(() => ({
+              set: vi.fn(() => ({
+                where: vi.fn().mockResolvedValue({}),
+              })),
+            })),
+          };
+          return cb(tx);
+        }),
+        update: vi.fn(() => ({
+          set: vi.fn(() => ({
+            where: vi.fn().mockResolvedValue({}),
+          })),
+        })),
+      };
+
+      const service = new SmartProfileImportService(mockDb, {} as any, {} as any);
+      (service as any).candidateService = {
+        getOverview: vi.fn().mockResolvedValue({ completeness: { score: 100 } }),
+      };
+      // Mock internal recordAuditTx and loadExistingCandidateBrain
+      (service as any).recordAuditTx = vi.fn().mockResolvedValue(undefined);
+      (service as any).loadExistingCandidateBrain = vi.fn().mockResolvedValue({
+        profile: null,
+        experiences: [],
+        education: [],
+        skills: [{ id: 's1', name: 'PostgreSQL' }],
+        certifications: [],
+        languages: [],
+        documents: [],
+        preferences: null,
+      });
+
+      const commitResult = await service.commitSession('u1', 'sess-1', { verifyOnCommit: false });
+
+      expect(commitResult.sessionId).toBe('sess-1');
+      expect(commitResult.committedCounts.skillsCreated).toBe(1);
+      // Only the approved item was inserted
+      expect(insertedSkill?.name).toBe('PostgreSQL');
+    });
+
+    it('commitSession throws 400 Bad Request when session contains only EDITED or PENDING items', async () => {
+      const mockSession = {
+        id: 'sess-1',
+        userId: 'u1',
+        status: 'REVIEW_READY',
+        sourceType: 'CV',
+      };
+
+      const mockDb: any = {
+        query: {
+          profileImportSessions: {
+            findFirst: vi.fn().mockResolvedValue(mockSession),
+          },
+          profileImportItems: {
+            // No APPROVED items in database query
+            findMany: vi.fn().mockResolvedValue([]),
+          },
+        },
+      };
+
+      const service = new SmartProfileImportService(mockDb, {} as any, {} as any);
+
+      await expect(service.commitSession('u1', 'sess-1')).rejects.toThrow(
+        'No approved items found to commit',
+      );
+    });
+
+    it('commitSession preserves existing verified record when matched item is approved without edits', async () => {
+      const mockSession = {
+        id: 'sess-1',
+        userId: 'u1',
+        status: 'REVIEW_READY',
+        sourceType: 'CV',
+      };
+
+      const uneditedMatchedItem = {
+        id: 'item-match-1',
+        sessionId: 'sess-1',
+        userId: 'u1',
+        section: 'EXPERIENCE',
+        classification: 'MATCHED',
+        reviewStatus: 'APPROVED',
+        extractedPayload: { organization: 'Revolut', position: 'PM', startDate: '2023-01' },
+        userEditedPayload: null, // NO edits!
+        existingEntityId: 'exp-revolut-123',
+        existingPayload: {
+          id: 'exp-revolut-123',
+          organization: 'Revolut',
+          position: 'PM',
+          startDate: '2023-01',
+          verificationStatus: 'VERIFIED',
+        },
+      };
+
+      let candidateExperienceUpdated = false;
+
+      const mockDb: any = {
+        query: {
+          profileImportSessions: {
+            findFirst: vi.fn().mockResolvedValue(mockSession),
+          },
+          profileImportItems: {
+            findMany: vi.fn().mockResolvedValue([uneditedMatchedItem]),
+          },
+        },
+        transaction: vi.fn(async (cb) => {
+          const tx: any = {
+            update: vi.fn(() => ({
+              set: vi.fn((setVal: any) => {
+                if (setVal.organization) {
+                  candidateExperienceUpdated = true;
+                }
+                return { where: vi.fn().mockResolvedValue({}) };
+              }),
+            })),
+            insert: vi.fn(),
+          };
+          return cb(tx);
+        }),
+        update: vi.fn(() => ({
+          set: vi.fn(() => ({
+            where: vi.fn().mockResolvedValue({}),
+          })),
+        })),
+      };
+
+      const service = new SmartProfileImportService(mockDb, {} as any, {} as any);
+      (service as any).candidateService = {
+        getOverview: vi.fn().mockResolvedValue({ completeness: { score: 100 } }),
+      };
+      (service as any).loadExistingCandidateBrain = vi.fn().mockResolvedValue({
+        profile: null,
+        experiences: [uneditedMatchedItem.existingPayload],
+        education: [],
+        skills: [],
+        certifications: [],
+        languages: [],
+        documents: [],
+        preferences: null,
+      });
+
+      await service.commitSession('u1', 'sess-1');
+
+      // The unedited matched record must NOT be updated or re-inserted!
+      expect(candidateExperienceUpdated).toBe(false);
+    });
+
+    it('commitSession updates matched record and preserves VERIFIED status when user explicitly edits and approves it', async () => {
+      const mockSession = {
+        id: 'sess-1',
+        userId: 'u1',
+        status: 'REVIEW_READY',
+        sourceType: 'CV',
+      };
+
+      const editedMatchedItem = {
+        id: 'item-match-1',
+        sessionId: 'sess-1',
+        userId: 'u1',
+        section: 'EXPERIENCE',
+        classification: 'MATCHED',
+        reviewStatus: 'APPROVED',
+        extractedPayload: { organization: 'Revolut', position: 'PM', startDate: '2023-01' },
+        userEditedPayload: {
+          organization: 'Revolut Ltd',
+          position: 'Senior Associate PM',
+          startDate: '2023-01',
+          description: 'Updated responsibilities',
+        },
+        existingEntityId: 'exp-revolut-123',
+        existingPayload: {
+          id: 'exp-revolut-123',
+          organization: 'Revolut',
+          position: 'PM',
+          startDate: '2023-01',
+          verificationStatus: 'VERIFIED',
+        },
+      };
+
+      let capturedUpdateSet: any = null;
+
+      const mockDb: any = {
+        query: {
+          profileImportSessions: {
+            findFirst: vi.fn().mockResolvedValue(mockSession),
+          },
+          profileImportItems: {
+            findMany: vi.fn().mockResolvedValue([editedMatchedItem]),
+          },
+        },
+        transaction: vi.fn(async (cb) => {
+          const tx: any = {
+            update: vi.fn(() => ({
+              set: vi.fn((setVal: any) => {
+                if (setVal.organization) {
+                  capturedUpdateSet = setVal;
+                }
+                return {
+                  where: vi.fn().mockResolvedValue({}),
+                };
+              }),
+            })),
+          };
+          return cb(tx);
+        }),
+        update: vi.fn(() => ({
+          set: vi.fn(() => ({
+            where: vi.fn().mockResolvedValue({}),
+          })),
+        })),
+      };
+
+      const service = new SmartProfileImportService(mockDb, {} as any, {} as any);
+      (service as any).candidateService = {
+        getOverview: vi.fn().mockResolvedValue({ completeness: { score: 100 } }),
+      };
+      (service as any).recordAuditTx = vi.fn().mockResolvedValue(undefined);
+      (service as any).loadExistingCandidateBrain = vi.fn().mockResolvedValue({
+        profile: null,
+        experiences: [editedMatchedItem.existingPayload],
+        education: [],
+        skills: [],
+        certifications: [],
+        languages: [],
+        documents: [],
+        preferences: null,
+      });
+
+      // Even if verifyOnCommit is false:
+      await service.commitSession('u1', 'sess-1', { verifyOnCommit: false });
+
+      expect(capturedUpdateSet).toBeDefined();
+      expect(capturedUpdateSet.organization).toBe('Revolut Ltd');
+      expect(capturedUpdateSet.position).toBe('Senior Associate PM');
+      // Crucial: existing verified status is preserved (never downgraded to UNVERIFIED!)
+      expect(capturedUpdateSet.verificationStatus).toBe('VERIFIED');
     });
   });
 });

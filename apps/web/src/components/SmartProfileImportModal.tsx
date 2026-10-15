@@ -13,17 +13,23 @@ interface Props {
   onClose: () => void;
   onSuccess?: () => void;
   initialSourceType?: ProfileImportSourceType;
+  initialStep?: WizardStep;
+  initialSession?: ProfileImportSessionDto | null;
+  initialItems?: ProfileImportItemDto[];
 }
 
-type WizardStep = 'UPLOAD' | 'EXTRACT' | 'REVIEW' | 'CONFIRM' | 'SUCCESS';
+export type WizardStep = 'UPLOAD' | 'EXTRACT' | 'REVIEW' | 'CONFIRM' | 'SUCCESS';
 
 export function SmartProfileImportModal({
   isOpen,
   onClose,
   onSuccess,
   initialSourceType = 'CV',
+  initialStep = 'UPLOAD',
+  initialSession = null,
+  initialItems = [],
 }: Props) {
-  const [step, setStep] = useState<WizardStep>('UPLOAD');
+  const [step, setStep] = useState<WizardStep>(initialStep);
   const [sourceType, setSourceType] = useState<ProfileImportSourceType>(initialSourceType);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [replaceMasterCv, setReplaceMasterCv] = useState(false);
@@ -32,8 +38,8 @@ export function SmartProfileImportModal({
   const [error, setError] = useState<string | null>(null);
 
   // Active Session & Items
-  const [session, setSession] = useState<ProfileImportSessionDto | null>(null);
-  const [items, setItems] = useState<ProfileImportItemDto[]>([]);
+  const [session, setSession] = useState<ProfileImportSessionDto | null>(initialSession);
+  const [items, setItems] = useState<ProfileImportItemDto[]>(initialItems);
 
   // Filtering during Review
   const [activeSectionFilter, setActiveSectionFilter] = useState<string>('ALL');
@@ -52,16 +58,16 @@ export function SmartProfileImportModal({
 
   useEffect(() => {
     if (isOpen) {
-      setStep('UPLOAD');
+      setStep(initialStep);
       setSelectedFile(null);
       setReplaceMasterCv(false);
       setError(null);
-      setSession(null);
-      setItems([]);
+      setSession(initialSession);
+      setItems(initialItems);
       setCommitResult(null);
       setSourceType(initialSourceType);
     }
-  }, [isOpen, initialSourceType]);
+  }, [isOpen, initialSourceType, initialStep, initialSession, initialItems]);
 
   if (!isOpen) return null;
 
@@ -204,9 +210,7 @@ export function SmartProfileImportModal({
     return true;
   });
 
-  const approvedCount = items.filter(
-    (i) => i.reviewStatus === 'APPROVED' || i.reviewStatus === 'EDITED',
-  ).length;
+  const approvedCount = items.filter((i) => i.reviewStatus === 'APPROVED').length;
 
   return (
     <div
@@ -1089,7 +1093,7 @@ export function SmartProfileImportModal({
 }
 
 // Subcomponent: ReviewItemCard
-function ReviewItemCard({
+export function ReviewItemCard({
   item,
   isEditing,
   editFormData,
@@ -1255,17 +1259,21 @@ function ReviewItemCard({
         borderRadius: '8px',
         padding: '0.85rem 1rem',
         backgroundColor:
-          item.reviewStatus === 'APPROVED' || item.reviewStatus === 'EDITED'
+          item.reviewStatus === 'APPROVED'
             ? 'rgba(16, 185, 129, 0.05)'
-            : item.reviewStatus === 'REJECTED'
-              ? 'rgba(239, 68, 68, 0.03)'
-              : 'rgba(255, 255, 255, 0.02)',
+            : item.reviewStatus === 'EDITED'
+              ? 'rgba(59, 130, 246, 0.05)'
+              : item.reviewStatus === 'REJECTED'
+                ? 'rgba(239, 68, 68, 0.03)'
+                : 'rgba(255, 255, 255, 0.02)',
         borderColor:
-          item.reviewStatus === 'APPROVED' || item.reviewStatus === 'EDITED'
+          item.reviewStatus === 'APPROVED'
             ? 'rgba(16, 185, 129, 0.3)'
-            : item.reviewStatus === 'REJECTED'
-              ? 'rgba(239, 68, 68, 0.2)'
-              : 'var(--border-color)',
+            : item.reviewStatus === 'EDITED'
+              ? 'rgba(59, 130, 246, 0.3)'
+              : item.reviewStatus === 'REJECTED'
+                ? 'rgba(239, 68, 68, 0.2)'
+                : 'var(--border-color)',
       }}
     >
       <div
@@ -1318,10 +1326,14 @@ function ReviewItemCard({
                   fontSize: '0.75rem',
                   fontWeight: 600,
                   color:
-                    item.reviewStatus === 'REJECTED' ? 'var(--danger)' : 'var(--success, #10b981)',
+                    item.reviewStatus === 'REJECTED'
+                      ? 'var(--danger)'
+                      : item.reviewStatus === 'EDITED'
+                        ? 'var(--info, #3b82f6)'
+                        : 'var(--success, #10b981)',
                 }}
               >
-                ● {item.reviewStatus}
+                ● {item.reviewStatus === 'EDITED' ? 'EDITED (NEEDS APPROVAL)' : item.reviewStatus}
               </span>
             )}
           </div>
@@ -1576,11 +1588,7 @@ function ReviewItemCard({
               </button>
               <button
                 type="button"
-                className={`btn ${
-                  item.reviewStatus === 'APPROVED' || item.reviewStatus === 'EDITED'
-                    ? 'btn-primary'
-                    : 'btn-secondary'
-                }`}
+                className={`btn ${item.reviewStatus === 'APPROVED' ? 'btn-primary' : 'btn-secondary'}`}
                 style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
                 onClick={onApprove}
               >

@@ -1406,3 +1406,20 @@ This document tracks execution history and verification state for all official m
       - Updated `ProfileView.tsx` with `"Not specified"` options and optional labels for skills and languages.
     - Added dedicated regression and unit test suite `smart-profile-review-and-proficiency.test.ts` (20/20 tests passing).
     - Monorepo verification: 52 test files (435/435 tests passing), 0 lint errors, 0 typecheck errors, build clean, DB check passing.
+  - **13. Review Approval Safety & Commit Isolation**:
+    - Separated item editing from authorization:
+      - Saving an edit in `SmartProfileImportService.updateItem` stores `userEditedPayload` and marks `reviewStatus: 'EDITED'`. It does NOT authorize or approve the item.
+      - Transition to `'APPROVED'` requires explicit user acceptance action (`action: 'APPROVED'`), which preserves the existing `userEditedPayload`.
+      - Re-editing an approved item transitions it back to `'EDITED'` until re-approved.
+    - Hardened commit isolation in `SmartProfileImportService.commitSession`:
+      - Strictly queries `eq(profileImportItems.reviewStatus, 'APPROVED')`. Items with status `EDITED`, `PENDING`, or `REJECTED` are never committed.
+      - Prevents accidental commits: throws 400 Bad Request if zero approved items are eligible.
+      - Matched record updating: preserves existing entities when unedited (`!item.userEditedPayload`); when edited and approved, updates existing records while preventing verified status downgrades (`targetVerificationStatus = (existingPayload?.verificationStatus === 'VERIFIED') ? 'VERIFIED' : verificationStatus`).
+    - UI state synchronization in `SmartProfileImportModal.tsx`:
+      - `approvedCount` strictly computes `items.filter((i) => i.reviewStatus === 'APPROVED').length`.
+      - `ReviewItemCard` displays distinct blue banner and status badge `● EDITED (NEEDS APPROVAL)` when `item.reviewStatus === 'EDITED'`.
+      - "✓ Accept" button displays as primary only when `item.reviewStatus === 'APPROVED'`.
+    - Automated verification:
+      - `SmartProfileImportModal.test.tsx` (5/5 React component interaction tests passing with `@testing-library/react` and `happy-dom`): edit -> modify -> save -> verify not approved -> accept -> verify approved count -> reject -> re-edit flow.
+      - `smart-profile-review-and-proficiency.test.ts` Section 6 (6/6 tests passing for approval safety, commit isolation, unedited matched record preservation, and verified status preservation).
+    - Monorepo verification: 53 test files (446/446 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB check passing.

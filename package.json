@@ -30,8 +30,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
+    "@testing-library/react": "^16.3.3",
     "concurrently": "^9.1.2",
     "eslint": "^9.21.0",
+    "happy-dom": "^21.0.1",
     "prettier": "^3.5.3",
     "railway": "^3.15.0",
     "typescript": "^5.8.2",

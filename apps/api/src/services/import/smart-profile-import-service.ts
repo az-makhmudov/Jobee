@@ -393,15 +393,20 @@ export class SmartProfileImportService {
       }
     }
 
+    const updateData: Partial<typeof profileImportItems.$inferInsert> = {
+      reviewStatus: action,
+      classification: updatedClassification,
+      conflictDetails: updatedConflictDetails,
+      updatedAt: new Date(),
+    };
+
+    if (userEditedPayload !== undefined) {
+      updateData.userEditedPayload = userEditedPayload;
+    }
+
     const [item] = await this.db
       .update(profileImportItems)
-      .set({
-        reviewStatus: action,
-        userEditedPayload: userEditedPayload ?? undefined,
-        classification: updatedClassification,
-        conflictDetails: updatedConflictDetails,
-        updatedAt: new Date(),
-      })
+      .set(updateData)
       .where(
         and(
           eq(profileImportItems.id, itemId),
@@ -484,7 +489,7 @@ export class SmartProfileImportService {
       where: and(
         eq(profileImportItems.sessionId, sessionId),
         eq(profileImportItems.userId, userId),
-        sql`${profileImportItems.reviewStatus} IN ('APPROVED', 'EDITED')`,
+        eq(profileImportItems.reviewStatus, 'APPROVED'),
       ),
     });
 
@@ -519,12 +524,16 @@ export class SmartProfileImportService {
 
         // Issue 2: Handle DUPLICATE and MATCHED records
         if (item.classification === 'MATCHED' || item.classification === 'DUPLICATE') {
-          if (item.reviewStatus === 'APPROVED') {
+          if (!item.userEditedPayload) {
             // Already present in candidate brain; approved without edit: skip re-insertion
             continue;
           }
-          if (item.reviewStatus === 'EDITED' && item.existingEntityId) {
-            // Edited during review: update existing entity in database rather than inserting duplicate
+          if (item.userEditedPayload && item.existingEntityId) {
+            // User explicitly approved their edited changes: update existing entity in database rather than inserting duplicate
+            const targetVerificationStatus =
+              (item.existingPayload as any)?.verificationStatus === 'VERIFIED'
+                ? 'VERIFIED'
+                : verificationStatus;
             switch (item.section) {
               case 'EXPERIENCE': {
                 await tx
@@ -539,7 +548,7 @@ export class SmartProfileImportService {
                     isCurrent: payload.isCurrent ?? false,
                     description: payload.description || null,
                     achievements: Array.isArray(payload.achievements) ? payload.achievements : [],
-                    verificationStatus,
+                    verificationStatus: targetVerificationStatus,
                     updatedAt: new Date(),
                   })
                   .where(
@@ -571,7 +580,7 @@ export class SmartProfileImportService {
                     location: payload.location || null,
                     description: payload.description || null,
                     activities: payload.activities || null,
-                    verificationStatus,
+                    verificationStatus: targetVerificationStatus,
                     updatedAt: new Date(),
                   })
                   .where(
@@ -598,7 +607,7 @@ export class SmartProfileImportService {
                     category: payload.category || null,
                     proficiency: payload.proficiency || null,
                     yearsExperience: payload.yearsExperience ?? null,
-                    verificationStatus,
+                    verificationStatus: targetVerificationStatus,
                     updatedAt: new Date(),
                   })
                   .where(
@@ -627,7 +636,7 @@ export class SmartProfileImportService {
                     expirationDate: payload.expirationDate || null,
                     credentialId: payload.credentialId || null,
                     credentialUrl: payload.credentialUrl || null,
-                    verificationStatus,
+                    verificationStatus: targetVerificationStatus,
                     updatedAt: new Date(),
                   })
                   .where(
@@ -654,7 +663,7 @@ export class SmartProfileImportService {
                     proficiency: payload.proficiency ? payload.proficiency.trim() : null,
                     cefrLevel: payload.cefrLevel || null,
                     notes: payload.notes || null,
-                    verificationStatus,
+                    verificationStatus: targetVerificationStatus,
                     updatedAt: new Date(),
                   })
                   .where(
@@ -685,7 +694,7 @@ export class SmartProfileImportService {
                     projectUrl: payload.projectUrl || null,
                     skills: Array.isArray(payload.skills) ? payload.skills : [],
                     achievements: Array.isArray(payload.achievements) ? payload.achievements : [],
-                    verificationStatus,
+                    verificationStatus: targetVerificationStatus,
                     updatedAt: new Date(),
                   })
                   .where(
@@ -1269,7 +1278,7 @@ export class SmartProfileImportService {
       if (byClassification[cls] !== undefined) {
         byClassification[cls]++;
       }
-      if (it.reviewStatus === 'APPROVED' || it.reviewStatus === 'EDITED') approved++;
+      if (it.reviewStatus === 'APPROVED') approved++;
       else if (it.reviewStatus === 'REJECTED') rejected++;
       else pending++;
     }
