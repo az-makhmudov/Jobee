@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { candidateApi } from '../api/candidate-client.js';
+import { SmartProfileImportModal } from './SmartProfileImportModal.js';
 import type { CandidateDocumentDto, DocumentType } from '@job-agent/shared';
 
 interface Props {
@@ -13,6 +14,7 @@ export function DocumentsView({ onUpdate }: Props) {
   const [toast, setToast] = useState<{ type: 'ok' | 'error'; message: string } | null>(null);
 
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [docType, setDocType] = useState<DocumentType>('MASTER_CV');
   const [displayName, setDisplayName] = useState('');
@@ -126,9 +128,14 @@ export function DocumentsView({ onUpdate }: Props) {
             {documents.length} document{documents.length === 1 ? '' : 's'} stored securely
           </span>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={() => setShowUploadModal(true)}>
-          + Upload Document
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => setIsSmartImportOpen(true)}>
+            ✨ Smart Import & Extract
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowUploadModal(true)}>
+            + Upload Document
+          </button>
+        </div>
       </div>
 
       {loading && documents.length === 0 ? (
@@ -407,6 +414,16 @@ export function DocumentsView({ onUpdate }: Props) {
             </form>
           </div>
         </div>
+      )}
+      {isSmartImportOpen && (
+        <SmartProfileImportModal
+          isOpen={isSmartImportOpen}
+          onClose={() => setIsSmartImportOpen(false)}
+          onSuccess={() => {
+            loadDocuments();
+            onUpdate?.();
+          }}
+        />
       )}
     </div>
   );

@@ -51,7 +51,7 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
       .insert(candidateSkills)
       .values({
         userId,
-        name: 'TypeScript',
+        name: 'TypeScriptArchitecture',
         proficiency: 'EXPERT',
       })
       .returning();
@@ -79,10 +79,10 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
       .insert(jobs)
       .values({
         userId,
-        title: 'Senior TypeScript Platform Engineer',
+        title: 'Senior TypeScriptArchitecture Platform Engineer',
         company: 'CloudCorp Global',
         description:
-          'We are seeking a Senior TypeScript Platform Engineer proficient in TypeScript, distributed architectures, and API services.',
+          'We are seeking a Senior TypeScriptArchitecture Platform Engineer proficient in TypeScriptArchitecture, distributed architectures, and API services.',
         locationText: 'Remote',
         contentHash: 'hash-test-job-prep-123',
       })
@@ -94,8 +94,8 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
       {
         jobId: testJobId,
         userId,
-        rawText: 'Strong experience with TypeScript and modern Node.js',
-        normalizedText: 'TypeScript experience',
+        rawText: 'Strong experience with TypeScriptArchitecture and modern Node.js',
+        normalizedText: 'TypeScriptArchitecture experience',
         requirementStrength: 'MANDATORY',
       },
       {
@@ -174,7 +174,9 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
 
     // Verify candidate strengths are strictly grounded in candidate facts
     expect(brief.candidateStrengths.length).toBeGreaterThan(0);
-    const tsStrength = brief.candidateStrengths.find((s) => s.evidenceTitle === 'TypeScript');
+    const tsStrength = brief.candidateStrengths.find(
+      (s) => s.evidenceTitle === 'TypeScriptArchitecture',
+    );
     expect(tsStrength).toBeDefined();
     expect(tsStrength?.evidenceType).toBe('skill');
     expect(tsStrength?.evidenceId).toBe(testSkillId);

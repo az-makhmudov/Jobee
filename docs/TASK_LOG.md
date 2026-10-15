@@ -1295,3 +1295,79 @@ This document tracks execution history and verification state for all official m
       - Re-verified all 11 phases of `scripts/verify-studio-package-repair.ts` against live Neon database and Cloudflare R2.
       - Quality verification: `format` (PASS), `lint` (PASS), `typecheck` (PASS), `test` (45/45 test files, 369/369 tests passing), `build` (PASS), `db:check` (PASS).
 
+---
+
+### `JOB-SMART-PROFILE-IMPORT` — Smart Candidate Profile Creation & Enrichment via AI Document Extraction
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-15
+- **Scope**:
+  - **1. Database Schema & Migration Repair (Phase 1)**:
+    - Repaired Drizzle Kit snapshot discrepancy between `0002_audit_privacy.sql` (dropped `details`) and `0002_snapshot.json` by updating `0002_snapshot.json` with `changed_fields` array and `metadata` JSON object.
+    - Created baseline snapshot `packages/database/drizzle/meta/0017_snapshot.json` accurately capturing all 53 baseline tables from migrations 0000–0017.
+    - Added additive schema tables:
+      - `packages/database/src/schema/profile-import-sessions.ts` (`profile_import_sessions`) with `source_type` (`CV`, `LINKEDIN_PDF`, `LINKEDIN_ARCHIVE`), `status`, `original_filename`, `storage_key`, `ai_consent_given`, `document_id`.
+      - `packages/database/src/schema/profile-import-items.ts` (`profile_import_items`) with `section`, `classification`, `confidence_score`, `source_reference`, `extracted_payload`, `existing_entity_id`, `existing_payload`, `conflict_details`, `review_status`, `user_edited_payload`, `user_feedback`.
+    - Generated clean, isolated migration `0018_candidate_smart_profile_import.sql` and applied to Neon PostgreSQL (`npm run db:migrate`).
+  - **2. Document Text Extraction & Normalization (Phase 2 & 3)**:
+    - Implemented `DocumentTextExtractor` (`apps/api/src/services/import/document-text-extractor.ts`):
+      - PDF extraction using `pdf-parse` v2 with multi-page handling.
+      - DOCX extraction using `jszip` extracting `word/document.xml` paragraphs `<w:p>`, text nodes `<w:t>`, and tab characters.
+      - Plaintext, CSV, and JSON text support.
+      - Text normalization unifies newlines, standardizes smart quotes and em-dashes, and strips non-printable ASCII/Unicode control characters.
+  - **3. Smart AI & Deterministic Profile Extractor (Phase 2 & 3)**:
+    - Implemented `SmartProfileExtractor` (`apps/api/src/services/import/smart-profile-extractor.ts`):
+      - Google Gemini AI extraction using `gemini-3.8-flash` (with failover to `gemini-3.5-flash-lite`).
+      - Strict structured JSON response schema with Zod validation.
+      - Anti-hallucination prompt invariants: AI never fabricates dates, employers, degrees, skills, or metrics; requires exact `sourceReference` verbatim citations.
+      - Deterministic heuristic fallback parser for users declining AI consent or offline mode, extracting contacts, experiences, education, skills, certifications, and links.
+  - **4. 6-Way Profile Comparison Engine (Phase 4)**:
+    - Implemented `ProfileComparisonEngine` (`apps/api/src/services/import/profile-comparison-engine.ts`):
+      - Classifies extracted data against existing Candidate Brain facts: `MATCHED`, `DUPLICATE`, `NEW`, `CONFLICT`, `INCOMPLETE`, `LOW_CONFIDENCE`.
+      - Detects conflicts in dates, job titles, and degrees with explanatory details.
+      - Strict preservation of verified facts in Candidate Brain.
+  - **5. Smart Profile Import Service & Candidate Brain Transaction (Phase 5 & 6)**:
+    - Implemented `SmartProfileImportService` (`apps/api/src/services/import/smart-profile-import-service.ts`):
+      - Complete session management: `createSession`, `extractAndCompare`, `getSession`, `listSessions`, `updateItem`, `bulkUpdateItems`, `commitSession`, `discardSession`.
+      - Transactional atomic commit into Candidate Brain:
+        - Updates `candidateProfiles` (if approved).
+        - Inserts `candidateExperiences`, `candidateEducation`, `candidateSkills`, `candidateCertifications`, `candidateLanguages`, `candidateProjects`, `candidateLinks`.
+        - Prime Directive compliance: newly imported items are assigned `verificationStatus: 'UNVERIFIED'` (`isVerified: false`) until explicitly reviewed.
+        - Facts inserted into `candidateFacts` default to `allowAiUse: false` unless the user explicitly toggles AI authorization.
+        - Privacy-preserving audit logs recorded in `candidateAuditEvents` with action `SMART_PROFILE_IMPORT_COMMIT`, `changed_fields`, and operational `metadata`.
+        - Automatically recalculates profile completeness score.
+  - **6. API Routes & Schemas**:
+    - Implemented `candidate-import-schemas.ts` and `candidate-import-routes.ts` mounted at `/api/candidate/import/*` and `/candidate/import/*`:
+      - `POST /candidate/import/upload` (multipart document upload with 25MB limit)
+      - `POST /candidate/import/:sessionId/extract` (extract with AI consent flag)
+      - `GET /candidate/import/:sessionId` (retrieve session and items)
+      - `GET /candidate/import/sessions` (list user sessions)
+      - `PATCH /candidate/import/:sessionId/items/:itemId` (edit / approve / reject item)
+      - `POST /candidate/import/:sessionId/items/bulk` (bulk review action)
+      - `POST /candidate/import/:sessionId/commit` (transactional commit with confirmation flags)
+      - `POST /candidate/import/:sessionId/discard` (discard session)
+      - `GET /candidate/linkedin/status` (LinkedIn integration capabilities & PDF export guidance)
+  - **7. Frontend User Experience**:
+    - Implemented `SmartProfileImportModal.tsx` with 5-step wizard:
+      - Step 1: Upload (Drag-and-drop PDF/DOCX CV or LinkedIn export)
+      - Step 2: Extraction engine choice & explicit AI consent toggle with privacy notice
+      - Step 3: Interactive side-by-side review & conflict resolution (filters by section and classification badges, edit inline, approve/reject individually or bulk)
+      - Step 4: Final truthfulness acknowledgment & AI authorization toggle
+      - Step 5: Success summary displaying committed count and updated profile completeness score
+    - Integrated modal into `ProfileView.tsx`, `DocumentsView.tsx`, and `DashboardView.tsx`.
+  - **8. Complete Vertical Slice Verification**:
+    - Created and executed `scripts/verify-smart-profile-import.ts`:
+      - Step 1: Document text extraction & normalization (DOCX buffer, text stripping) — PASS
+      - Step 2: Extraction engine (deterministic parsing, source references) — PASS
+      - Step 3: 6-Way classification engine (DUPLICATE, NEW, CONFLICT, MATCHED) — PASS
+      - Step 4: Live Neon DB session creation, extraction, bulk review, and commit — PASS
+      - Step 5: Candidate Brain enrichment, audit trail verification, unverified status invariant — PASS
+      - Teardown: zero orphaned test fixtures — PASS
+  - **9. Quality Verification Records**:
+    - `npm run format:write` & `npm run format`: PASSED (All files conform).
+    - `npm run lint`: PASSED (0 errors, 400 warnings).
+    - `npm run typecheck`: PASSED (0 errors across all 6 workspaces).
+    - `npm test`: PASSED (49/49 test files, 390/390 tests passed).
+    - `npm run build`: PASSED (all packages, API, Worker, and Web SPA bundle).
+    - `npm run db:check`: PASSED (Neon PostgreSQL connected, latency 21ms).
+    - `npm run db:migrate`: PASSED (All migrations up to 0018 applied).

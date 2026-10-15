@@ -48,6 +48,8 @@ import { PilotInvitationService } from './services/auth/pilot-invitation-service
 import { TransactionalEmailService } from './services/email/transactional-email-service.js';
 import { JobDiscoveryService } from './services/job-discovery-service.js';
 import { createSettingsRoutes } from './routes/settings-routes.js';
+import { SmartProfileImportService } from './services/import/smart-profile-import-service.js';
+import { createCandidateImportRoutes } from './routes/candidate-import-routes.js';
 
 export interface AppOptions {
   config: AppConfig;
@@ -69,6 +71,7 @@ export interface AppOptions {
   auth?: BetterAuthInstance;
   pilotInvitationService?: PilotInvitationService;
   transactionalEmailService?: TransactionalEmailService;
+  smartImportService?: SmartProfileImportService;
 }
 
 export function buildApp(options: AppOptions): FastifyInstance {
@@ -167,6 +170,31 @@ export function buildApp(options: AppOptions): FastifyInstance {
     app.register(createCandidateRoutes(candidateService), { prefix: '/api' });
     // Also register at root /candidate/* for direct calls
     app.register(createCandidateRoutes(candidateService));
+
+    // Initialize and register Smart Candidate Profile Import routes (JOB-SMART-PROFILE-IMPORT)
+    let smartImportService = options.smartImportService;
+    if (!smartImportService && db) {
+      const storage = options.storage ?? createStorageProvider(config);
+      const geminiApiKey = config.GEMINI_API_KEY || config.AI_API_KEY;
+      smartImportService = new SmartProfileImportService(
+        db,
+        storage,
+        candidateService,
+        geminiApiKey,
+        config.AI_MODEL,
+      );
+    }
+
+    if (smartImportService) {
+      const linkedInConfig = {
+        clientId: (config as any).LINKEDIN_CLIENT_ID,
+        configured: Boolean((config as any).LINKEDIN_CLIENT_ID),
+      };
+      app.register(createCandidateImportRoutes(smartImportService, linkedInConfig), {
+        prefix: '/api',
+      });
+      app.register(createCandidateImportRoutes(smartImportService, linkedInConfig));
+    }
   }
 
   // Initialize and register Job Ingestion & Match Intelligence routes

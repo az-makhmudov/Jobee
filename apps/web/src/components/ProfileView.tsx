@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { candidateApi } from '../api/candidate-client.js';
+import { SmartProfileImportModal } from './SmartProfileImportModal.js';
 import type {
   CandidateProfileDto,
   CandidateExperienceDto,
@@ -32,6 +33,7 @@ export function ProfileView({ initialTab, onUpdate }: Props) {
   const [tab, setTab] = useState<ProfileTab>((initialTab as ProfileTab) || 'personal');
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ type: 'ok' | 'error'; message: string } | null>(null);
+  const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
 
   // Data states
   const [profile, setProfile] = useState<CandidateProfileDto | null>(null);
@@ -157,11 +159,30 @@ export function ProfileView({ initialTab, onUpdate }: Props) {
 
   return (
     <div>
-      <header className="page-header">
-        <h1 className="page-title">Candidate Profile</h1>
-        <p className="page-subtitle">
-          Manage your verified professional identity, credentials, and facts
-        </p>
+      <header
+        className="page-header"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}
+      >
+        <div>
+          <h1 className="page-title">Candidate Profile</h1>
+          <p className="page-subtitle">
+            Manage your verified professional identity, credentials, and facts
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setIsSmartImportOpen(true)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+        >
+          <span>✨</span> Smart Import CV / LinkedIn
+        </button>
       </header>
 
       {toast && (
@@ -1693,6 +1714,16 @@ export function ProfileView({ initialTab, onUpdate }: Props) {
             </form>
           </div>
         </div>
+      )}
+      {isSmartImportOpen && (
+        <SmartProfileImportModal
+          isOpen={isSmartImportOpen}
+          onClose={() => setIsSmartImportOpen(false)}
+          onSuccess={() => {
+            loadData();
+            onUpdate?.();
+          }}
+        />
       )}
     </div>
   );

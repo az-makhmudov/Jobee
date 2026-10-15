@@ -5,6 +5,7 @@ import { applicationPackageClient } from '../api/application-package-client.js';
 import { ApplicationCrmClient } from '../api/application-crm-client.js';
 import { emailClient } from '../api/email-client.js';
 import { calendarClient } from '../api/calendar-client.js';
+import { SmartProfileImportModal } from './SmartProfileImportModal.js';
 import type {
   CandidateOverviewDto,
   JobDashboardMetricsDto,
@@ -35,6 +36,7 @@ export function DashboardView({ onNavigate }: Props) {
   >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -104,11 +106,30 @@ export function DashboardView({ onNavigate }: Props) {
 
   return (
     <div>
-      <header className="page-header">
-        <h1 className="page-title">Candidate Brain Dashboard</h1>
-        <p className="page-subtitle">
-          Authoritative structured candidate profile, document vault & application guardrails
-        </p>
+      <header
+        className="page-header"
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}
+      >
+        <div>
+          <h1 className="page-title">Candidate Brain Dashboard</h1>
+          <p className="page-subtitle">
+            Authoritative structured candidate profile, document vault & application guardrails
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setIsSmartImportOpen(true)}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+        >
+          <span>✨</span> Smart Import CV / LinkedIn
+        </button>
       </header>
 
       {/* Completeness Card */}
@@ -219,6 +240,40 @@ export function DashboardView({ onNavigate }: Props) {
                 <li key={idx}>{item}</li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {score < 100 && (
+          <div
+            style={{
+              marginTop: '1rem',
+              padding: '0.85rem 1.25rem',
+              backgroundColor: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              borderRadius: '8px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                🚀 Level Up Your Profile Completeness
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Import your Master CV or LinkedIn PDF export to extract and verify career facts with
+                AI assistance.
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setIsSmartImportOpen(true)}
+            >
+              Start Smart Import
+            </button>
           </div>
         )}
       </div>
@@ -975,6 +1030,14 @@ export function DashboardView({ onNavigate }: Props) {
           </div>
         )}
       </div>
+
+      {isSmartImportOpen && (
+        <SmartProfileImportModal
+          isOpen={isSmartImportOpen}
+          onClose={() => setIsSmartImportOpen(false)}
+          onSuccess={() => loadData()}
+        />
+      )}
     </div>
   );
 }

@@ -12,11 +12,11 @@
 ## 1. Roadmap Snapshot
 
 - **Current Official Mode:** Autonomous Product Completion & Production Deployment
-- **Active Backlog Item:** `BL-18: COMPLETED` (`JOB-STUDIO-REPAIR` Production Application Studio Repair: DOCX Generation, R2 Upload & Package Recovery)
-- **Milestone Status:** STUDIO PACKAGE CREATION, R2 UPLOAD & INCOMPLETE-PACKAGE RECOVERY FULLY VERIFIED (ALL 11 PHASES PASSED)
-- **Previous Completed Milestone:** `JOB-E2E-WORKFLOW`
-- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + STUDIO PACKAGE REPAIR FULLY VERIFIED**
-- **Active Git Checkpoint:** `97d63a7` (`JOB-STUDIO-REPAIR`)
+- **Active Backlog Item:** `BL-19: COMPLETED` (`JOB-SMART-PROFILE-IMPORT` Smart Candidate Profile Creation & Enrichment via AI Document Extraction)
+- **Milestone Status:** SMART PROFILE IMPORT (PDF/DOCX/LINKEDIN EXTRACTION, 6-WAY COMPARISON, HUMAN-IN-THE-LOOP REVIEW, CANDIDATE BRAIN COMMIT) FULLY VERIFIED
+- **Previous Completed Milestone:** `JOB-STUDIO-REPAIR`
+- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + STUDIO PACKAGE REPAIR FULLY VERIFIED + SMART PROFILE IMPORT COMPLETED**
+- **Active Git Checkpoint:** Pending Commit (`JOB-SMART-PROFILE-IMPORT`)
 
 ---
 
@@ -59,7 +59,8 @@
 | `JOB-PROD-MIGRATION`       | Production Data Migration & Cloudflare R2 Document Sync            | COMPLETED     | `363aeb1` (BL-15)                                |
 | `JOB-AI-MGMT`              | AI Integration Repair, Gemini 3.8/3.5 Models & Resilient Failover  | COMPLETED     | Verified with live Google API (BL-16)            |
 | `JOB-E2E-WORKFLOW`         | End-to-End Workflow Verification & Stabilization (Phases A-K)      | COMPLETED     | Verified across all 11 phases (BL-17)            |
-| `JOB-STUDIO-REPAIR`        | Production Studio Repair: DOCX Generation, R2 Upload & Recovery    | **COMPLETED** | Verified across all 11 phases (BL-18)            |
+| `JOB-STUDIO-REPAIR`        | Production Studio Repair: DOCX Generation, R2 Upload & Recovery    | COMPLETED     | Verified across all 11 phases (BL-18)            |
+| `JOB-SMART-PROFILE-IMPORT` | Smart Candidate Profile Creation & Enrichment via AI Extraction    | **COMPLETED** | Verified across all 5 steps (BL-19)              |
 
 ---
 

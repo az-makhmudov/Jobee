@@ -127,6 +127,13 @@
       "when": 1791156000000,
       "tag": "0017_verifications_id_default",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792036959256,
+      "tag": "0018_candidate_smart_profile_import",
+      "breakpoints": true
     }
   ]
 }
