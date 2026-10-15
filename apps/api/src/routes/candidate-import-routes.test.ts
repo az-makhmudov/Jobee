@@ -228,4 +228,80 @@ English (Fluent), German (Professional)
     expect(Array.isArray(body.data)).toBe(true);
     expect(body.data.some((s: any) => s.id === createdSessionId)).toBe(true);
   });
+
+  it('POST /api/candidate/import/:sessionId/commit rejects allowAiOnCommit: true if verifyOnCommit: false (Invariant Enforced)', async () => {
+    // Create new session to test commit validation
+    const boundary = '----WebKitFormBoundaryTestValidation123';
+    const payload = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="sourceType"',
+      '',
+      'CV',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="validation_cv.txt"',
+      'Content-Type: text/plain',
+      '',
+      'Alice Dev\nSenior Engineer\nSkills: TypeScript\n',
+      `--${boundary}--`,
+      '',
+    ].join('\r\n');
+
+    const uploadRes = await app.inject({
+      method: 'POST',
+      url: '/api/candidate/import/upload',
+      headers: {
+        'content-type': `multipart/form-data; boundary=${boundary}`,
+      },
+      payload,
+    });
+    const session = JSON.parse(uploadRes.body).data;
+
+    // Try committing with allowAiOnCommit=true and verifyOnCommit=false
+    const commitRes = await app.inject({
+      method: 'POST',
+      url: `/api/candidate/import/${session.id}/commit`,
+      payload: {
+        verifyOnCommit: false,
+        allowAiOnCommit: true,
+      },
+    });
+
+    expect(commitRes.statusCode).toBe(400);
+    const commitBody = JSON.parse(commitRes.body);
+    expect(commitBody.error?.message || commitBody.message).toContain(
+      'allowAiUse=true requires verificationStatus=VERIFIED',
+    );
+  });
+
+  it('POST /api/candidate/import/upload preserves active Master CV by default when replaceMasterCv is false', async () => {
+    const boundary = '----WebKitFormBoundaryTestPreserveMaster';
+    const payload = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="sourceType"',
+      '',
+      'CV',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="replaceMasterCv"',
+      '',
+      'false',
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="supporting_cv.txt"',
+      'Content-Type: text/plain',
+      '',
+      'Bob Dev\nStaff Engineer\n',
+      `--${boundary}--`,
+      '',
+    ].join('\r\n');
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/candidate/import/upload',
+      headers: {
+        'content-type': `multipart/form-data; boundary=${boundary}`,
+      },
+      payload,
+    });
+
+    expect(res.statusCode).toBe(201);
+  });
 });

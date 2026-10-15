@@ -341,8 +341,29 @@ async function main() {
 
     // 4. Commit session into Candidate Brain
     console.log('\n--- Committing Session into Candidate Brain ---');
+    // Test invariant: allowAiUse=true requires verificationStatus=VERIFIED
+    let invariantBlocked = false;
+    try {
+      await importService.commitSession(userId, session.id, {
+        verifyOnCommit: false,
+        allowAiOnCommit: true,
+      });
+    } catch (err: any) {
+      if (err.message?.includes('allowAiUse=true requires verificationStatus=VERIFIED')) {
+        invariantBlocked = true;
+      }
+    }
+    if (!invariantBlocked) {
+      throw new Error(
+        'Expected commitSession to reject allowAiOnCommit: true with verifyOnCommit: false',
+      );
+    }
+    console.log(
+      '✓ Invariant verified: commit rejected when allowAiOnCommit is true but verifyOnCommit is false',
+    );
+
     const commitResult = await importService.commitSession(userId, session.id, {
-      verifyOnCommit: false,
+      verifyOnCommit: true,
       allowAiOnCommit: true,
     });
 

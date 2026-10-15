@@ -18,10 +18,16 @@ export const bulkUpdateProfileImportItemsSchema = z.object({
   action: z.enum(['APPROVE_ALL_NEW', 'APPROVE_ALL', 'REJECT_ALL']),
 });
 
-export const commitProfileImportSchema = z.object({
-  verifyOnCommit: z.boolean().optional().default(false),
-  allowAiOnCommit: z.boolean().optional().default(false),
-});
+export const commitProfileImportSchema = z
+  .object({
+    verifyOnCommit: z.boolean().optional().default(false),
+    allowAiOnCommit: z.boolean().optional().default(false),
+  })
+  .refine((data) => !(data.allowAiOnCommit && !data.verifyOnCommit), {
+    message:
+      'allowAiUse=true requires verificationStatus=VERIFIED. Facts cannot be authorized for AI use without being verified.',
+    path: ['allowAiOnCommit'],
+  });
 
 export const uploadProfileImportQuerySchema = z.object({
   sourceType: z
@@ -32,4 +38,8 @@ export const uploadProfileImportQuerySchema = z.object({
     ])
     .optional()
     .default(ProfileImportSourceTypeEnum.CV),
+  replaceMasterCv: z
+    .string()
+    .optional()
+    .transform((val) => val === 'true'),
 });

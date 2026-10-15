@@ -182,7 +182,14 @@ export class ProfileComparisonEngine {
     const payload = exp as unknown as Record<string, unknown>;
 
     // 1. Check INCOMPLETE
-    if (!exp.organization || !exp.organization.trim() || !exp.position || !exp.position.trim()) {
+    if (
+      !exp.organization ||
+      !exp.organization.trim() ||
+      !exp.position ||
+      !exp.position.trim() ||
+      !exp.startDate ||
+      !exp.startDate.trim()
+    ) {
       return {
         section: 'EXPERIENCE',
         classification: 'INCOMPLETE',
@@ -191,21 +198,27 @@ export class ProfileComparisonEngine {
         extractedPayload: payload,
         existingEntityId: null,
         existingPayload: null,
-        conflictDetails: 'Missing organization or position title',
+        conflictDetails:
+          'Missing required experience fields (organization, position, or start date)',
       };
     }
 
     // 2. Check LOW_CONFIDENCE
-    if (exp.confidence !== undefined && exp.confidence < 0.6) {
+    if (
+      (exp.confidence !== undefined && exp.confidence < 0.6) ||
+      (exp.sourceReference && exp.sourceReference.includes('[Unverified citation]'))
+    ) {
       return {
         section: 'EXPERIENCE',
         classification: 'LOW_CONFIDENCE',
-        confidenceScore: exp.confidence,
+        confidenceScore: exp.confidence ?? 0.35,
         sourceReference: exp.sourceReference || 'Experience section',
         extractedPayload: payload,
         existingEntityId: null,
         existingPayload: null,
-        conflictDetails: 'Ambiguous experience description extracted from document',
+        conflictDetails: exp.sourceReference?.includes('[Unverified citation]')
+          ? 'Source citation could not be verified against the uploaded document text'
+          : 'Ambiguous experience description extracted from document',
       };
     }
 
@@ -301,6 +314,24 @@ export class ProfileComparisonEngine {
       };
     }
 
+    if (
+      (edu.confidence !== undefined && edu.confidence < 0.6) ||
+      (edu.sourceReference && edu.sourceReference.includes('[Unverified citation]'))
+    ) {
+      return {
+        section: 'EDUCATION',
+        classification: 'LOW_CONFIDENCE',
+        confidenceScore: edu.confidence ?? 0.35,
+        sourceReference: edu.sourceReference || `${edu.degree || 'Degree'} at ${edu.institution}`,
+        extractedPayload: payload,
+        existingEntityId: null,
+        existingPayload: null,
+        conflictDetails: edu.sourceReference?.includes('[Unverified citation]')
+          ? 'Source citation could not be verified against the uploaded document text'
+          : 'Low confidence education record extracted from document',
+      };
+    }
+
     const eduInst = edu.institution.trim().toLowerCase();
     const eduDeg = (edu.degree || '').trim().toLowerCase();
 
@@ -374,6 +405,24 @@ export class ProfileComparisonEngine {
       };
     }
 
+    if (
+      (skill.confidence !== undefined && skill.confidence < 0.6) ||
+      (skill.sourceReference && skill.sourceReference.includes('[Unverified citation]'))
+    ) {
+      return {
+        section: 'SKILL',
+        classification: 'LOW_CONFIDENCE',
+        confidenceScore: skill.confidence ?? 0.35,
+        sourceReference: skill.sourceReference || skill.name,
+        extractedPayload: payload,
+        existingEntityId: null,
+        existingPayload: null,
+        conflictDetails: skill.sourceReference?.includes('[Unverified citation]')
+          ? 'Source citation could not be verified against the uploaded document text'
+          : 'Low confidence skill extracted from document',
+      };
+    }
+
     const normSkill = this.normalizeSkillName(skill.name);
 
     for (const ex of existingList) {
@@ -415,7 +464,12 @@ export class ProfileComparisonEngine {
   ): ComparisonItemResult {
     const payload = cert as unknown as Record<string, unknown>;
 
-    if (!cert.name || !cert.name.trim()) {
+    if (
+      !cert.name ||
+      !cert.name.trim() ||
+      !cert.issuingOrganization ||
+      !cert.issuingOrganization.trim()
+    ) {
       return {
         section: 'CERTIFICATION',
         classification: 'INCOMPLETE',
@@ -424,7 +478,25 @@ export class ProfileComparisonEngine {
         extractedPayload: payload,
         existingEntityId: null,
         existingPayload: null,
-        conflictDetails: 'Missing certification name',
+        conflictDetails: 'Missing certification name or issuing organization',
+      };
+    }
+
+    if (
+      (cert.confidence !== undefined && cert.confidence < 0.6) ||
+      (cert.sourceReference && cert.sourceReference.includes('[Unverified citation]'))
+    ) {
+      return {
+        section: 'CERTIFICATION',
+        classification: 'LOW_CONFIDENCE',
+        confidenceScore: cert.confidence ?? 0.35,
+        sourceReference: cert.sourceReference || cert.name,
+        extractedPayload: payload,
+        existingEntityId: null,
+        existingPayload: null,
+        conflictDetails: cert.sourceReference?.includes('[Unverified citation]')
+          ? 'Source citation could not be verified against the uploaded document text'
+          : 'Low confidence certification record extracted from document',
       };
     }
 
@@ -465,7 +537,7 @@ export class ProfileComparisonEngine {
   ): ComparisonItemResult {
     const payload = lang as unknown as Record<string, unknown>;
 
-    if (!lang.language || !lang.language.trim()) {
+    if (!lang.language || !lang.language.trim() || !lang.proficiency || !lang.proficiency.trim()) {
       return {
         section: 'LANGUAGE',
         classification: 'INCOMPLETE',
@@ -474,7 +546,25 @@ export class ProfileComparisonEngine {
         extractedPayload: payload,
         existingEntityId: null,
         existingPayload: null,
-        conflictDetails: 'Missing language name',
+        conflictDetails: 'Missing language name or proficiency',
+      };
+    }
+
+    if (
+      (lang.confidence !== undefined && lang.confidence < 0.6) ||
+      (lang.sourceReference && lang.sourceReference.includes('[Unverified citation]'))
+    ) {
+      return {
+        section: 'LANGUAGE',
+        classification: 'LOW_CONFIDENCE',
+        confidenceScore: lang.confidence ?? 0.35,
+        sourceReference: lang.sourceReference || lang.language,
+        extractedPayload: payload,
+        existingEntityId: null,
+        existingPayload: null,
+        conflictDetails: lang.sourceReference?.includes('[Unverified citation]')
+          ? 'Source citation could not be verified against the uploaded document text'
+          : 'Low confidence language record extracted from document',
       };
     }
 
@@ -527,6 +617,24 @@ export class ProfileComparisonEngine {
       };
     }
 
+    if (
+      (proj.confidence !== undefined && proj.confidence < 0.6) ||
+      (proj.sourceReference && proj.sourceReference.includes('[Unverified citation]'))
+    ) {
+      return {
+        section: 'PROJECT',
+        classification: 'LOW_CONFIDENCE',
+        confidenceScore: proj.confidence ?? 0.35,
+        sourceReference: proj.sourceReference || proj.name,
+        extractedPayload: payload,
+        existingEntityId: null,
+        existingPayload: null,
+        conflictDetails: proj.sourceReference?.includes('[Unverified citation]')
+          ? 'Source citation could not be verified against the uploaded document text'
+          : 'Low confidence project record extracted from document',
+      };
+    }
+
     const projName = proj.name.trim().toLowerCase();
 
     for (const ex of existingList) {
@@ -573,6 +681,24 @@ export class ProfileComparisonEngine {
         existingEntityId: null,
         existingPayload: null,
         conflictDetails: 'Missing link URL',
+      };
+    }
+
+    if (
+      (link.confidence !== undefined && link.confidence < 0.6) ||
+      (link.sourceReference && link.sourceReference.includes('[Unverified citation]'))
+    ) {
+      return {
+        section: 'LINK',
+        classification: 'LOW_CONFIDENCE',
+        confidenceScore: link.confidence ?? 0.35,
+        sourceReference: link.sourceReference || link.url,
+        extractedPayload: payload,
+        existingEntityId: null,
+        existingPayload: null,
+        conflictDetails: link.sourceReference?.includes('[Unverified citation]')
+          ? 'Source citation could not be verified against the uploaded document text'
+          : 'Low confidence link record extracted from document',
       };
     }
 

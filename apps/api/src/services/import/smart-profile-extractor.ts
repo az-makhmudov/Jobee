@@ -30,11 +30,11 @@ const personalProfileSchema = z.object({
 });
 
 const experienceSchema = z.object({
-  organization: z.string(),
-  position: z.string(),
+  organization: z.string().optional().default(''),
+  position: z.string().optional().default(''),
   location: z.string().nullable().optional(),
   employmentType: z.string().nullable().optional(),
-  startDate: z.string(),
+  startDate: z.string().optional().default(''),
   endDate: z.string().nullable().optional(),
   isCurrent: z.boolean().optional().default(false),
   description: z.string().nullable().optional(),
@@ -44,7 +44,7 @@ const experienceSchema = z.object({
 });
 
 const educationSchema = z.object({
-  institution: z.string(),
+  institution: z.string().optional().default(''),
   degree: z.string().nullable().optional(),
   fieldOfStudy: z.string().nullable().optional(),
   startDate: z.string().nullable().optional(),
@@ -58,7 +58,7 @@ const educationSchema = z.object({
 });
 
 const skillSchema = z.object({
-  name: z.string(),
+  name: z.string().optional().default(''),
   category: z.string().nullable().optional(),
   proficiency: z.string().nullable().optional(),
   yearsExperience: z.number().nullable().optional(),
@@ -67,8 +67,8 @@ const skillSchema = z.object({
 });
 
 const certificationSchema = z.object({
-  name: z.string(),
-  issuingOrganization: z.string(),
+  name: z.string().optional().default(''),
+  issuingOrganization: z.string().optional().default(''),
   issueDate: z.string().nullable().optional(),
   expirationDate: z.string().nullable().optional(),
   credentialId: z.string().nullable().optional(),
@@ -78,8 +78,8 @@ const certificationSchema = z.object({
 });
 
 const languageSchema = z.object({
-  language: z.string(),
-  proficiency: z.string(),
+  language: z.string().optional().default(''),
+  proficiency: z.string().optional().default(''),
   cefrLevel: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   sourceReference: z.string().optional().default(''),
@@ -87,7 +87,7 @@ const languageSchema = z.object({
 });
 
 const projectSchema = z.object({
-  name: z.string(),
+  name: z.string().optional().default(''),
   role: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   startDate: z.string().nullable().optional(),
@@ -100,8 +100,8 @@ const projectSchema = z.object({
 });
 
 const linkSchema = z.object({
-  label: z.string(),
-  url: z.string(),
+  label: z.string().optional().default(''),
+  url: z.string().optional().default(''),
   sourceReference: z.string().optional().default(''),
   confidence: z.number().min(0).max(1).optional().default(0.9),
 });
@@ -241,10 +241,81 @@ ${text.slice(0, 16000)}
       const parsed = JSON.parse(content);
       const validated = extractedProfileSchema.parse(parsed);
 
+      // Issue 5: Ground and verify all extracted source citations against the actual document text
+      const verifyItem = (item: { sourceReference?: string; confidence?: number }) => {
+        const isVerified = SmartProfileExtractor.verifySourceReference(item.sourceReference, text);
+        if (!isVerified) {
+          item.confidence = Math.min(item.confidence ?? 0.5, 0.35);
+          item.sourceReference = item.sourceReference
+            ? `[Unverified citation] ${item.sourceReference}`
+            : '[Unverified citation]';
+        }
+      };
+
+      for (const exp of validated.experiences) verifyItem(exp);
+      for (const edu of validated.education) verifyItem(edu);
+      for (const sk of validated.skills) verifyItem(sk);
+      for (const cert of validated.certifications) verifyItem(cert);
+      for (const lang of validated.languages) verifyItem(lang);
+      for (const proj of validated.projects) verifyItem(proj);
+      for (const lk of validated.links) verifyItem(lk);
+
       return validated as ExtractedProfileData;
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  /**
+   * Verifies that an extracted source reference / citation actually exists in the document text.
+   * Returns false if the citation is hallucinated, empty, or cannot be grounded in document text.
+   */
+  public static verifySourceReference(
+    sourceRef: string | undefined | null,
+    documentText: string,
+  ): boolean {
+    if (!sourceRef || typeof sourceRef !== 'string') return false;
+    const trimmed = sourceRef.trim();
+    if (trimmed.length < 3) return false;
+
+    // Clean sourceRef of quotes, bullet points, brackets
+    const cleanRef = trimmed
+      .replace(/^[-*•"'\s]+/, '')
+      .replace(/[-*•"'\s]+$/, '')
+      .toLowerCase();
+
+    if (cleanRef.length < 3) return false;
+
+    const cleanDoc = documentText.toLowerCase();
+
+    // Direct substring check
+    if (cleanDoc.includes(cleanRef)) {
+      return true;
+    }
+
+    // Whitespace-normalized check
+    const normRef = cleanRef.replace(/\s+/g, ' ');
+    const normDoc = cleanDoc.replace(/\s+/g, ' ');
+    if (normDoc.includes(normRef)) {
+      return true;
+    }
+
+    // Multi-token check for longer quotes (at least 70% of distinctive words length >= 4 must appear)
+    const tokens = normRef.split(/[\s,.;:()/\\]+/).filter((t) => t.length >= 4);
+
+    if (tokens.length >= 3) {
+      let matches = 0;
+      for (const tok of tokens) {
+        if (normDoc.includes(tok)) {
+          matches++;
+        }
+      }
+      if (matches / tokens.length >= 0.7) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   /**
@@ -434,11 +505,11 @@ ${text.slice(0, 16000)}
       const dateMatch = line.match(dateRangeRegex);
 
       if (dateMatch) {
-        if (currentExp && currentExp.organization && currentExp.position) {
+        if (currentExp && (currentExp.organization || currentExp.position)) {
           experiences.push({
-            organization: currentExp.organization,
-            position: currentExp.position,
-            startDate: currentExp.startDate || '2020',
+            organization: currentExp.organization || '',
+            position: currentExp.position || '',
+            startDate: currentExp.startDate || '',
             endDate: currentExp.endDate,
             isCurrent: currentExp.isCurrent ?? false,
             description: currentExp.lines.join('\n'),
@@ -446,7 +517,8 @@ ${text.slice(0, 16000)}
               (l) => l.startsWith('•') || l.startsWith('-') || l.startsWith('*'),
             ),
             sourceReference: currentExp.sourceReference,
-            confidence: 0.8,
+            confidence:
+              currentExp.organization && currentExp.position && currentExp.startDate ? 0.8 : 0.4,
           });
         }
 
@@ -454,24 +526,57 @@ ${text.slice(0, 16000)}
         const endStr = dateMatch[2]!.trim();
         const isCurrent = /present|current|now/i.test(endStr);
 
-        // Preceding line often contains Position or Organization
+        // Preceding line often contains Position and/or Organization
         const prevLine = i > 0 ? expLines[i - 1]! : '';
         const parts = line
           .replace(dateMatch[0], '')
           .trim()
-          .split(/[,|@–-]/);
+          .split(/[,|@–-]/)
+          .map((p) => p.trim())
+          .filter(Boolean);
 
-        const rawPos =
-          parts[0]?.trim() ||
-          (prevLine && !prevLine.match(dateRangeRegex) ? prevLine : 'Professional Role') ||
-          'Professional Role';
-        const rawOrg =
-          parts[1]?.trim() ||
-          (parts[0]?.trim() !== rawPos ? parts[0]?.trim() : 'Organization') ||
-          'Organization';
+        let rawPos = '';
+        let rawOrg = '';
 
-        const position = rawPos.replace(/^[-*•]\s*/, '').trim() || 'Professional Role';
-        const organization = rawOrg.replace(/^[-*•]\s*/, '').trim() || 'Organization';
+        if (parts.length >= 2) {
+          rawPos = parts[0]!;
+          rawOrg = parts[1]!;
+        } else if (parts.length === 1) {
+          rawPos = parts[0]!;
+          if (prevLine && !prevLine.match(dateRangeRegex)) {
+            rawOrg = prevLine;
+          }
+        } else if (prevLine && !prevLine.match(dateRangeRegex)) {
+          // Check if prevLine has split tokens like "Org - Role" or "Role at Org"
+          const titlePattern =
+            /\b(engineer|developer|architect|lead|manager|director|analyst|designer|consultant|specialist|officer|intern|founder|vp|head)\b/i;
+          if (/\bat\b/i.test(prevLine)) {
+            const atParts = prevLine.split(/\s+at\s+/i);
+            rawPos = atParts[0]?.trim() || '';
+            rawOrg = atParts[1]?.trim() || '';
+          } else {
+            const dashParts = prevLine.split(/\s*[-–|@]\s*/);
+            if (dashParts.length >= 2) {
+              const p0 = dashParts[0]?.trim() || '';
+              const p1 = dashParts[1]?.trim() || '';
+              if (titlePattern.test(p1) && !titlePattern.test(p0)) {
+                rawOrg = p0;
+                rawPos = p1;
+              } else if (titlePattern.test(p0) && !titlePattern.test(p1)) {
+                rawPos = p0;
+                rawOrg = p1;
+              } else {
+                rawOrg = p0;
+                rawPos = p1;
+              }
+            } else {
+              rawPos = prevLine;
+            }
+          }
+        }
+
+        const position = rawPos.replace(/^[-*•]\s*/, '').trim();
+        const organization = rawOrg.replace(/^[-*•]\s*/, '').trim();
 
         currentExp = {
           position,
@@ -480,7 +585,7 @@ ${text.slice(0, 16000)}
           endDate: isCurrent ? null : endStr,
           isCurrent,
           sourceReference: line,
-          confidence: 0.8,
+          confidence: position && organization && startStr ? 0.8 : 0.4,
           lines: [],
         };
       } else if (currentExp) {
@@ -488,11 +593,11 @@ ${text.slice(0, 16000)}
       }
     }
 
-    if (currentExp && currentExp.organization && currentExp.position) {
+    if (currentExp && (currentExp.organization || currentExp.position)) {
       experiences.push({
-        organization: currentExp.organization,
-        position: currentExp.position,
-        startDate: currentExp.startDate || '2020',
+        organization: currentExp.organization || '',
+        position: currentExp.position || '',
+        startDate: currentExp.startDate || '',
         endDate: currentExp.endDate,
         isCurrent: currentExp.isCurrent ?? false,
         description: currentExp.lines.join('\n'),
@@ -500,7 +605,8 @@ ${text.slice(0, 16000)}
           (l) => l.startsWith('•') || l.startsWith('-') || l.startsWith('*'),
         ),
         sourceReference: currentExp.sourceReference,
-        confidence: 0.8,
+        confidence:
+          currentExp.organization && currentExp.position && currentExp.startDate ? 0.8 : 0.4,
       });
     }
 
@@ -578,9 +684,9 @@ ${text.slice(0, 16000)}
       if (trimmed.length > 3) {
         certifications.push({
           name: trimmed,
-          issuingOrganization: 'Organization',
+          issuingOrganization: '',
           sourceReference: cLine,
-          confidence: 0.75,
+          confidence: 0.5,
         });
       }
     }

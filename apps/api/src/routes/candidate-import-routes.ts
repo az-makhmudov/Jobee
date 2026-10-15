@@ -44,6 +44,10 @@ export function createCandidateImportRoutes(
         ? (rawSourceType.toUpperCase() as 'CV' | 'LINKEDIN_PDF' | 'LINKEDIN_ARCHIVE')
         : 'CV';
 
+      const rawReplace =
+        (fields.replaceMasterCv?.value as string | boolean | undefined) ?? query.replaceMasterCv;
+      const replaceMasterCv = rawReplace === true || rawReplace === 'true';
+
       const session = await service.createSession(
         userId,
         buffer,
@@ -52,6 +56,7 @@ export function createCandidateImportRoutes(
           mimeType: data.mimetype,
         },
         sourceType,
+        { replaceMasterCv },
       );
 
       reply.status(201);

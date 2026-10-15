@@ -27,12 +27,33 @@ export class DocumentTextExtractor {
       mimeType === 'application/pdf' ||
       ext === 'pdf' ||
       (buffer.length > 4 && buffer.slice(0, 4).toString('utf-8') === '%PDF');
-    const isDocx =
-      mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-      ext === 'docx' ||
-      (buffer.length > 4 && buffer.slice(0, 2).toString('utf-8') === 'PK');
+
+    const isZip = buffer.length > 4 && buffer[0] === 0x50 && buffer[1] === 0x4b; // PK signature
+
     const isCsv = mimeType === 'text/csv' || ext === 'csv';
     const isJson = mimeType === 'application/json' || ext === 'json';
+
+    // Unsupported non-zip archive extensions
+    const unsupportedArchiveExts = ['tar', 'gz', 'tgz', 'bz2', '7z', 'rar'];
+    const isGzip = buffer.length > 2 && buffer[0] === 0x1f && buffer[1] === 0x8b;
+    const is7z =
+      buffer.length > 4 &&
+      buffer[0] === 0x37 &&
+      buffer[1] === 0x7a &&
+      buffer[2] === 0xbc &&
+      buffer[3] === 0xaf;
+    const isRar =
+      buffer.length > 4 &&
+      buffer[0] === 0x52 &&
+      buffer[1] === 0x61 &&
+      buffer[2] === 0x72 &&
+      buffer[3] === 0x21;
+
+    if (unsupportedArchiveExts.includes(ext) || isGzip || is7z || isRar) {
+      throw AppError.badRequest(
+        `Unsupported archive format: "${filename}". If uploading a LinkedIn profile export, please export and upload as PDF (More -> Save to PDF) or upload a standard CV (PDF/DOCX).`,
+      );
+    }
 
     let rawText = '';
     let detectedFormat: ExtractedDocumentText['detectedFormat'] = 'UNKNOWN';
@@ -43,9 +64,15 @@ export class DocumentTextExtractor {
       const pdfResult = await this.extractFromPdf(buffer);
       rawText = pdfResult.text;
       pageCount = pdfResult.pageCount;
-    } else if (isDocx) {
-      detectedFormat = 'DOCX';
-      rawText = await this.extractFromDocx(buffer);
+    } else if (
+      ext === 'docx' ||
+      mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      isZip
+    ) {
+      // Disambiguate DOCX vs other ZIP archives
+      const zipExtraction = await this.extractFromZipOrDocx(buffer, filename);
+      detectedFormat = zipExtraction.format;
+      rawText = zipExtraction.text;
     } else if (isCsv) {
       detectedFormat = 'CSV';
       rawText = buffer.toString('utf-8');
@@ -53,7 +80,12 @@ export class DocumentTextExtractor {
       detectedFormat = 'JSON';
       rawText = buffer.toString('utf-8');
     } else {
-      // Default to UTF-8 text if printable
+      // Check for binary data
+      if (this.isBinaryBuffer(buffer)) {
+        throw AppError.badRequest(
+          `Unsupported or binary document format in "${filename}". Please upload a supported PDF or DOCX document.`,
+        );
+      }
       detectedFormat = 'TXT';
       rawText = buffer.toString('utf-8');
     }
@@ -124,24 +156,86 @@ export class DocumentTextExtractor {
   }
 
   /**
-   * DOCX text extraction by reading word/document.xml from the ZIP package
+   * Disambiguates and extracts text from ZIP archives:
+   * 1. Word DOCX packages (containing word/document.xml)
+   * 2. LinkedIn export archives (containing Profile/Positions CSV files)
+   * Rejects non-LinkedIn / unsupported ZIP archives with clear descriptive error.
    */
-  private static async extractFromDocx(buffer: Buffer): Promise<string> {
+  private static async extractFromZipOrDocx(
+    buffer: Buffer,
+    filename: string,
+  ): Promise<{ format: 'DOCX' | 'CSV'; text: string }> {
+    let zip: JSZip;
     try {
-      const zip = await JSZip.loadAsync(buffer);
-      const documentXmlFile = zip.file('word/document.xml');
-
-      if (!documentXmlFile) {
-        throw new Error('Invalid DOCX format: word/document.xml not found');
-      }
-
-      const xml = await documentXmlFile.async('text');
-      return this.parseWordprocessingXml(xml);
+      zip = await JSZip.loadAsync(buffer);
     } catch (err) {
       throw AppError.badRequest(
-        `Failed to parse DOCX document: ${err instanceof Error ? err.message : String(err)}`,
+        `Failed to read archive "${filename}": ${err instanceof Error ? err.message : String(err)}`,
       );
     }
+
+    // 1. Check for DOCX
+    const docXml = zip.file('word/document.xml');
+    if (docXml) {
+      const xml = await docXml.async('text');
+      const text = this.parseWordprocessingXml(xml);
+      return { format: 'DOCX', text };
+    }
+
+    // 2. Check for LinkedIn data export CSVs
+    const linkedInCsvNames = [
+      'Profile.csv',
+      'Positions.csv',
+      'Education.csv',
+      'Skills.csv',
+      'Certifications.csv',
+      'Languages.csv',
+      'Projects.csv',
+    ];
+
+    const foundCsvs: Array<{ name: string; content: string }> = [];
+    for (const csvName of linkedInCsvNames) {
+      const regex = new RegExp(`(^|/)${csvName}$`, 'i');
+      const matchedFiles = zip.file(regex);
+      if (matchedFiles.length > 0) {
+        const content = await matchedFiles[0]!.async('text');
+        foundCsvs.push({ name: csvName, content });
+      }
+    }
+
+    if (foundCsvs.length > 0) {
+      const combinedText = foundCsvs
+        .map((f) => `--- LinkedIn ${f.name} ---\n${f.content}`)
+        .join('\n\n');
+      return { format: 'CSV', text: combinedText };
+    }
+
+    // Neither DOCX nor LinkedIn data export
+    throw AppError.badRequest(
+      `Unsupported ZIP archive format in "${filename}". ZIP archives must either be a Word document (.docx) or a recognized LinkedIn data export containing Profile/Positions CSV files. For LinkedIn profiles, we recommend exporting directly to PDF (More -> Save to PDF) or uploading your CV.`,
+    );
+  }
+
+  /**
+   * Detects if an arbitrary buffer contains binary data rather than text.
+   */
+  public static isBinaryBuffer(buffer: Buffer): boolean {
+    const checkLength = Math.min(buffer.length, 1024);
+    if (checkLength === 0) return false;
+
+    let nonPrintableCount = 0;
+    for (let i = 0; i < checkLength; i++) {
+      const byte = buffer[i]!;
+      // Null byte is a definitive binary indicator
+      if (byte === 0x00) return true;
+      // Printable ASCII is 32-126. Valid whitespace is 9 (\t), 10 (\n), 13 (\r).
+      if (byte < 32 && byte !== 9 && byte !== 10 && byte !== 13) {
+        nonPrintableCount++;
+      }
+    }
+
+    // If more than 5% non-printable control characters, treat as binary
+    return nonPrintableCount / checkLength > 0.05;
   }
 
   /**

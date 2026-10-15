@@ -26,6 +26,7 @@ export function SmartProfileImportModal({
   const [step, setStep] = useState<WizardStep>('UPLOAD');
   const [sourceType, setSourceType] = useState<ProfileImportSourceType>(initialSourceType);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [replaceMasterCv, setReplaceMasterCv] = useState(false);
   const [aiConsent, setAiConsent] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +54,7 @@ export function SmartProfileImportModal({
     if (isOpen) {
       setStep('UPLOAD');
       setSelectedFile(null);
+      setReplaceMasterCv(false);
       setError(null);
       setSession(null);
       setItems([]);
@@ -78,6 +80,7 @@ export function SmartProfileImportModal({
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('sourceType', sourceType);
+      formData.append('replaceMasterCv', String(replaceMasterCv));
 
       const createdSession = await candidateImportApi.upload(formData);
       setSession(createdSession);
@@ -412,6 +415,39 @@ export function SmartProfileImportModal({
                   )}
                 </div>
 
+                {sourceType === 'CV' && (
+                  <div
+                    style={{
+                      marginBottom: '1rem',
+                      padding: '0.75rem 1rem',
+                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                    }}
+                  >
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.6rem',
+                        cursor: 'pointer',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={replaceMasterCv}
+                        onChange={(e) => setReplaceMasterCv(e.target.checked)}
+                      />
+                      <span>
+                        <strong>Replace active Master CV:</strong> Set this document as your active
+                        Master CV in Document Vault. (If unchecked, your existing Master CV is
+                        preserved and this file is stored as an additional supporting CV).
+                      </span>
+                    </label>
+                  </div>
+                )}
+
                 <div
                   style={{
                     display: 'flex',
@@ -718,7 +754,13 @@ export function SmartProfileImportModal({
                     <input
                       type="checkbox"
                       checked={verifyOnCommit}
-                      onChange={(e) => setVerifyOnCommit(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setVerifyOnCommit(checked);
+                        if (!checked) {
+                          setAllowAiOnCommit(false);
+                        }
+                      }}
                       style={{ marginTop: '0.2rem' }}
                     />
                     <div>
@@ -745,7 +787,13 @@ export function SmartProfileImportModal({
                     <input
                       type="checkbox"
                       checked={allowAiOnCommit}
-                      onChange={(e) => setAllowAiOnCommit(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setAllowAiOnCommit(checked);
+                        if (checked) {
+                          setVerifyOnCommit(true);
+                        }
+                      }}
                       style={{ marginTop: '0.2rem' }}
                     />
                     <div>
@@ -754,7 +802,10 @@ export function SmartProfileImportModal({
                       </div>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                         If enabled, Jobee's Application Studio can use these facts when crafting
-                        truthful, tailored CVs and cover letters.
+                        truthful, tailored CVs and cover letters.{' '}
+                        <em>
+                          (Requires items to be VERIFIED — unverified facts cannot be used by AI)
+                        </em>
                       </div>
                     </div>
                   </label>

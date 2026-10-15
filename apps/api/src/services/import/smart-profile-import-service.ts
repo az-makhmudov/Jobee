@@ -47,24 +47,66 @@ export class SmartProfileImportService {
 
   /**
    * Uploads resume/LinkedIn document, saves to private storage, creates import session
+   * Preserves existing Master CV unless replaceMasterCv is explicitly true.
    */
   public async createSession(
     userId: string,
     fileBuffer: Buffer,
     fileMeta: { originalFilename: string; mimeType: string },
     sourceType: ProfileImportSourceType = 'CV',
+    options?: { replaceMasterCv?: boolean },
   ): Promise<ProfileImportSessionDto> {
     // 1. Upload to storage
     const storageResult = await this.storage.saveFile(fileBuffer, fileMeta);
 
-    // 2. Also register in Document Vault as a candidate document
-    const isMaster = sourceType === 'CV';
+    // 2. Check for existing active Master CV
+    const [existingMaster] = await this.db
+      .select({ id: candidateDocuments.id })
+      .from(candidateDocuments)
+      .where(
+        and(
+          eq(candidateDocuments.userId, userId),
+          eq(candidateDocuments.isMaster, true),
+          eq(candidateDocuments.isActive, true),
+        ),
+      )
+      .limit(1);
+
+    let isMaster = false;
+    let documentType: 'MASTER_CV' | 'CV' | 'OTHER' = 'OTHER';
+
+    if (sourceType === 'CV') {
+      if (existingMaster) {
+        if (options?.replaceMasterCv === true) {
+          // Explicit opt-in to replace master CV: demote previous master
+          await this.db
+            .update(candidateDocuments)
+            .set({ isMaster: false, updatedAt: new Date() })
+            .where(eq(candidateDocuments.id, existingMaster.id));
+          isMaster = true;
+          documentType = 'MASTER_CV';
+        } else {
+          // Preserve existing master CV: store this as supporting CV
+          isMaster = false;
+          documentType = 'CV';
+        }
+      } else {
+        // No existing master CV: this becomes the master CV
+        isMaster = true;
+        documentType = 'MASTER_CV';
+      }
+    } else if (sourceType === 'LINKEDIN_PDF') {
+      isMaster = false;
+      documentType = 'OTHER';
+    }
+
+    // Register in Document Vault as a candidate document
     const [docRow] = await this.db
       .insert(candidateDocuments)
       .values({
         userId,
-        documentType: sourceType === 'LINKEDIN_PDF' ? 'OTHER' : 'MASTER_CV',
-        displayName: `${sourceType === 'LINKEDIN_PDF' ? 'LinkedIn Export' : 'CV'} - ${fileMeta.originalFilename}`,
+        documentType,
+        displayName: `${sourceType === 'LINKEDIN_PDF' ? 'LinkedIn Export' : isMaster ? 'Master CV' : 'CV'} - ${fileMeta.originalFilename}`,
         originalFilename: fileMeta.originalFilename,
         mimeType: fileMeta.mimeType,
         sizeBytes: storageResult.sizeBytes,
@@ -297,6 +339,13 @@ export class SmartProfileImportService {
         eq(profileImportItems.userId, userId),
         eq(profileImportItems.classification, 'NEW'),
       );
+    } else if (action === 'APPROVE_ALL') {
+      // APPROVE_ALL approves valid items, but skips INCOMPLETE and CONFLICT items which require explicit human review/editing
+      whereClause = and(
+        eq(profileImportItems.sessionId, sessionId),
+        eq(profileImportItems.userId, userId),
+        sql`${profileImportItems.classification} NOT IN ('INCOMPLETE', 'CONFLICT')`,
+      );
     }
 
     const newStatus: ProfileImportReviewStatus = action === 'REJECT_ALL' ? 'REJECTED' : 'APPROVED';
@@ -349,9 +398,15 @@ export class SmartProfileImportService {
       throw AppError.badRequest('No approved items found to commit');
     }
 
+    if (options.allowAiOnCommit && !options.verifyOnCommit) {
+      throw AppError.badRequest(
+        'allowAiUse=true requires verificationStatus=VERIFIED. Facts cannot be authorized for AI use without being verified.',
+      );
+    }
+
     const verificationStatus = options.verifyOnCommit ? 'VERIFIED' : 'UNVERIFIED';
-    const allowAiUse = options.allowAiOnCommit ?? false;
-    const sourceType = session.sourceType === 'LINKEDIN_PDF' ? 'DOCUMENT' : 'DOCUMENT';
+    const allowAiUse = verificationStatus === 'VERIFIED' && Boolean(options.allowAiOnCommit);
+    const sourceType = 'DOCUMENT';
 
     let profileUpdated = false;
     let experiencesCreated = 0;
@@ -367,6 +422,222 @@ export class SmartProfileImportService {
     await this.db.transaction(async (tx) => {
       for (const item of approvedItems) {
         const payload = (item.userEditedPayload || item.extractedPayload) as Record<string, any>;
+
+        // Issue 2: Handle DUPLICATE and MATCHED records
+        if (item.classification === 'MATCHED' || item.classification === 'DUPLICATE') {
+          if (item.reviewStatus === 'APPROVED') {
+            // Already present in candidate brain; approved without edit: skip re-insertion
+            continue;
+          }
+          if (item.reviewStatus === 'EDITED' && item.existingEntityId) {
+            // Edited during review: update existing entity in database rather than inserting duplicate
+            switch (item.section) {
+              case 'EXPERIENCE': {
+                await tx
+                  .update(candidateExperiences)
+                  .set({
+                    organization: payload.organization,
+                    position: payload.position,
+                    location: payload.location || null,
+                    employmentType: payload.employmentType || null,
+                    startDate: payload.startDate,
+                    endDate: payload.endDate || null,
+                    isCurrent: payload.isCurrent ?? false,
+                    description: payload.description || null,
+                    achievements: Array.isArray(payload.achievements) ? payload.achievements : [],
+                    verificationStatus,
+                    updatedAt: new Date(),
+                  })
+                  .where(
+                    and(
+                      eq(candidateExperiences.id, item.existingEntityId),
+                      eq(candidateExperiences.userId, userId),
+                    ),
+                  );
+                await this.recordAuditTx(tx, {
+                  userId,
+                  entityType: 'EXPERIENCE',
+                  entityId: item.existingEntityId,
+                  action: 'UPDATE',
+                  changedFields: Object.keys(payload),
+                  metadata: { source: session.sourceType, sessionId },
+                });
+                break;
+              }
+              case 'EDUCATION': {
+                await tx
+                  .update(candidateEducation)
+                  .set({
+                    institution: payload.institution,
+                    degree: payload.degree || null,
+                    fieldOfStudy: payload.fieldOfStudy || null,
+                    startDate: payload.startDate || null,
+                    endDate: payload.endDate || null,
+                    isCurrent: payload.isCurrent ?? false,
+                    location: payload.location || null,
+                    description: payload.description || null,
+                    activities: payload.activities || null,
+                    verificationStatus,
+                    updatedAt: new Date(),
+                  })
+                  .where(
+                    and(
+                      eq(candidateEducation.id, item.existingEntityId),
+                      eq(candidateEducation.userId, userId),
+                    ),
+                  );
+                await this.recordAuditTx(tx, {
+                  userId,
+                  entityType: 'EDUCATION',
+                  entityId: item.existingEntityId,
+                  action: 'UPDATE',
+                  changedFields: Object.keys(payload),
+                  metadata: { source: session.sourceType, sessionId },
+                });
+                break;
+              }
+              case 'SKILL': {
+                await tx
+                  .update(candidateSkills)
+                  .set({
+                    name: payload.name,
+                    category: payload.category || null,
+                    proficiency: payload.proficiency || null,
+                    yearsExperience: payload.yearsExperience ?? null,
+                    verificationStatus,
+                    updatedAt: new Date(),
+                  })
+                  .where(
+                    and(
+                      eq(candidateSkills.id, item.existingEntityId),
+                      eq(candidateSkills.userId, userId),
+                    ),
+                  );
+                await this.recordAuditTx(tx, {
+                  userId,
+                  entityType: 'SKILL',
+                  entityId: item.existingEntityId,
+                  action: 'UPDATE',
+                  changedFields: Object.keys(payload),
+                  metadata: { source: session.sourceType, sessionId },
+                });
+                break;
+              }
+              case 'CERTIFICATION': {
+                await tx
+                  .update(candidateCertifications)
+                  .set({
+                    name: payload.name,
+                    issuingOrganization: payload.issuingOrganization,
+                    issueDate: payload.issueDate || null,
+                    expirationDate: payload.expirationDate || null,
+                    credentialId: payload.credentialId || null,
+                    credentialUrl: payload.credentialUrl || null,
+                    verificationStatus,
+                    updatedAt: new Date(),
+                  })
+                  .where(
+                    and(
+                      eq(candidateCertifications.id, item.existingEntityId),
+                      eq(candidateCertifications.userId, userId),
+                    ),
+                  );
+                await this.recordAuditTx(tx, {
+                  userId,
+                  entityType: 'CERTIFICATION',
+                  entityId: item.existingEntityId,
+                  action: 'UPDATE',
+                  changedFields: Object.keys(payload),
+                  metadata: { source: session.sourceType, sessionId },
+                });
+                break;
+              }
+              case 'LANGUAGE': {
+                await tx
+                  .update(candidateLanguages)
+                  .set({
+                    language: payload.language,
+                    proficiency: payload.proficiency,
+                    cefrLevel: payload.cefrLevel || null,
+                    notes: payload.notes || null,
+                    verificationStatus,
+                    updatedAt: new Date(),
+                  })
+                  .where(
+                    and(
+                      eq(candidateLanguages.id, item.existingEntityId),
+                      eq(candidateLanguages.userId, userId),
+                    ),
+                  );
+                await this.recordAuditTx(tx, {
+                  userId,
+                  entityType: 'LANGUAGE',
+                  entityId: item.existingEntityId,
+                  action: 'UPDATE',
+                  changedFields: Object.keys(payload),
+                  metadata: { source: session.sourceType, sessionId },
+                });
+                break;
+              }
+              case 'PROJECT': {
+                await tx
+                  .update(candidateProjects)
+                  .set({
+                    name: payload.name,
+                    role: payload.role || null,
+                    description: payload.description || null,
+                    startDate: payload.startDate || null,
+                    endDate: payload.endDate || null,
+                    projectUrl: payload.projectUrl || null,
+                    skills: Array.isArray(payload.skills) ? payload.skills : [],
+                    achievements: Array.isArray(payload.achievements) ? payload.achievements : [],
+                    verificationStatus,
+                    updatedAt: new Date(),
+                  })
+                  .where(
+                    and(
+                      eq(candidateProjects.id, item.existingEntityId),
+                      eq(candidateProjects.userId, userId),
+                    ),
+                  );
+                await this.recordAuditTx(tx, {
+                  userId,
+                  entityType: 'PROJECT',
+                  entityId: item.existingEntityId,
+                  action: 'UPDATE',
+                  changedFields: Object.keys(payload),
+                  metadata: { source: session.sourceType, sessionId },
+                });
+                break;
+              }
+              case 'LINK': {
+                await tx
+                  .update(candidateLinks)
+                  .set({
+                    label: payload.label,
+                    url: payload.url,
+                    updatedAt: new Date(),
+                  })
+                  .where(
+                    and(
+                      eq(candidateLinks.id, item.existingEntityId),
+                      eq(candidateLinks.userId, userId),
+                    ),
+                  );
+                await this.recordAuditTx(tx, {
+                  userId,
+                  entityType: 'LINK',
+                  entityId: item.existingEntityId,
+                  action: 'UPDATE',
+                  changedFields: Object.keys(payload),
+                  metadata: { source: session.sourceType, sessionId },
+                });
+                break;
+              }
+            }
+            continue;
+          }
+        }
 
         switch (item.section) {
           case 'PROFILE': {
@@ -413,15 +684,38 @@ export class SmartProfileImportService {
           }
 
           case 'EXPERIENCE': {
+            if (
+              !payload.organization?.trim() ||
+              !payload.position?.trim() ||
+              !payload.startDate?.trim()
+            ) {
+              throw AppError.badRequest(
+                'Cannot commit experience: missing required organization, position, or start date',
+              );
+            }
+
+            // Deduplication check: do not insert duplicate experience
+            const existingExp = await tx.query.candidateExperiences.findFirst({
+              where: and(
+                eq(candidateExperiences.userId, userId),
+                sql`LOWER(TRIM(${candidateExperiences.organization})) = LOWER(TRIM(${payload.organization}))`,
+                sql`LOWER(TRIM(${candidateExperiences.position})) = LOWER(TRIM(${payload.position}))`,
+                sql`LOWER(TRIM(${candidateExperiences.startDate})) = LOWER(TRIM(${payload.startDate}))`,
+              ),
+            });
+            if (existingExp) {
+              continue;
+            }
+
             const [exp] = await tx
               .insert(candidateExperiences)
               .values({
                 userId,
-                organization: payload.organization || 'Organization',
-                position: payload.position || 'Role',
+                organization: payload.organization.trim(),
+                position: payload.position.trim(),
                 location: payload.location || null,
                 employmentType: payload.employmentType || null,
-                startDate: payload.startDate || '2020',
+                startDate: payload.startDate.trim(),
                 endDate: payload.endDate || null,
                 isCurrent: payload.isCurrent ?? false,
                 description: payload.description || null,
@@ -459,11 +753,30 @@ export class SmartProfileImportService {
           }
 
           case 'EDUCATION': {
+            if (!payload.institution?.trim()) {
+              throw AppError.badRequest(
+                'Cannot commit education: missing required institution name',
+              );
+            }
+
+            const existingEdu = await tx.query.candidateEducation.findFirst({
+              where: and(
+                eq(candidateEducation.userId, userId),
+                sql`LOWER(TRIM(${candidateEducation.institution})) = LOWER(TRIM(${payload.institution}))`,
+                payload.degree
+                  ? sql`LOWER(TRIM(COALESCE(${candidateEducation.degree}, ''))) = LOWER(TRIM(${payload.degree}))`
+                  : sql`1=1`,
+              ),
+            });
+            if (existingEdu) {
+              continue;
+            }
+
             const [edu] = await tx
               .insert(candidateEducation)
               .values({
                 userId,
-                institution: payload.institution || 'Institution',
+                institution: payload.institution.trim(),
                 degree: payload.degree || null,
                 fieldOfStudy: payload.fieldOfStudy || null,
                 startDate: payload.startDate || null,
@@ -504,11 +817,26 @@ export class SmartProfileImportService {
           }
 
           case 'SKILL': {
+            if (!payload.name?.trim()) {
+              throw AppError.badRequest('Cannot commit skill: missing required skill name');
+            }
+
+            const normName = payload.name.trim().toLowerCase();
+            const existingSkill = await tx.query.candidateSkills.findFirst({
+              where: and(
+                eq(candidateSkills.userId, userId),
+                sql`LOWER(TRIM(${candidateSkills.name})) = ${normName}`,
+              ),
+            });
+            if (existingSkill) {
+              continue;
+            }
+
             const [sk] = await tx
               .insert(candidateSkills)
               .values({
                 userId,
-                name: payload.name || 'Skill',
+                name: payload.name.trim(),
                 category: payload.category || null,
                 proficiency: payload.proficiency || null,
                 yearsExperience: payload.yearsExperience ?? null,
@@ -545,12 +873,28 @@ export class SmartProfileImportService {
           }
 
           case 'CERTIFICATION': {
+            if (!payload.name?.trim() || !payload.issuingOrganization?.trim()) {
+              throw AppError.badRequest(
+                'Cannot commit certification: missing required certification name or issuing organization',
+              );
+            }
+
+            const existingCert = await tx.query.candidateCertifications.findFirst({
+              where: and(
+                eq(candidateCertifications.userId, userId),
+                sql`LOWER(TRIM(${candidateCertifications.name})) = LOWER(TRIM(${payload.name}))`,
+              ),
+            });
+            if (existingCert) {
+              continue;
+            }
+
             const [cert] = await tx
               .insert(candidateCertifications)
               .values({
                 userId,
-                name: payload.name || 'Certification',
-                issuingOrganization: payload.issuingOrganization || 'Issuing Body',
+                name: payload.name.trim(),
+                issuingOrganization: payload.issuingOrganization.trim(),
                 issueDate: payload.issueDate || null,
                 expirationDate: payload.expirationDate || null,
                 credentialId: payload.credentialId || null,
@@ -587,12 +931,28 @@ export class SmartProfileImportService {
           }
 
           case 'LANGUAGE': {
+            if (!payload.language?.trim() || !payload.proficiency?.trim()) {
+              throw AppError.badRequest(
+                'Cannot commit language: missing required language or proficiency',
+              );
+            }
+
+            const existingLang = await tx.query.candidateLanguages.findFirst({
+              where: and(
+                eq(candidateLanguages.userId, userId),
+                sql`LOWER(TRIM(${candidateLanguages.language})) = LOWER(TRIM(${payload.language}))`,
+              ),
+            });
+            if (existingLang) {
+              continue;
+            }
+
             const [lang] = await tx
               .insert(candidateLanguages)
               .values({
                 userId,
-                language: payload.language || 'Language',
-                proficiency: payload.proficiency || 'Professional',
+                language: payload.language.trim(),
+                proficiency: payload.proficiency.trim(),
                 cefrLevel: payload.cefrLevel || null,
                 notes: payload.notes || null,
                 verificationStatus,
@@ -614,11 +974,25 @@ export class SmartProfileImportService {
           }
 
           case 'PROJECT': {
+            if (!payload.name?.trim()) {
+              throw AppError.badRequest('Cannot commit project: missing required project name');
+            }
+
+            const existingProj = await tx.query.candidateProjects.findFirst({
+              where: and(
+                eq(candidateProjects.userId, userId),
+                sql`LOWER(TRIM(${candidateProjects.name})) = LOWER(TRIM(${payload.name}))`,
+              ),
+            });
+            if (existingProj) {
+              continue;
+            }
+
             const [proj] = await tx
               .insert(candidateProjects)
               .values({
                 userId,
-                name: payload.name || 'Project',
+                name: payload.name.trim(),
                 role: payload.role || null,
                 description: payload.description || null,
                 startDate: payload.startDate || null,
@@ -645,12 +1019,26 @@ export class SmartProfileImportService {
           }
 
           case 'LINK': {
+            if (!payload.url?.trim()) {
+              throw AppError.badRequest('Cannot commit link: missing required URL');
+            }
+
+            const existingLink = await tx.query.candidateLinks.findFirst({
+              where: and(
+                eq(candidateLinks.userId, userId),
+                sql`LOWER(TRIM(${candidateLinks.url})) = LOWER(TRIM(${payload.url}))`,
+              ),
+            });
+            if (existingLink) {
+              continue;
+            }
+
             const [lk] = await tx
               .insert(candidateLinks)
               .values({
                 userId,
-                label: payload.label || 'Link',
-                url: payload.url || 'https://',
+                label: payload.label || 'Portfolio',
+                url: payload.url.trim(),
               })
               .returning();
 

@@ -1371,3 +1371,13 @@ This document tracks execution history and verification state for all official m
     - `npm run build`: PASSED (all packages, API, Worker, and Web SPA bundle).
     - `npm run db:check`: PASSED (Neon PostgreSQL connected, latency 21ms).
     - `npm run db:migrate`: PASSED (All migrations up to 0018 applied).
+  - **10. Hardening & Correctness Remediation**:
+    - Remediated 6 critical correctness and invariant issues:
+      1. Removed all invented fallback values ('2020', 'Organization', 'Professional Role', generic credentials); missing required fields remain empty and trigger human review via `INCOMPLETE` classification.
+      2. Prevented duplicate and matched records from being re-inserted during import commits; updated existing entities in DB when edited during review.
+      3. Enforced invariant: `allowAiUse=true` strictly requires `verificationStatus=VERIFIED` across Zod schemas, backend service, and frontend UI.
+      4. Preserved existing active Master CV unless user explicitly chooses to replace it (`replaceMasterCv: true` opt-in).
+      5. Grounded and verified all AI citations against actual document text (`verifySourceReference`); ungrounded citations are tagged with `[Unverified citation]` and classified as `LOW_CONFIDENCE`.
+      6. Enforced clear failure for unsupported LinkedIn archives (tar, gz, 7z, rar, non-LinkedIn zip, binary) with descriptive 400 Bad Request error.
+    - Added dedicated regression test suite `smart-profile-import-hardening.test.ts` (16/16 tests passing).
+    - All 50 test files (408/408 tests) passing; end-to-end verification script `verify-smart-profile-import.ts` passed cleanly.
