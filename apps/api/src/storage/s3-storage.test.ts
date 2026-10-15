@@ -119,10 +119,42 @@ describe('Document Storage Abstraction & S3/R2 Cloud Ready Tests (BL-04)', () =>
       );
       expect(capturedHeaders['Authorization']).toContain('SignedHeaders=');
       expect(capturedHeaders['Authorization']).toContain('Signature=');
+      // Content-Length must NOT be manually passed in headers or signed headers
+      expect(capturedHeaders['content-length']).toBeUndefined();
+      expect(capturedHeaders['Authorization']).not.toContain('content-length');
 
       expect(meta.originalFilename).toBe('CurriculumVitae.pdf');
       expect(meta.mimeType).toBe('application/pdf');
       expect(meta.sizeBytes).toBe(content.length);
+    });
+
+    it('never sends manual content-length header preventing UND_ERR_INVALID_ARG in Node/Undici', async () => {
+      let passedHeaders: Record<string, string> = {};
+      const mockFetch = vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+        passedHeaders = init.headers as Record<string, string>;
+        // If a manual content-length header were passed, modern Undici rejects with UND_ERR_INVALID_ARG
+        if (passedHeaders['content-length'] !== undefined) {
+          const err: any = new TypeError('fetch failed');
+          err.cause = new Error('invalid content-length header');
+          err.cause.code = 'UND_ERR_INVALID_ARG';
+          throw err;
+        }
+        return {
+          ok: true,
+          status: 200,
+          text: async () => '',
+        };
+      });
+      global.fetch = mockFetch;
+
+      const meta = await s3Provider.saveFile(Buffer.from('docx document data'), {
+        originalFilename: 'test.docx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(passedHeaders['content-length']).toBeUndefined();
+      expect(meta.sizeBytes).toBe(Buffer.from('docx document data').length);
     });
 
     it('successfully retrieves file via signed GET request', async () => {

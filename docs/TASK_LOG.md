@@ -1254,7 +1254,7 @@ This document tracks execution history and verification state for all official m
   - **1. Production Root Cause Investigation (Phase A)**:
     - Root cause: In Node.js 22 on the Railway Linux container, `dns.setDefaultResultOrder('ipv4first')` was absent. Cloudflare R2 endpoints publish dual A (IPv4) and AAAA (IPv6) records; connecting to IPv6 on containers without outbound IPv6 routing or reusing keep-alive sockets closed by Cloudflare edge (5–10s idle timeout) caused Undici `fetch` to fail immediately with `TypeError: fetch failed`.
     - Error propagation: `DocxGeneratorService` only stringified `err.message` (`fetch failed`), discarding `err.cause` and error codes.
-    - Transaction ordering flaw: `ApplicationPackageService.createPackage()` inserted database records (`applicationPackages`, `applicationPackageVersions`) with `DRAFT` status *before* initiating artifact storage uploads. Any network or storage failure left orphaned, incomplete DRAFT packages with 0 artifacts.
+    - Transaction ordering flaw: `ApplicationPackageService.createPackage()` inserted database records (`applicationPackages`, `applicationPackageVersions`) with `DRAFT` status _before_ initiating artifact storage uploads. Any network or storage failure left orphaned, incomplete DRAFT packages with 0 artifacts.
     - Frontend UX: `JobDetailView.tsx` relied on synchronous browser `alert()` popups with no retry action, no progress feedback, and navigation directly into incomplete packages.
   - **2. Storage Integration Hardening & Bounded Retries (Phase B)**:
     - Added `executeWithRetry` to `S3StorageProvider` (`apps/api/src/storage/s3-storage.ts`) with exponential backoff (3 attempts, initial delay 200ms, factor 2, max delay 2000ms, randomized jitter).
@@ -1284,6 +1284,14 @@ This document tracks execution history and verification state for all official m
     - `npm run typecheck`: PASSED (0 errors across 6 workspaces).
     - `npm test`: PASSED (45 test files, 368/368 tests passed).
     - `npm run build`: PASSED (All packages, API, Worker, and Web SPA bundle).
-    - `npm run db:check`: PASSED (Neon PostgreSQL connected, 18ms).
     - `scripts/verify-studio-package-repair.ts`: PASSED (11/11 phases verified live against production services).
+  - **7. Critical R2 Content-Length Hotfix & Modern Undici Compliance**:
+    - **Root Cause**: Manual `'content-length': String(fileBuffer.length)` was included in headers passed to `fetch()` and in AWS SigV4 `SignedHeaders`. Under the WHATWG Fetch Standard and modern Node.js 22/Undici runtime on Linux, passing a manual Content-Length header on requests with a body is forbidden and rejected with `InvalidArgumentError: invalid content-length header` (`UND_ERR_INVALID_ARG`).
+    - **Fix Implemented**:
+      - Removed manual `content-length` header from `saveFile()` and `putFile()` in `apps/api/src/storage/s3-storage.ts`, allowing Node.js/Undici to calculate and attach `Content-Length` automatically.
+      - Added defense-in-depth sanitization in `signRequest()` to ensure `content-length` is never added to `SignedHeaders` or outgoing headers.
+      - Preserved full Cloudflare R2 SigV4 authentication compatibility: verified PUT, GET, HEAD, DELETE, and SHA-256 binary integrity with live R2 bucket `jobee-private-documents`.
+      - Added regression tests in `apps/api/src/storage/s3-storage.test.ts` (14/14 tests passing).
+      - Re-verified all 11 phases of `scripts/verify-studio-package-repair.ts` against live Neon database and Cloudflare R2.
+      - Quality verification: `format` (PASS), `lint` (PASS), `typecheck` (PASS), `test` (45/45 test files, 369/369 tests passing), `build` (PASS), `db:check` (PASS).
 

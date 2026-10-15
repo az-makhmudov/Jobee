@@ -152,8 +152,18 @@ export class S3StorageProvider implements FileStorageProvider {
     const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, '');
     const dateStamp = amzDate.slice(0, 8);
 
+    // Ensure 'content-length' is never included in signed headers or headers passed to fetch.
+    // Node.js/Undici calculates Content-Length automatically from request body buffers.
+    // Explicitly setting Content-Length causes UND_ERR_INVALID_ARG in modern Node.js/Undici runtimes.
+    const cleanHeaders: Record<string, string> = {};
+    for (const [k, v] of Object.entries(headers)) {
+      if (k.toLowerCase() !== 'content-length') {
+        cleanHeaders[k] = v;
+      }
+    }
+
     const signedHeadersList: Record<string, string> = {
-      ...headers,
+      ...cleanHeaders,
       host: url.host,
       'x-amz-date': amzDate,
       'x-amz-content-sha256': payloadHash,
@@ -243,7 +253,6 @@ export class S3StorageProvider implements FileStorageProvider {
         url,
         {
           'content-type': options.mimeType,
-          'content-length': String(fileBuffer.length),
         },
         checksum,
       );
@@ -365,7 +374,6 @@ export class S3StorageProvider implements FileStorageProvider {
         url,
         {
           'content-type': mimeType,
-          'content-length': String(fileBuffer.length),
         },
         checksum,
       );
