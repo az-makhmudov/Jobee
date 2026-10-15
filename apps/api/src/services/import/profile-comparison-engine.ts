@@ -458,7 +458,7 @@ export class ProfileComparisonEngine {
   }
 
   // --- Certifications Comparison ---
-  private static compareCertification(
+  public static compareCertification(
     cert: ExtractedProfileData['certifications'][number],
     existingList: CandidateCertificationDto[],
   ): ComparisonItemResult {
@@ -470,6 +470,17 @@ export class ProfileComparisonEngine {
       !cert.issuingOrganization ||
       !cert.issuingOrganization.trim()
     ) {
+      let conflictMsg = 'Missing certification name or issuing organization';
+      if (
+        cert.name &&
+        cert.name.trim() &&
+        (!cert.issuingOrganization || !cert.issuingOrganization.trim())
+      ) {
+        conflictMsg = 'Issuing organization is missing. You can enter it manually before approval.';
+      } else if (!cert.name || !cert.name.trim()) {
+        conflictMsg = 'Missing certification name. You can enter it manually before approval.';
+      }
+
       return {
         section: 'CERTIFICATION',
         classification: 'INCOMPLETE',
@@ -478,7 +489,7 @@ export class ProfileComparisonEngine {
         extractedPayload: payload,
         existingEntityId: null,
         existingPayload: null,
-        conflictDetails: 'Missing certification name or issuing organization',
+        conflictDetails: conflictMsg,
       };
     }
 

@@ -12,11 +12,11 @@
 ## 1. Roadmap Snapshot
 
 - **Current Official Mode:** Autonomous Product Completion & Production Deployment
-- **Active Backlog Item:** `BL-19: COMPLETED` (`JOB-SMART-PROFILE-IMPORT` Upload State Fix & Drag-and-Drop Restoration — Fully Implemented & Verified)
-- **Milestone Status:** SMART PROFILE IMPORT UPLOAD STATE & DRAG-AND-DROP FULLY VERIFIED (53/53 test files, 457/457 tests passing, stable lifecycle management, HTML5 drag-and-drop, same-file reselection, file validation, production usage regression suite passing)
+- **Active Backlog Item:** `BL-19: COMPLETED` (`JOB-SMART-PROFILE-IMPORT` LinkedIn QA & Null-Safe Extraction Hardening — Fully Implemented & Verified)
+- **Milestone Status:** SMART PROFILE IMPORT LINKEDIN QA & NULL-SAFE EXTRACTION HARDENED (54/54 test files, 467/467 tests passing, null-safe Zod preprocessors across all 8 schemas, partial extraction preservation, INCOMPLETE certification missing issuer handling, duplicate UI error banner eliminated, API key sanitization, regression suite A-J passing)
 - **Previous Completed Milestone:** `JOB-STUDIO-REPAIR`
-- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + STUDIO PACKAGE REPAIR FULLY VERIFIED + SMART PROFILE IMPORT HARDENED, QA REMEDIATED, REVIEW UI REPAIRED & UPLOAD STABILIZED**
-- **Active Git Checkpoint:** `4dbc5e3` (`JOB-SMART-PROFILE-IMPORT`)
+- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + STUDIO PACKAGE REPAIR FULLY VERIFIED + SMART PROFILE IMPORT HARDENED, QA REMEDIATED, REVIEW UI REPAIRED, UPLOAD STABILIZED & LINKEDIN QA COMPLETED**
+- **Active Git Checkpoint:** Pending Commit (`JOB-SMART-PROFILE-IMPORT`)
 
 ---
 

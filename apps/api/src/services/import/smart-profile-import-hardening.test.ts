@@ -117,9 +117,7 @@ AWS Certified Solutions Architect
 
       expect(comparison).toHaveLength(1);
       expect(comparison[0]?.classification).toBe('INCOMPLETE');
-      expect(comparison[0]?.conflictDetails).toContain(
-        'Missing certification name or issuing organization',
-      );
+      expect(comparison[0]?.conflictDetails).toContain('Issuing organization is missing');
     });
   });
 

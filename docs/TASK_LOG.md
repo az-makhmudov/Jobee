@@ -1449,4 +1449,26 @@ This document tracks execution history and verification state for all official m
       - All 16/16 tests passing in `SmartProfileImportModal.test.tsx`.
     - **Monorepo Verification**:
       - 53 test files (457/457 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB check passing.
-
+  - **15. LinkedIn QA & Null-Safe Extraction Hardening**:
+    - **Root Cause Identified**: When extracting profile information from LinkedIn profile PDFs using Gemini AI, Gemini returned `null` for `issuingOrganization` on certifications where the source document did not specify an issuer. In `smart-profile-extractor.ts`, `issuingOrganization: z.string().optional().default('')` accepted `undefined` but rejected `null`, throwing `ZodError: invalid_type: Expected string, received null`. This crashed the entire extraction and dumped raw Zod error JSON into the UI modal.
+    - **Fixes Implemented**:
+      1. Implemented null-safe Zod preprocessors across all 8 extraction schemas (`safeStringDefaultEmpty`, `safeNullableString`, `safeBooleanDefaultFalse`, `safeStringArray`, `safeConfidence`, `safeNullableNumber`, `safeSectionArray`), safely normalizing `null` and `undefined` without fabricating dummy values or crashing validation.
+      2. Exported `SmartProfileExtractor.parseAiProfileData` for robust, reusable AI payload parsing.
+      3. Sanitized error reporting: Replaced raw Zod error arrays with clean, human-friendly 502 AppError messages pointing to the problematic section (`"Some information returned by Gemini could not be processed in ... Please retry extraction or use the Basic Deterministic Parser."`), logged detailed redacted diagnostics to stderr, and sanitized API key substrings.
+      4. Preserved partial extraction: Valid sections (experiences, education, skills, languages) are preserved completely; certifications with missing issuer are classified as `INCOMPLETE` with warning `"Issuing organization is missing. You can enter it manually before approval."`. Final commit to Candidate Brain is strictly prevented until user edits and approves required fields.
+      5. Fixed duplicate error display in `SmartProfileImportModal.tsx`: Omitted the global top-level error banner during the `EXTRACT` step so errors are presented solely in the dedicated extraction error card with retry controls.
+      6. Made `ProfileComparisonEngine.compareCertification` public for direct section testing and comparison.
+    - **Automated Regression Verification**:
+      - Created `smart-profile-linkedin-qa.test.ts` verifying Tests A through J (10/10 tests passing):
+        - Test A: Certification with valid issuer parsed and classified as `NEW`.
+        - Test B: Certification with `null` issuer normalized to `""` and classified as `INCOMPLETE`.
+        - Test C: Certification with omitted issuer normalized to `""` and classified as `INCOMPLETE`.
+        - Test D: Multiple certifications with mixed null/present issuers extracted without failure.
+        - Test E: Realistic LinkedIn profile with incomplete certifications extracts all sections cleanly.
+        - Test F: Valid sections survive incomplete certification data.
+        - Test G: `updateItem(..., 'APPROVED')` rejects incomplete certifications lacking issuer.
+        - Test H: User can supply missing issuer via `updateItem(..., 'EDITED')`, re-evaluating to `NEW`, then approve and commit.
+        - Test I: Truthfulness invariant verified (missing issuer never fabricated with "Unknown" or "LinkedIn").
+        - Test J: Invalid response structures produce clean 502 AppError without leaking API keys.
+    - **Monorepo Verification**:
+      - 54 test files (467/467 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB check passing.

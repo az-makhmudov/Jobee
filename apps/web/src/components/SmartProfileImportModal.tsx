@@ -376,8 +376,8 @@ export function SmartProfileImportModal({
           </button>
         </div>
 
-        {/* Global Error Banner */}
-        {error && (
+        {/* Global Error Banner (omitted on EXTRACT step to avoid duplicate display with dedicated AI error card) */}
+        {error && step !== 'EXTRACT' && (
           <div
             style={{
               padding: '0.75rem 1rem',

@@ -17,106 +17,168 @@ import {
 } from '../../ai/gemini-ai-provider.js';
 import { DocumentTextExtractor } from './document-text-extractor.js';
 
-// Zod schema for validating Gemini AI output
-const personalProfileSchema = z.object({
-  preferredName: z.string().nullable().optional(),
-  fullName: z.string().nullable().optional(),
-  headline: z.string().nullable().optional(),
-  email: z.string().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  city: z.string().nullable().optional(),
-  region: z.string().nullable().optional(),
-  country: z.string().nullable().optional(),
-  summary: z.string().nullable().optional(),
-  availability: z.string().nullable().optional(),
+// Null-safe preprocessing helpers for robust AI output validation
+const safeStringDefaultEmpty = z
+  .preprocess((val) => {
+    if (val === null || val === undefined) return '';
+    return typeof val === 'string' ? val.trim() : String(val).trim();
+  }, z.string())
+  .default('');
+
+const safeNullableString = z
+  .preprocess((val) => {
+    if (val === null || val === undefined) return null;
+    const str = typeof val === 'string' ? val.trim() : String(val).trim();
+    return str.length === 0 ? null : str;
+  }, z.string().nullable().optional())
+  .default(null);
+
+const safeBooleanDefaultFalse = z
+  .preprocess((val) => {
+    if (val === null || val === undefined) return false;
+    if (typeof val === 'boolean') return val;
+    if (typeof val === 'string') {
+      const lower = val.toLowerCase().trim();
+      return lower === 'true' || lower === 'yes' || lower === '1';
+    }
+    return Boolean(val);
+  }, z.boolean())
+  .default(false);
+
+const safeStringArray = z
+  .preprocess((val) => {
+    if (!val || !Array.isArray(val)) return [];
+    return val
+      .map((item) => (item === null || item === undefined ? '' : String(item).trim()))
+      .filter((s) => s.length > 0);
+  }, z.array(z.string()))
+  .default([]);
+
+const safeConfidence = z
+  .preprocess((val) => {
+    if (val === null || val === undefined) return 0.9;
+    const num = typeof val === 'number' ? val : Number(val);
+    if (isNaN(num)) return 0.9;
+    return Math.max(0, Math.min(1, num));
+  }, z.number())
+  .default(0.9);
+
+const safeNullableNumber = z
+  .preprocess((val) => {
+    if (val === null || val === undefined) return null;
+    const num = typeof val === 'number' ? val : Number(val);
+    return isNaN(num) ? null : num;
+  }, z.number().nullable().optional())
+  .default(null);
+
+const safeSectionArray = <T extends z.ZodTypeAny>(itemSchema: T) =>
+  z
+    .preprocess((val) => {
+      if (!val || !Array.isArray(val)) return [];
+      return val.filter((item) => item !== null && typeof item === 'object');
+    }, z.array(itemSchema))
+    .default([]);
+
+// Zod schemas for validating Gemini AI output with null-safe normalization
+export const personalProfileSchema = z.object({
+  preferredName: safeNullableString,
+  fullName: safeNullableString,
+  headline: safeNullableString,
+  email: safeNullableString,
+  phone: safeNullableString,
+  city: safeNullableString,
+  region: safeNullableString,
+  country: safeNullableString,
+  summary: safeNullableString,
+  availability: safeNullableString,
 });
 
-const experienceSchema = z.object({
-  organization: z.string().optional().default(''),
-  position: z.string().optional().default(''),
-  location: z.string().nullable().optional(),
-  employmentType: z.string().nullable().optional(),
-  startDate: z.string().optional().default(''),
-  endDate: z.string().nullable().optional(),
-  isCurrent: z.boolean().optional().default(false),
-  description: z.string().nullable().optional(),
-  achievements: z.array(z.string()).optional().default([]),
-  sourceReference: z.string().optional().default(''),
-  confidence: z.number().min(0).max(1).optional().default(0.9),
+export const experienceSchema = z.object({
+  organization: safeStringDefaultEmpty,
+  position: safeStringDefaultEmpty,
+  location: safeNullableString,
+  employmentType: safeNullableString,
+  startDate: safeStringDefaultEmpty,
+  endDate: safeNullableString,
+  isCurrent: safeBooleanDefaultFalse,
+  description: safeNullableString,
+  achievements: safeStringArray,
+  sourceReference: safeStringDefaultEmpty,
+  confidence: safeConfidence,
 });
 
-const educationSchema = z.object({
-  institution: z.string().optional().default(''),
-  degree: z.string().nullable().optional(),
-  fieldOfStudy: z.string().nullable().optional(),
-  startDate: z.string().nullable().optional(),
-  endDate: z.string().nullable().optional(),
-  isCurrent: z.boolean().optional().default(false),
-  location: z.string().nullable().optional(),
-  description: z.string().nullable().optional(),
-  activities: z.string().nullable().optional(),
-  sourceReference: z.string().optional().default(''),
-  confidence: z.number().min(0).max(1).optional().default(0.9),
+export const educationSchema = z.object({
+  institution: safeStringDefaultEmpty,
+  degree: safeNullableString,
+  fieldOfStudy: safeNullableString,
+  startDate: safeNullableString,
+  endDate: safeNullableString,
+  isCurrent: safeBooleanDefaultFalse,
+  location: safeNullableString,
+  description: safeNullableString,
+  activities: safeNullableString,
+  sourceReference: safeStringDefaultEmpty,
+  confidence: safeConfidence,
 });
 
-const skillSchema = z.object({
-  name: z.string().optional().default(''),
-  category: z.string().nullable().optional(),
-  proficiency: z.string().nullable().optional(),
-  yearsExperience: z.number().nullable().optional(),
-  sourceReference: z.string().optional().default(''),
-  confidence: z.number().min(0).max(1).optional().default(0.9),
+export const skillSchema = z.object({
+  name: safeStringDefaultEmpty,
+  category: safeNullableString,
+  proficiency: safeNullableString,
+  yearsExperience: safeNullableNumber,
+  sourceReference: safeStringDefaultEmpty,
+  confidence: safeConfidence,
 });
 
-const certificationSchema = z.object({
-  name: z.string().optional().default(''),
-  issuingOrganization: z.string().optional().default(''),
-  issueDate: z.string().nullable().optional(),
-  expirationDate: z.string().nullable().optional(),
-  credentialId: z.string().nullable().optional(),
-  credentialUrl: z.string().nullable().optional(),
-  sourceReference: z.string().optional().default(''),
-  confidence: z.number().min(0).max(1).optional().default(0.9),
+export const certificationSchema = z.object({
+  name: safeStringDefaultEmpty,
+  issuingOrganization: safeStringDefaultEmpty,
+  issueDate: safeNullableString,
+  expirationDate: safeNullableString,
+  credentialId: safeNullableString,
+  credentialUrl: safeNullableString,
+  sourceReference: safeStringDefaultEmpty,
+  confidence: safeConfidence,
 });
 
-const languageSchema = z.object({
-  language: z.string().optional().default(''),
-  proficiency: z.string().nullable().optional().default(null),
-  cefrLevel: z.string().nullable().optional(),
-  notes: z.string().nullable().optional(),
-  sourceReference: z.string().optional().default(''),
-  confidence: z.number().min(0).max(1).optional().default(0.9),
+export const languageSchema = z.object({
+  language: safeStringDefaultEmpty,
+  proficiency: safeNullableString,
+  cefrLevel: safeNullableString,
+  notes: safeNullableString,
+  sourceReference: safeStringDefaultEmpty,
+  confidence: safeConfidence,
 });
 
-const projectSchema = z.object({
-  name: z.string().optional().default(''),
-  role: z.string().nullable().optional(),
-  description: z.string().nullable().optional(),
-  startDate: z.string().nullable().optional(),
-  endDate: z.string().nullable().optional(),
-  projectUrl: z.string().nullable().optional(),
-  skills: z.array(z.string()).optional().default([]),
-  achievements: z.array(z.string()).optional().default([]),
-  sourceReference: z.string().optional().default(''),
-  confidence: z.number().min(0).max(1).optional().default(0.9),
+export const projectSchema = z.object({
+  name: safeStringDefaultEmpty,
+  role: safeNullableString,
+  description: safeNullableString,
+  startDate: safeNullableString,
+  endDate: safeNullableString,
+  projectUrl: safeNullableString,
+  skills: safeStringArray,
+  achievements: safeStringArray,
+  sourceReference: safeStringDefaultEmpty,
+  confidence: safeConfidence,
 });
 
-const linkSchema = z.object({
-  label: z.string().optional().default(''),
-  url: z.string().optional().default(''),
-  sourceReference: z.string().optional().default(''),
-  confidence: z.number().min(0).max(1).optional().default(0.9),
+export const linkSchema = z.object({
+  label: safeStringDefaultEmpty,
+  url: safeStringDefaultEmpty,
+  sourceReference: safeStringDefaultEmpty,
+  confidence: safeConfidence,
 });
 
-const extractedProfileSchema = z.object({
-  profile: personalProfileSchema.nullable().optional(),
-  experiences: z.array(experienceSchema).optional().default([]),
-  education: z.array(educationSchema).optional().default([]),
-  skills: z.array(skillSchema).optional().default([]),
-  certifications: z.array(certificationSchema).optional().default([]),
-  languages: z.array(languageSchema).optional().default([]),
-  projects: z.array(projectSchema).optional().default([]),
-  links: z.array(linkSchema).optional().default([]),
+export const extractedProfileSchema = z.object({
+  profile: personalProfileSchema.nullable().optional().default(null),
+  experiences: safeSectionArray(experienceSchema),
+  education: safeSectionArray(educationSchema),
+  skills: safeSectionArray(skillSchema),
+  certifications: safeSectionArray(certificationSchema),
+  languages: safeSectionArray(languageSchema),
+  projects: safeSectionArray(projectSchema),
+  links: safeSectionArray(linkSchema),
 });
 
 export class SmartProfileExtractor {
@@ -157,10 +219,16 @@ export class SmartProfileExtractor {
             `AI profile extraction fallback to deterministic parser: ${err instanceof Error ? err.message : String(err)}\n`,
           );
         } else {
+          if (err instanceof AppError) {
+            throw err;
+          }
           const detail = err instanceof Error ? err.message : String(err);
+          const sanitized = detail
+            .replace(/key=[a-zA-Z0-9_-]+/gi, 'key=[REDACTED]')
+            .replace(/AIza[a-zA-Z0-9_-]+/gi, '[REDACTED_API_KEY]');
           throw new AppError({
             code: ErrorCodes.SERVICE_UNAVAILABLE,
-            message: `Google Gemini AI extraction failed: ${detail}. You can retry with Gemini AI or select the Basic Deterministic Parser.`,
+            message: `Google Gemini AI extraction failed: ${sanitized}. You can retry with Gemini AI or select the Basic Deterministic Parser.`,
             statusCode: 502,
           });
         }
@@ -169,6 +237,35 @@ export class SmartProfileExtractor {
 
     const heuristicData = this.extractWithHeuristics(text);
     return { data: heuristicData, extractorUsed: 'HEURISTIC_PARSER' };
+  }
+
+  /**
+   * Validates and normalizes structured candidate profile data from AI JSON response.
+   * Tolerates legitimate missing fields and nulls without throwing raw Zod errors.
+   */
+  public static parseAiProfileData(rawJson: unknown): ExtractedProfileData {
+    const parseResult = extractedProfileSchema.safeParse(rawJson);
+    if (!parseResult.success) {
+      const failedSections = Array.from(
+        new Set(
+          parseResult.error.issues
+            .map((i) => i.path[0])
+            .filter((p): p is string => typeof p === 'string'),
+        ),
+      );
+      const sectionDetail = failedSections.length > 0 ? ` in ${failedSections.join(', ')}` : '';
+
+      process.stderr.write(
+        `[SmartProfileExtractor] Gemini validation failed${sectionDetail}: ${parseResult.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ')}\n`,
+      );
+
+      throw new AppError({
+        code: ErrorCodes.SERVICE_UNAVAILABLE,
+        message: `Some information returned by Gemini could not be processed${sectionDetail}. Please retry extraction or use the Basic Deterministic Parser.`,
+        statusCode: 502,
+      });
+    }
+    return parseResult.data;
   }
 
   /**
@@ -264,8 +361,19 @@ ${text.slice(0, 16000)}
         throw new Error('Gemini API returned empty text part');
       }
 
-      const parsed = JSON.parse(content);
-      const validated = extractedProfileSchema.parse(parsed);
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        throw new AppError({
+          code: ErrorCodes.SERVICE_UNAVAILABLE,
+          message:
+            'Gemini returned an invalid JSON response structure. Please retry extraction or use the Basic Deterministic Parser.',
+          statusCode: 502,
+        });
+      }
+
+      const validated = SmartProfileExtractor.parseAiProfileData(parsed);
 
       // Issue 5: Ground and verify all extracted source citations against the actual document text
       const verifyItem = (item: { sourceReference?: string; confidence?: number }) => {

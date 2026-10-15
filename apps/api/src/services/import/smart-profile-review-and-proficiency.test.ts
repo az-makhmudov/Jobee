@@ -182,7 +182,7 @@ French (Conversational)
         [],
       );
       expect(compNoOrg.classification).toBe('INCOMPLETE');
-      expect(compNoOrg.conflictDetails).toContain('issuing organization');
+      expect(compNoOrg.conflictDetails).toContain('Issuing organization is missing');
     });
 
     it('marks LANGUAGE without language name as INCOMPLETE', () => {
