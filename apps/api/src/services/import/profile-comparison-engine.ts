@@ -51,37 +51,37 @@ export class ProfileComparisonEngine {
     }
 
     // 2. Work Experiences comparison
-    for (const exp of extracted.experiences) {
+    for (const exp of extracted.experiences || []) {
       results.push(this.compareExperience(exp, existing.experiences));
     }
 
     // 3. Education comparison
-    for (const edu of extracted.education) {
+    for (const edu of extracted.education || []) {
       results.push(this.compareEducation(edu, existing.education));
     }
 
     // 4. Skills comparison
-    for (const skill of extracted.skills) {
+    for (const skill of extracted.skills || []) {
       results.push(this.compareSkill(skill, existing.skills));
     }
 
     // 5. Certifications comparison
-    for (const cert of extracted.certifications) {
+    for (const cert of extracted.certifications || []) {
       results.push(this.compareCertification(cert, existing.certifications));
     }
 
     // 6. Languages comparison
-    for (const lang of extracted.languages) {
+    for (const lang of extracted.languages || []) {
       results.push(this.compareLanguage(lang, existing.languages));
     }
 
     // 7. Projects comparison
-    for (const proj of extracted.projects) {
+    for (const proj of extracted.projects || []) {
       results.push(this.compareProject(proj, existing.projects));
     }
 
     // 8. Links comparison
-    for (const link of extracted.links) {
+    for (const link of extracted.links || []) {
       results.push(this.compareLink(link, existing.links));
     }
 
@@ -112,15 +112,22 @@ export class ProfileComparisonEngine {
 
     // Check for conflicts in existing vs imported personal profile
     const conflicts: string[] = [];
-    if (
-      extractedProfile.fullName &&
-      existing.fullName &&
-      extractedProfile.fullName.trim().toLowerCase() !== existing.fullName.trim().toLowerCase()
-    ) {
-      conflicts.push(
-        `Full name mismatch: existing "${existing.fullName}" vs imported "${extractedProfile.fullName}"`,
-      );
+    let isPotentialNameMatch = false;
+
+    if (extractedProfile.fullName && existing.fullName) {
+      const extNorm = extractedProfile.fullName.trim().toLowerCase();
+      const exNorm = existing.fullName.trim().toLowerCase();
+      if (extNorm !== exNorm) {
+        if (this.isAbbreviatedNameMatch(existing.fullName, extractedProfile.fullName)) {
+          isPotentialNameMatch = true;
+        } else {
+          conflicts.push(
+            `Full name mismatch: existing "${existing.fullName}" vs imported "${extractedProfile.fullName}"`,
+          );
+        }
+      }
     }
+
     if (
       extractedProfile.email &&
       existing.email &&
@@ -130,14 +137,18 @@ export class ProfileComparisonEngine {
         `Email mismatch: existing "${existing.email}" vs imported "${extractedProfile.email}"`,
       );
     }
-    if (
-      extractedProfile.phone &&
-      existing.phone &&
-      extractedProfile.phone.replace(/\D/g, '') !== existing.phone.replace(/\D/g, '')
-    ) {
-      conflicts.push(
-        `Phone mismatch: existing "${existing.phone}" vs imported "${extractedProfile.phone}"`,
+
+    if (extractedProfile.phone && existing.phone) {
+      const matchesPhone = this.isPhoneEquivalent(
+        existing.phone,
+        extractedProfile.phone,
+        existing.country || extractedProfile.country,
       );
+      if (!matchesPhone) {
+        conflicts.push(
+          `Phone mismatch: existing "${existing.phone}" vs imported "${extractedProfile.phone}"`,
+        );
+      }
     }
 
     if (conflicts.length > 0) {
@@ -145,11 +156,22 @@ export class ProfileComparisonEngine {
         section: 'PROFILE',
         classification: 'CONFLICT',
         confidenceScore: 0.85,
-        sourceReference: `Personal details in CV`,
+        sourceReference: `Personal info for ${extractedProfile.fullName || 'Candidate'}`,
         extractedPayload: payload,
         existingEntityId: existing.id,
         existingPayload: existing as unknown as Record<string, unknown>,
         conflictDetails: conflicts.join('; '),
+      });
+    } else if (isPotentialNameMatch) {
+      results.push({
+        section: 'PROFILE',
+        classification: 'POTENTIAL_MATCH',
+        confidenceScore: 0.9,
+        sourceReference: `Personal info for ${extractedProfile.fullName || 'Candidate'}`,
+        extractedPayload: payload,
+        existingEntityId: existing.id,
+        existingPayload: existing as unknown as Record<string, unknown>,
+        conflictDetails: `Abbreviated name matches existing profile: existing "${existing.fullName}" vs imported "${extractedProfile.fullName}"`,
       });
     } else {
       // Check if there is any new information to enrich
@@ -163,7 +185,7 @@ export class ProfileComparisonEngine {
         section: 'PROFILE',
         classification: hasNewInfo ? 'NEW' : 'MATCHED',
         confidenceScore: 0.95,
-        sourceReference: `Personal details in CV`,
+        sourceReference: `Personal info for ${extractedProfile.fullName || 'Candidate'}`,
         extractedPayload: payload,
         existingEntityId: existing.id,
         existingPayload: existing as unknown as Record<string, unknown>,
@@ -175,7 +197,7 @@ export class ProfileComparisonEngine {
   }
 
   // --- Experience Comparison ---
-  private static compareExperience(
+  public static compareExperience(
     exp: ExtractedProfileData['experiences'][number],
     existingList: CandidateExperienceDto[],
   ): ComparisonItemResult {
@@ -234,10 +256,26 @@ export class ProfileComparisonEngine {
       const posMatch = exPos === expPos || exPos.includes(expPos) || expPos.includes(exPos);
 
       if (orgMatch && posMatch) {
-        // Exact or close match
-        const datesMatch =
-          this.normalizeDate(ex.startDate) === this.normalizeDate(exp.startDate) &&
-          this.normalizeDate(ex.endDate || '') === this.normalizeDate(exp.endDate || '');
+        // Standardized date comparison (e.g. "June 2023" vs "2023-06" match, while "June 2023" vs "May 2023" conflict)
+        const stdExStart = this.standardizeDateString(ex.startDate);
+        const stdExpStart = this.standardizeDateString(exp.startDate);
+        const stdExEnd = this.standardizeDateString(ex.endDate || '');
+        const stdExpEnd = this.standardizeDateString(exp.endDate || '');
+
+        const startMatches =
+          stdExStart === stdExpStart ||
+          (stdExStart &&
+            stdExpStart &&
+            (stdExStart.startsWith(stdExpStart) || stdExpStart.startsWith(stdExStart)));
+
+        const endMatches =
+          stdExEnd === stdExpEnd ||
+          (ex.isCurrent && exp.isCurrent) ||
+          (stdExEnd &&
+            stdExpEnd &&
+            (stdExEnd.startsWith(stdExpEnd) || stdExpEnd.startsWith(stdExEnd)));
+
+        const datesMatch = startMatches && endMatches;
 
         if (datesMatch) {
           return {
@@ -260,12 +298,18 @@ export class ProfileComparisonEngine {
             extractedPayload: payload,
             existingEntityId: ex.id,
             existingPayload: ex as unknown as Record<string, unknown>,
-            conflictDetails: `Date mismatch for ${exp.position} at ${exp.organization}: existing dates (${ex.startDate} to ${ex.endDate || 'present'}) vs imported dates (${exp.startDate} to ${exp.endDate || 'present'})`,
+            conflictDetails: `Date mismatch for ${exp.position} at ${exp.organization}: existing dates (${ex.startDate} to ${ex.endDate || (ex.isCurrent ? 'Present' : '')}) vs imported dates (${exp.startDate} to ${exp.endDate || (exp.isCurrent ? 'Present' : '')})`,
           };
         }
       } else if (orgMatch && !posMatch) {
         // Same employer, overlapping dates, differing title -> CONFLICT
-        const datesOverlap = this.normalizeDate(ex.startDate) === this.normalizeDate(exp.startDate);
+        const stdExStart = this.standardizeDateString(ex.startDate);
+        const stdExpStart = this.standardizeDateString(exp.startDate);
+        const datesOverlap =
+          stdExStart === stdExpStart ||
+          (stdExStart &&
+            stdExpStart &&
+            (stdExStart.startsWith(stdExpStart) || stdExpStart.startsWith(stdExStart)));
         if (datesOverlap) {
           return {
             section: 'EXPERIENCE',
@@ -295,7 +339,7 @@ export class ProfileComparisonEngine {
   }
 
   // --- Education Comparison ---
-  private static compareEducation(
+  public static compareEducation(
     edu: ExtractedProfileData['education'][number],
     existingList: CandidateEducationDto[],
   ): ComparisonItemResult {
@@ -333,19 +377,47 @@ export class ProfileComparisonEngine {
     }
 
     const eduInst = edu.institution.trim().toLowerCase();
-    const eduDeg = (edu.degree || '').trim().toLowerCase();
+    const eduDeg = (edu.degree || '').trim();
+    const eduField = (edu.fieldOfStudy || '').trim();
 
     for (const ex of existingList) {
       const exInst = ex.institution.trim().toLowerCase();
-      const exDeg = (ex.degree || '').trim().toLowerCase();
+      const exDeg = (ex.degree || '').trim();
+      const exField = (ex.fieldOfStudy || '').trim();
 
       const instMatch = exInst === eduInst || exInst.includes(eduInst) || eduInst.includes(exInst);
 
       if (instMatch) {
-        if (
-          exDeg === eduDeg ||
-          (exDeg && eduDeg && (exDeg.includes(eduDeg) || eduDeg.includes(exDeg)))
-        ) {
+        // Degree compatibility (e.g. "B.A." vs "Bachelor of Arts" or "Bachelor's degree")
+        const degreeIsCompatible = !exDeg || !eduDeg || this.isDegreeCompatible(exDeg, eduDeg);
+
+        // Field of study compatibility
+        const fieldIsCompatible =
+          !exField ||
+          !eduField ||
+          exField.toLowerCase() === eduField.toLowerCase() ||
+          exField.toLowerCase().includes(eduField.toLowerCase()) ||
+          eduField.toLowerCase().includes(exField.toLowerCase());
+
+        // Date check: check if dates conflict or are compatible
+        const exStart = this.standardizeDateString(ex.startDate || '');
+        const eduStart = this.standardizeDateString(edu.startDate || '');
+        const exEnd = this.standardizeDateString(ex.endDate || '');
+        const eduEnd = this.standardizeDateString(edu.endDate || '');
+
+        let dateConflict = false;
+        if (exStart && eduStart && exStart !== eduStart) {
+          if (!exStart.startsWith(eduStart) && !eduStart.startsWith(exStart)) {
+            dateConflict = true;
+          }
+        }
+        if (exEnd && eduEnd && exEnd !== eduEnd) {
+          if (!exEnd.startsWith(eduEnd) && !eduEnd.startsWith(exEnd)) {
+            dateConflict = true;
+          }
+        }
+
+        if (degreeIsCompatible && fieldIsCompatible && !dateConflict) {
           return {
             section: 'EDUCATION',
             classification: ex.verificationStatus === 'VERIFIED' ? 'MATCHED' : 'DUPLICATE',
@@ -357,7 +429,7 @@ export class ProfileComparisonEngine {
             existingPayload: ex as unknown as Record<string, unknown>,
             conflictDetails: null,
           };
-        } else if (exDeg && eduDeg && exDeg !== eduDeg) {
+        } else if (!degreeIsCompatible) {
           return {
             section: 'EDUCATION',
             classification: 'CONFLICT',
@@ -368,6 +440,30 @@ export class ProfileComparisonEngine {
             existingEntityId: ex.id,
             existingPayload: ex as unknown as Record<string, unknown>,
             conflictDetails: `Degree mismatch for ${ex.institution}: existing "${ex.degree}" vs imported "${edu.degree}"`,
+          };
+        } else if (!fieldIsCompatible) {
+          return {
+            section: 'EDUCATION',
+            classification: 'CONFLICT',
+            confidenceScore: edu.confidence ?? 0.85,
+            sourceReference:
+              edu.sourceReference || `${edu.degree || 'Degree'} at ${edu.institution}`,
+            extractedPayload: payload,
+            existingEntityId: ex.id,
+            existingPayload: ex as unknown as Record<string, unknown>,
+            conflictDetails: `Field of study mismatch for ${ex.institution}: existing "${ex.fieldOfStudy}" vs imported "${edu.fieldOfStudy}"`,
+          };
+        } else if (dateConflict) {
+          return {
+            section: 'EDUCATION',
+            classification: 'CONFLICT',
+            confidenceScore: edu.confidence ?? 0.85,
+            sourceReference:
+              edu.sourceReference || `${edu.degree || 'Degree'} at ${edu.institution}`,
+            extractedPayload: payload,
+            existingEntityId: ex.id,
+            existingPayload: ex as unknown as Record<string, unknown>,
+            conflictDetails: `Date mismatch for ${edu.degree || 'Degree'} at ${ex.institution}: existing (${ex.startDate || ''} to ${ex.endDate || ''}) vs imported (${edu.startDate || ''} to ${edu.endDate || ''})`,
           };
         }
       }
@@ -386,7 +482,7 @@ export class ProfileComparisonEngine {
   }
 
   // --- Skills Comparison ---
-  private static compareSkill(
+  public static compareSkill(
     skill: ExtractedProfileData['skills'][number],
     existingList: CandidateSkillDto[],
   ): ComparisonItemResult {
@@ -424,9 +520,11 @@ export class ProfileComparisonEngine {
     }
 
     const normSkill = this.normalizeSkillName(skill.name);
+    const canonicalSkill = this.getCanonicalSkill(skill.name);
 
     for (const ex of existingList) {
       const normEx = this.normalizeSkillName(ex.name);
+      const canonicalEx = this.getCanonicalSkill(ex.name);
 
       if (normSkill === normEx) {
         return {
@@ -441,6 +539,19 @@ export class ProfileComparisonEngine {
           existingEntityId: ex.id,
           existingPayload: ex as unknown as Record<string, unknown>,
           conflictDetails: null,
+        };
+      }
+
+      if (canonicalSkill === canonicalEx) {
+        return {
+          section: 'SKILL',
+          classification: 'POTENTIAL_MATCH',
+          confidenceScore: skill.confidence ?? 0.9,
+          sourceReference: skill.sourceReference || skill.name,
+          extractedPayload: payload,
+          existingEntityId: ex.id,
+          existingPayload: ex as unknown as Record<string, unknown>,
+          conflictDetails: `Potential equivalent of existing skill "${ex.name}"`,
         };
       }
     }
@@ -464,23 +575,8 @@ export class ProfileComparisonEngine {
   ): ComparisonItemResult {
     const payload = cert as unknown as Record<string, unknown>;
 
-    if (
-      !cert.name ||
-      !cert.name.trim() ||
-      !cert.issuingOrganization ||
-      !cert.issuingOrganization.trim()
-    ) {
-      let conflictMsg = 'Missing certification name or issuing organization';
-      if (
-        cert.name &&
-        cert.name.trim() &&
-        (!cert.issuingOrganization || !cert.issuingOrganization.trim())
-      ) {
-        conflictMsg = 'Issuing organization is missing. You can enter it manually before approval.';
-      } else if (!cert.name || !cert.name.trim()) {
-        conflictMsg = 'Missing certification name. You can enter it manually before approval.';
-      }
-
+    // 1. Missing name is always incomplete
+    if (!cert.name || !cert.name.trim()) {
       return {
         section: 'CERTIFICATION',
         classification: 'INCOMPLETE',
@@ -489,10 +585,62 @@ export class ProfileComparisonEngine {
         extractedPayload: payload,
         existingEntityId: null,
         existingPayload: null,
-        conflictDetails: conflictMsg,
+        conflictDetails: 'Missing certification name. You can enter it manually before approval.',
       };
     }
 
+    // 2. Match against existing certifications BEFORE evaluating missing issuer
+    const normCertName = this.normalizeCertificationName(cert.name);
+
+    for (const ex of existingList) {
+      const normExName = this.normalizeCertificationName(ex.name);
+      const nameMatch =
+        normCertName === normExName ||
+        normCertName.includes(normExName) ||
+        normExName.includes(normCertName);
+
+      if (nameMatch) {
+        const certIssuer = (cert.issuingOrganization || '').trim().toLowerCase();
+        const exIssuer = (ex.issuingOrganization || '').trim().toLowerCase();
+
+        // If imported issuer is missing/empty, OR both issuers match
+        if (
+          !certIssuer ||
+          !exIssuer ||
+          certIssuer === exIssuer ||
+          certIssuer.includes(exIssuer) ||
+          exIssuer.includes(certIssuer)
+        ) {
+          return {
+            section: 'CERTIFICATION',
+            classification: 'MATCHED',
+            confidenceScore: cert.confidence ?? 0.95,
+            sourceReference: cert.sourceReference || cert.name,
+            extractedPayload: payload,
+            existingEntityId: ex.id,
+            existingPayload: ex as unknown as Record<string, unknown>,
+            conflictDetails: null,
+          };
+        }
+      }
+    }
+
+    // 3. For genuinely new certifications, missing issuer requires human review
+    if (!cert.issuingOrganization || !cert.issuingOrganization.trim()) {
+      return {
+        section: 'CERTIFICATION',
+        classification: 'INCOMPLETE',
+        confidenceScore: cert.confidence ?? 0.5,
+        sourceReference: cert.sourceReference || cert.name,
+        extractedPayload: payload,
+        existingEntityId: null,
+        existingPayload: null,
+        conflictDetails:
+          'Issuing organization is missing. You can enter it manually before approval.',
+      };
+    }
+
+    // 4. Check LOW_CONFIDENCE
     if (
       (cert.confidence !== undefined && cert.confidence < 0.6) ||
       (cert.sourceReference && cert.sourceReference.includes('[Unverified citation]'))
@@ -509,24 +657,6 @@ export class ProfileComparisonEngine {
           ? 'Source citation could not be verified against the uploaded document text'
           : 'Low confidence certification record extracted from document',
       };
-    }
-
-    const certName = cert.name.trim().toLowerCase();
-
-    for (const ex of existingList) {
-      const exName = ex.name.trim().toLowerCase();
-      if (certName === exName || certName.includes(exName) || exName.includes(certName)) {
-        return {
-          section: 'CERTIFICATION',
-          classification: 'MATCHED',
-          confidenceScore: cert.confidence ?? 0.95,
-          sourceReference: cert.sourceReference || cert.name,
-          extractedPayload: payload,
-          existingEntityId: ex.id,
-          existingPayload: ex as unknown as Record<string, unknown>,
-          conflictDetails: null,
-        };
-      }
     }
 
     return {
@@ -744,7 +874,247 @@ export class ProfileComparisonEngine {
     };
   }
 
-  // Normalization Helpers
+  // Normalization & Semantic Matching Helpers
+  public static isPhoneEquivalent(
+    phone1?: string | null,
+    phone2?: string | null,
+    _countryHint?: string | null,
+  ): boolean {
+    if (!phone1 || !phone2) return false;
+    const d1 = phone1.replace(/\D/g, '');
+    const d2 = phone2.replace(/\D/g, '');
+    if (!d1 || !d2) return false;
+    if (d1 === d2) return true;
+
+    // Check international prefix vs national number (e.g. "+48 884 665 207" vs "884 665 207")
+    const [longer, shorter] = d1.length > d2.length ? [d1, d2] : [d2, d1];
+    if (longer.endsWith(shorter) && shorter.length >= 7) {
+      const prefix = longer.slice(0, longer.length - shorter.length);
+      // Valid international country calling code lengths: 1 to 4 digits
+      if (prefix.length >= 1 && prefix.length <= 4) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static isAbbreviatedNameMatch(
+    existingName?: string | null,
+    importedName?: string | null,
+  ): boolean {
+    if (!existingName || !importedName) return false;
+    const clean1 = existingName.trim();
+    const clean2 = importedName.trim();
+    if (!clean1 || !clean2) return false;
+    if (clean1.toLowerCase() === clean2.toLowerCase()) return true;
+
+    const t1 = clean1.split(/\s+/).filter(Boolean);
+    const t2 = clean2.split(/\s+/).filter(Boolean);
+
+    if (t1.length < 2 || t2.length < 2) return false;
+
+    const first1 = t1[0]!.toLowerCase();
+    const first2 = t2[0]!.toLowerCase();
+    const last1 = t1[t1.length - 1]!.toLowerCase();
+    const last2 = t2[t2.length - 1]!.toLowerCase();
+
+    // Case A: First names match, imported last name is abbreviated (e.g. "Asadbek Makhmudov" vs "Asadbek M." or "Asadbek M")
+    const cleanLast2 = last2.replace(/\./g, '');
+    if (first1 === first2 && cleanLast2.length === 1 && last1.startsWith(cleanLast2)) {
+      return true;
+    }
+
+    // Case B: Last names match, imported first name is abbreviated (e.g. "Asadbek Makhmudov" vs "A. Makhmudov")
+    const cleanFirst2 = first2.replace(/\./g, '');
+    if (last1 === last2 && cleanFirst2.length === 1 && first1.startsWith(cleanFirst2)) {
+      return true;
+    }
+
+    // Case C: Reverse abbreviation (existing was abbreviated "Asadbek M.", imported has full name "Asadbek Makhmudov")
+    const cleanLast1 = last1.replace(/\./g, '');
+    if (first1 === first2 && cleanLast1.length === 1 && last2.startsWith(cleanLast1)) {
+      return true;
+    }
+    const cleanFirst1 = first1.replace(/\./g, '');
+    if (last1 === last2 && cleanFirst1.length === 1 && first2.startsWith(cleanFirst1)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  public static normalizeCertificationName(name: string): string {
+    return name
+      .toLowerCase()
+      .replace(/[.\-_,()]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  public static normalizeDegreeType(degreeStr: string): string {
+    const clean = degreeStr.toLowerCase().replace(/['’]/g, '');
+    if (/\b(b\.?a\.?|bachelor(?:s)?\s*(?:of|in)?\s*arts?)\b/.test(clean)) {
+      return 'bachelor_of_arts';
+    }
+    if (/\b(b\.?s\.?|b\.?sc\.?|b\.?s\.?c\.?|bachelor(?:s)?\s*(?:of|in)?\s*science)\b/.test(clean)) {
+      return 'bachelor_of_science';
+    }
+    if (
+      /\b(b\.?e\.?|b\.?tech\.?|bachelor(?:s)?\s*(?:of|in)?\s*(?:engineering|technology))\b/.test(
+        clean,
+      )
+    ) {
+      return 'bachelor_of_engineering';
+    }
+    if (/\b(bachelor(?:s)?(?:\s*degree)?)\b/.test(clean)) {
+      return 'bachelor';
+    }
+    if (/\b(m\.?a\.?|master(?:s)?\s*(?:of|in)?\s*arts?)\b/.test(clean)) {
+      return 'master_of_arts';
+    }
+    if (/\b(m\.?s\.?|m\.?sc\.?|master(?:s)?\s*(?:of|in)?\s*science)\b/.test(clean)) {
+      return 'master_of_science';
+    }
+    if (/\b(mba|master(?:s)?\s*(?:of|in)?\s*business\s*administration)\b/.test(clean)) {
+      return 'mba';
+    }
+    if (/\b(master(?:s)?(?:\s*degree)?)\b/.test(clean)) {
+      return 'master';
+    }
+    if (/\b(ph\.?d\.?|doctor(?:ate)?(?:\s*of\s*philosophy)?)\b/.test(clean)) {
+      return 'doctorate';
+    }
+    if (/\b(associate(?:s)?(?:\s*degree)?|a\.?a\.?|a\.?s\.?)\b/.test(clean)) {
+      return 'associate';
+    }
+    return clean.replace(/[^a-z0-9]/g, '');
+  }
+
+  public static isDegreeCompatible(deg1: string, deg2: string): boolean {
+    const t1 = this.normalizeDegreeType(deg1);
+    const t2 = this.normalizeDegreeType(deg2);
+    if (!t1 || !t2) return false;
+    if (t1 === t2) return true;
+    if (
+      (t1 === 'bachelor' && t2.startsWith('bachelor_')) ||
+      (t2 === 'bachelor' && t1.startsWith('bachelor_'))
+    ) {
+      return true;
+    }
+    if (
+      (t1 === 'master' && (t2.startsWith('master_') || t2 === 'mba')) ||
+      (t2 === 'master' && (t1.startsWith('master_') || t1 === 'mba'))
+    ) {
+      return true;
+    }
+    return false;
+  }
+
+  public static standardizeDateString(str: string): string {
+    const clean = str.trim().toLowerCase();
+    if (!clean) return '';
+    const MONTH_MAP: Record<string, string> = {
+      january: '01',
+      jan: '01',
+      february: '02',
+      feb: '02',
+      march: '03',
+      mar: '03',
+      april: '04',
+      apr: '04',
+      may: '05',
+      june: '06',
+      jun: '06',
+      july: '07',
+      jul: '07',
+      august: '08',
+      aug: '08',
+      september: '09',
+      sep: '09',
+      sept: '09',
+      october: '10',
+      oct: '10',
+      november: '11',
+      nov: '11',
+      december: '12',
+      dec: '12',
+    };
+
+    // Match "June 2023" or "Jun 2023"
+    const monthYear = clean.match(/^([a-z]+)\s+(\d{4})$/);
+    if (monthYear && MONTH_MAP[monthYear[1]!]) {
+      return `${monthYear[2]}-${MONTH_MAP[monthYear[1]!]}`;
+    }
+
+    // Match "2023-06" or "2023/06"
+    const ym = clean.match(/^(\d{4})[-/.](\d{1,2})$/);
+    if (ym) {
+      return `${ym[1]}-${ym[2]!.padStart(2, '0')}`;
+    }
+
+    // Match "06/2023" or "06-2023"
+    const my = clean.match(/^(\d{1,2})[-/.](\d{4})$/);
+    if (my) {
+      return `${my[2]}-${my[1]!.padStart(2, '0')}`;
+    }
+
+    // Just year "2023"
+    const justYear = clean.match(/^(\d{4})$/);
+    if (justYear) {
+      return justYear[1]!;
+    }
+
+    return clean.replace(/[^0-9a-z]/g, '');
+  }
+
+  private static readonly SKILL_CANONICAL_MAP: Record<string, string> = {
+    agile: 'agile',
+    agilemethodology: 'agile',
+    agilemethodologies: 'agile',
+    agiledelivery: 'agile',
+    agileframework: 'agile',
+    agilesoftwaredevelopment: 'agile',
+    scrum: 'scrum',
+    scrummethodology: 'scrum',
+    scrumframework: 'scrum',
+    scrummaster: 'scrum',
+    react: 'react',
+    reactjs: 'react',
+    node: 'node',
+    nodejs: 'node',
+    vue: 'vue',
+    vuejs: 'vue',
+    postgres: 'postgresql',
+    postgresql: 'postgresql',
+    aws: 'aws',
+    amazonwebservices: 'aws',
+    gcp: 'gcp',
+    googlecloud: 'gcp',
+    googlecloudplatform: 'gcp',
+    cicd: 'cicd',
+    continuousintegration: 'cicd',
+    continuousdeployment: 'cicd',
+    continuousintegrationcontinuousdeployment: 'cicd',
+    ts: 'typescript',
+    typescript: 'typescript',
+    js: 'javascript',
+    javascript: 'javascript',
+    k8s: 'kubernetes',
+    kubernetes: 'kubernetes',
+    docker: 'docker',
+    dockers: 'docker',
+    golang: 'go',
+  };
+
+  public static getCanonicalSkill(name: string): string {
+    const norm = name
+      .toLowerCase()
+      .replace(/[.\-_/]/g, '')
+      .replace(/\s+/g, '')
+      .replace(/js$/, '');
+    return this.SKILL_CANONICAL_MAP[norm] || norm;
+  }
+
   private static normalizeSkillName(name: string): string {
     return name
       .toLowerCase()
@@ -753,13 +1123,6 @@ export class ProfileComparisonEngine {
       .replace(/js$/, '') // React.js -> React, Node.js -> Node
       .replace(/typescript/g, 'ts')
       .replace(/javascript/g, 'js');
-  }
-
-  private static normalizeDate(dateStr: string): string {
-    return dateStr
-      .toLowerCase()
-      .replace(/[^0-9a-z]/g, '')
-      .trim();
   }
 
   private static normalizeUrl(url: string): string {

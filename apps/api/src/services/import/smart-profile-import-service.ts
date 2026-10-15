@@ -390,6 +390,11 @@ export class SmartProfileImportService {
       if (isNowComplete && existingItem.classification === 'INCOMPLETE') {
         updatedClassification = 'NEW';
         updatedConflictDetails = null;
+      } else if (
+        existingItem.classification === 'POTENTIAL_MATCH' ||
+        existingItem.classification === 'CONFLICT'
+      ) {
+        updatedConflictDetails = null;
       }
     }
 
@@ -439,11 +444,11 @@ export class SmartProfileImportService {
         eq(profileImportItems.classification, 'NEW'),
       );
     } else if (action === 'APPROVE_ALL') {
-      // APPROVE_ALL approves valid items, but skips INCOMPLETE and CONFLICT items which require explicit human review/editing
+      // APPROVE_ALL approves valid items, but skips INCOMPLETE, CONFLICT, and POTENTIAL_MATCH items which require explicit human review/editing
       whereClause = and(
         eq(profileImportItems.sessionId, sessionId),
         eq(profileImportItems.userId, userId),
-        sql`${profileImportItems.classification} NOT IN ('INCOMPLETE', 'CONFLICT')`,
+        sql`${profileImportItems.classification} NOT IN ('INCOMPLETE', 'CONFLICT', 'POTENTIAL_MATCH')`,
       );
     }
 
@@ -522,10 +527,56 @@ export class SmartProfileImportService {
       for (const item of approvedItems) {
         const payload = (item.userEditedPayload || item.extractedPayload) as Record<string, any>;
 
-        // Issue 2: Handle DUPLICATE and MATCHED records
-        if (item.classification === 'MATCHED' || item.classification === 'DUPLICATE') {
+        // Issue 2 & Issue 6: Handle DUPLICATE, MATCHED, and POTENTIAL_MATCH records
+        if (
+          item.classification === 'MATCHED' ||
+          item.classification === 'DUPLICATE' ||
+          item.classification === 'POTENTIAL_MATCH'
+        ) {
           if (!item.userEditedPayload) {
-            // Already present in candidate brain; approved without edit: skip re-insertion
+            // Already present in candidate brain; approved without edit: track supporting source provenance without creating duplicate records
+            if (item.existingEntityId && tx.query?.candidateFacts) {
+              const existingFacts = await tx.query.candidateFacts.findMany({
+                where: and(
+                  eq(candidateFacts.userId, userId),
+                  eq(candidateFacts.sourceEntityId, item.existingEntityId),
+                ),
+              });
+              for (const fact of existingFacts) {
+                const existingVal = (fact.structuredValue || {}) as Record<string, unknown>;
+                const sources: string[] = Array.isArray(existingVal.sources)
+                  ? [...(existingVal.sources as string[])]
+                  : [String(existingVal.documentSource || 'CV')];
+                if (!sources.includes(session.sourceType)) {
+                  sources.push(session.sourceType);
+                }
+                await tx
+                  .update(candidateFacts)
+                  .set({
+                    structuredValue: {
+                      ...existingVal,
+                      sources,
+                      lastConfirmedBySource: session.sourceType,
+                      lastConfirmedSessionId: session.id,
+                    },
+                    updatedAt: new Date(),
+                  })
+                  .where(eq(candidateFacts.id, fact.id));
+              }
+
+              await this.recordAuditTx(tx, {
+                userId,
+                entityType: item.section,
+                entityId: item.existingEntityId,
+                action: 'CONFIRMED_BY_IMPORT',
+                changedFields: ['sources'],
+                metadata: {
+                  source: session.sourceType,
+                  sessionId,
+                  documentId: session.documentId,
+                },
+              });
+            }
             continue;
           }
           if (item.userEditedPayload && item.existingEntityId) {
@@ -844,7 +895,13 @@ export class SmartProfileImportService {
                 category: 'EXPERIENCE',
                 factKey: `experience_${exp.id}`,
                 statement: `${exp.position} at ${exp.organization} (${exp.startDate} - ${exp.endDate || 'present'})`,
-                structuredValue: payload,
+                structuredValue: {
+                  ...payload,
+                  documentSource: session.sourceType,
+                  sources: [session.sourceType],
+                  documentId: session.documentId,
+                  originalFilename: session.originalFilename,
+                },
                 sourceType,
                 sourceEntityId: exp.id,
                 verificationStatus,
@@ -908,7 +965,13 @@ export class SmartProfileImportService {
                 category: 'EDUCATION',
                 factKey: `education_${edu.id}`,
                 statement: `${edu.degree || 'Degree'} from ${edu.institution}${edu.endDate ? ` (${edu.endDate})` : ''}`,
-                structuredValue: payload,
+                structuredValue: {
+                  ...payload,
+                  documentSource: session.sourceType,
+                  sources: [session.sourceType],
+                  documentId: session.documentId,
+                  originalFilename: session.originalFilename,
+                },
                 sourceType,
                 sourceEntityId: edu.id,
                 verificationStatus,
@@ -964,7 +1027,13 @@ export class SmartProfileImportService {
                 category: 'SKILL',
                 factKey: `skill_${sk.id}`,
                 statement: `Skill: ${sk.name}${sk.proficiency ? ` (${sk.proficiency})` : ''}`,
-                structuredValue: payload,
+                structuredValue: {
+                  ...payload,
+                  documentSource: session.sourceType,
+                  sources: [session.sourceType],
+                  documentId: session.documentId,
+                  originalFilename: session.originalFilename,
+                },
                 sourceType,
                 sourceEntityId: sk.id,
                 verificationStatus,
@@ -1022,7 +1091,13 @@ export class SmartProfileImportService {
                 category: 'CERTIFICATION',
                 factKey: `certification_${cert.id}`,
                 statement: `Certified: ${cert.name} by ${cert.issuingOrganization}`,
-                structuredValue: payload,
+                structuredValue: {
+                  ...payload,
+                  documentSource: session.sourceType,
+                  sources: [session.sourceType],
+                  documentId: session.documentId,
+                  originalFilename: session.originalFilename,
+                },
                 sourceType,
                 sourceEntityId: cert.id,
                 verificationStatus,
@@ -1264,6 +1339,7 @@ export class SmartProfileImportService {
       NEW: 0,
       DUPLICATE: 0,
       MATCHED: 0,
+      POTENTIAL_MATCH: 0,
       CONFLICT: 0,
       INCOMPLETE: 0,
       LOW_CONFIDENCE: 0,

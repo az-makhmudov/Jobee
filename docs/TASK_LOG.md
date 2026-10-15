@@ -1472,3 +1472,44 @@ This document tracks execution history and verification state for all official m
         - Test J: Invalid response structures produce clean 502 AppError without leaking API keys.
     - **Monorepo Verification**:
       - 54 test files (467/467 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB check passing.
+  - **16. Multi-Source Profile Comparison & Provenance Tracking**:
+    - **Context & Objective**:
+      - The first real LinkedIn PDF import succeeded in Gemini extraction, but comparison against existing CV-derived Candidate Brain records revealed weaknesses: abbreviated names (e.g., "Asadbek M.") were treated as new or hard conflicts, phone numbers with different national/international formatting falsely conflicted, existing certifications without issuers in secondary sources were degraded to `INCOMPLETE`, degrees with semantic equivalence ("B.A." vs "Bachelor of Arts") were not matched, and multi-document provenance was missing.
+    - **Fixes Implemented**:
+      1. **Profile Identity & Abbreviated Name Matching**:
+         - Extended `ProfileImportClassificationEnum` and `profile_import_items.classification` with `'POTENTIAL_MATCH'`.
+         - Added `ProfileComparisonEngine.isAbbreviatedNameMatch`: recognizes initials ("Asadbek M.", "A. Makhmudov", "Makhmudov A.") as `POTENTIAL_MATCH` with review notes rather than overwriting verified names or flagging hard conflicts.
+         - Added `ProfileComparisonEngine.isPhoneEquivalent`: normalizes international country prefixes (e.g., `+48 884 665 207` vs `884 665 207` in Poland), preventing false phone conflicts.
+      2. **Certification Matching Reordering**:
+         - Reordered `ProfileComparisonEngine.compareCertification` to search for matching existing certifications by normalized name *before* evaluating missing issuers.
+         - When an imported certification matches an existing verified certification (e.g., "Foundations of Project Management"), it is classified as `MATCHED` (preserving the existing Google issuer), rather than becoming `INCOMPLETE`.
+         - Genuinely new certifications without issuers remain classified as `INCOMPLETE`.
+      3. **Education Semantic Degree Matching**:
+         - Implemented `ProfileComparisonEngine.normalizeDegreeType` and `isDegreeCompatible`: recognizes compatible degree abbreviations ("B.A.", "Bachelor of Arts", "Bachelor's degree") while checking field of study compatibility and flagging genuine date conflicts.
+      4. **Employment Date Conflicts**:
+         - Implemented `standardizeDateString`: normalizes dates across formats ("June 2023" vs "2023-06") while preserving genuine month discrepancies (June 2023 vs May 2023) as `CONFLICT` with accurate comparative dates in conflict details.
+      5. **Skill Deduplication & Canonical Mapping**:
+         - Implemented `getCanonicalSkill` and `SKILL_CANONICAL_MAP`: classifies canonical equivalents (e.g., "Agile" vs "Agile Methodologies") as `POTENTIAL_MATCH` with explanatory notes while strictly preserving separate identities for distinct languages ("Java" vs "JavaScript", "C" vs "C++").
+      6. **Multi-Source Supporting Provenance Tracking**:
+         - Updated `SmartProfileImportService.commitSession`: when an unedited item with `existingEntityId` (such as `MATCHED`, `DUPLICATE`, or `POTENTIAL_MATCH`) is approved, updates `candidateFacts.structuredValue.sources` to append the new document source (e.g., `['CV', 'LINKEDIN_PDF']`) and logs `CONFIRMED_BY_IMPORT` in audit logs without inserting duplicate records.
+      7. **Review UX Transparency**:
+         - Added `POTENTIAL_MATCH` status filter button in `SmartProfileImportModal.tsx`.
+         - Styled `POTENTIAL_MATCH` with cyan theme (`#06b6d4`, `#67e8f9`) and notice banner prompting the candidate to review or link with the existing record.
+    - **Automated Regression Verification**:
+      - Created `smart-profile-multi-source.test.ts` (14/14 tests passing):
+        - Profile identity: Abbreviated names classified as `POTENTIAL_MATCH`.
+        - Phone equivalence: Equivalent international phone numbers matched without conflict.
+        - Phone conflicts: Conflicting phone numbers classified as `CONFLICT`.
+        - Certification matching: Existing certification with Google issuer matched by imported certification with null issuer (`MATCHED`).
+        - Incomplete certifications: New certifications lacking issuers classified as `INCOMPLETE`.
+        - New certifications: New certifications with issuers classified as `NEW`.
+        - Education semantic matching: "B.A." vs "Bachelor of Arts" matched as `MATCHED`.
+        - Education degree conflicts: Conflicting degree levels classified as `CONFLICT`.
+        - Education field conflicts: Conflicting field of study classified as `CONFLICT`.
+        - Employment date conflicts: Genuine month discrepancies preserved as `CONFLICT` with comparative details.
+        - Employment date formats: Identical dates in different formats matched cleanly.
+        - Skill canonical matching: "Agile" vs "Agile Methodologies" classified as `POTENTIAL_MATCH`.
+        - Distinct skills: "Java" vs "JavaScript" and "C" vs "C++" strictly separated as `NEW`.
+        - Multi-source provenance: `commitSession` updating existing fact's `structuredValue.sources` without creating duplicate rows.
+    - **Monorepo Verification**:
+      - 55 test files (481/481 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB check passing.

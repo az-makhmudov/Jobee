@@ -847,6 +847,7 @@ export function SmartProfileImportModal({
                   {[
                     'ALL',
                     'NEW',
+                    'POTENTIAL_MATCH',
                     'CONFLICT',
                     'DUPLICATE',
                     'MATCHED',
@@ -1223,6 +1224,8 @@ export function ReviewItemCard({
     switch (cls) {
       case 'NEW':
         return '#10b981'; // Green
+      case 'POTENTIAL_MATCH':
+        return '#06b6d4'; // Cyan
       case 'MATCHED':
         return '#64748b'; // Slate
       case 'DUPLICATE':
@@ -1593,17 +1596,21 @@ export function ReviewItemCard({
                     ? 'rgba(245, 158, 11, 0.1)'
                     : item.classification === 'LOW_CONFIDENCE'
                       ? 'rgba(59, 130, 246, 0.1)'
-                      : item.classification === 'DUPLICATE'
-                        ? 'rgba(100, 116, 139, 0.1)'
-                        : 'rgba(239, 68, 68, 0.1)',
+                      : item.classification === 'POTENTIAL_MATCH'
+                        ? 'rgba(6, 182, 212, 0.1)'
+                        : item.classification === 'DUPLICATE'
+                          ? 'rgba(100, 116, 139, 0.1)'
+                          : 'rgba(239, 68, 68, 0.1)',
                 borderLeft: `3px solid ${
                   item.classification === 'INCOMPLETE'
                     ? 'var(--warning, #f59e0b)'
                     : item.classification === 'LOW_CONFIDENCE'
                       ? 'var(--primary, #3b82f6)'
-                      : item.classification === 'DUPLICATE'
-                        ? '#64748b'
-                        : 'var(--danger, #ef4444)'
+                      : item.classification === 'POTENTIAL_MATCH'
+                        ? '#06b6d4'
+                        : item.classification === 'DUPLICATE'
+                          ? '#64748b'
+                          : 'var(--danger, #ef4444)'
                 }`,
                 borderRadius: '4px',
                 fontSize: '0.8rem',
@@ -1612,9 +1619,11 @@ export function ReviewItemCard({
                     ? '#fcd34d'
                     : item.classification === 'LOW_CONFIDENCE'
                       ? '#93c5fd'
-                      : item.classification === 'DUPLICATE'
-                        ? '#cbd5e1'
-                        : '#fca5a5',
+                      : item.classification === 'POTENTIAL_MATCH'
+                        ? '#67e8f9'
+                        : item.classification === 'DUPLICATE'
+                          ? '#cbd5e1'
+                          : '#fca5a5',
                 marginTop: '0.4rem',
                 marginBottom: '0.4rem',
               }}
@@ -1630,6 +1639,12 @@ export function ReviewItemCard({
                   ℹ️ <strong>Uncertain Extraction:</strong> {item.conflictDetails}
                 </>
               )}
+              {item.classification === 'POTENTIAL_MATCH' && (
+                <>
+                  🔍 <strong>Potential Match:</strong> {item.conflictDetails} (Click ✎ Edit to
+                  adjust or Accept to link with existing record)
+                </>
+              )}
               {item.classification === 'CONFLICT' && (
                 <>
                   ⚡ <strong>Conflict with existing record:</strong> {item.conflictDetails}
@@ -1640,9 +1655,13 @@ export function ReviewItemCard({
                   📋 <strong>Existing Record Found:</strong> {item.conflictDetails}
                 </>
               )}
-              {!['INCOMPLETE', 'LOW_CONFIDENCE', 'CONFLICT', 'DUPLICATE'].includes(
-                item.classification,
-              ) && <>{item.conflictDetails}</>}
+              {![
+                'INCOMPLETE',
+                'LOW_CONFIDENCE',
+                'CONFLICT',
+                'DUPLICATE',
+                'POTENTIAL_MATCH',
+              ].includes(item.classification) && <>{item.conflictDetails}</>}
             </div>
           )}
 
