@@ -1243,3 +1243,47 @@ This document tracks execution history and verification state for all official m
       - `GET /api/health`: 200 OK (`status: ok`, version `0.1.0`).
       - `GET /api/settings/ai`: 200 OK (`activeModel: gemini-3.8-flash`, `isAvailable: true`).
     - **Worker Background Orchestration**: Verified scheduled pipeline cycles executing in production with auto-apply circuit breaker safely OFF.
+
+---
+
+### `JOB-STUDIO-REPAIR` — Production Application Studio Repair: DOCX Generation, Cloudflare R2 Upload & Package Recovery
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-15
+- **Scope**:
+  - **1. Production Root Cause Investigation (Phase A)**:
+    - Root cause: In Node.js 22 on the Railway Linux container, `dns.setDefaultResultOrder('ipv4first')` was absent. Cloudflare R2 endpoints publish dual A (IPv4) and AAAA (IPv6) records; connecting to IPv6 on containers without outbound IPv6 routing or reusing keep-alive sockets closed by Cloudflare edge (5–10s idle timeout) caused Undici `fetch` to fail immediately with `TypeError: fetch failed`.
+    - Error propagation: `DocxGeneratorService` only stringified `err.message` (`fetch failed`), discarding `err.cause` and error codes.
+    - Transaction ordering flaw: `ApplicationPackageService.createPackage()` inserted database records (`applicationPackages`, `applicationPackageVersions`) with `DRAFT` status *before* initiating artifact storage uploads. Any network or storage failure left orphaned, incomplete DRAFT packages with 0 artifacts.
+    - Frontend UX: `JobDetailView.tsx` relied on synchronous browser `alert()` popups with no retry action, no progress feedback, and navigation directly into incomplete packages.
+  - **2. Storage Integration Hardening & Bounded Retries (Phase B)**:
+    - Added `executeWithRetry` to `S3StorageProvider` (`apps/api/src/storage/s3-storage.ts`) with exponential backoff (3 attempts, initial delay 200ms, factor 2, max delay 2000ms, randomized jitter).
+    - Added `isRetryableError` detecting transient network resets, socket errors (`UND_ERR_SOCKET`, `ECONNRESET`, `ETIMEDOUT`, `ENETUNREACH`, `EHOSTUNREACH`), 429 rate limits, and 5xx server errors.
+    - Added 15-second per-request timeout via `AbortSignal.timeout(15_000)` on all S3 client commands (`PutObjectCommand`, `GetObjectCommand`, `HeadObjectCommand`, `DeleteObjectCommand`).
+    - Added `formatStorageError` distinguishing 401/403 authorization failures (fail-fast without retry) from network/storage issues, preserving root causes.
+    - Added `dns.setDefaultResultOrder('ipv4first')` in `apps/api/src/index.ts` and `apps/worker/src/index.ts`.
+    - Preserved `AppError` and root causes in `DocxGeneratorService.generateTailoredCvDocx()`.
+    - Added unit test suite in `apps/api/src/storage/s3-storage.test.ts` (13/13 passing).
+  - **3. Application Package Recovery & Safe Compensation (Phase C)**:
+    - Re-architected `ApplicationPackageService.createPackage()` and `regeneratePackage()` to use a **2-Phase Commit Pattern**:
+      - Phase 1: In-memory tailoring -> Upload both CV DOCX and Cover Letter DOCX to R2 storage with automatic rollback compensation (deleting any uploaded artifact if either fails). Zero orphaned storage objects.
+      - Phase 2: Atomic database insert/update with readiness computation and approval generation.
+    - Built self-healing idempotency: `createPackage` detects existing packages. If complete, it returns them immediately. If an existing package is an incomplete draft (missing artifacts), it resumes, uploads missing artifacts, and transitions the package to `READY` / `NEEDS_REVIEW`.
+    - Hardened `regeneratePackage` to repair incomplete drafts rather than spawning duplicate or endless version increments.
+    - Added regression tests in `apps/api/src/routes/application-package-routes.test.ts` (9/9 passing).
+  - **4. Frontend Design System Error Experience (Phase D)**:
+    - `JobDetailView.tsx`: Replaced browser `alert()` with Jobee dark-theme inline notification banner, added "🔄 Retry" button, progress state ("⏳ Generating Tailored Documents..."), and duplicate-click protection.
+    - `ApplicationStudioView.tsx`: Added fallback generation buttons for missing CV or Cover Letter artifacts.
+  - **5. Complete Vertical Slice Workflow Verification (Phase E)**:
+    - Created `scripts/verify-studio-package-repair.ts` and executed it live via `railway run` against the production Neon PostgreSQL database and Cloudflare R2 bucket.
+    - **ALL 11 PHASES PASSED**: Candidate profile loaded, test job created, DOCX CV & Cover Letter generated (valid `PK\x03\x04` zip headers), uploaded to R2, DB artifacts verified, downloaded from R2 with exact SHA-256 match, package reopening verified (idempotent), incomplete draft auto-recovery verified, and clean teardown completed.
+    - Healed historical production packages: package `72e90f18-31b2-4109-812d-bbf115c13619` and package `d3ca7301-7f6e-441a-9b15-fb9d0e5a4923` now have status `READY` / `NEEDS_REVIEW` with complete CV and Cover Letter artifacts in Cloudflare R2.
+  - **6. Verification Records**:
+    - `npm run format:write` & `npm run format`: PASSED.
+    - `npm run lint`: PASSED (0 errors, 379 warnings).
+    - `npm run typecheck`: PASSED (0 errors across 6 workspaces).
+    - `npm test`: PASSED (45 test files, 368/368 tests passed).
+    - `npm run build`: PASSED (All packages, API, Worker, and Web SPA bundle).
+    - `npm run db:check`: PASSED (Neon PostgreSQL connected, 18ms).
+    - `scripts/verify-studio-package-repair.ts`: PASSED (11/11 phases verified live against production services).
+

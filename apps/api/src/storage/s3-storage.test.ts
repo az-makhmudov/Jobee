@@ -174,5 +174,100 @@ describe('Document Storage Abstraction & S3/R2 Cloud Ready Tests (BL-04)', () =>
       await s3Provider.deleteFile('obsolete-doc.pdf');
       expect(capturedMethod).toBe('DELETE');
     });
+
+    it('retries transient network failures (fetch failed) and succeeds on subsequent attempt', async () => {
+      let attemptCount = 0;
+      const testBuffer = Buffer.from('Retry test content');
+      const mockFetch = vi.fn().mockImplementation(async () => {
+        attemptCount++;
+        if (attemptCount === 1) {
+          const networkErr = new TypeError('fetch failed');
+          (networkErr as any).cause = { code: 'UND_ERR_SOCKET', message: 'other side closed' };
+          throw networkErr;
+        }
+        return {
+          ok: true,
+          status: 200,
+          text: async () => '',
+        };
+      });
+      global.fetch = mockFetch;
+
+      const meta = await s3Provider.saveFile(testBuffer, {
+        originalFilename: 'resilient.pdf',
+        mimeType: 'application/pdf',
+      });
+
+      expect(attemptCount).toBe(2);
+      expect(meta.originalFilename).toBe('resilient.pdf');
+    });
+
+    it('retries on 503 Service Unavailable and succeeds on next attempt', async () => {
+      let attemptCount = 0;
+      const testBuffer = Buffer.from('503 retry test');
+      const mockFetch = vi.fn().mockImplementation(async () => {
+        attemptCount++;
+        if (attemptCount === 1) {
+          return {
+            ok: false,
+            status: 503,
+            text: async () => 'Slow Down / Service Unavailable',
+          };
+        }
+        return {
+          ok: true,
+          status: 200,
+          text: async () => '',
+        };
+      });
+      global.fetch = mockFetch;
+
+      const meta = await s3Provider.saveFile(testBuffer, {
+        originalFilename: 'service-recovery.pdf',
+        mimeType: 'application/pdf',
+      });
+
+      expect(attemptCount).toBe(2);
+      expect(meta.originalFilename).toBe('service-recovery.pdf');
+    });
+
+    it('fails fast without retry on 403 Forbidden with clear permission diagnostics', async () => {
+      let attemptCount = 0;
+      const mockFetch = vi.fn().mockImplementation(async () => {
+        attemptCount++;
+        return {
+          ok: false,
+          status: 403,
+          text: async () => 'Access Denied',
+        };
+      });
+      global.fetch = mockFetch;
+
+      await expect(
+        s3Provider.saveFile(Buffer.from('Forbidden test'), {
+          originalFilename: 'forbidden.pdf',
+          mimeType: 'application/pdf',
+        }),
+      ).rejects.toThrow(/authorization failed \(403\)/);
+
+      // Must NOT retry 403 authorization failures
+      expect(attemptCount).toBe(1);
+    });
+
+    it('preserves and formats underlying cause details when all retries are exhausted', async () => {
+      const mockFetch = vi.fn().mockImplementation(async () => {
+        const networkErr = new TypeError('fetch failed');
+        (networkErr as any).cause = { code: 'ENETUNREACH', message: 'Network unreachable' };
+        throw networkErr;
+      });
+      global.fetch = mockFetch;
+
+      await expect(
+        s3Provider.saveFile(Buffer.from('Fail exhaust test'), {
+          originalFilename: 'exhaust.pdf',
+          mimeType: 'application/pdf',
+        }),
+      ).rejects.toThrow(/ENETUNREACH/);
+    });
   });
 });

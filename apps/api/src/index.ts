@@ -1,7 +1,14 @@
+import dns from 'node:dns';
 import { getConfig } from '@job-agent/config';
 import { createLogger } from '@job-agent/shared';
 import { closeDbPool } from '@job-agent/database';
 import { buildApp } from './app.js';
+
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Ignore if unsupported in environment
+}
 
 async function bootstrap() {
   const config = getConfig();

@@ -306,8 +306,15 @@ export class DocxGeneratorService {
 
       return { metadata, buffer };
     } catch (err) {
+      if (err instanceof AppError) {
+        throw err;
+      }
+      const cause = (err as any)?.cause;
+      const causeDetails = cause
+        ? ` (cause: ${cause.name || 'Error'}: ${cause.message || ''}${cause.code ? ` [code: ${cause.code}]` : ''})`
+        : '';
       throw AppError.internal(
-        `Failed to generate CV DOCX: ${err instanceof Error ? err.message : String(err)}`,
+        `Failed to generate CV DOCX: ${err instanceof Error ? err.message : String(err)}${causeDetails}`,
       );
     }
   }
@@ -419,8 +426,15 @@ export class DocxGeneratorService {
 
       return { metadata, buffer };
     } catch (err) {
+      if (err instanceof AppError) {
+        throw err;
+      }
+      const cause = (err as any)?.cause;
+      const causeDetails = cause
+        ? ` (cause: ${cause.name || 'Error'}: ${cause.message || ''}${cause.code ? ` [code: ${cause.code}]` : ''})`
+        : '';
       throw AppError.internal(
-        `Failed to generate Cover Letter DOCX: ${err instanceof Error ? err.message : String(err)}`,
+        `Failed to generate Cover Letter DOCX: ${err instanceof Error ? err.message : String(err)}${causeDetails}`,
       );
     }
   }

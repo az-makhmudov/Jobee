@@ -51,20 +51,19 @@ export function JobDetailView({
 
   // Application preparation state
   const [preparingApp, setPreparingApp] = useState(false);
+  const [prepareError, setPrepareError] = useState<string | null>(null);
 
   const handlePrepareApplication = async () => {
-    if (!job) return;
+    if (!job || preparingApp) return;
     setPreparingApp(true);
+    setPrepareError(null);
     try {
-      const existing = await applicationPackageClient.listPackages({ jobId: job.id });
-      if (existing.length > 0) {
-        onPrepareApplication?.(existing[0].id);
-        return;
-      }
       const res = await applicationPackageClient.createPackage(job.id);
       onPrepareApplication?.(res.package.id);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to prepare application');
+      setPrepareError(
+        err instanceof Error ? err.message : 'Failed to prepare Application Studio package.',
+      );
     } finally {
       setPreparingApp(false);
     }
@@ -242,8 +241,9 @@ export function JobDetailView({
               className="btn btn-primary btn-sm"
               onClick={handlePrepareApplication}
               disabled={preparingApp}
+              title="Prepare or open Application Studio package with tailored CV & Cover Letter"
             >
-              {preparingApp ? '⏳ Preparing...' : '🚀 Prepare Studio Package'}
+              {preparingApp ? '⏳ Generating Tailored Documents...' : '🚀 Prepare Studio Package'}
             </button>
           )}
           <button
@@ -260,6 +260,48 @@ export function JobDetailView({
           )}
         </div>
       </div>
+
+      {/* Prepare Application Error Banner */}
+      {prepareError && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '1.5rem',
+            padding: '1rem 1.25rem',
+            borderRadius: '0.5rem',
+            backgroundColor: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            color: '#f87171',
+            gap: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.25rem' }}>⚠️</span>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                Application Package Preparation Error
+              </div>
+              <div style={{ fontSize: '0.85rem', color: '#fca5a5', marginTop: '0.15rem' }}>
+                {prepareError}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={handlePrepareApplication}
+              disabled={preparingApp}
+            >
+              🔄 Retry
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setPrepareError(null)}>
+              ✕ Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Job Header Card */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>

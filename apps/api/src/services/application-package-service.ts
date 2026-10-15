@@ -43,6 +43,7 @@ import {
   type QuestionCategory,
   type QuestionType,
   type TailoredCv,
+  type StorageObjectMetadata,
 } from '@job-agent/shared';
 import { CvBaseSelector } from './cv-base-selector.js';
 import { TailoringEngine, type CandidateContext } from './tailoring-engine.js';
@@ -94,32 +95,73 @@ export class ApplicationPackageService {
       .where(and(eq(applicationPackages.jobId, jobId), eq(applicationPackages.userId, userId)))
       .limit(1);
 
-    let pkgId: string;
     if (existingPkg) {
-      pkgId = existingPkg.id;
-    } else {
-      const [insertedPkg] = await this.db
-        .insert(applicationPackages)
-        .values({
-          jobId,
-          userId,
-          matchAnalysisId: matchAnalysis?.id || null,
-          status: 'DRAFT',
-          currentVersionNumber: 1,
-          hasPolicyBlocker: hasHardBlocker,
-          blockerOverridden: false,
-          isStale: matchAnalysis ? matchAnalysis.isStale : false,
-        })
-        .returning();
+      // Check if current version has complete artifacts
+      const [currentVer] = await this.db
+        .select()
+        .from(applicationPackageVersions)
+        .where(
+          and(
+            eq(applicationPackageVersions.packageId, existingPkg.id),
+            eq(applicationPackageVersions.versionNumber, existingPkg.currentVersionNumber),
+          ),
+        )
+        .limit(1);
 
-      pkgId = insertedPkg!.id;
+      if (currentVer) {
+        const artifacts = await this.db
+          .select()
+          .from(applicationArtifacts)
+          .where(eq(applicationArtifacts.versionId, currentVer.id));
 
-      await this.logEvent(pkgId, 1, 'PACKAGE_CREATED', {
-        jobId,
-        matchAnalysisId: matchAnalysis?.id || null,
-        hasHardBlocker,
-      });
+        const hasCv = artifacts.some((a) => a.artifactType === 'TAILORED_CV' && !!a.storageKey);
+        const hasCl = artifacts.some((a) => a.artifactType === 'COVER_LETTER' && !!a.storageKey);
+
+        if (hasCv && hasCl && currentVer.status !== 'DRAFT') {
+          const fullPkg = await this.getPackage(existingPkg.id, userId);
+          return {
+            package: fullPkg.package,
+            version: this.mapVersionDto(currentVer),
+          };
+        }
+      }
+
+      // Existing package exists but is incomplete (e.g. missing artifacts or stuck in DRAFT from a previous failure).
+      // Resume / heal generation for this version!
+      const generatedVersion = await this.generateVersionInternal(
+        existingPkg.id,
+        existingPkg.currentVersionNumber,
+        manualBaseDocumentId,
+      );
+      const fullPkg = await this.getPackage(existingPkg.id, userId);
+
+      return {
+        package: fullPkg.package,
+        version: generatedVersion,
+      };
     }
+
+    const [insertedPkg] = await this.db
+      .insert(applicationPackages)
+      .values({
+        jobId,
+        userId,
+        matchAnalysisId: matchAnalysis?.id || null,
+        status: 'DRAFT',
+        currentVersionNumber: 1,
+        hasPolicyBlocker: hasHardBlocker,
+        blockerOverridden: false,
+        isStale: matchAnalysis ? matchAnalysis.isStale : false,
+      })
+      .returning();
+
+    const pkgId = insertedPkg!.id;
+
+    await this.logEvent(pkgId, 1, 'PACKAGE_CREATED', {
+      jobId,
+      matchAnalysisId: matchAnalysis?.id || null,
+      hasHardBlocker,
+    });
 
     // Generate version 1
     const generatedVersion = await this.generateVersionInternal(pkgId, 1, manualBaseDocumentId);
@@ -133,6 +175,7 @@ export class ApplicationPackageService {
 
   /**
    * Regenerates an Application Package by creating a new version.
+   * If current version is an incomplete draft, it resumes/heals that version.
    */
   public async regeneratePackage(
     packageId: string,
@@ -149,26 +192,56 @@ export class ApplicationPackageService {
       throw AppError.notFound(`Application package ${packageId} not found`);
     }
 
-    const nextVersionNumber = pkg.currentVersionNumber + 1;
+    // Check if the current version is an incomplete draft (missing artifacts)
+    const [currentVer] = await this.db
+      .select()
+      .from(applicationPackageVersions)
+      .where(
+        and(
+          eq(applicationPackageVersions.packageId, packageId),
+          eq(applicationPackageVersions.versionNumber, pkg.currentVersionNumber),
+        ),
+      )
+      .limit(1);
 
-    // Update current version number
-    await this.db
-      .update(applicationPackages)
-      .set({
-        currentVersionNumber: nextVersionNumber,
-        isStale: false,
-        updatedAt: new Date(),
-      })
-      .where(eq(applicationPackages.id, packageId));
+    const currentArtifacts = currentVer
+      ? await this.db
+          .select()
+          .from(applicationArtifacts)
+          .where(eq(applicationArtifacts.versionId, currentVer.id))
+      : [];
 
-    await this.logEvent(packageId, nextVersionNumber, 'PACKAGE_VERSION_CREATED', {
-      previousVersion: pkg.currentVersionNumber,
-      newVersion: nextVersionNumber,
-    });
+    const isCurrentComplete =
+      currentVer &&
+      currentVer.status !== 'DRAFT' &&
+      currentArtifacts.some((a) => a.artifactType === 'TAILORED_CV' && !!a.storageKey) &&
+      currentArtifacts.some((a) => a.artifactType === 'COVER_LETTER' && !!a.storageKey);
+
+    // If current version was incomplete, heal/regenerate that same version number!
+    // If current version is already complete, bump to next version number.
+    const targetVersionNumber = isCurrentComplete
+      ? pkg.currentVersionNumber + 1
+      : pkg.currentVersionNumber;
+
+    if (targetVersionNumber !== pkg.currentVersionNumber) {
+      await this.db
+        .update(applicationPackages)
+        .set({
+          currentVersionNumber: targetVersionNumber,
+          isStale: false,
+          updatedAt: new Date(),
+        })
+        .where(eq(applicationPackages.id, packageId));
+
+      await this.logEvent(packageId, targetVersionNumber, 'PACKAGE_VERSION_CREATED', {
+        previousVersion: pkg.currentVersionNumber,
+        newVersion: targetVersionNumber,
+      });
+    }
 
     const newVersion = await this.generateVersionInternal(
       packageId,
-      nextVersionNumber,
+      targetVersionNumber,
       manualBaseDocumentId,
     );
     const updatedPkg = await this.getPackage(packageId, userId);
@@ -241,6 +314,36 @@ export class ApplicationPackageService {
       baseSelection.selectedDocumentId,
     );
 
+    // Upload both documents to storage with compensation
+    const uploadedStorageKeys: string[] = [];
+    let cvDocxResult: { metadata: StorageObjectMetadata; buffer: Buffer };
+    let clDocxResult: { metadata: StorageObjectMetadata; buffer: Buffer };
+
+    try {
+      cvDocxResult = await this.docxGenerator.generateTailoredCvDocx(tailoredCv, {
+        packageId,
+        versionNumber,
+        candidateName: candidateCtx.profile.fullName || 'Candidate',
+        jobTitle: job.title,
+      });
+      uploadedStorageKeys.push(cvDocxResult.metadata.storageKey);
+
+      clDocxResult = await this.docxGenerator.generateCoverLetterDocx(coverLetter.text, {
+        packageId,
+        versionNumber,
+        candidateName: candidateCtx.profile.fullName || 'Candidate',
+        jobTitle: job.title,
+        company: job.company || 'Hiring Company',
+      });
+      uploadedStorageKeys.push(clDocxResult.metadata.storageKey);
+    } catch (storageErr) {
+      // Compensate: Delete any newly uploaded storage keys so no orphaned files remain
+      for (const key of uploadedStorageKeys) {
+        await this.storage.deleteFile(key).catch(() => {});
+      }
+      throw storageErr;
+    }
+
     // Insert or update version record
     const [existingVer] = await this.db
       .select()
@@ -289,25 +392,43 @@ export class ApplicationPackageService {
       versionId = insertedVer!.id;
     }
 
-    // Generate and store CV DOCX Artifact
-    const cvDocxResult = await this.docxGenerator.generateTailoredCvDocx(tailoredCv, {
-      packageId,
-      versionNumber,
-      candidateName: candidateCtx.profile.fullName || 'Candidate',
-      jobTitle: job.title,
-    });
+    // Save or update CV DOCX Artifact
+    const [existingCvArtifact] = await this.db
+      .select()
+      .from(applicationArtifacts)
+      .where(
+        and(
+          eq(applicationArtifacts.versionId, versionId),
+          eq(applicationArtifacts.artifactType, 'TAILORED_CV'),
+        ),
+      )
+      .limit(1);
 
-    await this.db.insert(applicationArtifacts).values({
-      packageId,
-      versionId,
-      artifactType: 'TAILORED_CV',
-      storageKey: cvDocxResult.metadata.storageKey,
-      filename: cvDocxResult.metadata.originalFilename,
-      mimeType: cvDocxResult.metadata.mimeType,
-      sizeBytes: cvDocxResult.metadata.sizeBytes,
-      sha256Checksum: cvDocxResult.metadata.sha256Checksum,
-      metadata: { generatedAt: new Date().toISOString() },
-    });
+    if (existingCvArtifact) {
+      await this.db
+        .update(applicationArtifacts)
+        .set({
+          storageKey: cvDocxResult.metadata.storageKey,
+          filename: cvDocxResult.metadata.originalFilename,
+          mimeType: cvDocxResult.metadata.mimeType,
+          sizeBytes: cvDocxResult.metadata.sizeBytes,
+          sha256Checksum: cvDocxResult.metadata.sha256Checksum,
+          metadata: { generatedAt: new Date().toISOString() },
+        })
+        .where(eq(applicationArtifacts.id, existingCvArtifact.id));
+    } else {
+      await this.db.insert(applicationArtifacts).values({
+        packageId,
+        versionId,
+        artifactType: 'TAILORED_CV',
+        storageKey: cvDocxResult.metadata.storageKey,
+        filename: cvDocxResult.metadata.originalFilename,
+        mimeType: cvDocxResult.metadata.mimeType,
+        sizeBytes: cvDocxResult.metadata.sizeBytes,
+        sha256Checksum: cvDocxResult.metadata.sha256Checksum,
+        metadata: { generatedAt: new Date().toISOString() },
+      });
+    }
 
     await this.logEvent(packageId, versionNumber, 'CV_GENERATED', {
       storageKey: cvDocxResult.metadata.storageKey,
@@ -315,26 +436,43 @@ export class ApplicationPackageService {
       sizeBytes: cvDocxResult.metadata.sizeBytes,
     });
 
-    // Generate and store Cover Letter DOCX Artifact
-    const clDocxResult = await this.docxGenerator.generateCoverLetterDocx(coverLetter.text, {
-      packageId,
-      versionNumber,
-      candidateName: candidateCtx.profile.fullName || 'Candidate',
-      jobTitle: job.title,
-      company: job.company || 'Hiring Company',
-    });
+    // Save or update Cover Letter DOCX Artifact
+    const [existingClArtifact] = await this.db
+      .select()
+      .from(applicationArtifacts)
+      .where(
+        and(
+          eq(applicationArtifacts.versionId, versionId),
+          eq(applicationArtifacts.artifactType, 'COVER_LETTER'),
+        ),
+      )
+      .limit(1);
 
-    await this.db.insert(applicationArtifacts).values({
-      packageId,
-      versionId,
-      artifactType: 'COVER_LETTER',
-      storageKey: clDocxResult.metadata.storageKey,
-      filename: clDocxResult.metadata.originalFilename,
-      mimeType: clDocxResult.metadata.mimeType,
-      sizeBytes: clDocxResult.metadata.sizeBytes,
-      sha256Checksum: clDocxResult.metadata.sha256Checksum,
-      metadata: { generatedAt: new Date().toISOString() },
-    });
+    if (existingClArtifact) {
+      await this.db
+        .update(applicationArtifacts)
+        .set({
+          storageKey: clDocxResult.metadata.storageKey,
+          filename: clDocxResult.metadata.originalFilename,
+          mimeType: clDocxResult.metadata.mimeType,
+          sizeBytes: clDocxResult.metadata.sizeBytes,
+          sha256Checksum: clDocxResult.metadata.sha256Checksum,
+          metadata: { generatedAt: new Date().toISOString() },
+        })
+        .where(eq(applicationArtifacts.id, existingClArtifact.id));
+    } else {
+      await this.db.insert(applicationArtifacts).values({
+        packageId,
+        versionId,
+        artifactType: 'COVER_LETTER',
+        storageKey: clDocxResult.metadata.storageKey,
+        filename: clDocxResult.metadata.originalFilename,
+        mimeType: clDocxResult.metadata.mimeType,
+        sizeBytes: clDocxResult.metadata.sizeBytes,
+        sha256Checksum: clDocxResult.metadata.sha256Checksum,
+        metadata: { generatedAt: new Date().toISOString() },
+      });
+    }
 
     await this.logEvent(packageId, versionNumber, 'COVER_LETTER_GENERATED', {
       storageKey: clDocxResult.metadata.storageKey,
@@ -344,82 +482,89 @@ export class ApplicationPackageService {
 
     // If regenerating from a previous version, carry forward questions & approved states
     if (versionNumber > 1) {
-      const [prevVer] = await this.db
+      const existingQuestionsForVer = await this.db
         .select()
-        .from(applicationPackageVersions)
-        .where(
-          and(
-            eq(applicationPackageVersions.packageId, packageId),
-            eq(applicationPackageVersions.versionNumber, versionNumber - 1),
-          ),
-        )
-        .limit(1);
+        .from(applicationQuestions)
+        .where(eq(applicationQuestions.versionId, versionId));
 
-      if (prevVer) {
-        const prevQuestions = await this.db
+      if (existingQuestionsForVer.length === 0) {
+        const [prevVer] = await this.db
           .select()
-          .from(applicationQuestions)
-          .where(eq(applicationQuestions.versionId, prevVer.id))
-          .orderBy(applicationQuestions.displayOrder);
+          .from(applicationPackageVersions)
+          .where(
+            and(
+              eq(applicationPackageVersions.packageId, packageId),
+              eq(applicationPackageVersions.versionNumber, versionNumber - 1),
+            ),
+          )
+          .limit(1);
 
-        for (const pq of prevQuestions) {
-          const [insertedQ] = await this.db
-            .insert(applicationQuestions)
-            .values({
-              packageId,
-              versionId,
-              questionText: pq.questionText,
-              category: pq.category,
-              questionType: pq.questionType,
-              isRequired: pq.isRequired,
-              options: pq.options,
-              sensitivity: pq.sensitivity,
-              answerSource: pq.answerSource,
-              sourceEntityId: pq.sourceEntityId,
-              proposedAnswer: pq.proposedAnswer,
-              humanEditedAnswer: pq.humanEditedAnswer,
-              finalAnswer: pq.finalAnswer,
-              approvalState: pq.approvalState,
-              displayOrder: pq.displayOrder,
-            })
-            .returning();
-
-          // If there was an associated approval request in previous version, carry it forward
-          const [prevAppr] = await this.db
+        if (prevVer) {
+          const prevQuestions = await this.db
             .select()
-            .from(approvalRequests)
-            .where(
-              and(
-                eq(approvalRequests.versionId, prevVer.id),
-                eq(approvalRequests.questionId, pq.id),
-              ),
-            )
-            .limit(1);
+            .from(applicationQuestions)
+            .where(eq(applicationQuestions.versionId, prevVer.id))
+            .orderBy(applicationQuestions.displayOrder);
 
-          if (prevAppr) {
-            await this.db.insert(approvalRequests).values({
-              packageId,
-              versionId,
-              userId: pkg.userId,
-              questionId: insertedQ!.id,
-              approvalType: prevAppr.approvalType,
-              status: prevAppr.status,
-              subject: prevAppr.subject,
-              proposedValue: prevAppr.proposedValue,
-              userEditedValue: prevAppr.userEditedValue,
-              reason: prevAppr.reason,
-              riskLevel: prevAppr.riskLevel,
-              evidenceReferences: prevAppr.evidenceReferences,
-              resolvedAt: prevAppr.resolvedAt,
-              resolvedBy: prevAppr.resolvedBy,
-            });
+          for (const pq of prevQuestions) {
+            const [insertedQ] = await this.db
+              .insert(applicationQuestions)
+              .values({
+                packageId,
+                versionId,
+                questionText: pq.questionText,
+                category: pq.category,
+                questionType: pq.questionType,
+                isRequired: pq.isRequired,
+                options: pq.options,
+                sensitivity: pq.sensitivity,
+                answerSource: pq.answerSource,
+                sourceEntityId: pq.sourceEntityId,
+                proposedAnswer: pq.proposedAnswer,
+                humanEditedAnswer: pq.humanEditedAnswer,
+                finalAnswer: pq.finalAnswer,
+                approvalState: pq.approvalState,
+                displayOrder: pq.displayOrder,
+              })
+              .returning();
 
-            // Supersede previous version's unresolved approval request so it does not linger
-            if (['PENDING', 'NEEDS_USER_RECONFIRMATION'].includes(prevAppr.status)) {
-              await this.db
-                .update(approvalRequests)
-                .set({ status: 'CANCELLED', updatedAt: new Date() })
-                .where(eq(approvalRequests.id, prevAppr.id));
+            // If there was an associated approval request in previous version, carry it forward
+            const [prevAppr] = await this.db
+              .select()
+              .from(approvalRequests)
+              .where(
+                and(
+                  eq(approvalRequests.versionId, prevVer.id),
+                  eq(approvalRequests.questionId, pq.id),
+                ),
+              )
+              .limit(1);
+
+            if (prevAppr) {
+              await this.db.insert(approvalRequests).values({
+                packageId,
+                versionId,
+                userId: pkg.userId,
+                questionId: insertedQ!.id,
+                approvalType: prevAppr.approvalType,
+                status: prevAppr.status,
+                subject: prevAppr.subject,
+                proposedValue: prevAppr.proposedValue,
+                userEditedValue: prevAppr.userEditedValue,
+                reason: prevAppr.reason,
+                riskLevel: prevAppr.riskLevel,
+                evidenceReferences: prevAppr.evidenceReferences,
+                resolvedBy: prevAppr.resolvedBy,
+                resolvedAt: prevAppr.resolvedAt,
+              });
+
+              // Supersede previous version's unresolved approval request so it does not linger
+              if (['PENDING', 'NEEDS_USER_RECONFIRMATION'].includes(prevAppr.status)) {
+                await this.db
+                  .update(approvalRequests)
+                  .set({ status: 'CANCELLED', updatedAt: new Date() })
+                  .where(eq(approvalRequests.id, prevAppr.id));
+              }
             }
           }
         }

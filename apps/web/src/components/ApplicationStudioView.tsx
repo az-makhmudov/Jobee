@@ -675,7 +675,7 @@ export function ApplicationStudioView({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              {cvArtifact && (
+              {cvArtifact ? (
                 <a
                   href={applicationPackageClient.getArtifactDownloadUrl(packageId, cvArtifact.id)}
                   className="button button-primary"
@@ -684,6 +684,14 @@ export function ApplicationStudioView({
                 >
                   ⬇ Download Tailored CV (DOCX)
                 </a>
+              ) : (
+                <button
+                  className="button button-primary"
+                  onClick={handleRegenerate}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? '⏳ Generating...' : '⚡ Generate CV Document'}
+                </button>
               )}
               <button
                 className="button button-secondary"
@@ -943,7 +951,7 @@ export function ApplicationStudioView({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              {clArtifact && (
+              {clArtifact ? (
                 <a
                   href={applicationPackageClient.getArtifactDownloadUrl(packageId, clArtifact.id)}
                   className="button button-primary"
@@ -952,6 +960,14 @@ export function ApplicationStudioView({
                 >
                   ⬇ Download Cover Letter (DOCX)
                 </a>
+              ) : (
+                <button
+                  className="button button-primary"
+                  onClick={handleRegenerate}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? '⏳ Generating...' : '⚡ Generate Cover Letter Document'}
+                </button>
               )}
               <button
                 className="button button-secondary"

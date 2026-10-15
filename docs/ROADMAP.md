@@ -150,3 +150,9 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
 
 - **Status**: COMPLETED
 - **Scope**: Comprehensive 11-phase end-to-end functional verification across the complete stack: public feed discovery (Arbeitnow & Greenhouse), deterministic 8-dimension matching, tailored CV & grounded cover letter generation with metric safeguard, Application Package studio with human approval gating, controlled ATS automation with bot challenge detection and cryptographic manifest checksums, 17-state CRM lifecycle and timeline audit, Gmail MIME parsing, deterministic classification, entity resolution and status synchronization, all 13 production UI routes responding 200, autonomous background worker pipeline cycles with circuit breaker safety, and 100% clean teardown.
+
+### `JOB-STUDIO-REPAIR — Production Application Studio Repair: DOCX Generation, Cloudflare R2 Upload & Package Recovery`
+
+- **Status**: COMPLETED
+- **Scope**: Resolved production "fetch failed" bug in Application Studio. Identified root cause in Linux container IPv6 DNS socket routing and keep-alive socket closures with Cloudflare R2 edge. Added bounded retries with exponential backoff and jitter, transient socket error classifier, 15-second per-request timeouts, explicit error cause preservation, and `dns.setDefaultResultOrder('ipv4first')`. Re-engineered ApplicationPackageService to use a 2-phase commit pattern with safe compensation (storage upload before DB commit, rollback on failure, zero orphaned storage objects). Implemented self-healing idempotency to resume and repair broken or incomplete draft packages. Polished frontend with Jobee dark-theme inline notification banner, retry button, loading progress, and double-click prevention. Verified 11/11 phases live against production Neon database and Cloudflare R2, healed historical broken packages, and achieved 100% test coverage with zero regressions.
+

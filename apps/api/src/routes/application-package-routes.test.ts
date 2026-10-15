@@ -10,6 +10,8 @@ import {
   candidateExperiences,
   candidateEducation,
   applicationPackages,
+  applicationPackageVersions,
+  applicationArtifacts,
   eq,
   inArray,
 } from '@job-agent/database';
@@ -318,5 +320,101 @@ Workplace Type: REMOTE. Full-time position.`,
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     );
     expect(downloadRes.rawPayload.length).toBeGreaterThan(100);
+  });
+
+  it('POST /api/jobs/:jobId/application-package is idempotent and returns existing complete package', async () => {
+    const jobId = createdJobIds[0]!;
+    const secondCreateRes = await app.inject({
+      method: 'POST',
+      url: `/api/jobs/${jobId}/application-package`,
+      payload: {},
+    });
+
+    expect(secondCreateRes.statusCode).toBe(201);
+    const body = JSON.parse(secondCreateRes.body).data;
+    expect(body.package.id).toBe(createdPackageIds[0]);
+    expect(body.version).toBeDefined();
+    expect(body.version.versionNumber).toBeDefined();
+  });
+
+  it('safely recovers and heals incomplete package draft versions with missing artifacts', async () => {
+    const db = getDb(config.DATABASE_URL);
+    const user = await getOrCreatePrimaryUser(db);
+    const userId = user.id;
+
+    // Ingest a job specifically for partial failure recovery testing
+    const jobRes = await app.inject({
+      method: 'POST',
+      url: '/api/jobs/text',
+      payload: {
+        text: `Platform Architect at Recovery Test GmbH in Berlin.
+Requirements:
+- Strong experience with PackageTestSkill_${runId}.
+- Distributed systems expertise.`,
+        title: 'Platform Architect',
+        company: 'Recovery Test GmbH',
+        locationText: 'Berlin, Germany',
+      },
+    });
+    const recoveryJob = JSON.parse(jobRes.body).data.job;
+    createdJobIds.push(recoveryJob.id);
+
+    // Simulate an incomplete package: package in DRAFT status, version in DRAFT, 0 artifacts
+    const [partialPkg] = await db
+      .insert(applicationPackages)
+      .values({
+        jobId: recoveryJob!.id,
+        userId,
+        status: 'DRAFT',
+        currentVersionNumber: 1,
+        hasPolicyBlocker: false,
+        blockerOverridden: false,
+        isStale: false,
+      })
+      .returning();
+    createdPackageIds.push(partialPkg!.id);
+
+    const [partialVer] = await db
+      .insert(applicationPackageVersions)
+      .values({
+        packageId: partialPkg!.id,
+        versionNumber: 1,
+        status: 'DRAFT',
+        inputFingerprint: 'incomplete-fingerprint',
+        tailoredCvContent: {},
+        coverLetterContent: 'Incomplete cover letter',
+        changeSummary: [],
+        generationMode: 'DETERMINISTIC_ONLY',
+      })
+      .returning();
+
+    // Verify 0 artifacts initially
+    const initialArtifacts = await db
+      .select()
+      .from(applicationArtifacts)
+      .where(eq(applicationArtifacts.versionId, partialVer!.id));
+    expect(initialArtifacts.length).toBe(0);
+
+    // Call POST /api/jobs/:jobId/application-package on the incomplete package
+    const recoverRes = await app.inject({
+      method: 'POST',
+      url: `/api/jobs/${recoveryJob!.id}/application-package`,
+      payload: {},
+    });
+
+    expect(recoverRes.statusCode).toBe(201);
+    const recoveredData = JSON.parse(recoverRes.body).data;
+    expect(recoveredData.package.id).toBe(partialPkg!.id);
+    expect(recoveredData.version.versionNumber).toBe(1);
+    expect(recoveredData.version.status).not.toBe('DRAFT');
+
+    // Verify artifacts have been safely healed and stored
+    const healedArtifacts = await db
+      .select()
+      .from(applicationArtifacts)
+      .where(eq(applicationArtifacts.versionId, partialVer!.id));
+    expect(healedArtifacts.length).toBe(2);
+    expect(healedArtifacts.some((a) => a.artifactType === 'TAILORED_CV')).toBe(true);
+    expect(healedArtifacts.some((a) => a.artifactType === 'COVER_LETTER')).toBe(true);
   });
 });

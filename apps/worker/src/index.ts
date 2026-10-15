@@ -1,6 +1,13 @@
+import dns from 'node:dns';
 import { getConfig } from '@job-agent/config';
 import { createLogger } from '@job-agent/shared';
 import { WorkerService } from './worker.js';
+
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch {
+  // Ignore if unsupported in environment
+}
 
 async function bootstrap() {
   const config = getConfig();
