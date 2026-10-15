@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { candidateImportApi } from '../api/candidate-import-client.js';
 import type {
   ProfileImportSessionDto,
@@ -20,6 +20,8 @@ interface Props {
 
 export type WizardStep = 'UPLOAD' | 'EXTRACT' | 'REVIEW' | 'CONFIRM' | 'SUCCESS';
 
+const DEFAULT_INITIAL_ITEMS: ProfileImportItemDto[] = [];
+
 export function SmartProfileImportModal({
   isOpen,
   onClose,
@@ -27,7 +29,7 @@ export function SmartProfileImportModal({
   initialSourceType = 'CV',
   initialStep = 'UPLOAD',
   initialSession = null,
-  initialItems = [],
+  initialItems = DEFAULT_INITIAL_ITEMS,
 }: Props) {
   const [step, setStep] = useState<WizardStep>(initialStep);
   const [sourceType, setSourceType] = useState<ProfileImportSourceType>(initialSourceType);
@@ -36,6 +38,7 @@ export function SmartProfileImportModal({
   const [aiConsent, setAiConsent] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Active Session & Items
   const [session, setSession] = useState<ProfileImportSessionDto | null>(initialSession);
@@ -56,22 +59,77 @@ export function SmartProfileImportModal({
   // Success summary
   const [commitResult, setCommitResult] = useState<CommitImportSessionResult | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const wasOpenRef = useRef(false);
+
+  // Stable ref for initial props to avoid re-running initialization during normal renders
+  const initialPropsRef = useRef({
+    initialStep,
+    initialSession,
+    initialItems,
+    initialSourceType,
+  });
+
   useEffect(() => {
-    if (isOpen) {
-      setStep(initialStep);
+    initialPropsRef.current = {
+      initialStep,
+      initialSession,
+      initialItems,
+      initialSourceType,
+    };
+  });
+
+  useEffect(() => {
+    if (isOpen && !wasOpenRef.current) {
+      // Transition from closed to open (or first mount while open):
+      // Initialize/reset all wizard states to start fresh.
+      const currentProps = initialPropsRef.current;
+      setStep(currentProps.initialStep);
       setSelectedFile(null);
       setReplaceMasterCv(false);
       setError(null);
-      setSession(initialSession);
-      setItems(initialItems);
+      setIsDragging(false);
+      setSession(currentProps.initialSession);
+      setItems(currentProps.initialItems);
       setCommitResult(null);
-      setSourceType(initialSourceType);
+      setSourceType(currentProps.initialSourceType);
+      setEditingItemId(null);
+      setEditFormData({});
+      setActiveSectionFilter('ALL');
+      setActiveClassificationFilter('ALL');
+    } else if (!isOpen && wasOpenRef.current) {
+      // Transition from open to closed
+      setSelectedFile(null);
+      setError(null);
+      setIsDragging(false);
+      setEditingItemId(null);
+      setEditFormData({});
+      setCommitResult(null);
     }
-  }, [isOpen, initialSourceType, initialStep, initialSession, initialItems]);
+    wasOpenRef.current = isOpen;
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   // --- Step 1: Upload File ---
+  const handleFileSelected = (file: File) => {
+    const MAX_SIZE_BYTES = 25 * 1024 * 1024;
+    if (file.size > MAX_SIZE_BYTES) {
+      setError('File exceeds the 25MB limit. Please upload a smaller document.');
+      return;
+    }
+
+    const validExtensions = ['.pdf', '.docx', '.doc', '.txt'];
+    const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!validExtensions.includes(ext)) {
+      setError('Unsupported file format. Please upload a PDF or Word (DOCX) document.');
+      return;
+    }
+
+    setSelectedFile(file);
+    setError(null);
+  };
+
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) {
@@ -390,27 +448,66 @@ export function SmartProfileImportModal({
               <form onSubmit={handleFileUpload}>
                 <div
                   style={{
-                    border: '2px dashed var(--border-color, #3b4252)',
+                    border: isDragging
+                      ? '2px dashed var(--primary, #3b82f6)'
+                      : '2px dashed var(--border-color, #3b4252)',
                     borderRadius: '10px',
                     padding: '2.5rem 1.5rem',
                     textAlign: 'center',
                     cursor: 'pointer',
-                    backgroundColor: selectedFile ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
+                    backgroundColor: isDragging
+                      ? 'rgba(59, 130, 246, 0.12)'
+                      : selectedFile
+                        ? 'rgba(59, 130, 246, 0.05)'
+                        : 'transparent',
                     marginBottom: '1.5rem',
+                    transition: 'all 0.15s ease-in-out',
                   }}
-                  onClick={() => document.getElementById('file-upload-input')?.click()}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!isDragging) setIsDragging(true);
+                  }}
+                  onDragEnter={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(false);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(false);
+                    const file = e.dataTransfer?.files?.[0];
+                    if (file) {
+                      handleFileSelected(file);
+                    }
+                  }}
                 >
                   <input
+                    ref={fileInputRef}
                     id="file-upload-input"
                     type="file"
                     accept=".pdf,.docx,.doc,.txt"
                     style={{ display: 'none' }}
+                    onClick={(e) => {
+                      (e.currentTarget as HTMLInputElement).value = '';
+                      e.stopPropagation();
+                    }}
                     onChange={(e) => {
-                      if (e.target.files?.[0]) setSelectedFile(e.target.files[0]);
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        handleFileSelected(file);
+                      }
                     }}
                   />
                   <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>
-                    {selectedFile ? '📑' : '📤'}
+                    {isDragging ? '📥' : selectedFile ? '📑' : '📤'}
                   </div>
                   {selectedFile ? (
                     <div>
@@ -420,13 +517,18 @@ export function SmartProfileImportModal({
                         {selectedFile.name}
                       </div>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        {(selectedFile.size / 1024).toFixed(1)} KB — Click to change file
+                        {selectedFile.size < 1024 * 1024
+                          ? `${(selectedFile.size / 1024).toFixed(1)} KB`
+                          : `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB`}{' '}
+                        — Click or drag to change file
                       </div>
                     </div>
                   ) : (
                     <div>
                       <div style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '0.25rem' }}>
-                        Click or drag & drop your document here
+                        {isDragging
+                          ? 'Drop your document here'
+                          : 'Click or drag & drop your document here'}
                       </div>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                         Supports PDF and Word (DOCX) up to 25MB

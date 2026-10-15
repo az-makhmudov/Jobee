@@ -331,3 +331,307 @@ describe('SmartProfileImportModal — Review Approval Safety', () => {
     expect(screen.getByText(/EDITED \(NEEDS APPROVAL\)/i)).toBeDefined();
   });
 });
+
+describe('SmartProfileImportModal — Production Upload State & File Selection (Regression)', () => {
+  const mockUploadSession: ProfileImportSessionDto = {
+    id: 'session-upload-test',
+    userId: 'user-01',
+    sourceType: 'CV',
+    status: 'PENDING',
+    originalFilename: 'My_Resume.pdf',
+    mimeType: 'application/pdf',
+    storageKey: 'uploads/My_Resume.pdf',
+    documentId: null,
+    aiConsentGiven: false,
+    extractorUsed: null,
+    rawTextSnippet: null,
+    errorMessage: null,
+    itemCounts: {
+      total: 0,
+      approved: 0,
+      rejected: 0,
+      pending: 0,
+      byClassification: {
+        NEW: 0,
+        DUPLICATE: 0,
+        MATCHED: 0,
+        CONFLICT: 0,
+        INCOMPLETE: 0,
+        LOW_CONFIDENCE: 0,
+      },
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders in Step 1 (Upload) when invoked without test props (exact production usage)', () => {
+    render(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    expect(screen.getByText(/Smart Candidate Profile Import/i)).toBeDefined();
+    expect(screen.getByText(/1\. Upload/i)).toBeDefined();
+    expect(screen.getByText(/Click or drag & drop your document here/i)).toBeDefined();
+
+    const continueBtn = screen.getByRole('button', { name: /Continue to Extraction →/i });
+    expect(continueBtn).toBeDefined();
+    expect((continueBtn as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('selecting a PDF displays its filename and formatted size, and enables Continue button', async () => {
+    render(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    const continueBtn = screen.getByRole('button', {
+      name: /Continue to Extraction →/i,
+    }) as HTMLButtonElement;
+    expect(continueBtn.disabled).toBe(true);
+
+    const testFile = new File(['%PDF-1.4 dummy content'], 'Asadbek_CV.pdf', {
+      type: 'application/pdf',
+    });
+    // Set a known size
+    Object.defineProperty(testFile, 'size', { value: 1024 * 150 }); // 150 KB
+
+    const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
+    expect(fileInput).toBeDefined();
+
+    fireEvent.change(fileInput, { target: { files: [testFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Asadbek_CV.pdf')).toBeDefined();
+    });
+    expect(screen.getByText(/150\.0 KB — Click or drag to change file/i)).toBeDefined();
+    expect(continueBtn.disabled).toBe(false);
+  });
+
+  it('selected file state survives component re-renders (does not get wiped by useEffect dependencies)', async () => {
+    const { rerender } = render(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    const testFile = new File(['%PDF-1.4 dummy content'], 'Asadbek_CV.pdf', {
+      type: 'application/pdf',
+    });
+    const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [testFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Asadbek_CV.pdf')).toBeDefined();
+    });
+
+    // 1. Re-render by toggling checkbox inside component
+    const replaceCheckbox = screen.getByRole('checkbox');
+    fireEvent.click(replaceCheckbox);
+
+    // File should still be present!
+    expect(screen.getByText('Asadbek_CV.pdf')).toBeDefined();
+
+    // 2. Parent re-renders the component with new callback
+    rerender(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    // CRITICAL REGRESSION CHECK: File MUST still be present after parent re-render!
+    expect(screen.getByText('Asadbek_CV.pdf')).toBeDefined();
+    const continueBtn = screen.getByRole('button', {
+      name: /Continue to Extraction →/i,
+    }) as HTMLButtonElement;
+    expect(continueBtn.disabled).toBe(false);
+  });
+
+  it('selecting a DOCX file displays its filename and enables Continue button', async () => {
+    render(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    const docxFile = new File(['PK\x03\x04 dummy docx'], 'Portfolio_Resume.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    Object.defineProperty(docxFile, 'size', { value: 1024 * 512 }); // 512 KB
+
+    const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [docxFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('Portfolio_Resume.docx')).toBeDefined();
+    });
+    expect(screen.getByText(/512\.0 KB — Click or drag to change file/i)).toBeDefined();
+
+    const continueBtn = screen.getByRole('button', {
+      name: /Continue to Extraction →/i,
+    }) as HTMLButtonElement;
+    expect(continueBtn.disabled).toBe(false);
+  });
+
+  it('selecting the same file again triggers onChange and updates state', async () => {
+    render(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    const testFile = new File(['dummy'], 'Resume.pdf', { type: 'application/pdf' });
+    const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
+
+    // First selection
+    fireEvent.change(fileInput, { target: { files: [testFile] } });
+    await waitFor(() => {
+      expect(screen.getByText('Resume.pdf')).toBeDefined();
+    });
+
+    // Click input to simulate user clicking to re-select
+    fireEvent.click(fileInput);
+    // Input value is cleared by onClick handler
+    expect(fileInput.value).toBe('');
+
+    // Re-select same file
+    fireEvent.change(fileInput, { target: { files: [testFile] } });
+    expect(screen.getByText('Resume.pdf')).toBeDefined();
+  });
+
+  it('rejects files exceeding 25MB and shows descriptive error', async () => {
+    render(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    const largeFile = new File(['large content'], 'Giant_CV.pdf', { type: 'application/pdf' });
+    Object.defineProperty(largeFile, 'size', { value: 26 * 1024 * 1024 }); // 26MB
+
+    const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [largeFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/File exceeds the 25MB limit/i)).toBeDefined();
+    });
+    const continueBtn = screen.getByRole('button', {
+      name: /Continue to Extraction →/i,
+    }) as HTMLButtonElement;
+    expect(continueBtn.disabled).toBe(true);
+  });
+
+  it('rejects unsupported file formats and displays error', async () => {
+    render(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    const badFile = new File(['exe binary'], 'virus.exe', { type: 'application/x-msdownload' });
+    const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [badFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Unsupported file format/i)).toBeDefined();
+    });
+  });
+
+  it('drag and drop: dragging over highlights dropzone and dropping a valid file selects it', async () => {
+    render(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    const dropzone = screen
+      .getByText(/Click or drag & drop your document here/i)
+      .closest('div[style*="dashed"]')!;
+    expect(dropzone).toBeDefined();
+
+    // Drag over
+    fireEvent.dragOver(dropzone);
+    expect(screen.getByText(/Drop your document here/i)).toBeDefined();
+
+    // Drop file
+    const droppedFile = new File(['%PDF-1.4 dropped'], 'Dropped_Resume.pdf', {
+      type: 'application/pdf',
+    });
+    Object.defineProperty(droppedFile, 'size', { value: 1024 * 80 });
+
+    fireEvent.drop(dropzone, {
+      dataTransfer: {
+        files: [droppedFile],
+      },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('Dropped_Resume.pdf')).toBeDefined();
+    });
+    const continueBtn = screen.getByRole('button', {
+      name: /Continue to Extraction →/i,
+    }) as HTMLButtonElement;
+    expect(continueBtn.disabled).toBe(false);
+  });
+
+  it('clicking Continue to Extraction calls candidateImportApi.upload and advances to EXTRACT step', async () => {
+    (candidateImportApi.upload as any).mockResolvedValueOnce(mockUploadSession);
+
+    render(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    const testFile = new File(['%PDF-1.4 dummy'], 'My_Resume.pdf', { type: 'application/pdf' });
+    const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [testFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('My_Resume.pdf')).toBeDefined();
+    });
+
+    const continueBtn = screen.getByRole('button', {
+      name: /Continue to Extraction →/i,
+    }) as HTMLButtonElement;
+    fireEvent.click(continueBtn);
+
+    await waitFor(() => {
+      expect(candidateImportApi.upload).toHaveBeenCalledTimes(1);
+    });
+
+    // Check FormData passed to API
+    const formDataArg = (candidateImportApi.upload as any).mock.calls[0]![0] as FormData;
+    expect(formDataArg.get('file')).toBe(testFile);
+    expect(formDataArg.get('sourceType')).toBe('CV');
+
+    // Advanced to Step 2: EXTRACT
+    await waitFor(() => {
+      expect(screen.getByText(/Choose Extraction Engine/i)).toBeDefined();
+    });
+    expect(screen.getByText('My_Resume.pdf')).toBeDefined();
+  });
+
+  it('upload failure displays error on Step 1 and keeps the file selected for retry', async () => {
+    (candidateImportApi.upload as any).mockRejectedValueOnce(
+      new Error('Network timeout during upload'),
+    );
+
+    render(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    const testFile = new File(['%PDF-1.4 dummy'], 'My_Resume.pdf', { type: 'application/pdf' });
+    const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [testFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('My_Resume.pdf')).toBeDefined();
+    });
+
+    const continueBtn = screen.getByRole('button', {
+      name: /Continue to Extraction →/i,
+    }) as HTMLButtonElement;
+    fireEvent.click(continueBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Network timeout during upload/i)).toBeDefined();
+    });
+
+    // Still on Step 1: Upload
+    expect(screen.getByText(/1\. Upload/i)).toBeDefined();
+    expect(screen.getByText('My_Resume.pdf')).toBeDefined();
+    expect(continueBtn.disabled).toBe(false);
+  });
+
+  it('closing and reopening the modal resets the wizard to fresh upload state', async () => {
+    const { rerender } = render(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    const testFile = new File(['%PDF-1.4 dummy'], 'My_Resume.pdf', { type: 'application/pdf' });
+    const fileInput = document.getElementById('file-upload-input') as HTMLInputElement;
+    fireEvent.change(fileInput, { target: { files: [testFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText('My_Resume.pdf')).toBeDefined();
+    });
+
+    // Close modal
+    rerender(<SmartProfileImportModal isOpen={false} onClose={vi.fn()} />);
+    expect(screen.queryByText(/Smart Candidate Profile Import/i)).toBeNull();
+
+    // Reopen modal
+    rerender(<SmartProfileImportModal isOpen={true} onClose={vi.fn()} />);
+
+    // Should be clean upload step with no file
+    expect(screen.getByText(/Click or drag & drop your document here/i)).toBeDefined();
+    expect(screen.queryByText('My_Resume.pdf')).toBeNull();
+    const continueBtn = screen.getByRole('button', {
+      name: /Continue to Extraction →/i,
+    }) as HTMLButtonElement;
+    expect(continueBtn.disabled).toBe(true);
+  });
+});

@@ -1423,3 +1423,30 @@ This document tracks execution history and verification state for all official m
       - `SmartProfileImportModal.test.tsx` (5/5 React component interaction tests passing with `@testing-library/react` and `happy-dom`): edit -> modify -> save -> verify not approved -> accept -> verify approved count -> reject -> re-edit flow.
       - `smart-profile-review-and-proficiency.test.ts` Section 6 (6/6 tests passing for approval safety, commit isolation, unedited matched record preservation, and verified status preservation).
     - Monorepo verification: 53 test files (446/446 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB check passing.
+  - **14. Upload State Fix & Drag-and-Drop Restoration**:
+    - **Root Cause Identified**: In `SmartProfileImportModal.tsx`, `initialItems = []` default argument was evaluated on every render. Because `initialItems` was included in the `useEffect` dependency array, React's dependency comparison (`[] !== []`) triggered the effect on every re-render while the modal was open, invoking `setSelectedFile(null)` and instantly wiping out the selected CV.
+    - **Fix Implemented**:
+      - Declared module-level constant `DEFAULT_INITIAL_ITEMS: ProfileImportItemDto[] = []` for stable reference identity.
+      - Re-architected modal open/close lifecycle with `wasOpenRef` and `initialPropsRef`: wizard state initialization runs strictly upon transition from closed to open (`isOpen && !wasOpenRef.current`), never during normal interactions or parent re-renders.
+      - Implemented full HTML5 drag-and-drop file ingestion (`onDragOver`, `onDragEnter`, `onDragLeave`, `onDrop`) with active visual feedback (`isDragging`), scale animation, and `dataTransfer.files` parsing.
+      - Ensured selecting the same file again works by clearing `(e.currentTarget as HTMLInputElement).value = ''` in the file input's `onClick` handler.
+      - Added frontend validation for document format (`.pdf`, `.docx`, `.doc`, `.txt`) and 25MB maximum size limit with immediate user feedback.
+      - Displayed bold filename with formatted dynamic size (`KB` / `MB`), enabling "Continue to Extraction →" immediately upon valid file selection.
+      - Preserved all previous review editing, approval safety, commit isolation, and optional proficiency fixes.
+    - **Automated Regression Verification**:
+      - Added 11 regression tests to `SmartProfileImportModal.test.tsx` testing production usage without test props:
+        - Default Step 1 (Upload) initialization with disabled Continue button.
+        - PDF selection displaying filename, size, and enabling Continue button.
+        - State survival across component re-renders (both internal checkbox toggle and parent re-render).
+        - DOCX file selection and size display.
+        - Same-file re-selection.
+        - 25MB file size limit rejection with clear error.
+        - Unsupported file format rejection with error.
+        - HTML5 Drag-and-drop file ingestion.
+        - Successful upload advancement to Step 2 (Extract).
+        - Failed upload error presentation on Step 1 with file retention.
+        - Modal close and reopen cleanly resetting wizard state.
+      - All 16/16 tests passing in `SmartProfileImportModal.test.tsx`.
+    - **Monorepo Verification**:
+      - 53 test files (457/457 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB check passing.
+
