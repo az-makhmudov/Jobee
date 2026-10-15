@@ -1381,3 +1381,16 @@ This document tracks execution history and verification state for all official m
       6. Enforced clear failure for unsupported LinkedIn archives (tar, gz, 7z, rar, non-LinkedIn zip, binary) with descriptive 400 Bad Request error.
     - Added dedicated regression test suite `smart-profile-import-hardening.test.ts` (16/16 tests passing).
     - All 50 test files (408/408 tests) passing; end-to-end verification script `verify-smart-profile-import.ts` passed cleanly.
+  - **11. Real CV Import Accuracy Remediation (Real-World QA)**:
+    - Addressed and resolved all 8 real-user QA extraction failures:
+      1. Eliminated silent fallback from Gemini AI to Heuristic parser; throwing 502 AppError when AI is explicitly requested and unconfigured/failing, providing clear retry and fallback options in UI.
+      2. Normalized spaced glyph headings (`S K I L L S   &   L A N G U A G E S` -> `SKILLS & LANGUAGES`) in both `DocumentTextExtractor` and `SmartProfileExtractor`.
+      3. Implemented multi-line and inline certification grouping; a single certification is constructed with title, issuing organization, and issue date. Standalone dates and issuers are never extracted as separate records.
+      4. Education parsing isolates institution, degree, and field of study instead of generic combination.
+      5. Combined "Skills & Languages" sections are accurately partitioned and categorized (e.g. Project Management, Technical Tools), with unstated language proficiency assigned `'UNSPECIFIED'` and flagged for human review.
+      6. Work experience cleanly separates organization, position, location, and dates.
+      7. UI review modal differentiates `INCOMPLETE` (warning with edit button), `LOW_CONFIDENCE` (info), `CONFLICT` (conflict alert), and `DUPLICATE` (existing record info), preventing misleading "Conflict with existing record" banners for incomplete items.
+      8. Displayed prominent Extraction Engine transparency badge in Step 3 Review header (`✨ Google Gemini 3.8 Flash AI` vs `⚙️ Basic Deterministic Parser`).
+    - Added dedicated regression test suite `smart-profile-qa-remediation.test.ts` (7/7 tests passing).
+    - Monorepo verification: 51 test files (415/415 tests passing), lint, typecheck, build, and format cleanly passing.
+

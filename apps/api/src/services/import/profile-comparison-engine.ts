@@ -531,13 +531,19 @@ export class ProfileComparisonEngine {
   }
 
   // --- Languages Comparison ---
-  private static compareLanguage(
+  public static compareLanguage(
     lang: ExtractedProfileData['languages'][number],
     existingList: CandidateLanguageDto[],
   ): ComparisonItemResult {
     const payload = lang as unknown as Record<string, unknown>;
 
-    if (!lang.language || !lang.language.trim() || !lang.proficiency || !lang.proficiency.trim()) {
+    if (
+      !lang.language ||
+      !lang.language.trim() ||
+      !lang.proficiency ||
+      !lang.proficiency.trim() ||
+      lang.proficiency === 'UNSPECIFIED'
+    ) {
       return {
         section: 'LANGUAGE',
         classification: 'INCOMPLETE',
@@ -546,7 +552,8 @@ export class ProfileComparisonEngine {
         extractedPayload: payload,
         existingEntityId: null,
         existingPayload: null,
-        conflictDetails: 'Missing language name or proficiency',
+        conflictDetails:
+          'Missing required fields: proficiency. Language proficiency unspecified in document; please specify proficiency before approving',
       };
     }
 

@@ -239,6 +239,9 @@ export class SmartProfileImportService {
         })
         .where(eq(profileImportSessions.id, sessionId));
 
+      if (err instanceof AppError) {
+        throw err;
+      }
       throw AppError.internal(`Document extraction failed: ${errMsg}`);
     }
   }
@@ -297,6 +300,64 @@ export class SmartProfileImportService {
     action: ProfileImportReviewStatus,
     userEditedPayload?: Record<string, unknown>,
   ): Promise<ProfileImportItemDto> {
+    const existingItem = await this.db.query.profileImportItems.findFirst({
+      where: and(
+        eq(profileImportItems.id, itemId),
+        eq(profileImportItems.sessionId, sessionId),
+        eq(profileImportItems.userId, userId),
+      ),
+    });
+
+    if (!existingItem) {
+      throw AppError.notFound(`Import item ${itemId} not found`);
+    }
+
+    if (action === 'APPROVED') {
+      const payloadToCheck = (userEditedPayload ||
+        existingItem.userEditedPayload ||
+        existingItem.extractedPayload) as Record<string, any>;
+
+      if (existingItem.section === 'EXPERIENCE') {
+        if (
+          !payloadToCheck.organization?.trim() ||
+          !payloadToCheck.position?.trim() ||
+          !payloadToCheck.startDate?.trim()
+        ) {
+          throw AppError.badRequest(
+            'Cannot approve incomplete experience without organization, position, and start date. Please edit this item first.',
+          );
+        }
+      } else if (existingItem.section === 'CERTIFICATION') {
+        if (!payloadToCheck.name?.trim() || !payloadToCheck.issuingOrganization?.trim()) {
+          throw AppError.badRequest(
+            'Cannot approve incomplete certification without name and issuing organization. Please edit this item first.',
+          );
+        }
+      } else if (existingItem.section === 'EDUCATION') {
+        if (!payloadToCheck.institution?.trim()) {
+          throw AppError.badRequest(
+            'Cannot approve incomplete education without institution name. Please edit this item first.',
+          );
+        }
+      } else if (existingItem.section === 'SKILL') {
+        if (!payloadToCheck.name?.trim()) {
+          throw AppError.badRequest(
+            'Cannot approve incomplete skill without name. Please edit this item first.',
+          );
+        }
+      } else if (existingItem.section === 'LANGUAGE') {
+        if (
+          !payloadToCheck.language?.trim() ||
+          !payloadToCheck.proficiency?.trim() ||
+          payloadToCheck.proficiency === 'UNSPECIFIED'
+        ) {
+          throw AppError.badRequest(
+            'Cannot approve incomplete language without specifying proficiency. Please edit this item first.',
+          );
+        }
+      }
+    }
+
     const [item] = await this.db
       .update(profileImportItems)
       .set({
@@ -313,11 +374,7 @@ export class SmartProfileImportService {
       )
       .returning();
 
-    if (!item) {
-      throw AppError.notFound(`Import item ${itemId} not found`);
-    }
-
-    return this.mapItemDto(item);
+    return this.mapItemDto(item!);
   }
 
   /**

@@ -284,26 +284,56 @@ export class DocumentTextExtractor {
   }
 
   /**
+   * Collapses spaced glyphs in headings common in PDF resumes
+   * e.g. "S K I L L S" -> "SKILLS", "E D U C A T I O N" -> "EDUCATION",
+   * "S K I L L S & L A N G U A G E S" -> "SKILLS & LANGUAGES"
+   */
+  public static collapseSpacedGlyphs(text: string): string {
+    return text.replace(
+      /^[ \t]*([A-Za-z](?:[ \t]+[A-Za-z]){2,}(?:[ \t]+[&/][ \t]+[A-Za-z](?:[ \t]+[A-Za-z]){2,})?)[ \t]*$/gm,
+      (match) => {
+        const lettersOnly = match.replace(/[^A-Za-z]/g, '');
+        const upperCount = (lettersOnly.match(/[A-Z]/g) || []).length;
+        if (upperCount / (lettersOnly.length || 1) >= 0.7) {
+          return match
+            .split(/([&/])/)
+            .map((part) => {
+              if (part === '&' || part === '/') return ` ${part} `;
+              return part.replace(/\s+/g, '');
+            })
+            .join('')
+            .replace(/\s+/g, ' ')
+            .trim();
+        }
+        return match;
+      },
+    );
+  }
+
+  /**
    * Normalizes document text for clean downstream analysis:
    * - Unifies newlines
    * - Normalizes smart quotes and em-dashes
+   * - Collapses spaced glyph headings (PDF artifacts)
    * - Strips non-printable ASCII/Unicode control characters
    * - Consolidates consecutive empty lines
    */
   public static normalizeText(text: string): string {
-    return (
-      text
-        .replace(/\r\n/g, '\n')
-        .replace(/\r/g, '\n')
-        .replace(/[\u2018\u2019]/g, "'")
-        .replace(/[\u201C\u201D]/g, '"')
-        .replace(/[\u2013\u2014]/g, '-')
-        .replace(/\u00A0/g, ' ') // Non-breaking space
-        // eslint-disable-next-line no-control-regex
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Control characters
-        .replace(/[ \t]+/g, ' ')
-        .replace(/\n{3,}/g, '\n\n')
-        .trim()
-    );
+    const unified = text
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/[\u2013\u2014]/g, '-')
+      .replace(/\u00A0/g, ' ') // Non-breaking space
+      // eslint-disable-next-line no-control-regex
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ''); // Control characters
+
+    const collapsed = this.collapseSpacedGlyphs(unified);
+
+    return collapsed
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
   }
 }

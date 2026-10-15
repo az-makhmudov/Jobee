@@ -113,9 +113,23 @@ export function SmartProfileImportModal({
   // --- Step 3: Review Item Actions ---
   const handleItemAction = async (itemId: string, action: 'APPROVED' | 'REJECTED') => {
     if (!session) return;
+    const targetItem = items.find((i) => i.id === itemId);
+    if (
+      action === 'APPROVED' &&
+      targetItem?.classification === 'INCOMPLETE' &&
+      !targetItem.userEditedPayload
+    ) {
+      handleStartEdit(targetItem);
+      setError(
+        `Cannot approve incomplete ${targetItem.section.toLowerCase()} without required information (${targetItem.conflictDetails || 'missing required fields'}). Please fill in missing fields below.`,
+      );
+      return;
+    }
+
     try {
       const updated = await candidateImportApi.updateItem(session.id, itemId, action);
       setItems((prev) => prev.map((item) => (item.id === itemId ? updated : item)));
+      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update review item');
     }
@@ -540,6 +554,43 @@ export function SmartProfileImportModal({
                 </div>
               </div>
 
+              {error && (
+                <div
+                  style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid var(--danger, #ef4444)',
+                    borderRadius: '8px',
+                    padding: '1rem',
+                    marginBottom: '1.25rem',
+                  }}
+                >
+                  <div style={{ fontWeight: 600, color: '#fca5a5', marginBottom: '0.35rem' }}>
+                    ⚠️ AI Extraction Notice
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#fca5a5', marginBottom: '0.75rem' }}>
+                    {error}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => handleStartExtraction(true)}
+                      style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}
+                    >
+                      🔄 Retry with Gemini AI
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => handleStartExtraction(false)}
+                      style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}
+                    >
+                      ⚙️ Extract with Basic Parser (No AI)
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {loading ? (
                 <div style={{ textAlign: 'center', padding: '2.5rem' }}>
                   <div
@@ -568,7 +619,7 @@ export function SmartProfileImportModal({
                     className="btn btn-secondary"
                     onClick={() => handleStartExtraction(false)}
                   >
-                    Extract Locally (No AI)
+                    Extract with Basic Parser (No AI)
                   </button>
                   <button
                     type="button"
@@ -586,6 +637,49 @@ export function SmartProfileImportModal({
           {/* STEP 3: REVIEW & RESOLVE */}
           {step === 'REVIEW' && (
             <div>
+              {/* Extraction Engine Transparency Banner */}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '0.75rem 1rem',
+                  marginBottom: '1rem',
+                  borderRadius: '8px',
+                  backgroundColor:
+                    session?.extractorUsed === 'GEMINI_AI'
+                      ? 'rgba(59, 130, 246, 0.1)'
+                      : 'rgba(234, 179, 8, 0.1)',
+                  border: `1px solid ${
+                    session?.extractorUsed === 'GEMINI_AI'
+                      ? 'rgba(59, 130, 246, 0.3)'
+                      : 'rgba(234, 179, 8, 0.3)'
+                  }`,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      color: session?.extractorUsed === 'GEMINI_AI' ? '#93c5fd' : '#fde047',
+                    }}
+                  >
+                    {session?.extractorUsed === 'GEMINI_AI'
+                      ? '✨ Extracted with Google Gemini 3.8 Flash AI'
+                      : '⚙️ Extracted with Basic Deterministic Parser (Local / Rule-Based)'}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    {session?.extractorUsed === 'GEMINI_AI'
+                      ? 'High-accuracy semantic entity recognition with source references.'
+                      : 'Rule-based heuristic parsing without external AI processing. Review and adjust extracted fields below.'}
+                  </div>
+                </div>
+                <span style={{ fontSize: '1.2rem' }}>
+                  {session?.extractorUsed === 'GEMINI_AI' ? '🤖' : '⚙️'}
+                </span>
+              </div>
+
               {/* Filter Tabs & Bulk Actions */}
               <div
                 style={{
@@ -1148,21 +1242,66 @@ function ReviewItemCard({
             </div>
           )}
 
-          {/* Conflict Details Banner */}
+          {/* Status Details Banner */}
           {item.conflictDetails && (
             <div
               style={{
                 padding: '0.5rem 0.75rem',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                borderLeft: '3px solid var(--danger, #ef4444)',
+                backgroundColor:
+                  item.classification === 'INCOMPLETE'
+                    ? 'rgba(245, 158, 11, 0.1)'
+                    : item.classification === 'LOW_CONFIDENCE'
+                      ? 'rgba(59, 130, 246, 0.1)'
+                      : item.classification === 'DUPLICATE'
+                        ? 'rgba(100, 116, 139, 0.1)'
+                        : 'rgba(239, 68, 68, 0.1)',
+                borderLeft: `3px solid ${
+                  item.classification === 'INCOMPLETE'
+                    ? 'var(--warning, #f59e0b)'
+                    : item.classification === 'LOW_CONFIDENCE'
+                      ? 'var(--primary, #3b82f6)'
+                      : item.classification === 'DUPLICATE'
+                        ? '#64748b'
+                        : 'var(--danger, #ef4444)'
+                }`,
                 borderRadius: '4px',
                 fontSize: '0.8rem',
-                color: '#fca5a5',
+                color:
+                  item.classification === 'INCOMPLETE'
+                    ? '#fcd34d'
+                    : item.classification === 'LOW_CONFIDENCE'
+                      ? '#93c5fd'
+                      : item.classification === 'DUPLICATE'
+                        ? '#cbd5e1'
+                        : '#fca5a5',
                 marginTop: '0.4rem',
                 marginBottom: '0.4rem',
               }}
             >
-              ⚠️ <strong>Conflict with existing record:</strong> {item.conflictDetails}
+              {item.classification === 'INCOMPLETE' && (
+                <>
+                  ⚠️ <strong>Missing Information:</strong> {item.conflictDetails} (Click ✎ Edit to
+                  fill in before approval)
+                </>
+              )}
+              {item.classification === 'LOW_CONFIDENCE' && (
+                <>
+                  ℹ️ <strong>Uncertain Extraction:</strong> {item.conflictDetails}
+                </>
+              )}
+              {item.classification === 'CONFLICT' && (
+                <>
+                  ⚡ <strong>Conflict with existing record:</strong> {item.conflictDetails}
+                </>
+              )}
+              {item.classification === 'DUPLICATE' && (
+                <>
+                  📋 <strong>Existing Record Found:</strong> {item.conflictDetails}
+                </>
+              )}
+              {!['INCOMPLETE', 'LOW_CONFIDENCE', 'CONFLICT', 'DUPLICATE'].includes(
+                item.classification,
+              ) && <>{item.conflictDetails}</>}
             </div>
           )}
 
