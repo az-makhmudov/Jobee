@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { ProfileImportSourceTypeEnum, ProfileImportReviewStatusEnum } from '@job-agent/shared';
+import {
+  ProfileImportSourceTypeEnum,
+  ProfileImportReviewStatusEnum,
+  ProfileImportConflictResolutionEnum,
+} from '@job-agent/shared';
 
 export const extractProfileImportSchema = z.object({
   aiConsent: z.boolean().default(false),
@@ -12,6 +16,14 @@ export const updateProfileImportItemSchema = z.object({
     ProfileImportReviewStatusEnum.EDITED,
   ]),
   userEditedPayload: z.record(z.unknown()).optional(),
+  conflictResolution: z
+    .enum([
+      ProfileImportConflictResolutionEnum.KEEP_EXISTING,
+      ProfileImportConflictResolutionEnum.REPLACE_EXISTING,
+      ProfileImportConflictResolutionEnum.ADD_AS_SEPARATE,
+    ])
+    .optional()
+    .nullable(),
 });
 
 export const bulkUpdateProfileImportItemsSchema = z.object({

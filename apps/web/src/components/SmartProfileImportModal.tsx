@@ -5,6 +5,7 @@ import type {
   ProfileImportItemDto,
   ProfileImportSourceType,
   ProfileImportClassification,
+  ProfileImportConflictResolution,
   CommitImportSessionResult,
 } from '@job-agent/shared';
 
@@ -190,12 +191,43 @@ export function SmartProfileImportModal({
       return;
     }
 
+    if (
+      action === 'APPROVED' &&
+      targetItem?.classification === 'CONFLICT' &&
+      !targetItem.conflictResolution
+    ) {
+      setError(
+        'Please choose an explicit conflict resolution: Keep Existing, Replace Existing, or Add as Separate.',
+      );
+      return;
+    }
+
     try {
       const updated = await candidateImportApi.updateItem(session.id, itemId, action);
       setItems((prev) => prev.map((item) => (item.id === itemId ? updated : item)));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update review item');
+    }
+  };
+
+  const handleResolveConflict = async (
+    itemId: string,
+    resolution: ProfileImportConflictResolution,
+  ) => {
+    if (!session) return;
+    try {
+      const updated = await candidateImportApi.updateItem(
+        session.id,
+        itemId,
+        'APPROVED',
+        undefined,
+        resolution,
+      );
+      setItems((prev) => prev.map((item) => (item.id === itemId ? updated : item)));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resolve conflict');
     }
   };
 
@@ -917,6 +949,7 @@ export function SmartProfileImportModal({
                       }
                       onApprove={() => handleItemAction(item.id, 'APPROVED')}
                       onReject={() => handleItemAction(item.id, 'REJECTED')}
+                      onResolveConflict={(resolution) => handleResolveConflict(item.id, resolution)}
                     />
                   ))}
                 </div>
@@ -1206,6 +1239,7 @@ export function ReviewItemCard({
   onEditChange,
   onApprove,
   onReject,
+  onResolveConflict,
 }: {
   item: ProfileImportItemDto;
   isEditing: boolean;
@@ -1216,6 +1250,7 @@ export function ReviewItemCard({
   onEditChange: (key: string, val: any) => void;
   onApprove: () => void;
   onReject: () => void;
+  onResolveConflict?: (resolution: ProfileImportConflictResolution) => void;
 }) {
   const [validationError, setValidationError] = useState<string | null>(null);
   const payload = item.userEditedPayload || item.extractedPayload;
@@ -1265,6 +1300,79 @@ export function ReviewItemCard({
     if (item.section === 'LINK')
       return `${String(payload.label || 'Link')}: ${String(payload.url || '')}`;
     return String(item.section);
+  };
+
+  const renderEntitySummary = (section: string, data: Record<string, any>) => {
+    if (section === 'EXPERIENCE') {
+      const dates = `${data.startDate || 'N/A'} — ${data.endDate || (data.isCurrent ? 'Present' : 'N/A')}`;
+      return (
+        <div>
+          <div>
+            <strong>{String(data.position || 'Role')}</strong> at{' '}
+            {String(data.organization || 'Organization')}
+          </div>
+          <div>Dates: {dates}</div>
+          {Boolean(data.location) && <div>Location: {String(data.location)}</div>}
+        </div>
+      );
+    }
+    if (section === 'EDUCATION') {
+      const dates = `${data.startDate || 'N/A'} — ${data.endDate || (data.isCurrent ? 'Present' : 'N/A')}`;
+      return (
+        <div>
+          <div>
+            <strong>{String(data.degree || 'Degree')}</strong> at{' '}
+            {String(data.institution || 'Institution')}
+          </div>
+          {Boolean(data.fieldOfStudy) && <div>Field: {String(data.fieldOfStudy)}</div>}
+          <div>Dates: {dates}</div>
+        </div>
+      );
+    }
+    if (section === 'CERTIFICATION') {
+      return (
+        <div>
+          <div>
+            <strong>{String(data.name || 'Certification')}</strong>
+          </div>
+          <div>Issuer: {String(data.issuingOrganization || 'N/A')}</div>
+          {Boolean(data.issueDate) && <div>Issued: {String(data.issueDate)}</div>}
+        </div>
+      );
+    }
+    if (section === 'SKILL') {
+      return (
+        <div>
+          <div>
+            <strong>{String(data.name || 'Skill')}</strong>
+          </div>
+          {Boolean(data.proficiency) && <div>Proficiency: {String(data.proficiency)}</div>}
+        </div>
+      );
+    }
+    if (section === 'LANGUAGE') {
+      return (
+        <div>
+          <div>
+            <strong>{String(data.language || 'Language')}</strong>
+          </div>
+          <div>Proficiency: {String(data.proficiency || 'Not specified')}</div>
+        </div>
+      );
+    }
+    if (section === 'PROFILE') {
+      return (
+        <div>
+          <div>
+            <strong>{String(data.fullName || 'Name')}</strong>
+          </div>
+          {Boolean(data.headline) && <div>{String(data.headline)}</div>}
+          {Boolean(data.email) && <div>Email: {String(data.email)}</div>}
+          {Boolean(data.phone) && <div>Phone: {String(data.phone)}</div>}
+        </div>
+      );
+    }
+    return <div>{JSON.stringify(data)}</div>;
   };
 
   const handleValidateAndSave = () => {
@@ -1438,7 +1546,18 @@ export function ReviewItemCard({
                         : 'var(--success, #10b981)',
                 }}
               >
-                ● {item.reviewStatus === 'EDITED' ? 'EDITED (NEEDS APPROVAL)' : item.reviewStatus}
+                ●{' '}
+                {item.reviewStatus === 'EDITED'
+                  ? 'EDITED (NEEDS APPROVAL)'
+                  : item.conflictResolution
+                    ? `RESOLVED (${
+                        item.conflictResolution === 'KEEP_EXISTING'
+                          ? 'Keep Existing'
+                          : item.conflictResolution === 'REPLACE_EXISTING'
+                            ? 'Replace Existing'
+                            : 'Add as Separate'
+                      })`
+                    : item.reviewStatus}
               </span>
             )}
           </div>
@@ -1665,6 +1784,80 @@ export function ReviewItemCard({
             </div>
           )}
 
+          {/* Side-by-side comparison for CONFLICT items */}
+          {item.classification === 'CONFLICT' && (
+            <div
+              style={{
+                marginTop: '0.5rem',
+                marginBottom: '0.5rem',
+                padding: '0.65rem 0.75rem',
+                borderRadius: '6px',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                backgroundColor: 'rgba(239, 68, 68, 0.04)',
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  color: '#fca5a5',
+                  marginBottom: '0.4rem',
+                }}
+              >
+                ⚡ Conflicting Details Comparison:
+              </div>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: item.existingPayload ? '1fr 1fr' : '1fr',
+                  gap: '0.5rem',
+                  fontSize: '0.8rem',
+                }}
+              >
+                {item.existingPayload && (
+                  <div
+                    style={{
+                      padding: '0.45rem',
+                      borderRadius: '4px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        color: 'var(--text-secondary)',
+                        marginBottom: '0.2rem',
+                      }}
+                    >
+                      Existing Record:
+                    </div>
+                    {renderEntitySummary(item.section, item.existingPayload)}
+                  </div>
+                )}
+                <div
+                  style={{
+                    padding: '0.45rem',
+                    borderRadius: '4px',
+                    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      color: 'var(--primary, #3b82f6)',
+                      marginBottom: '0.2rem',
+                    }}
+                  >
+                    Imported Record:
+                  </div>
+                  {renderEntitySummary(item.section, payload)}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Source Citation */}
           {item.sourceReference && (
             <div
@@ -1681,7 +1874,7 @@ export function ReviewItemCard({
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
           {!isEditing && (
             <>
               <button
@@ -1707,14 +1900,88 @@ export function ReviewItemCard({
               >
                 ✕ Reject
               </button>
-              <button
-                type="button"
-                className={`btn ${item.reviewStatus === 'APPROVED' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
-                onClick={onApprove}
-              >
-                ✓ Accept
-              </button>
+
+              {item.classification === 'CONFLICT' ? (
+                <>
+                  <button
+                    type="button"
+                    className={`btn ${
+                      item.reviewStatus === 'APPROVED' &&
+                      item.conflictResolution === 'KEEP_EXISTING'
+                        ? 'btn-primary'
+                        : 'btn-secondary'
+                    }`}
+                    style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                    onClick={() => onResolveConflict && onResolveConflict('KEEP_EXISTING')}
+                  >
+                    Keep Existing
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${
+                      item.reviewStatus === 'APPROVED' &&
+                      item.conflictResolution === 'REPLACE_EXISTING'
+                        ? 'btn-primary'
+                        : 'btn-secondary'
+                    }`}
+                    style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                    onClick={() => onResolveConflict && onResolveConflict('REPLACE_EXISTING')}
+                  >
+                    Replace Existing
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${
+                      item.reviewStatus === 'APPROVED' &&
+                      item.conflictResolution === 'ADD_AS_SEPARATE'
+                        ? 'btn-primary'
+                        : 'btn-secondary'
+                    }`}
+                    style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                    onClick={() => onResolveConflict && onResolveConflict('ADD_AS_SEPARATE')}
+                  >
+                    Add as Separate
+                  </button>
+                </>
+              ) : item.classification === 'POTENTIAL_MATCH' ? (
+                <>
+                  <button
+                    type="button"
+                    className={`btn ${
+                      item.reviewStatus === 'APPROVED' &&
+                      (!item.conflictResolution || item.conflictResolution !== 'ADD_AS_SEPARATE')
+                        ? 'btn-primary'
+                        : 'btn-secondary'
+                    }`}
+                    style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                    onClick={onApprove}
+                  >
+                    Confirm Match
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${
+                      item.reviewStatus === 'APPROVED' &&
+                      item.conflictResolution === 'ADD_AS_SEPARATE'
+                        ? 'btn-primary'
+                        : 'btn-secondary'
+                    }`}
+                    style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                    onClick={() => onResolveConflict && onResolveConflict('ADD_AS_SEPARATE')}
+                  >
+                    Add as New
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className={`btn ${item.reviewStatus === 'APPROVED' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                  onClick={onApprove}
+                >
+                  ✓ Accept
+                </button>
+              )}
             </>
           )}
         </div>

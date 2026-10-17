@@ -102,6 +102,7 @@ export function createCandidateImportRoutes(
           req.params.itemId,
           body.action,
           body.userEditedPayload,
+          body.conflictResolution,
         );
         return { status: 'ok', data: item, timestamp: new Date().toISOString() };
       },

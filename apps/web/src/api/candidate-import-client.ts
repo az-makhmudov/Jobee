@@ -2,6 +2,7 @@ import type {
   ProfileImportSessionDto,
   ProfileImportItemDto,
   ProfileImportReviewStatus,
+  ProfileImportConflictResolution,
   CommitImportSessionOptions,
   CommitImportSessionResult,
 } from '@job-agent/shared';
@@ -71,18 +72,19 @@ export const candidateImportApi = {
   },
 
   /**
-   * Update an individual item's review status or edited payload
+   * Update an individual item's review status, edited payload, or conflict resolution
    */
   async updateItem(
     sessionId: string,
     itemId: string,
     action: ProfileImportReviewStatus,
     userEditedPayload?: Record<string, unknown>,
+    conflictResolution?: ProfileImportConflictResolution | null,
   ): Promise<ProfileImportItemDto> {
     const res = await fetch(`${API_BASE}/candidate/import/${sessionId}/items/${itemId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, userEditedPayload }),
+      body: JSON.stringify({ action, userEditedPayload, conflictResolution }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

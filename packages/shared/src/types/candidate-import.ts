@@ -56,6 +56,15 @@ export const ProfileImportReviewStatusEnum = {
 export type ProfileImportReviewStatus =
   (typeof ProfileImportReviewStatusEnum)[keyof typeof ProfileImportReviewStatusEnum];
 
+export const ProfileImportConflictResolutionEnum = {
+  KEEP_EXISTING: 'KEEP_EXISTING',
+  REPLACE_EXISTING: 'REPLACE_EXISTING',
+  ADD_AS_SEPARATE: 'ADD_AS_SEPARATE',
+} as const;
+
+export type ProfileImportConflictResolution =
+  (typeof ProfileImportConflictResolutionEnum)[keyof typeof ProfileImportConflictResolutionEnum];
+
 // Structured extracted entity models
 export interface ExtractedPersonalProfile {
   preferredName?: string | null;
@@ -158,6 +167,7 @@ export interface ProfileImportItemDto {
   conflictDetails: string | null;
   reviewStatus: ProfileImportReviewStatus;
   userEditedPayload: Record<string, unknown> | null;
+  conflictResolution?: ProfileImportConflictResolution | null;
   createdAt: string;
   updatedAt: string;
 }

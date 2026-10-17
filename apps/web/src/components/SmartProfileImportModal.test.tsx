@@ -637,3 +637,286 @@ describe('SmartProfileImportModal — Production Upload State & File Selection (
     expect(continueBtn.disabled).toBe(true);
   });
 });
+
+describe('SmartProfileImportModal — Multi-Source Conflict Resolution & Side-by-Side Review', () => {
+  const mockConflictSession: ProfileImportSessionDto = {
+    id: 'session-qa-conflict',
+    userId: 'user-01',
+    sourceType: 'LINKEDIN_PDF',
+    status: 'REVIEW_READY',
+    originalFilename: 'Profile.pdf',
+    mimeType: 'application/pdf',
+    storageKey: 'uploads/Profile.pdf',
+    documentId: null,
+    aiConsentGiven: true,
+    extractorUsed: 'GEMINI_AI',
+    rawTextSnippet: 'Operations Assistant at Asia Alliance Bank',
+    errorMessage: null,
+    itemCounts: {
+      total: 2,
+      approved: 0,
+      rejected: 0,
+      pending: 2,
+      byClassification: {
+        NEW: 0,
+        DUPLICATE: 0,
+        MATCHED: 0,
+        POTENTIAL_MATCH: 1,
+        CONFLICT: 1,
+        INCOMPLETE: 0,
+        LOW_CONFIDENCE: 0,
+      },
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const conflictItem: ProfileImportItemDto = {
+    id: 'item-conflict-asia',
+    sessionId: 'session-qa-conflict',
+    userId: 'user-01',
+    section: 'EXPERIENCE',
+    classification: 'CONFLICT',
+    confidenceScore: 0.9,
+    sourceReference: 'Asia Alliance Bank Operations Assistant (May 2023 - Aug 2023)',
+    extractedPayload: {
+      organization: 'Asia Alliance Bank',
+      position: 'Operations Assistant',
+      startDate: 'May 2023',
+      endDate: 'August 2023',
+    },
+    existingEntityId: 'exp-asia-01',
+    existingPayload: {
+      organization: 'Asia Alliance Bank',
+      position: 'Operations Assistant',
+      startDate: 'June 2023',
+      endDate: 'August 2023',
+      verificationStatus: 'VERIFIED',
+    },
+    conflictDetails:
+      'Date mismatch: existing (June 2023 to August 2023) vs imported (May 2023 to August 2023)',
+    reviewStatus: 'PENDING',
+    conflictResolution: null,
+    userEditedPayload: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  const potentialMatchItem: ProfileImportItemDto = {
+    id: 'item-potential-edu',
+    sessionId: 'session-qa-conflict',
+    userId: 'user-01',
+    section: 'EDUCATION',
+    classification: 'POTENTIAL_MATCH',
+    confidenceScore: 0.85,
+    sourceReference: 'Vistula University October 2023',
+    extractedPayload: {
+      institution: 'Vistula University',
+      degree: "Bachelor's degree",
+      fieldOfStudy: 'English Studies',
+      startDate: 'October 2023',
+      endDate: null,
+    },
+    existingEntityId: 'edu-vistula-01',
+    existingPayload: {
+      institution: 'Vistula University',
+      degree: 'B. A.',
+      fieldOfStudy: 'English Studies',
+      startDate: '2020-10',
+      endDate: null,
+      isCurrent: true,
+      verificationStatus: 'VERIFIED',
+    },
+    conflictDetails:
+      'Ongoing education at Vistula University with single imported date (October 2023); review required to clarify enrollment vs completion',
+    reviewStatus: 'PENDING',
+    conflictResolution: null,
+    userEditedPayload: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders side-by-side comparison for CONFLICT items with explicit resolution buttons and no generic Accept button', () => {
+    render(
+      <SmartProfileImportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialStep="REVIEW"
+        initialSession={mockConflictSession}
+        initialItems={[conflictItem]}
+      />,
+    );
+
+    // Verify side-by-side comparison sections
+    expect(screen.getByText(/Conflicting Details Comparison:/i)).toBeDefined();
+    expect(screen.getAllByText(/Existing Record/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Imported Record/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/June 2023/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/May 2023/i).length).toBeGreaterThan(0);
+
+    // Verify NO generic item Accept button
+    expect(screen.queryByRole('button', { name: /^✓ Accept$/i })).toBeNull();
+
+    // Verify explicit conflict resolution buttons exist
+    expect(screen.getByRole('button', { name: /Keep Existing/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Replace Existing/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Add as Separate/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /✎ Edit/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^✕ Reject$/i })).toBeDefined();
+  });
+
+  it('clicking "Keep Existing" approves the item with KEEP_EXISTING resolution and updates UI badge', async () => {
+    const updated = {
+      ...conflictItem,
+      reviewStatus: 'APPROVED' as const,
+      conflictResolution: 'KEEP_EXISTING' as const,
+    };
+    (candidateImportApi.updateItem as any).mockResolvedValueOnce(updated);
+
+    render(
+      <SmartProfileImportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialStep="REVIEW"
+        initialSession={mockConflictSession}
+        initialItems={[conflictItem]}
+      />,
+    );
+
+    const keepBtn = screen.getByRole('button', { name: /Keep Existing/i });
+    fireEvent.click(keepBtn);
+
+    await waitFor(() => {
+      expect(candidateImportApi.updateItem).toHaveBeenCalledWith(
+        'session-qa-conflict',
+        'item-conflict-asia',
+        'APPROVED',
+        undefined,
+        'KEEP_EXISTING',
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/● RESOLVED \(Keep Existing\)/i)).toBeDefined();
+      expect(screen.getByText(/1 approved/i)).toBeDefined();
+    });
+  });
+
+  it('clicking "Replace Existing" approves the item with REPLACE_EXISTING resolution and updates UI badge', async () => {
+    const updated = {
+      ...conflictItem,
+      reviewStatus: 'APPROVED' as const,
+      conflictResolution: 'REPLACE_EXISTING' as const,
+    };
+    (candidateImportApi.updateItem as any).mockResolvedValueOnce(updated);
+
+    render(
+      <SmartProfileImportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialStep="REVIEW"
+        initialSession={mockConflictSession}
+        initialItems={[conflictItem]}
+      />,
+    );
+
+    const replaceBtn = screen.getByRole('button', { name: /Replace Existing/i });
+    fireEvent.click(replaceBtn);
+
+    await waitFor(() => {
+      expect(candidateImportApi.updateItem).toHaveBeenCalledWith(
+        'session-qa-conflict',
+        'item-conflict-asia',
+        'APPROVED',
+        undefined,
+        'REPLACE_EXISTING',
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/● RESOLVED \(Replace Existing\)/i)).toBeDefined();
+      expect(screen.getByText(/1 approved/i)).toBeDefined();
+    });
+  });
+
+  it('clicking "Add as Separate" approves the item with ADD_AS_SEPARATE resolution and updates UI badge', async () => {
+    const updated = {
+      ...conflictItem,
+      reviewStatus: 'APPROVED' as const,
+      conflictResolution: 'ADD_AS_SEPARATE' as const,
+    };
+    (candidateImportApi.updateItem as any).mockResolvedValueOnce(updated);
+
+    render(
+      <SmartProfileImportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialStep="REVIEW"
+        initialSession={mockConflictSession}
+        initialItems={[conflictItem]}
+      />,
+    );
+
+    const addSeparateBtn = screen.getByRole('button', { name: /Add as Separate/i });
+    fireEvent.click(addSeparateBtn);
+
+    await waitFor(() => {
+      expect(candidateImportApi.updateItem).toHaveBeenCalledWith(
+        'session-qa-conflict',
+        'item-conflict-asia',
+        'APPROVED',
+        undefined,
+        'ADD_AS_SEPARATE',
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/● RESOLVED \(Add as Separate\)/i)).toBeDefined();
+      expect(screen.getByText(/1 approved/i)).toBeDefined();
+    });
+  });
+
+  it('renders POTENTIAL_MATCH item with "Confirm Match" and "Add as New" buttons and handles user choices', async () => {
+    const approvedMatch = {
+      ...potentialMatchItem,
+      reviewStatus: 'APPROVED' as const,
+    };
+    (candidateImportApi.updateItem as any).mockResolvedValueOnce(approvedMatch);
+
+    render(
+      <SmartProfileImportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialStep="REVIEW"
+        initialSession={mockConflictSession}
+        initialItems={[potentialMatchItem]}
+      />,
+    );
+
+    expect(screen.getByText(/Potential Match:/i)).toBeDefined();
+    expect(screen.getByText(/Ongoing education at Vistula University/i)).toBeDefined();
+    const confirmMatchBtn = screen.getByRole('button', { name: /Confirm Match/i });
+    const addAsNewBtn = screen.getByRole('button', { name: /Add as New/i });
+    expect(confirmMatchBtn).toBeDefined();
+    expect(addAsNewBtn).toBeDefined();
+
+    // Click Confirm Match
+    fireEvent.click(confirmMatchBtn);
+
+    await waitFor(() => {
+      expect(candidateImportApi.updateItem).toHaveBeenCalledWith(
+        'session-qa-conflict',
+        'item-potential-edu',
+        'APPROVED',
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/1 approved/i)).toBeDefined();
+    });
+  });
+});

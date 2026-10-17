@@ -27,6 +27,7 @@ import {
   type ProfileImportSourceType,
   type CommitImportSessionOptions,
   type CommitImportSessionResult,
+  type ProfileImportConflictResolution,
 } from '@job-agent/shared';
 import { DocumentTextExtractor } from './document-text-extractor.js';
 import { SmartProfileExtractor } from './smart-profile-extractor.js';
@@ -299,6 +300,7 @@ export class SmartProfileImportService {
     itemId: string,
     action: ProfileImportReviewStatus,
     userEditedPayload?: Record<string, unknown>,
+    conflictResolution?: ProfileImportConflictResolution | null,
   ): Promise<ProfileImportItemDto> {
     const existingItem = await this.db.query.profileImportItems.findFirst({
       where: and(
@@ -313,6 +315,18 @@ export class SmartProfileImportService {
     }
 
     if (action === 'APPROVED') {
+      if (existingItem.classification === 'CONFLICT') {
+        const resolution = conflictResolution || existingItem.conflictResolution;
+        if (
+          !resolution ||
+          !['KEEP_EXISTING', 'REPLACE_EXISTING', 'ADD_AS_SEPARATE'].includes(resolution)
+        ) {
+          throw AppError.badRequest(
+            'A conflict resolution (KEEP_EXISTING, REPLACE_EXISTING, or ADD_AS_SEPARATE) is required when approving a CONFLICT item.',
+          );
+        }
+      }
+
       const payloadToCheck = (userEditedPayload ||
         existingItem.userEditedPayload ||
         existingItem.extractedPayload) as Record<string, any>;
@@ -407,6 +421,10 @@ export class SmartProfileImportService {
 
     if (userEditedPayload !== undefined) {
       updateData.userEditedPayload = userEditedPayload;
+    }
+
+    if (conflictResolution !== undefined) {
+      updateData.conflictResolution = conflictResolution;
     }
 
     const [item] = await this.db
@@ -527,13 +545,103 @@ export class SmartProfileImportService {
       for (const item of approvedItems) {
         const payload = (item.userEditedPayload || item.extractedPayload) as Record<string, any>;
 
+        // Handle CONFLICT items with explicit conflict resolution
+        if (item.classification === 'CONFLICT') {
+          const resolution = item.conflictResolution;
+          if (
+            !resolution ||
+            !['KEEP_EXISTING', 'REPLACE_EXISTING', 'ADD_AS_SEPARATE'].includes(resolution)
+          ) {
+            throw AppError.badRequest(
+              `Cannot commit conflicting item "${item.id}" without an explicit conflict resolution (KEEP_EXISTING, REPLACE_EXISTING, or ADD_AS_SEPARATE).`,
+            );
+          }
+
+          if (resolution === 'KEEP_EXISTING') {
+            // 1. KEEP EXISTING:
+            // Preserve existing record and verified values.
+            // Record alternative source review in audit log without falsely claiming independent verification.
+            // Zero database updates to the existing record; zero new records inserted.
+            await this.recordAuditTx(tx, {
+              userId,
+              entityType: item.section,
+              entityId: item.existingEntityId || userId,
+              action: 'ALTERNATIVE_SOURCE_REVIEWED',
+              changedFields: [],
+              metadata: {
+                conflictResolution: 'KEEP_EXISTING',
+                source: session.sourceType,
+                sessionId,
+                conflictDetails: item.conflictDetails,
+                existingPayload: item.existingPayload,
+                importedPayload: payload,
+              },
+            });
+            continue;
+          }
+
+          if (resolution === 'REPLACE_EXISTING') {
+            // 2. REPLACE EXISTING:
+            // Update existing entity using existingEntityId. Do not insert duplicates. Preserve audit trail and VERIFIED status.
+            if (item.existingEntityId) {
+              const targetVerificationStatus =
+                (item.existingPayload as any)?.verificationStatus === 'VERIFIED'
+                  ? 'VERIFIED'
+                  : verificationStatus;
+
+              await this.updateExistingEntity(
+                tx,
+                userId,
+                item.section,
+                item.existingEntityId,
+                payload,
+                targetVerificationStatus,
+                session,
+                'CONFLICT_RESOLVED_REPLACE',
+                item.existingPayload,
+              );
+              continue;
+            }
+          }
+
+          // 3. ADD AS SEPARATE:
+          // Fall through to insert branch below, creating a distinct new entity
+          await this.recordAuditTx(tx, {
+            userId,
+            entityType: item.section,
+            entityId: userId,
+            action: 'CONFLICT_RESOLVED_ADD_SEPARATE',
+            changedFields: Object.keys(payload),
+            metadata: {
+              conflictResolution: 'ADD_AS_SEPARATE',
+              source: session.sourceType,
+              sessionId,
+              existingEntityId: item.existingEntityId,
+            },
+          });
+        }
+
         // Issue 2 & Issue 6: Handle DUPLICATE, MATCHED, and POTENTIAL_MATCH records
         if (
           item.classification === 'MATCHED' ||
           item.classification === 'DUPLICATE' ||
           item.classification === 'POTENTIAL_MATCH'
         ) {
-          if (!item.userEditedPayload) {
+          if (item.conflictResolution === 'ADD_AS_SEPARATE') {
+            await this.recordAuditTx(tx, {
+              userId,
+              entityType: item.section,
+              entityId: userId,
+              action: 'ADD_AS_SEPARATE',
+              changedFields: Object.keys(payload),
+              metadata: {
+                source: session.sourceType,
+                sessionId,
+                existingEntityId: item.existingEntityId,
+              },
+            });
+            // Fall through to insert branch
+          } else if (!item.userEditedPayload) {
             // Already present in candidate brain; approved without edit: track supporting source provenance without creating duplicate records
             if (item.existingEntityId && tx.query?.candidateFacts) {
               const existingFacts = await tx.query.candidateFacts.findMany({
@@ -578,217 +686,23 @@ export class SmartProfileImportService {
               });
             }
             continue;
-          }
-          if (item.userEditedPayload && item.existingEntityId) {
+          } else if (item.userEditedPayload && item.existingEntityId) {
             // User explicitly approved their edited changes: update existing entity in database rather than inserting duplicate
             const targetVerificationStatus =
               (item.existingPayload as any)?.verificationStatus === 'VERIFIED'
                 ? 'VERIFIED'
                 : verificationStatus;
-            switch (item.section) {
-              case 'EXPERIENCE': {
-                await tx
-                  .update(candidateExperiences)
-                  .set({
-                    organization: payload.organization,
-                    position: payload.position,
-                    location: payload.location || null,
-                    employmentType: payload.employmentType || null,
-                    startDate: payload.startDate,
-                    endDate: payload.endDate || null,
-                    isCurrent: payload.isCurrent ?? false,
-                    description: payload.description || null,
-                    achievements: Array.isArray(payload.achievements) ? payload.achievements : [],
-                    verificationStatus: targetVerificationStatus,
-                    updatedAt: new Date(),
-                  })
-                  .where(
-                    and(
-                      eq(candidateExperiences.id, item.existingEntityId),
-                      eq(candidateExperiences.userId, userId),
-                    ),
-                  );
-                await this.recordAuditTx(tx, {
-                  userId,
-                  entityType: 'EXPERIENCE',
-                  entityId: item.existingEntityId,
-                  action: 'UPDATE',
-                  changedFields: Object.keys(payload),
-                  metadata: { source: session.sourceType, sessionId },
-                });
-                break;
-              }
-              case 'EDUCATION': {
-                await tx
-                  .update(candidateEducation)
-                  .set({
-                    institution: payload.institution,
-                    degree: payload.degree || null,
-                    fieldOfStudy: payload.fieldOfStudy || null,
-                    startDate: payload.startDate || null,
-                    endDate: payload.endDate || null,
-                    isCurrent: payload.isCurrent ?? false,
-                    location: payload.location || null,
-                    description: payload.description || null,
-                    activities: payload.activities || null,
-                    verificationStatus: targetVerificationStatus,
-                    updatedAt: new Date(),
-                  })
-                  .where(
-                    and(
-                      eq(candidateEducation.id, item.existingEntityId),
-                      eq(candidateEducation.userId, userId),
-                    ),
-                  );
-                await this.recordAuditTx(tx, {
-                  userId,
-                  entityType: 'EDUCATION',
-                  entityId: item.existingEntityId,
-                  action: 'UPDATE',
-                  changedFields: Object.keys(payload),
-                  metadata: { source: session.sourceType, sessionId },
-                });
-                break;
-              }
-              case 'SKILL': {
-                await tx
-                  .update(candidateSkills)
-                  .set({
-                    name: payload.name,
-                    category: payload.category || null,
-                    proficiency: payload.proficiency || null,
-                    yearsExperience: payload.yearsExperience ?? null,
-                    verificationStatus: targetVerificationStatus,
-                    updatedAt: new Date(),
-                  })
-                  .where(
-                    and(
-                      eq(candidateSkills.id, item.existingEntityId),
-                      eq(candidateSkills.userId, userId),
-                    ),
-                  );
-                await this.recordAuditTx(tx, {
-                  userId,
-                  entityType: 'SKILL',
-                  entityId: item.existingEntityId,
-                  action: 'UPDATE',
-                  changedFields: Object.keys(payload),
-                  metadata: { source: session.sourceType, sessionId },
-                });
-                break;
-              }
-              case 'CERTIFICATION': {
-                await tx
-                  .update(candidateCertifications)
-                  .set({
-                    name: payload.name,
-                    issuingOrganization: payload.issuingOrganization,
-                    issueDate: payload.issueDate || null,
-                    expirationDate: payload.expirationDate || null,
-                    credentialId: payload.credentialId || null,
-                    credentialUrl: payload.credentialUrl || null,
-                    verificationStatus: targetVerificationStatus,
-                    updatedAt: new Date(),
-                  })
-                  .where(
-                    and(
-                      eq(candidateCertifications.id, item.existingEntityId),
-                      eq(candidateCertifications.userId, userId),
-                    ),
-                  );
-                await this.recordAuditTx(tx, {
-                  userId,
-                  entityType: 'CERTIFICATION',
-                  entityId: item.existingEntityId,
-                  action: 'UPDATE',
-                  changedFields: Object.keys(payload),
-                  metadata: { source: session.sourceType, sessionId },
-                });
-                break;
-              }
-              case 'LANGUAGE': {
-                await tx
-                  .update(candidateLanguages)
-                  .set({
-                    language: payload.language,
-                    proficiency: payload.proficiency ? payload.proficiency.trim() : null,
-                    cefrLevel: payload.cefrLevel || null,
-                    notes: payload.notes || null,
-                    verificationStatus: targetVerificationStatus,
-                    updatedAt: new Date(),
-                  })
-                  .where(
-                    and(
-                      eq(candidateLanguages.id, item.existingEntityId),
-                      eq(candidateLanguages.userId, userId),
-                    ),
-                  );
-                await this.recordAuditTx(tx, {
-                  userId,
-                  entityType: 'LANGUAGE',
-                  entityId: item.existingEntityId,
-                  action: 'UPDATE',
-                  changedFields: Object.keys(payload),
-                  metadata: { source: session.sourceType, sessionId },
-                });
-                break;
-              }
-              case 'PROJECT': {
-                await tx
-                  .update(candidateProjects)
-                  .set({
-                    name: payload.name,
-                    role: payload.role || null,
-                    description: payload.description || null,
-                    startDate: payload.startDate || null,
-                    endDate: payload.endDate || null,
-                    projectUrl: payload.projectUrl || null,
-                    skills: Array.isArray(payload.skills) ? payload.skills : [],
-                    achievements: Array.isArray(payload.achievements) ? payload.achievements : [],
-                    verificationStatus: targetVerificationStatus,
-                    updatedAt: new Date(),
-                  })
-                  .where(
-                    and(
-                      eq(candidateProjects.id, item.existingEntityId),
-                      eq(candidateProjects.userId, userId),
-                    ),
-                  );
-                await this.recordAuditTx(tx, {
-                  userId,
-                  entityType: 'PROJECT',
-                  entityId: item.existingEntityId,
-                  action: 'UPDATE',
-                  changedFields: Object.keys(payload),
-                  metadata: { source: session.sourceType, sessionId },
-                });
-                break;
-              }
-              case 'LINK': {
-                await tx
-                  .update(candidateLinks)
-                  .set({
-                    label: payload.label,
-                    url: payload.url,
-                    updatedAt: new Date(),
-                  })
-                  .where(
-                    and(
-                      eq(candidateLinks.id, item.existingEntityId),
-                      eq(candidateLinks.userId, userId),
-                    ),
-                  );
-                await this.recordAuditTx(tx, {
-                  userId,
-                  entityType: 'LINK',
-                  entityId: item.existingEntityId,
-                  action: 'UPDATE',
-                  changedFields: Object.keys(payload),
-                  metadata: { source: session.sourceType, sessionId },
-                });
-                break;
-              }
-            }
+
+            await this.updateExistingEntity(
+              tx,
+              userId,
+              item.section,
+              item.existingEntityId,
+              payload,
+              targetVerificationStatus,
+              session,
+              'UPDATE',
+            );
             continue;
           }
         }
@@ -1385,6 +1299,185 @@ export class SmartProfileImportService {
     };
   }
 
+  private async updateExistingEntity(
+    tx: any,
+    userId: string,
+    section: string,
+    existingEntityId: string,
+    payload: Record<string, any>,
+    targetVerificationStatus: 'VERIFIED' | 'UNVERIFIED',
+    session: { sourceType: string; id: string },
+    auditAction: string = 'UPDATE',
+    previousPayload?: Record<string, unknown> | null,
+  ): Promise<void> {
+    switch (section) {
+      case 'EXPERIENCE': {
+        await tx
+          .update(candidateExperiences)
+          .set({
+            organization: payload.organization,
+            position: payload.position,
+            location: payload.location || null,
+            employmentType: payload.employmentType || null,
+            startDate: payload.startDate,
+            endDate: payload.endDate || null,
+            isCurrent: payload.isCurrent ?? false,
+            description: payload.description || null,
+            achievements: Array.isArray(payload.achievements) ? payload.achievements : [],
+            verificationStatus: targetVerificationStatus,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(candidateExperiences.id, existingEntityId),
+              eq(candidateExperiences.userId, userId),
+            ),
+          );
+        break;
+      }
+      case 'EDUCATION': {
+        await tx
+          .update(candidateEducation)
+          .set({
+            institution: payload.institution,
+            degree: payload.degree || null,
+            fieldOfStudy: payload.fieldOfStudy || null,
+            startDate: payload.startDate || null,
+            endDate: payload.endDate || null,
+            isCurrent: payload.isCurrent ?? false,
+            location: payload.location || null,
+            description: payload.description || null,
+            activities: payload.activities || null,
+            verificationStatus: targetVerificationStatus,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(eq(candidateEducation.id, existingEntityId), eq(candidateEducation.userId, userId)),
+          );
+        break;
+      }
+      case 'SKILL': {
+        await tx
+          .update(candidateSkills)
+          .set({
+            name: payload.name,
+            category: payload.category || null,
+            proficiency: payload.proficiency || null,
+            yearsExperience: payload.yearsExperience ?? null,
+            verificationStatus: targetVerificationStatus,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(candidateSkills.id, existingEntityId), eq(candidateSkills.userId, userId)));
+        break;
+      }
+      case 'CERTIFICATION': {
+        await tx
+          .update(candidateCertifications)
+          .set({
+            name: payload.name,
+            issuingOrganization: payload.issuingOrganization,
+            issueDate: payload.issueDate || null,
+            expirationDate: payload.expirationDate || null,
+            credentialId: payload.credentialId || null,
+            credentialUrl: payload.credentialUrl || null,
+            verificationStatus: targetVerificationStatus,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(candidateCertifications.id, existingEntityId),
+              eq(candidateCertifications.userId, userId),
+            ),
+          );
+        break;
+      }
+      case 'LANGUAGE': {
+        await tx
+          .update(candidateLanguages)
+          .set({
+            language: payload.language,
+            proficiency: payload.proficiency ? payload.proficiency.trim() : null,
+            cefrLevel: payload.cefrLevel || null,
+            notes: payload.notes || null,
+            verificationStatus: targetVerificationStatus,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(eq(candidateLanguages.id, existingEntityId), eq(candidateLanguages.userId, userId)),
+          );
+        break;
+      }
+      case 'PROJECT': {
+        await tx
+          .update(candidateProjects)
+          .set({
+            name: payload.name,
+            role: payload.role || null,
+            description: payload.description || null,
+            startDate: payload.startDate || null,
+            endDate: payload.endDate || null,
+            projectUrl: payload.projectUrl || null,
+            skills: Array.isArray(payload.skills) ? payload.skills : [],
+            achievements: Array.isArray(payload.achievements) ? payload.achievements : [],
+            verificationStatus: targetVerificationStatus,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(eq(candidateProjects.id, existingEntityId), eq(candidateProjects.userId, userId)),
+          );
+        break;
+      }
+      case 'LINK': {
+        await tx
+          .update(candidateLinks)
+          .set({
+            label: payload.label,
+            url: payload.url,
+            updatedAt: new Date(),
+          })
+          .where(and(eq(candidateLinks.id, existingEntityId), eq(candidateLinks.userId, userId)));
+        break;
+      }
+    }
+
+    if (tx.query?.candidateFacts) {
+      const existingFacts = await tx.query.candidateFacts.findMany({
+        where: and(
+          eq(candidateFacts.userId, userId),
+          eq(candidateFacts.sourceEntityId, existingEntityId),
+        ),
+      });
+      for (const fact of existingFacts) {
+        const existingVal = (fact.structuredValue || {}) as Record<string, unknown>;
+        await tx
+          .update(candidateFacts)
+          .set({
+            structuredValue: {
+              ...existingVal,
+              ...payload,
+              lastConfirmedBySource: session.sourceType,
+              lastConfirmedSessionId: session.id,
+            },
+            updatedAt: new Date(),
+          })
+          .where(eq(candidateFacts.id, fact.id));
+      }
+    }
+
+    await this.recordAuditTx(tx, {
+      userId,
+      entityType: section,
+      entityId: existingEntityId,
+      action: auditAction,
+      changedFields: Object.keys(payload),
+      metadata: {
+        source: session.sourceType,
+        sessionId: session.id,
+        ...(previousPayload ? { previousPayload } : {}),
+      },
+    });
+  }
+
   private mapItemDto(item: ProfileImportItem): ProfileImportItemDto {
     return {
       id: item.id,
@@ -1400,6 +1493,8 @@ export class SmartProfileImportService {
       conflictDetails: item.conflictDetails,
       reviewStatus: item.reviewStatus as any,
       userEditedPayload: item.userEditedPayload,
+      conflictResolution:
+        (item.conflictResolution as ProfileImportConflictResolution | null) || null,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
     };

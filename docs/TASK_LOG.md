@@ -1481,7 +1481,7 @@ This document tracks execution history and verification state for all official m
          - Added `ProfileComparisonEngine.isAbbreviatedNameMatch`: recognizes initials ("Asadbek M.", "A. Makhmudov", "Makhmudov A.") as `POTENTIAL_MATCH` with review notes rather than overwriting verified names or flagging hard conflicts.
          - Added `ProfileComparisonEngine.isPhoneEquivalent`: normalizes international country prefixes (e.g., `+48 884 665 207` vs `884 665 207` in Poland), preventing false phone conflicts.
       2. **Certification Matching Reordering**:
-         - Reordered `ProfileComparisonEngine.compareCertification` to search for matching existing certifications by normalized name *before* evaluating missing issuers.
+         - Reordered `ProfileComparisonEngine.compareCertification` to search for matching existing certifications by normalized name _before_ evaluating missing issuers.
          - When an imported certification matches an existing verified certification (e.g., "Foundations of Project Management"), it is classified as `MATCHED` (preserving the existing Google issuer), rather than becoming `INCOMPLETE`.
          - Genuinely new certifications without issuers remain classified as `INCOMPLETE`.
       3. **Education Semantic Degree Matching**:
@@ -1513,3 +1513,40 @@ This document tracks execution history and verification state for all official m
         - Multi-source provenance: `commitSession` updating existing fact's `structuredValue.sources` without creating duplicate rows.
     - **Monorepo Verification**:
       - 55 test files (481/481 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB check passing.
+  - **17. Multi-Source Conflict Resolution & Degree Normalization Finalization**:
+    - **Context & Objective**:
+      - Real-world LinkedIn comparison testing identified two critical remaining issues:
+        1. Degree format variations like `"B. A."` were not recognized as equivalent to `"B.A."` or `"Bachelor's degree"`, causing false degree conflicts for identical credentials.
+        2. Explicitly accepting a `CONFLICT` record could create duplicate rows or silently overwrite verified information instead of safely executing user-guided resolution.
+    - **Fixes Implemented**:
+      1. **Spaced Degree Normalization & Semantic Compatibility**:
+         - Enhanced `ProfileComparisonEngine.normalizeDegreeType`: added regex support for spaced initial abbreviations (`"B. A."`, `"M. S."`), optional `(?:\s*degree)?` word handling, and degree-level compatibility mapping.
+         - Verified reproduction: Existing `"B. A."` at `"Vistula University"` vs Imported `"Bachelor's degree"` accurately matches as `MATCHED`, eliminating false degree conflicts while strictly preventing false equivalence between Bachelor's and Master's or distinct Arts vs Science fields.
+      2. **Safe Education Date Extraction & Comparison**:
+         - Updated `smart-profile-extractor.ts`: Heuristic extraction maps single dates to `startDate` with `endDate: null`, preventing synthetic end dates.
+         - Updated `ProfileComparisonEngine.compareEducation`: Ongoing education (`isCurrent: true` or missing `endDate`) compared against a single imported date classifies as `POTENTIAL_MATCH` rather than declaring a false `CONFLICT` or auto-graduating the candidate.
+      3. **Database Schema & Drizzle Migration (`packages/database`)**:
+         - Added `conflictResolution: text('conflict_resolution')` to `profileImportItems` schema.
+         - Created migration `packages/database/drizzle/0020_conflict_resolution.sql` and registered entry 20 in `_journal.json`.
+         - Applied migration cleanly via `npm run db:migrate`.
+      4. **Shared Types & API Validation**:
+         - Added `ProfileImportConflictResolutionEnum` (`KEEP_EXISTING`, `REPLACE_EXISTING`, `ADD_AS_SEPARATE`) to `packages/shared`.
+         - Updated `updateProfileImportItemSchema` in `apps/api` to validate `conflictResolution`.
+         - Enforced in `SmartProfileImportService.updateItem` that approving a `CONFLICT` item without an explicit resolution strategy returns a 400 Bad Request error.
+      5. **Deterministic Commit Execution (`SmartProfileImportService.commitSession`)**:
+         - `KEEP_EXISTING`: Preserves existing record and verified values, logs `ALTERNATIVE_SOURCE_REVIEWED` audit event, executes zero database updates or duplicate inserts.
+         - `REPLACE_EXISTING`: Updates existing entity row via `updateExistingEntity`, updates associated `candidateFacts`, preserves `VERIFIED` status without downgrade, logs `CONFLICT_RESOLVED_REPLACE` audit event, executes zero inserts.
+         - `ADD_AS_SEPARATE`: Inserts a separate new record with user authorization, logs `CONFLICT_RESOLVED_ADD_SEPARATE` audit event.
+         - Implemented modular `updateExistingEntity` covering all candidate brain sections (`EXPERIENCE`, `EDUCATION`, `SKILL`, `CERTIFICATION`, `LANGUAGE`, `PROJECT`, `LINK`).
+      6. **Review UI Enhancements (`SmartProfileImportModal.tsx`)**:
+         - Rendered side-by-side comparison for `CONFLICT` items (`Existing Record:` vs `Imported Record:`) and discrepancy notice banner.
+         - Replaced generic "Accept" with explicit conflict action buttons: `[ Keep Existing ]`, `[ Replace Existing ]`, `[ Add as Separate ]`, `[ ✎ Edit ]`, `[ ✕ Reject ]`.
+         - Added `[ Confirm Match ]` and `[ Add as New ]` buttons for `POTENTIAL_MATCH` items.
+         - Rendered status badges reflecting resolution: `● RESOLVED (Keep Existing)`, `● RESOLVED (Replace Existing)`, `● RESOLVED (Add as Separate)`.
+    - **Automated Regression Verification**:
+      - Created `smart-profile-conflict-resolution.test.ts` (13/13 tests passing).
+      - Updated `candidate-import-routes.test.ts` (11/11 tests passing).
+      - Updated `SmartProfileImportModal.test.tsx` (21/21 tests passing).
+      - Verified all 9 import test suites in `apps/api/src/services/import/` (98/98 tests passing).
+    - **Monorepo Quality Gates**:
+      - 56 test files (499/499 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB migration 0020 applied.

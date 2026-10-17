@@ -290,7 +290,7 @@ CRITICAL INVARIANTS:
 
 SECTION-SPECIFIC EXTRACTION RULES:
 - CERTIFICATIONS: Group related certification title, issuing organization (e.g. Google, Coursera, NAVOICA, Frankfurt School, AWS, Microsoft), and completion/issue date into ONE single certification record. NEVER create separate certification records for standalone dates or issuer names.
-- EDUCATION: Separate institution, degree (e.g. "Bachelor of Science", "B.S.", "Master of Science"), field of study (e.g. "Computer Science"), start date, end date, and location. Do NOT merge degree and institution into one generic entry.
+- EDUCATION: Separate institution, degree (e.g. "Bachelor of Science", "B.S.", "Master of Science"), field of study (e.g. "Computer Science"), start date, end date, and location. Do NOT merge degree and institution into one generic entry. If only a single date is present (e.g. "October 2023"), do NOT assume it is a graduation date; set startDate to that date and leave endDate as null unless explicitly stated as graduated/completed. NEVER synthesize graduation dates.
 - EXPERIENCES: Separate organization name and location (city, country). Do NOT merge the location into the organization name.
 - SKILLS: Extract each skill as an individual item (e.g. "Agile", "Scrum", "JIRA", "Python", "SQL"), NOT as a single comma-separated blob. Categorize by heading if provided (e.g. "Project Management", "Technical Tools").
 - LANGUAGES: Extract languages with their explicitly stated proficiency (e.g. "Native", "Fluent", "Conversational"). If no proficiency is stated in the document, set proficiency to null. NEVER invent language proficiency.
@@ -905,12 +905,12 @@ ${text.slice(0, 16000)}
         let institution = '';
         let degree: string | null = null;
         let fieldOfStudy: string | null = null;
-        const startDate: string | null = dateRangeMatch ? dateRangeMatch[1]! : null;
-        const endDate: string | null = dateRangeMatch
-          ? dateRangeMatch[2] || null
+        const startDate: string | null = dateRangeMatch
+          ? dateRangeMatch[1]!
           : singleDateMatch
             ? singleDateMatch[0]
             : null;
+        const endDate: string | null = dateRangeMatch ? dateRangeMatch[2] || null : null;
         let location: string | null = null;
 
         // Clean line by removing parenthesized dates so dash-splitting doesn't split on "(2015 - 2019)"

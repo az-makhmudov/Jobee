@@ -417,17 +417,52 @@ export class ProfileComparisonEngine {
           }
         }
 
-        if (degreeIsCompatible && fieldIsCompatible && !dateConflict) {
+        const isExistingOngoing = Boolean(ex.isCurrent || (!ex.endDate && ex.startDate));
+        const isImportedSingleDate =
+          (Boolean(edu.startDate) && !edu.endDate) || (!edu.startDate && Boolean(edu.endDate));
+
+        if (degreeIsCompatible && fieldIsCompatible) {
+          if (!dateConflict) {
+            return {
+              section: 'EDUCATION',
+              classification: ex.verificationStatus === 'VERIFIED' ? 'MATCHED' : 'DUPLICATE',
+              confidenceScore: edu.confidence ?? 0.95,
+              sourceReference:
+                edu.sourceReference || `${edu.degree || 'Degree'} at ${edu.institution}`,
+              extractedPayload: payload,
+              existingEntityId: ex.id,
+              existingPayload: ex as unknown as Record<string, unknown>,
+              conflictDetails: null,
+            };
+          }
+
+          // Safe Education Date Handling:
+          // If existing education is ongoing and imported has only a single date, do not declare a false CONFLICT
+          // or auto-graduation. Request user review as POTENTIAL_MATCH while preserving the ongoing record.
+          if (isExistingOngoing && isImportedSingleDate) {
+            return {
+              section: 'EDUCATION',
+              classification: 'POTENTIAL_MATCH',
+              confidenceScore: edu.confidence ?? 0.85,
+              sourceReference:
+                edu.sourceReference || `${edu.degree || 'Degree'} at ${edu.institution}`,
+              extractedPayload: payload,
+              existingEntityId: ex.id,
+              existingPayload: ex as unknown as Record<string, unknown>,
+              conflictDetails: `Ongoing education at ${ex.institution} with single imported date (${edu.startDate || edu.endDate}); review required to clarify enrollment vs completion`,
+            };
+          }
+
           return {
             section: 'EDUCATION',
-            classification: ex.verificationStatus === 'VERIFIED' ? 'MATCHED' : 'DUPLICATE',
-            confidenceScore: edu.confidence ?? 0.95,
+            classification: 'CONFLICT',
+            confidenceScore: edu.confidence ?? 0.85,
             sourceReference:
               edu.sourceReference || `${edu.degree || 'Degree'} at ${edu.institution}`,
             extractedPayload: payload,
             existingEntityId: ex.id,
             existingPayload: ex as unknown as Record<string, unknown>,
-            conflictDetails: null,
+            conflictDetails: `Date mismatch for ${edu.degree || 'Degree'} at ${ex.institution}: existing (${ex.startDate || ''} to ${ex.endDate || ''}) vs imported (${edu.startDate || ''} to ${edu.endDate || ''})`,
           };
         } else if (!degreeIsCompatible) {
           return {
@@ -452,18 +487,6 @@ export class ProfileComparisonEngine {
             existingEntityId: ex.id,
             existingPayload: ex as unknown as Record<string, unknown>,
             conflictDetails: `Field of study mismatch for ${ex.institution}: existing "${ex.fieldOfStudy}" vs imported "${edu.fieldOfStudy}"`,
-          };
-        } else if (dateConflict) {
-          return {
-            section: 'EDUCATION',
-            classification: 'CONFLICT',
-            confidenceScore: edu.confidence ?? 0.85,
-            sourceReference:
-              edu.sourceReference || `${edu.degree || 'Degree'} at ${edu.institution}`,
-            extractedPayload: payload,
-            existingEntityId: ex.id,
-            existingPayload: ex as unknown as Record<string, unknown>,
-            conflictDetails: `Date mismatch for ${edu.degree || 'Degree'} at ${ex.institution}: existing (${ex.startDate || ''} to ${ex.endDate || ''}) vs imported (${edu.startDate || ''} to ${edu.endDate || ''})`,
           };
         }
       }
@@ -952,41 +975,80 @@ export class ProfileComparisonEngine {
   }
 
   public static normalizeDegreeType(degreeStr: string): string {
-    const clean = degreeStr.toLowerCase().replace(/['’]/g, '');
-    if (/\b(b\.?a\.?|bachelor(?:s)?\s*(?:of|in)?\s*arts?)\b/.test(clean)) {
+    const clean = degreeStr.toLowerCase().replace(/['’]/g, '').replace(/\.\s+/g, '.').trim();
+
+    // Check MBA first so "m.b.a." is not partially matched by "b.a."
+    if (
+      /(?:^|[^a-z])(m\.?\s*b\.?\s*a\.?|mba|master(?:s)?(?:\s*degree)?\s*(?:of|in)?\s*business\s*administration)(?:$|[^a-z])/i.test(
+        ' ' + clean + ' ',
+      )
+    ) {
+      return 'mba';
+    }
+
+    // Master degrees
+    if (
+      /(?:^|[^a-z])(m\.?\s*a\.?|ma|master(?:s)?(?:\s*degree)?\s*(?:of|in)?\s*arts?)(?:$|[^a-z])/i.test(
+        ' ' + clean + ' ',
+      )
+    ) {
+      return 'master_of_arts';
+    }
+    if (
+      /(?:^|[^a-z])(m\.?\s*s\.?(?:c\.?)?|m\.?\s*sc\.?|ms|msc|master(?:s)?(?:\s*degree)?\s*(?:of|in)?\s*science)(?:$|[^a-z])/i.test(
+        ' ' + clean + ' ',
+      )
+    ) {
+      return 'master_of_science';
+    }
+    if (/(?:^|[^a-z])(master(?:s)?(?:\s*degree)?)(?:$|[^a-z])/i.test(' ' + clean + ' ')) {
+      return 'master';
+    }
+
+    // Bachelor degrees
+    if (
+      /(?:^|[^a-z])(b\.?\s*a\.?|ba|bachelor(?:s)?(?:\s*degree)?\s*(?:of|in)?\s*arts?)(?:$|[^a-z])/i.test(
+        ' ' + clean + ' ',
+      )
+    ) {
       return 'bachelor_of_arts';
     }
-    if (/\b(b\.?s\.?|b\.?sc\.?|b\.?s\.?c\.?|bachelor(?:s)?\s*(?:of|in)?\s*science)\b/.test(clean)) {
+    if (
+      /(?:^|[^a-z])(b\.?\s*s\.?(?:c\.?)?|b\.?\s*sc\.?|bs|bsc|bachelor(?:s)?(?:\s*degree)?\s*(?:of|in)?\s*science)(?:$|[^a-z])/i.test(
+        ' ' + clean + ' ',
+      )
+    ) {
       return 'bachelor_of_science';
     }
     if (
-      /\b(b\.?e\.?|b\.?tech\.?|bachelor(?:s)?\s*(?:of|in)?\s*(?:engineering|technology))\b/.test(
-        clean,
+      /(?:^|[^a-z])(b\.?\s*e\.?|b\.?\s*tech\.?|be|btech|bachelor(?:s)?(?:\s*degree)?\s*(?:of|in)?\s*(?:engineering|technology))(?:$|[^a-z])/i.test(
+        ' ' + clean + ' ',
       )
     ) {
       return 'bachelor_of_engineering';
     }
-    if (/\b(bachelor(?:s)?(?:\s*degree)?)\b/.test(clean)) {
+    if (/(?:^|[^a-z])(bachelor(?:s)?(?:\s*degree)?)(?:$|[^a-z])/i.test(' ' + clean + ' ')) {
       return 'bachelor';
     }
-    if (/\b(m\.?a\.?|master(?:s)?\s*(?:of|in)?\s*arts?)\b/.test(clean)) {
-      return 'master_of_arts';
-    }
-    if (/\b(m\.?s\.?|m\.?sc\.?|master(?:s)?\s*(?:of|in)?\s*science)\b/.test(clean)) {
-      return 'master_of_science';
-    }
-    if (/\b(mba|master(?:s)?\s*(?:of|in)?\s*business\s*administration)\b/.test(clean)) {
-      return 'mba';
-    }
-    if (/\b(master(?:s)?(?:\s*degree)?)\b/.test(clean)) {
-      return 'master';
-    }
-    if (/\b(ph\.?d\.?|doctor(?:ate)?(?:\s*of\s*philosophy)?)\b/.test(clean)) {
+
+    // Doctorate
+    if (
+      /(?:^|[^a-z])(ph\.?\s*d\.?|phd|doctor(?:ate)?(?:\s*of\s*philosophy)?)(?:$|[^a-z])/i.test(
+        ' ' + clean + ' ',
+      )
+    ) {
       return 'doctorate';
     }
-    if (/\b(associate(?:s)?(?:\s*degree)?|a\.?a\.?|a\.?s\.?)\b/.test(clean)) {
+
+    // Associate
+    if (
+      /(?:^|[^a-z])(associate(?:s)?(?:\s*degree)?|a\.?\s*a\.?|a\.?\s*s\.?)(?:$|[^a-z])/i.test(
+        ' ' + clean + ' ',
+      )
+    ) {
       return 'associate';
     }
+
     return clean.replace(/[^a-z0-9]/g, '');
   }
 

@@ -116,8 +116,10 @@ English (Fluent), German (Professional)
     expect(body.data.items).toBeDefined();
     expect(body.data.items.length).toBeGreaterThan(0);
 
-    // Save one item ID for item action tests
-    testItemId = body.data.items[0].id;
+    // Save one item ID for item action tests (prefer NEW item)
+    const targetItem =
+      body.data.items.find((i: any) => i.classification === 'NEW') || body.data.items[0];
+    testItemId = targetItem.id;
   });
 
   it('GET /api/candidate/import/:sessionId returns the session and all review items', async () => {
@@ -149,11 +151,21 @@ English (Fluent), German (Professional)
     expect(createdSessionId).toBeDefined();
     expect(testItemId).toBeDefined();
 
+    const sessionRes = await app.inject({
+      method: 'GET',
+      url: `/api/candidate/import/${createdSessionId}`,
+    });
+    const currentItem = JSON.parse(sessionRes.body).data.items.find(
+      (i: any) => i.id === testItemId,
+    );
+    const isConflict = currentItem?.classification === 'CONFLICT';
+
     const res = await app.inject({
       method: 'PATCH',
       url: `/api/candidate/import/${createdSessionId}/items/${testItemId}`,
       payload: {
         action: 'APPROVED',
+        ...(isConflict ? { conflictResolution: 'REPLACE_EXISTING' } : {}),
       },
     });
 

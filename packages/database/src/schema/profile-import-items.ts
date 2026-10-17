@@ -39,6 +39,15 @@ export const ProfileImportReviewStatuses = {
 export type ProfileImportReviewStatus =
   (typeof ProfileImportReviewStatuses)[keyof typeof ProfileImportReviewStatuses];
 
+export const ProfileImportConflictResolutions = {
+  KEEP_EXISTING: 'KEEP_EXISTING',
+  REPLACE_EXISTING: 'REPLACE_EXISTING',
+  ADD_AS_SEPARATE: 'ADD_AS_SEPARATE',
+} as const;
+
+export type ProfileImportConflictResolution =
+  (typeof ProfileImportConflictResolutions)[keyof typeof ProfileImportConflictResolutions];
+
 export const profileImportItems = pgTable('profile_import_items', {
   id: uuid('id').defaultRandom().primaryKey(),
   sessionId: uuid('session_id')
@@ -57,6 +66,7 @@ export const profileImportItems = pgTable('profile_import_items', {
   conflictDetails: text('conflict_details'),
   reviewStatus: text('review_status').default('PENDING').notNull(),
   userEditedPayload: jsonb('user_edited_payload').$type<Record<string, unknown> | null>(),
+  conflictResolution: text('conflict_resolution'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
     .defaultNow()
