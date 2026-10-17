@@ -12,10 +12,10 @@
 ## 1. Roadmap Snapshot
 
 - **Current Official Mode:** Autonomous Product Completion & Production Deployment
-- **Active Backlog Item:** `BL-19: COMPLETED` (`JOB-SMART-PROFILE-IMPORT` Safe Multi-Source Merge & Profile Singleton Protection Hotfix — Fully Implemented & Verified)
-- **Milestone Status:** SMART PROFILE IMPORT SAFE MULTI-SOURCE MERGE & PROFILE SINGLETON PROTECTION COMPLETE (57/57 test files, 509/509 tests passing, field-aware merging engine preserving existing verified descriptions/achievements on partial updates, explicit field clearing requirement, strict prohibition of ADD_AS_SEPARATE for PROFILE section, abbreviated name preservation ["Asadbek M." -> "Asadbek Makhmudov"], side-by-side field-level impact diffs in UI, verified facts preservation with multi-source audit trail)
+- **Active Backlog Item:** `BL-19: COMPLETED` (`JOB-SMART-PROFILE-IMPORT` Production Candidate Data Audit, Test Isolation & Safe Remediation Architecture — Quality Gates Verified; Remediation Script Prepared; Awaiting User Approval)
+- **Milestone Status:** CANDIDATE BRAIN DATA AUDIT & TEST ISOLATION COMPLETE (57/57 test files, 510/510 tests passing, ephemeral test user isolation with complete teardown across tests/scripts, removed fictional claims in user.ts, enforced strict profile ownership in smart-profile-import-service.ts, created read-only audit utility and deterministic reversible remediation/rollback scripts with full JSON backups, awaiting explicit user authorization before executing production data remediation)
 - **Previous Completed Milestone:** `JOB-STUDIO-REPAIR`
-- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + STUDIO PACKAGE REPAIR FULLY VERIFIED + SMART PROFILE IMPORT HARDENED, QA REMEDIATED, REVIEW UI REPAIRED, UPLOAD STABILIZED, LINKEDIN QA, MULTI-SOURCE COMPARISON, CONFLICT RESOLUTION & SAFE MERGE FINALIZED**
+- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + STUDIO PACKAGE REPAIR FULLY VERIFIED + SMART PROFILE IMPORT HARDENED, QA REMEDIATED, REVIEW UI REPAIRED, UPLOAD STABILIZED, LINKEDIN QA, MULTI-SOURCE COMPARISON, CONFLICT RESOLUTION & SAFE MERGE FINALIZED + CANDIDATE DATA AUDITED & ISOLATED**
 - **Active Git Checkpoint:** Pending (`JOB-SMART-PROFILE-IMPORT`)
 
 ---

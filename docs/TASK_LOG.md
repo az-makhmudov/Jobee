@@ -1587,3 +1587,31 @@ This document tracks execution history and verification state for all official m
       - Verified all 10 import test suites in `apps/api/src/services/import/` (105/105 tests passing).
     - **Monorepo Quality Gates**:
       - 57 test files (509/509 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB check passing (28ms latency).
+  - **19. Production Candidate Data Audit, Test Isolation & Safe Remediation Architecture**:
+    - **Context & Risks Identified**:
+      - An independent code review discovered that automated test runs and verification scripts were polluting the production Candidate Brain of the primary user (`00000000-0000-0000-0000-000000000001`):
+        1. `candidate-import-routes.test.ts` ran against `DATABASE_URL` with fallback to the primary user via `auth-plugin.ts`, committing `sample_cv.txt` on every run and leaving 77 test document rows, sessions, and facts.
+        2. `scripts/verify-smart-profile-import.ts` committed synthetic candidate fixtures (`Dr. Elena Rostova`, `Apex Neural Dynamics`, `Stanford University`) with `verifyOnCommit: true, allowAiOnCommit: true` into the primary user's profile.
+        3. `scripts/verify-job-p5-t01.ts` inserted `Dr. Jane Hopper` into the primary user profile.
+        4. `packages/database/src/user.ts` initialized missing primary candidate profiles with fictional tech/cloud career claims (`Lead Software Engineer & Cloud Architect`).
+        5. `SmartProfileImportService.updateExistingEntity()` updated candidate profiles using loose `or(id, userId)` instead of enforcing strict ownership with `and`.
+        6. Candidate profile headline had been corrupted to `"Lead Systems Architect"` and contact details to `"asadbek.dev@example.com"`.
+    - **Code Safety Fixes Implemented (Phase 3)**:
+      1. `packages/database/src/user.ts`: Removed all fictional career and location claims from `getOrCreatePrimaryUser()`, initializing missing fields strictly to `null`.
+      2. `apps/api/src/services/import/smart-profile-import-service.ts`: Enforced strict `and(eq(candidateProfiles.id, targetProfileId), eq(candidateProfiles.userId, userId))` in profile lookups and updates, eliminating cross-tenant overwrite vectors.
+      3. `apps/api/src/plugins/auth-plugin.ts`: Added support for `x-test-user-id` in `requireCurrentUserId` during test mode (`isTest`).
+      4. `apps/api/src/routes/candidate-import-routes.test.ts`: Isolated execution to a dedicated disposable test user (`crypto.randomUUID()`) with complete teardown in `afterAll`.
+      5. `scripts/verify-smart-profile-import.ts`: Isolated execution to a dedicated disposable test user with complete entity/fact teardown.
+      6. `scripts/verify-job-p5-t01.ts`: Isolated execution to a dedicated disposable test user with complete teardown.
+      7. `smart-profile-safe-merge.test.ts`: Added TEST 8 verifying that cross-tenant profile updates strictly enforce both `candidateProfiles.id == targetProfileId` AND `candidateProfiles.userId == authenticatedUserId`.
+    - **Audit, Remediation & Rollback Architecture (Phase 4)**:
+      1. `scripts/audit-candidate-brain.ts`: Production-grade read-only audit reporting exact candidate state without modifying data.
+      2. `scripts/remediate-candidate-brain.ts`: Deterministic remediation utility with default `--dry-run` mode and explicit `--execute` mode:
+         - Creates a pre-remediation timestamped JSON backup under `backups/candidate-brain-backup-<timestamp>.json`.
+         - Restores legitimate candidate profile details (`"Project Manager"`, `"Asadbek Makhmudov"`, `"asadbek.mzw@gmail.com"`, `"+48884665207"`).
+         - Safely removes 3 synthetic experiences, 3 synthetic education entries, 12 synthetic tech skills, 1 synthetic language, 1 synthetic link, 18 synthetic candidate facts (including all 9 AI-authorized facts), and 77 test document rows and sessions.
+         - Preserves authentic Master CV (`Resume - Asadbek M.pdf`), 14 verified project/operations skills, 2 verified certifications, and 7 manual baseline facts.
+      3. `scripts/rollback-candidate-brain.ts`: Deterministic rollback script restoring 100% of candidate state from backup.
+    - **Monorepo Quality Gates**:
+      - 57 test files (510/510 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB check passing (16ms latency).
+

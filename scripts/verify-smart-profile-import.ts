@@ -1,10 +1,20 @@
+import crypto from 'node:crypto';
 import { Document, Paragraph, TextRun, Packer } from 'docx';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { getConfig } from '@job-agent/config';
 import {
   getDb,
   closeDbPool,
-  getOrCreatePrimaryUser,
+  users,
+  candidateProfiles,
+  candidateExperiences,
+  candidateEducation,
+  candidateSkills,
+  candidateCertifications,
+  candidateLanguages,
+  candidateProjects,
+  candidateLinks,
+  candidateFacts,
   profileImportSessions,
   profileImportItems,
   candidateAuditEvents,
@@ -26,9 +36,22 @@ async function main() {
 
   const config = getConfig();
   const db = getDb(config.DATABASE_URL);
-  const user = await getOrCreatePrimaryUser(db);
-  const userId = user.id;
   const runTag = `verify-${Date.now()}`;
+
+  // Isolation Guard: ALWAYS create a dedicated disposable test user
+  const testUserId = crypto.randomUUID();
+  const [testUser] = await db
+    .insert(users)
+    .values({
+      id: testUserId,
+      systemKey: `test_smart_import_${Date.now()}`,
+      name: 'Smart Import Test Runner',
+      email: `test-smart-import-${Date.now()}@example.com`,
+      emailVerified: true,
+      role: 'user',
+    })
+    .returning();
+  const userId = testUser.id;
 
   const createdSessionIds: string[] = [];
   const createdDocIds: string[] = [];
@@ -397,16 +420,32 @@ async function main() {
     // TEARDOWN: Clean up test artifacts safely
     // -------------------------------------------------------------------------
     console.log('--- Cleaning Up Verification Fixtures ---');
-    if (createdDocIds.length > 0) {
-      await db.delete(candidateDocuments).where(inArray(candidateDocuments.id, createdDocIds));
-    }
-    if (createdSessionIds.length > 0) {
-      await db
-        .delete(profileImportItems)
-        .where(inArray(profileImportItems.sessionId, createdSessionIds));
-      await db
-        .delete(profileImportSessions)
-        .where(inArray(profileImportSessions.id, createdSessionIds));
+    if (userId) {
+      await db.delete(candidateAuditEvents).where(eq(candidateAuditEvents.userId, userId));
+      await db.delete(candidateFacts).where(eq(candidateFacts.userId, userId));
+      await db.delete(candidateExperiences).where(eq(candidateExperiences.userId, userId));
+      await db.delete(candidateEducation).where(eq(candidateEducation.userId, userId));
+      await db.delete(candidateSkills).where(eq(candidateSkills.userId, userId));
+      await db.delete(candidateCertifications).where(eq(candidateCertifications.userId, userId));
+      await db.delete(candidateLanguages).where(eq(candidateLanguages.userId, userId));
+      await db.delete(candidateProjects).where(eq(candidateProjects.userId, userId));
+      await db.delete(candidateLinks).where(eq(candidateLinks.userId, userId));
+      await db.delete(candidateProfiles).where(eq(candidateProfiles.userId, userId));
+      if (createdDocIds.length > 0) {
+        await db.delete(candidateDocuments).where(inArray(candidateDocuments.id, createdDocIds));
+      }
+      await db.delete(candidateDocuments).where(eq(candidateDocuments.userId, userId));
+      if (createdSessionIds.length > 0) {
+        await db
+          .delete(profileImportItems)
+          .where(inArray(profileImportItems.sessionId, createdSessionIds));
+        await db
+          .delete(profileImportSessions)
+          .where(inArray(profileImportSessions.id, createdSessionIds));
+      }
+      await db.delete(profileImportItems).where(eq(profileImportItems.userId, userId));
+      await db.delete(profileImportSessions).where(eq(profileImportSessions.userId, userId));
+      await db.delete(users).where(eq(users.id, userId));
     }
     await closeDbPool();
     console.log('✓ Teardown complete. Zero orphaned test fixtures.');

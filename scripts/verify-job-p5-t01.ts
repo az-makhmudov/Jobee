@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { getDb, closeDbPool, getOrCreatePrimaryUser } from '@job-agent/database';
+import { getDb, closeDbPool, users } from '@job-agent/database';
 import {
   jobs,
   applications,
@@ -9,7 +9,7 @@ import {
   answerLibrary,
   browserApplicationRuns,
 } from '@job-agent/database';
-import { inArray } from 'drizzle-orm';
+import { inArray, eq } from 'drizzle-orm';
 import {
   AtsProviderType,
   BrowserRunMode,
@@ -32,9 +32,22 @@ async function main() {
 
   const config = getConfig();
   const db = getDb(config.DATABASE_URL);
-  const user = await getOrCreatePrimaryUser(db);
-  const userId = user.id;
   const tag = `live-p5t01-${Date.now()}`;
+
+  // Isolation Guard: ALWAYS create a dedicated disposable test user
+  const testUserId = crypto.randomUUID();
+  const [testUser] = await db
+    .insert(users)
+    .values({
+      id: testUserId,
+      systemKey: `test_p5t01_${Date.now()}`,
+      name: 'Dr. Jane Hopper',
+      email: `test-jane-hopper-${Date.now()}@example.com`,
+      emailVerified: true,
+      role: 'user',
+    })
+    .returning();
+  const userId = testUser.id;
 
   const createdJobIds: string[] = [];
   const createdAppIds: string[] = [];
@@ -458,6 +471,11 @@ async function main() {
     if (createdLinkIds.length > 0) {
       await cleanupDb.delete(candidateLinks).where(inArray(candidateLinks.id, createdLinkIds));
       console.log(`• Cleaned up ${createdLinkIds.length} candidate link records`);
+    }
+    if (userId) {
+      await cleanupDb.delete(candidateProfiles).where(eq(candidateProfiles.userId, userId));
+      await cleanupDb.delete(users).where(eq(users.id, userId));
+      console.log('• Cleaned up isolated test user and test profile');
     }
     await closeDbPool();
     console.log('• Database pool closed successfully.');

@@ -1,4 +1,4 @@
-import { eq, and, desc, sql, or } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import type { Database } from '@job-agent/database';
 import {
   profileImportSessions,
@@ -1471,11 +1471,16 @@ export class SmartProfileImportService {
         case 'PROFILE':
           if (tx.query.candidateProfiles) {
             existingRecord = await tx.query.candidateProfiles.findFirst({
-              where: or(
+              where: and(
                 eq(candidateProfiles.id, existingEntityId),
                 eq(candidateProfiles.userId, userId),
               ),
             });
+            if (!existingRecord) {
+              existingRecord = await tx.query.candidateProfiles.findFirst({
+                where: eq(candidateProfiles.userId, userId),
+              });
+            }
           }
           break;
         case 'EXPERIENCE':
@@ -1562,6 +1567,7 @@ export class SmartProfileImportService {
 
     switch (section) {
       case 'PROFILE': {
+        const targetProfileId = existingRecord?.id || existingEntityId;
         await tx
           .update(candidateProfiles)
           .set({
@@ -1578,7 +1584,7 @@ export class SmartProfileImportService {
             updatedAt: new Date(),
           })
           .where(
-            or(eq(candidateProfiles.id, existingEntityId), eq(candidateProfiles.userId, userId)),
+            and(eq(candidateProfiles.id, targetProfileId), eq(candidateProfiles.userId, userId)),
           );
         break;
       }

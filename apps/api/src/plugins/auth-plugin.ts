@@ -45,12 +45,17 @@ export function getCurrentUserId(): string | undefined {
  * - In test environment: Falls back to primary user ('00000000-0000-0000-0000-000000000001') if unauthenticated.
  */
 export function requireCurrentUserId(request?: FastifyRequest): string {
-  const userId = request?.user?.id ?? requestUserContext.getStore();
+  const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+  const testHeaderUserId =
+    isTest && typeof request?.headers?.['x-test-user-id'] === 'string'
+      ? (request.headers['x-test-user-id'] as string).trim()
+      : undefined;
+
+  const userId = request?.user?.id ?? requestUserContext.getStore() ?? testHeaderUserId;
   if (userId) {
     return userId;
   }
 
-  const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
   if (isTest) {
     return '00000000-0000-0000-0000-000000000001';
   }

@@ -66,12 +66,11 @@ export async function getOrCreatePrimaryUser(db: Database): Promise<User> {
         fullName: 'Asadbek Makhmudov',
         preferredName: 'Asadbek',
         email: 'asadbek.mzw@gmail.com',
-        headline: 'Lead Software Engineer & Cloud Architect',
-        summary:
-          'Experienced engineer specializing in distributed systems, TypeScript, and cloud architecture.',
-        city: 'Berlin',
-        country: 'Germany',
-        availability: 'Available',
+        headline: null,
+        summary: null,
+        city: null,
+        country: null,
+        availability: null,
       })
       .onConflictDoNothing();
   }
