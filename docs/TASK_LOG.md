@@ -1701,11 +1701,19 @@ This document tracks execution history and verification state for all official m
       - Hardened `CareerIntelligenceEnrichmentService.runEnrichment()` to query existing `PENDING` suggestions and skip duplicates by signature (`suggestionType::title`).
       - Updated `CareerIntelligenceView.tsx` to safely access `res?.suggestionsCreated ?? res?.suggestionsCount ?? 0` and display "All profile suggestions are already up to date" when zero new suggestions are created, preventing crashes like `Cannot read properties of undefined (reading 'suggestionsCreated')`.
     - Actionable Error UI: Added dedicated error banner with a Retry button in `CareerIntelligenceView.tsx` when initial load fails, preventing misleading 0 candidate records or 0 verified claims counts.
-    - Integration & Contract Tests: Authored `apps/api/src/routes/career-intelligence-routes.test.ts` (8 integration tests) testing real Fastify endpoint response structures and frontend client parsing. Added unit tests in `CareerIntelligenceView.test.tsx` verifying enrichment success messages and error UI states.
+  - **Phase M — Test Isolation Hotfix & Primary Candidate State Protection (JOB-CAREER-INTEL-2.0)**:
+    - Root Cause Analysis: Independent review identified that `career-intelligence-routes.test.ts` previously ran against `config.DATABASE_URL` using `getOrCreatePrimaryUser(db)` (`00000000-0000-0000-0000-000000000001`), aggregated all pending suggestion IDs returned by the API during enrichment, wiped those suggestions in `afterAll`, and reset the primary candidate's learned preferences.
+    - Strict Test User Isolation: Refactored `career-intelligence-routes.test.ts` to generate and seed a dedicated disposable test user (`disposableUserId = crypto.randomUUID()`) with unique timestamped email, candidate profile, experience, and skill.
+    - Production Environment Guard: Added strict abort guard at the top of the test suite preventing execution if `NODE_ENV === 'production'` or `DATABASE_URL` contains `prod`.
+    - Explicit Fastify Auth Header Injection: Standardized all Fastify injection calls through helper `injectForDisposableUser` injecting `headers: { 'x-test-user-id': disposableUserId }`, ensuring route execution is strictly scoped to the disposable user session.
+    - Scoped Teardown Boundary: Replaced entity-ID aggregation teardown with strict relational cleanup: `where(eq(table.userId, disposableUserId))` across candidate audit events, suggestions, feedback, skills, experiences, preferences, profiles, sessions, and users. Prohibited deleting records by arbitrary ID lists or touching any records where `userId !== disposableUserId`.
+    - Pre-existing Data Survival Invariant: Added dedicated Test 9 (`INVARIANT: Pre-existing primary candidate records survive all test operations completely untouched`) verifying that pre-existing candidate counts and learned preference settings remain 100% identical before and after test execution.
+    - Read-Only Audit of Primary Candidate: Confirmed primary candidate Asadbek Makhmudov (`00000000-0000-0000-0000-000000000001`) retains all 25 genuine Candidate Brain records (1 Experience, 1 Education, 14 Skills, 2 Certifications, 1 Language, 6 Facts) with 0 synthetic records and zero unverified AI-authorized claims.
 - **Verification Records**:
   - `npm run format`: PASSED (100% Prettier compliance across all monorepo files)
-  - `npm run lint`: PASSED (0 errors, 672 warnings across monorepo)
+  - `npm run lint`: PASSED (0 errors across monorepo)
   - `npm run typecheck`: PASSED (all 6 workspaces cleanly typechecked with 0 errors)
-  - `npm run test`: PASSED (61 test files, 549/549 tests passing cleanly with 8/8 in career-intelligence-routes.test.ts and 7/7 in CareerIntelligenceView.test.tsx)
+  - `npm run test`: PASSED (61 test files, 550/550 tests passing cleanly with 9/9 in career-intelligence-routes.test.ts and 7/7 in CareerIntelligenceView.test.tsx)
   - `npm run build`: PASSED (all packages built to dist, Vite production bundle completed cleanly)
-  - `npm run db:check`: PASSED (PostgreSQL connected with 14ms latency)
+  - `npm run db:check`: PASSED (PostgreSQL connected with 29ms latency)
+  - `scripts/validate-release-priority-1-3.ts`: PASSED (Priority 1: pre-remediation backup verified, zero synthetic records, genuine records preserved; Priority 2: candidate intelligence context inspection verified; Priority 3: career matching validation passed for junior PM, PMO assistant, and operations coordinator benchmarks)
