@@ -61,7 +61,7 @@
 | `JOB-E2E-WORKFLOW`         | End-to-End Workflow Verification & Stabilization (Phases A-K)      | COMPLETED     | Verified across all 11 phases (BL-17)            |
 | `JOB-STUDIO-REPAIR`        | Production Studio Repair: DOCX Generation, R2 Upload & Recovery    | COMPLETED     | Verified across all 11 phases (BL-18)            |
 | `JOB-SMART-PROFILE-IMPORT` | Smart Candidate Profile Creation & Enrichment via AI Extraction    | COMPLETED     | `4dbc5e3` (BL-19)                                |
-| `JOB-CAREER-INTEL-2.0`     | Candidate Brain & AI Career Intelligence 2.0 Platform              | **COMPLETED** | Verified (59/59 test suites, 527 tests, 0 errors) |
+| `JOB-CAREER-INTEL-2.0`     | Candidate Brain & AI Career Intelligence 2.0 Platform              | **COMPLETED** | `6721267` (59/59 test suites, 527 tests, 0 errors) |
 
 ---
 
