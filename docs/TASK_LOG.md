@@ -1615,3 +1615,25 @@ This document tracks execution history and verification state for all official m
     - **Monorepo Quality Gates**:
       - 57 test files (510/510 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB check passing (16ms latency).
 
+  - **20. Production Candidate Data Remediation Safety Revision**:
+    - **Context & Safety Directives**:
+      - Review identified risks in earlier remediation: blanket heuristics (e.g. `sourceType !== 'MANUAL' => synthetic`) and hardcoded organization/university assumptions were unacceptable for production safety.
+      - Mandate: Replace blanket filters with strict record-level provenance identification, establish authentic baseline from Master CV (`Resume - Asadbek M.pdf`), implement transactional execution with explicit owner approval guard, support targeted non-destructive rollback, and rehearse in an isolated test environment.
+    - **Implementation**:
+      1. `apps/api/src/services/import/candidate-brain-classifier.ts`:
+         - Fine-grained classifiers for all entity types (`Profile`, `Experience`, `Education`, `Skill`, `Certification`, `Language`, `Link`, `Fact`, `Document`, `Session`).
+         - Classifies every record into `CONFIRMED_SYNTHETIC`, `POSSIBLY_SYNTHETIC`, `CONFIRMED_AUTHENTIC`, or `UNDETERMINED`.
+         - Resolves certification discrepancies: Confirms `Google Project Management Professional Certificate` and `Applied Project Management` belong to authentic baseline from early user enrichment.
+         - Resolves language discrepancy: Flags `German` (from test fixture `sample_cv.txt`) as `CONFIRMED_SYNTHETIC`, while authentic languages (`English`, `Polish`, `Russian`, `Uzbek`) are preserved/synchronized.
+      2. `apps/api/src/services/import/candidate-brain-remediation-service.ts`:
+         - Enforces safety gates: default dry-run; `--execute` requires explicit `--confirm-owner-approval`.
+         - Generates targeted pre-remediation backup manifest with restricted permissions (`0o600`) under `backups/candidate-brain-manifest-<timestamp>.json`.
+         - Executes profile correction and deletions atomically within a single database transaction (`db.transaction`).
+         - Non-destructive targeted rollback: Re-inserts deleted records using their exact original IDs, timestamps, and foreign keys without wiping or altering any authentic records.
+      3. `apps/api/src/services/import/candidate-brain-remediation-safety.test.ts`:
+         - 5 automated rehearsal tests verifying: classifier accuracy, zero-mutation dry-run, transactional execution with owner-approval gate and AI revocation, non-destructive rollback preserving authentic data, and safe idempotency.
+      4. Scripts refactored: `audit-candidate-brain.ts`, `remediate-candidate-brain.ts`, `rollback-candidate-brain.ts` unified under the new service.
+    - **Monorepo Quality Gates**:
+      - 58 test files (515/515 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean.
+      - Production candidate data remains 100% untouched awaiting explicit owner confirmation.
+
