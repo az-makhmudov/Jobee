@@ -25,6 +25,7 @@ export interface EnrichmentRunResult {
   userId: string;
   sourceDocument: string | null;
   suggestionsCount: number;
+  suggestionsCreated: number;
   suggestions: CandidateIntelligenceSuggestionDto[];
 }
 
@@ -90,9 +91,33 @@ export class CareerIntelligenceEnrichmentService {
       targetDocId || null,
     );
 
-    // 4. Save suggestions in DB
+    // 4. Fetch existing pending suggestions to prevent duplicate suggestions
+    const existingPending = await this.db
+      .select()
+      .from(candidateIntelligenceSuggestions)
+      .where(
+        and(
+          eq(candidateIntelligenceSuggestions.userId, userId),
+          eq(candidateIntelligenceSuggestions.status, 'PENDING'),
+        ),
+      );
+
+    const makeKey = (suggestionType: string, title: string) =>
+      `${suggestionType.trim().toUpperCase()}::${title.trim().toLowerCase()}`;
+
+    const existingPendingKeys = new Set(
+      existingPending.map((s) => makeKey(s.suggestionType, s.title)),
+    );
+
+    // Save only novel suggestions in DB
     const insertedDtos: CandidateIntelligenceSuggestionDto[] = [];
     for (const item of suggestionsToInsert) {
+      const key = makeKey(item.suggestionType, item.title);
+      if (existingPendingKeys.has(key)) {
+        continue;
+      }
+      existingPendingKeys.add(key);
+
       const [saved] = await this.db
         .insert(candidateIntelligenceSuggestions)
         .values({
@@ -113,11 +138,14 @@ export class CareerIntelligenceEnrichmentService {
       }
     }
 
+    const allPending = await this.listSuggestions(userId, 'PENDING');
+
     return {
       userId,
       sourceDocument: docRecord?.displayName || null,
-      suggestionsCount: insertedDtos.length,
-      suggestions: insertedDtos,
+      suggestionsCount: allPending.length,
+      suggestionsCreated: insertedDtos.length,
+      suggestions: allPending,
     };
   }
 

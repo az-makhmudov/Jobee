@@ -250,4 +250,64 @@ describe('CareerIntelligenceView — Verification & AI Authorization Controls', 
       expect(careerIntelligenceApi.batchAuthorizeRecords).toHaveBeenCalled();
     });
   });
+
+  it('handles AI enrichment execution and displays created suggestions count', async () => {
+    vi.mocked(careerIntelligenceApi.runEnrichment).mockResolvedValue({
+      suggestionsCreated: 4,
+      suggestionsCount: 4,
+      suggestions: [],
+    });
+
+    render(<CareerIntelligenceView />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Career Intelligence 2.0')).toBeDefined();
+    });
+
+    const enrichButton = screen.getByRole('button', { name: /✨ Run AI Enrichment/i });
+    fireEvent.click(enrichButton);
+
+    await waitFor(() => {
+      expect(careerIntelligenceApi.runEnrichment).toHaveBeenCalled();
+      expect(
+        screen.getByText(/AI Enrichment complete! Created 4 suggestions for human review./i),
+      ).toBeDefined();
+    });
+  });
+
+  it('handles AI enrichment with zero new suggestions gracefully', async () => {
+    vi.mocked(careerIntelligenceApi.runEnrichment).mockResolvedValue({
+      suggestionsCreated: 0,
+      suggestionsCount: 5,
+      suggestions: [],
+    });
+
+    render(<CareerIntelligenceView />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Career Intelligence 2.0')).toBeDefined();
+    });
+
+    const enrichButton = screen.getByRole('button', { name: /✨ Run AI Enrichment/i });
+    fireEvent.click(enrichButton);
+
+    await waitFor(() => {
+      expect(careerIntelligenceApi.runEnrichment).toHaveBeenCalled();
+      expect(screen.getByText(/All profile suggestions are already up to date./i)).toBeDefined();
+    });
+  });
+
+  it('renders actionable error banner and retry button when initial load fails', async () => {
+    vi.mocked(careerIntelligenceApi.getIntelligenceOverview).mockRejectedValueOnce(
+      new Error('Failed to connect to Career Intelligence API'),
+    );
+
+    render(<CareerIntelligenceView />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Failed to load Career Intelligence/i)).toBeDefined();
+      expect(screen.getByText(/Failed to connect to Career Intelligence API/i)).toBeDefined();
+      expect(screen.getByRole('button', { name: /🔄 Retry/i })).toBeDefined();
+    });
+  });
 });

@@ -47,8 +47,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw new Error(errorMessage);
   }
 
-  const json: ApiResponse<T> = await response.json();
-  return json.data;
+  const json: ApiResponse<T> | T = await response.json();
+  const data =
+    json && typeof json === 'object' && 'data' in json
+      ? (json as ApiResponse<T>).data
+      : (json as T);
+  if (data === undefined || data === null) {
+    throw new Error(`Malformed response from ${path}: response payload is empty or invalid`);
+  }
+  return data;
 }
 
 export interface CareerIntelligenceOverviewDto {
@@ -75,6 +82,7 @@ export const careerIntelligenceApi = {
   runEnrichment: (documentId?: string) =>
     request<{
       suggestionsCreated: number;
+      suggestionsCount: number;
       suggestions: CandidateIntelligenceSuggestionDto[];
     }>('/candidate/intelligence/enrich', {
       method: 'POST',

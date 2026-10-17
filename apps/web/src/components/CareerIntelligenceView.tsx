@@ -154,9 +154,16 @@ export const CareerIntelligenceView: React.FC = () => {
     setSuccessMessage(null);
     try {
       const res = await careerIntelligenceApi.runEnrichment();
-      setSuccessMessage(
-        `AI Enrichment complete! Created ${res.suggestionsCreated} suggestions for human review.`,
-      );
+      const count = res?.suggestionsCreated ?? res?.suggestionsCount ?? 0;
+      if (count > 0) {
+        setSuccessMessage(
+          `AI Enrichment complete! Created ${count} suggestion${count === 1 ? '' : 's'} for human review.`,
+        );
+      } else {
+        setSuccessMessage(
+          `AI Enrichment complete! All profile suggestions are already up to date.`,
+        );
+      }
       await loadAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'AI Enrichment failed');
@@ -220,6 +227,31 @@ export const CareerIntelligenceView: React.FC = () => {
     return (
       <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
         Loading Career Intelligence...
+      </div>
+    );
+  }
+
+  if (!data && error) {
+    return (
+      <div style={{ padding: '2rem' }}>
+        <div
+          className="card"
+          style={{
+            borderColor: 'var(--danger)',
+            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+            color: '#f87171',
+            padding: '2rem',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+            ⚠️ Failed to load Career Intelligence
+          </div>
+          <p style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>{error}</p>
+          <button type="button" className="btn btn-primary" onClick={loadAll}>
+            🔄 Retry
+          </button>
+        </div>
       </div>
     );
   }

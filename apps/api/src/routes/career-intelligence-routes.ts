@@ -48,9 +48,13 @@ export function createCareerIntelligenceRoutes(
       };
 
       return {
-        summary,
-        contextVersion: context.contextVersion,
-        candidateStateHash: context.candidateStateHash,
+        status: 'ok',
+        data: {
+          summary,
+          contextVersion: context.contextVersion,
+          candidateStateHash: context.candidateStateHash,
+        },
+        timestamp: new Date().toISOString(),
       };
     });
 
@@ -155,8 +159,12 @@ export function createCareerIntelligenceRoutes(
 
       const updatedContext = await contextBuilder.build(userId);
       return {
-        success: true,
-        summary: updatedContext.summary,
+        status: 'ok',
+        data: {
+          success: true,
+          summary: updatedContext.summary,
+        },
+        timestamp: new Date().toISOString(),
       };
     });
 
@@ -169,7 +177,11 @@ export function createCareerIntelligenceRoutes(
       }
 
       const result = await enrichmentService.runEnrichment(userId, parsed.data.documentId);
-      return result;
+      return {
+        status: 'ok',
+        data: result,
+        timestamp: new Date().toISOString(),
+      };
     });
 
     // 4. List Intelligence Suggestions
@@ -178,7 +190,11 @@ export function createCareerIntelligenceRoutes(
       const query = (req.query || {}) as Record<string, string>;
       const status = query.status as any;
       const suggestions = await enrichmentService.listSuggestions(userId, status);
-      return { suggestions };
+      return {
+        status: 'ok',
+        data: { suggestions },
+        timestamp: new Date().toISOString(),
+      };
     });
 
     // 5. Apply a Suggestion
@@ -186,7 +202,11 @@ export function createCareerIntelligenceRoutes(
       const userId = getUserId(req);
       const params = req.params as { id: string };
       const applied = await enrichmentService.applySuggestion(userId, params.id);
-      return { success: true, suggestion: applied };
+      return {
+        status: 'ok',
+        data: { success: true, suggestion: applied },
+        timestamp: new Date().toISOString(),
+      };
     });
 
     // 6. Dismiss a Suggestion
@@ -194,7 +214,11 @@ export function createCareerIntelligenceRoutes(
       const userId = getUserId(req);
       const params = req.params as { id: string };
       const dismissed = await enrichmentService.dismissSuggestion(userId, params.id);
-      return { success: true, suggestion: dismissed };
+      return {
+        status: 'ok',
+        data: { success: true, suggestion: dismissed },
+        timestamp: new Date().toISOString(),
+      };
     });
 
     // 7. Record Job Feedback
@@ -215,7 +239,11 @@ export function createCareerIntelligenceRoutes(
         parsed.data.notes,
       );
 
-      return { success: true, feedback };
+      return {
+        status: 'ok',
+        data: { success: true, feedback },
+        timestamp: new Date().toISOString(),
+      };
     });
 
     // 8. Get Feedback for Job
@@ -223,14 +251,22 @@ export function createCareerIntelligenceRoutes(
       const userId = getUserId(req);
       const params = req.params as { id: string };
       const feedback = await feedbackService.getFeedbackForJob(userId, params.id);
-      return { feedback };
+      return {
+        status: 'ok',
+        data: { feedback },
+        timestamp: new Date().toISOString(),
+      };
     });
 
     // 9. Get Learned Preferences
     app.get('/candidate/learned-preferences', async (req) => {
       const userId = getUserId(req);
       const learned = await feedbackService.getLearnedPreferences(userId);
-      return { learnedPreferences: learned };
+      return {
+        status: 'ok',
+        data: { learnedPreferences: learned },
+        timestamp: new Date().toISOString(),
+      };
     });
 
     // 10. Update Learned Preferences
@@ -242,14 +278,22 @@ export function createCareerIntelligenceRoutes(
       }
 
       const updated = await feedbackService.updateLearnedPreferences(userId, parsed.data);
-      return { success: true, learnedPreferences: updated };
+      return {
+        status: 'ok',
+        data: { success: true, learnedPreferences: updated },
+        timestamp: new Date().toISOString(),
+      };
     });
 
     // 11. Reset Learned Preferences
     app.post('/candidate/learned-preferences/reset', async (req) => {
       const userId = getUserId(req);
       const reset = await feedbackService.resetLearnedPreferences(userId);
-      return { success: true, learnedPreferences: reset };
+      return {
+        status: 'ok',
+        data: { success: true, learnedPreferences: reset },
+        timestamp: new Date().toISOString(),
+      };
     });
 
     const getTableForEntity = (entityType: string) => {
@@ -385,13 +429,17 @@ export function createCareerIntelligenceRoutes(
       ];
 
       return {
-        records,
-        counts: {
-          total: allItems.length,
-          verified: allItems.filter((i) => i.verificationStatus === 'VERIFIED').length,
-          aiAuthorized: allItems.filter((i) => i.allowAiUse).length,
-          unverified: allItems.filter((i) => i.verificationStatus !== 'VERIFIED').length,
+        status: 'ok',
+        data: {
+          records,
+          counts: {
+            total: allItems.length,
+            verified: allItems.filter((i) => i.verificationStatus === 'VERIFIED').length,
+            aiAuthorized: allItems.filter((i) => i.allowAiUse).length,
+            unverified: allItems.filter((i) => i.verificationStatus !== 'VERIFIED').length,
+          },
         },
+        timestamp: new Date().toISOString(),
       };
     });
 
@@ -455,7 +503,11 @@ export function createCareerIntelligenceRoutes(
         },
       });
 
-      return { success: true, record: updated };
+      return {
+        status: 'ok',
+        data: { success: true, record: updated },
+        timestamp: new Date().toISOString(),
+      };
     });
 
     // 14. Batch Update Record Authorizations
@@ -523,7 +575,11 @@ export function createCareerIntelligenceRoutes(
         }
       });
 
-      return { success: true, updatedCount };
+      return {
+        status: 'ok',
+        data: { success: true, updatedCount },
+        timestamp: new Date().toISOString(),
+      };
     });
   };
 }

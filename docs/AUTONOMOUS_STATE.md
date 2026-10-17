@@ -12,8 +12,8 @@
 ## 1. Roadmap Snapshot
 
 - **Current Official Mode:** Autonomous Product Completion & Production Deployment
-- **Active Backlog Item:** `JOB-CAREER-INTEL-2.0: COMPLETED` (Candidate Brain & AI Career Intelligence 2.0 — Trust & Consent Gating, Rich Intelligence Context, Transferable Capabilities, 6 Career Fit Categories, Dynamic User Feedback Learning, Dedicated UI & Quality Gates)
-- **Milestone Status:** CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 COMPLETE (60/60 test files, 538/538 tests passing; strict generative AI gating on `verificationStatus === 'VERIFIED' && allowAiUse === true` across all 7 candidate entities; unified AI consumers: CandidateIntelligenceContextBuilder, MatchingContextBuilder, TailoringEngine, CoverLetterEngine; suggestion acceptance initial state UNVERIFIED + allowAiUse=false; zero fabricated work auth/proficiency fallbacks; PostgreSQL migration 0021 applied; CandidateIntelligenceContextBuilder with deterministic SHA-256 state hash; CareerIntelligenceEnrichmentService with human-approved suggestions and authentic CV reconciliation; MatchingScoringEngine with 6 CareerFitCategories; CandidateJobFeedbackService with 7 feedback types and dynamic ranking adjustments; CareerIntelligenceView with Section 3 Candidate Records Review & Batch Authorization, CareerFitBadge, JobFeedbackBar integrated in web app; 19/19 integration tests passing; 4 frontend UI tests passing; 0 synthetic candidate records on production seed user)
+- **Active Backlog Item:** `JOB-CAREER-INTEL-2.0: COMPLETED` (Candidate Brain & AI Career Intelligence 2.0 — Production UI Bugfix, API Envelope Contract Alignment, AI Enrichment Deduplication, Trust & Consent Gating, Rich Intelligence Context, Transferable Capabilities, 6 Career Fit Categories, Dynamic User Feedback Learning, Dedicated UI & Quality Gates)
+- **Milestone Status:** CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 COMPLETE & HARDENED (61/61 test files, 549/549 tests passing; production API envelope contract unified with `{ status: 'ok', data: T, timestamp }`; resilient client unwrapping with runtime shape validation; AI enrichment deduplication preventing duplicate pending suggestions; safe UI property access; strict generative AI gating on `verificationStatus === 'VERIFIED' && allowAiUse === true` across all 7 candidate entities; unified AI consumers: CandidateIntelligenceContextBuilder, MatchingContextBuilder, TailoringEngine, CoverLetterEngine; suggestion acceptance initial state UNVERIFIED + allowAiUse=false; zero fabricated work auth/proficiency fallbacks; PostgreSQL migration 0021 applied; CandidateIntelligenceContextBuilder with deterministic SHA-256 state hash; CareerIntelligenceEnrichmentService with human-approved suggestions and authentic CV reconciliation; MatchingScoringEngine with 6 CareerFitCategories; CandidateJobFeedbackService with 7 feedback types and dynamic ranking adjustments; CareerIntelligenceView with Section 3 Candidate Records Review & Batch Authorization, CareerFitBadge, JobFeedbackBar integrated in web app; 19/19 service tests passing; 8/8 route contract tests passing; 7/7 frontend UI tests passing; 0 synthetic candidate records on production seed user)
 - **Previous Completed Milestone:** `JOB-SMART-PROFILE-IMPORT`
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + STUDIO PACKAGE REPAIR FULLY VERIFIED + SMART PROFILE IMPORT HARDENED + CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 DELIVERED & HARDENED**
 - **Active Git Checkpoint:** `JOB-CAREER-INTEL-2.0`
@@ -108,9 +108,9 @@
 
 ## 4. Current Quality & Build Status
 
-- **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 39ms latency)
+- **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 14ms latency)
 - **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0021 up to date)
-- **Unit & Integration Tests:** `npm test` -> PASSED (60 test files, 538/538 tests passing)
+- **Unit & Integration Tests:** `npm test` -> PASSED (61 test files, 549/549 tests passing)
 - **TypeScript Typecheck:** `npm run typecheck` -> PASSED (0 errors across monorepo)
 - **ESLint:** `npm run lint` -> PASSED (0 errors across codebase)
 - **Build:** `npm run build` -> PASSED (API, Worker, and Web SPA bundle compile cleanly)

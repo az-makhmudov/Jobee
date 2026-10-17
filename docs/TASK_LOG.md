@@ -1693,10 +1693,19 @@ This document tracks execution history and verification state for all official m
     - Unified AI Consumers: Gated generative AI contexts in `MatchingContextBuilder.aiContext`, `TailoringEngine.buildTailoredCv`, and `CoverLetterEngine.generateCoverLetter` to strictly filter candidate experiences, skills, education, languages, certifications, and projects on `verificationStatus === 'VERIFIED' && allowAiUse === true`. Unverified claims can never enter or influence tailored documents.
     - AI Suggestion Approval: Hardened `CareerIntelligenceEnrichmentService.applySuggestion()` so accepting an AI suggestion inserts records with `verificationStatus = 'UNVERIFIED'` and `allowAiUse = false`, preserving strict separation between accepting a suggestion, verifying a fact, and authorizing generative AI use.
     - Fact Clarifications: Updated `career-intelligence-routes.ts` clarification answering so verifying a statement does not implicitly grant `allowAiUse`.
+  - **Phase L — Production UI Bugfix, API Response Envelope Unification & Deduplication (JOB-CAREER-INTEL-2.0)**:
+    - Frontend / Backend API Envelope Contract Alignment: Corrected response envelope mismatch where `apps/api/src/routes/career-intelligence-routes.ts` previously returned unwrapped JSON objects, while frontend API clients expected `{ status: 'ok', data: T, timestamp: string }`. Wrapped all 14 Career Intelligence routes in standard ApiResponse envelopes.
+    - Resilient Client Unwrapping & Runtime Shape Validation: Updated `request<T>()` in `career-intelligence-client.ts` to safely extract `data` from wrapped payloads, fall back to bare JSON if unwrapped, and explicitly throw an actionable error if the payload is empty or malformed rather than silently returning `undefined`.
+    - AI Profile Enrichment Deduplication & Safe Property Access:
+      - Extended `EnrichmentRunResult` and `careerIntelligenceApi.runEnrichment()` to return both `suggestionsCreated` and `suggestionsCount`.
+      - Hardened `CareerIntelligenceEnrichmentService.runEnrichment()` to query existing `PENDING` suggestions and skip duplicates by signature (`suggestionType::title`).
+      - Updated `CareerIntelligenceView.tsx` to safely access `res?.suggestionsCreated ?? res?.suggestionsCount ?? 0` and display "All profile suggestions are already up to date" when zero new suggestions are created, preventing crashes like `Cannot read properties of undefined (reading 'suggestionsCreated')`.
+    - Actionable Error UI: Added dedicated error banner with a Retry button in `CareerIntelligenceView.tsx` when initial load fails, preventing misleading 0 candidate records or 0 verified claims counts.
+    - Integration & Contract Tests: Authored `apps/api/src/routes/career-intelligence-routes.test.ts` (8 integration tests) testing real Fastify endpoint response structures and frontend client parsing. Added unit tests in `CareerIntelligenceView.test.tsx` verifying enrichment success messages and error UI states.
 - **Verification Records**:
   - `npm run format`: PASSED (100% Prettier compliance across all monorepo files)
-  - `npm run lint`: PASSED (0 errors, 671 warnings across monorepo)
-  - `npm run typecheck`: PASSED (all 6 workspaces: shared, config, database, api, worker, web cleanly typechecked with 0 errors)
-  - `npm run test`: PASSED (60 test files, 538/538 tests passing cleanly with 19/19 in career-intelligence.test.ts)
+  - `npm run lint`: PASSED (0 errors, 672 warnings across monorepo)
+  - `npm run typecheck`: PASSED (all 6 workspaces cleanly typechecked with 0 errors)
+  - `npm run test`: PASSED (61 test files, 549/549 tests passing cleanly with 8/8 in career-intelligence-routes.test.ts and 7/7 in CareerIntelligenceView.test.tsx)
   - `npm run build`: PASSED (all packages built to dist, Vite production bundle completed cleanly)
-  - `npm run db:check`: PASSED (PostgreSQL connected with 43ms latency)
+  - `npm run db:check`: PASSED (PostgreSQL connected with 14ms latency)
