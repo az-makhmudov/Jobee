@@ -40,6 +40,12 @@ export interface AiCandidateContext {
     category: string;
     statement: string;
   }[];
+  projects?: {
+    id: string;
+    name: string;
+    role?: string | null;
+    description?: string | null;
+  }[];
 }
 
 export interface AiMatchContext {

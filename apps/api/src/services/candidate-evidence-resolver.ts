@@ -165,12 +165,81 @@ export class CandidateEvidenceResolver {
       javascript: ['js'],
       postgres: ['postgresql'],
       k8s: ['kubernetes'],
+      'project management': [
+        'project coordination',
+        'project support',
+        'project administration',
+        'pmo',
+        'agile',
+        'scrum',
+        'project delivery',
+        'project management methodologies',
+      ],
+      'project coordination': [
+        'project management',
+        'project support',
+        'project administrator',
+        'pmo assistant',
+        'coordination',
+        'scheduling',
+      ],
+      'workflow management': [
+        'process improvement',
+        'process optimization',
+        'operations',
+        'workflow optimization',
+        'operational workflow',
+      ],
+      'process improvement': [
+        'process optimization',
+        'workflow management',
+        'continuous improvement',
+        'operational excellence',
+        'efficiency',
+      ],
+      'stakeholder communication': [
+        'stakeholder management',
+        'client communication',
+        'cross-functional collaboration',
+        'stakeholder coordination',
+      ],
+      scheduling: [
+        'calendar management',
+        'timeline management',
+        'milestone tracking',
+        'coordination',
+        'resource planning',
+      ],
+      'business administration': [
+        'operations',
+        'business operations',
+        'operational support',
+        'office administration',
+      ],
+      'banking operations': [
+        'financial operations',
+        'banking processes',
+        'back office operations',
+        'operational compliance',
+        'workflow management',
+      ],
     };
 
+    // Forward check
     const targetAliases = aliases[skill] || [];
     for (const alias of targetAliases) {
       if (text.includes(alias)) return true;
     }
+
+    // Reverse check: check if any family matches both skill and text
+    for (const [key, familyAliases] of Object.entries(aliases)) {
+      const allMembers = [key, ...familyAliases];
+      const skillMatchesFamily = allMembers.some((m) => skill.includes(m) || m.includes(skill));
+      if (skillMatchesFamily) {
+        if (allMembers.some((m) => text.includes(m))) return true;
+      }
+    }
+
     return false;
   }
 

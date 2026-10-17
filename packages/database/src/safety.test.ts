@@ -15,9 +15,9 @@ describe('Test Database Safety Guard (JOB-CAREER-INTEL-2.0)', () => {
     process.env = { ...originalEnv };
   });
 
-  it('permits localhost and 127.0.0.1 test databases', () => {
+  it('permits localhost and 127.0.0.1 explicitly isolated test databases', () => {
     const res1 = evaluateTestDatabaseSafety(
-      'postgresql://user:pass@localhost:5432/ai_job_agent_dev',
+      'postgresql://user:pass@localhost:5432/jobee_test_isolated',
     );
     expect(res1.safe).toBe(true);
 
@@ -28,6 +28,22 @@ describe('Test Database Safety Guard (JOB-CAREER-INTEL-2.0)', () => {
 
     const res3 = evaluateTestDatabaseSafety('postgresql://user:pass@[::1]:5432/test_db');
     expect(res3.safe).toBe(true);
+  });
+
+  it('rejects primary development database on localhost without explicit isolated test designation', () => {
+    const res = evaluateTestDatabaseSafety(
+      'postgresql://user:pass@localhost:5432/ai_job_agent_dev',
+    );
+    expect(res.safe).toBe(false);
+    expect(res.reason).toContain('Refusing to run tests against primary development database');
+
+    const resPostgres = evaluateTestDatabaseSafety(
+      'postgresql://user:pass@localhost:5432/postgres',
+    );
+    expect(resPostgres.safe).toBe(false);
+    expect(resPostgres.reason).toContain(
+      'Refusing to run tests against primary development database',
+    );
   });
 
   it('permits CI Docker service container "postgres"', () => {

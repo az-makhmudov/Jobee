@@ -166,6 +166,9 @@ export class MatchingContextBuilder {
     const verifiedAiCertifications = certRows.filter(
       (c) => c.verificationStatus === 'VERIFIED' && c.allowAiUse === true,
     );
+    const verifiedAiProjects = projectRows.filter(
+      (p) => p.verificationStatus === 'VERIFIED' && p.allowAiUse === true,
+    );
 
     // Build privacy-minimized context for AI
     const aiContext: AiCandidateContext = {
@@ -204,6 +207,12 @@ export class MatchingContextBuilder {
         category: f.category,
         statement: f.statement,
       })),
+      projects: verifiedAiProjects.map((p) => ({
+        id: `candidate_project:${p.id}`,
+        name: p.name,
+        role: p.role,
+        description: p.description,
+      })),
     };
 
     // Aggregate transferable capabilities
@@ -219,6 +228,25 @@ export class MatchingContextBuilder {
     for (const s of skillRows) {
       if (Array.isArray(s.transferableCapabilities)) {
         for (const cap of s.transferableCapabilities as string[]) transferableSet.add(cap);
+      }
+      if (s.verificationStatus === 'VERIFIED') {
+        const sLower = s.name.toLowerCase();
+        if (
+          sLower.includes('operation') ||
+          sLower.includes('process') ||
+          sLower.includes('agile') ||
+          sLower.includes('scrum') ||
+          sLower.includes('project') ||
+          sLower.includes('coordination') ||
+          sLower.includes('stakeholder') ||
+          sLower.includes('communication') ||
+          sLower.includes('analytical') ||
+          sLower.includes('workflow') ||
+          sLower.includes('jira') ||
+          sLower.includes('management')
+        ) {
+          transferableSet.add(s.name);
+        }
       }
     }
 

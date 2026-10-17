@@ -52,8 +52,12 @@ export class GreenhouseExtractor implements JobExtractor {
     // 2. Check JSON-LD
     const jsonLd = parseJsonLdJobPosting(html);
     if (jsonLd) {
-      const title =
+      const rawTitle =
         (jsonLd.title as string) || $('h1.app-title, .app-title, #header h1').text().trim();
+      const title = rawTitle
+        .replace(/^Job Application for\s+/i, '')
+        .replace(/\s+at\s+.*$/i, '')
+        .trim();
       const hiringOrg = jsonLd.hiringOrganization as Record<string, unknown> | undefined;
       const company = (hiringOrg?.name as string) || sourceCompanyId || '';
       const rawDesc = (jsonLd.description as string) || $('#content, #main, .body').html() || '';
@@ -87,8 +91,12 @@ export class GreenhouseExtractor implements JobExtractor {
     }
 
     // 3. Fallback to DOM selectors for Greenhouse standard theme
-    const title =
+    const domTitle =
       $('h1.app-title, .app-title, #header h1').text().trim() || $('title').text().trim();
+    const title = domTitle
+      .replace(/^Job Application for\s+/i, '')
+      .replace(/\s+at\s+.*$/i, '')
+      .trim();
     const location = $('.location').text().trim() || undefined;
     const company =
       $('.company-name').text().trim() ||

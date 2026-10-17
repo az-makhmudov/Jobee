@@ -180,6 +180,25 @@ export const envSchema = z
           r.EMAIL_FROM = 'Jobee <onboarding@resend.dev>';
         }
 
+        // In test mode or when running under Vitest, redirect to isolated test database to protect primary candidate brain
+        if (r.NODE_ENV === 'test' || process.env.VITEST) {
+          if (
+            r.TEST_DATABASE_URL &&
+            typeof r.TEST_DATABASE_URL === 'string' &&
+            r.TEST_DATABASE_URL.trim() !== ''
+          ) {
+            r.DATABASE_URL = r.TEST_DATABASE_URL.trim();
+          } else if (
+            typeof r.DATABASE_URL === 'string' &&
+            (r.DATABASE_URL.includes('/ai_job_agent_dev') || r.DATABASE_URL.endsWith('/postgres'))
+          ) {
+            r.DATABASE_URL = r.DATABASE_URL.replace(
+              /\/(ai_job_agent_dev|postgres)(\?.*)?$/,
+              '/jobee_test_isolated$2',
+            );
+          }
+        }
+
         // In production, default API_HOST to 0.0.0.0 for container accessibility
         if (r.NODE_ENV === 'production' && (!r.API_HOST || r.API_HOST === '127.0.0.1')) {
           r.API_HOST = '0.0.0.0';
@@ -192,6 +211,7 @@ export const envSchema = z
     z.object({
       NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
       DATABASE_URL: z.string().optional(),
+      TEST_DATABASE_URL: z.string().optional(),
       DATABASE_SSL: z
         .preprocess((val) => {
           if (typeof val === 'string') {

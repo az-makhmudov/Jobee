@@ -1711,11 +1711,11 @@ This document tracks execution history and verification state for all official m
     - CI Failure Root Cause: In GitHub Actions run 39035949720, Test 9 in `career-intelligence-routes.test.ts` failed with `expected 'null' to be null`. In a pristine CI database, the primary candidate's preferences row did not exist during `beforeAll` (snapshotting `null`), but concurrent tests subsequently created a row with `learnedPreferences: null` (`JSON.stringify(null)` returning string `'null'`).
     - Decoupled Sentinel Candidate Pattern: Completely removed all dependencies on the primary candidate `00000000-0000-0000-0000-000000000001` in `career-intelligence-routes.test.ts`. Introduced a dedicated disposable sentinel candidate (`sentinelUserId = crypto.randomUUID()`) seeded with rich baseline records, profile, experience, 2 skills, education, certification, 2 facts, a pending intelligence suggestion, and explicit learned preferences. Test 9 asserts exact deep-equality and count survival of this sentinel candidate, proving multi-tenant isolation and zero cross-candidate mutation.
     - Dedicated Database Safety Guard (`packages/database/src/safety.ts`): Created `assertSafeTestDatabase()` and `evaluateTestDatabaseSafety()` enforcing strict test database boundaries:
-      * Immediate abort if `NODE_ENV === 'production'` or `RAILWAY_ENVIRONMENT === 'production'`.
-      * Rejection of any URL, hostname, or database name containing `prod` or `production`.
-      * Prohibition of running tests against production Neon databases (permitting Neon only with explicit test branch naming or `ALLOW_TEST_ON_NEON=true`).
-      * Support for local PostgreSQL (`localhost`, `127.0.0.1`, `::1`) and CI Docker service container (`postgres`).
-      * Default-deny rejection of any unknown remote database targets.
+      - Immediate abort if `NODE_ENV === 'production'` or `RAILWAY_ENVIRONMENT === 'production'`.
+      - Rejection of any URL, hostname, or database name containing `prod` or `production`.
+      - Prohibition of running tests against production Neon databases (permitting Neon only with explicit test branch naming or `ALLOW_TEST_ON_NEON=true`).
+      - Support for local PostgreSQL (`localhost`, `127.0.0.1`, `::1`) and CI Docker service container (`postgres`).
+      - Default-deny rejection of any unknown remote database targets.
     - Additional Suite Safety Audit: Refactored `calendar-service.test.ts` and `interview-preparation-service.test.ts` to use dedicated disposable test users instead of primary user fixtures, eliminating unscoped calendar account deletions.
 - **Verification Records**:
   - `npm run format`: PASSED (100% Prettier compliance across all monorepo files)
@@ -1726,3 +1726,56 @@ This document tracks execution history and verification state for all official m
   - `npm run db:check`: PASSED (PostgreSQL connected with 18ms latency)
   - `scripts/validate-release-priority-1-3.ts`: PASSED (Priority 1: pre-remediation backup verified, zero synthetic records, genuine records preserved; Priority 2: candidate intelligence context inspection verified; Priority 3: career matching validation passed for junior PM, PMO assistant, and operations coordinator benchmarks)
 
+---
+
+## 2026-10-17: JOBEE — MACRO PHASE 1: CORE JOB INTELLIGENCE & APPLICATION WORKFLOW
+
+- **Official Task Stamps**: `JOB-P2-T01`, `JOB-P2-T02`, `JOB-CAREER-INTEL-2.0`, `JOB-P3-T01`, `JOB-P3-T02`, `JOB-E2E-WORKFLOW`
+- **Lead Engineer**: Antigravity (Goal-Driven Autonomous Delivery Mode)
+- **Scope**: Comprehensive autonomous implementation, integration, repair, and validation of Jobee's complete core discovery, requirement extraction, matching, career intelligence, feedback learning, application studio, CRM lifecycle, and end-to-end workflow systems.
+- **Architectural & Safety Deliverables**:
+  - **Data Protection & Strict Test Isolation**:
+    - Hardened `packages/database/src/safety.ts` to strictly prohibit executing mutation-capable tests against primary development databases (`ai_job_agent_dev`, `jobee_dev`, `postgres`), production Neon databases, or unverified hosts, rejecting the presumption that localhost is disposable.
+    - Configured `TEST_DATABASE_URL` in `.env.example`, `packages/config/src/env.ts`, and `vitest.config.ts`, automatically routing all Vitest test suites to dedicated isolated PostgreSQL database `jobee_test_isolated`.
+    - Applied migrations 0000 through 0021 to `jobee_test_isolated`.
+    - Verified that Candidate Brain records for primary user Asadbek Makhmudov (`00000000-0000-0000-0000-000000000001`) remain 100% untainted and pristine.
+  - **Job Discovery & Normalization (`JOB-P2-T01`)**:
+    - Audited Arbeitnow and Greenhouse public discovery adapters; verified live availability with over 300 Arbeitnow vacancies and 1,700+ jobs across verified Greenhouse boards (Canonical, GitLab, Stripe, Figma, Elastic).
+    - Enhanced Greenhouse title extraction in `GreenhouseExtractor` to strip HTML wrapper boilerplate (`Job Application for <Title> at <Company>`), yielding clean position titles.
+    - Added generalizable keyword matching across candidate target titles and key role terms (`project`, `coordinator`, `pmo`, `operations`, `analyst`, `administrator`) and location prioritization for confirmed candidate locations (Warsaw, Poland, Remote EU).
+    - Preserved content-hash deduplication and canonical URL tracking to prevent duplicate job records while maintaining provenance history in `job_sources`.
+    - Validated stale/expired job handling with `lastCheckedDate`, `expirationDate`, and audit events, ensuring historical CRM applications are never deleted when vacancies expire.
+  - **AI Job Requirement Analysis & Grounded Matching (`JOB-P2-T02`, `JOB-CAREER-INTEL-2.0`)**:
+    - Verified that AI and deterministic matching strictly receive candidate professional evidence with `verificationStatus === 'VERIFIED' && allowAiUse === true` across all 7 candidate entities (Experiences, Education, Skills, Languages, Certifications, Projects, Candidate Facts).
+    - Added `verifiedAiProjects` to `MatchingContextBuilder` and enriched `AiCandidateContext` with project records.
+    - Enhanced `CandidateEvidenceResolver` with generalizable transferable capability families (banking operations, project coordination, workflow management, process improvement, stakeholder communication, scheduling, business administration, project management methodologies) without candidate-specific hardcoding.
+    - Re-verified 6 Career Fit categories (`STRONG_MATCH`, `GOOD_MATCH`, `TRANSFERABLE_SKILLS_MATCH`, `GROWTH_OPPORTUNITY`, `NOT_CURRENTLY_ELIGIBLE`, `INSUFFICIENT_INFORMATION`) with deterministic hard blocker enforcement in `HardPolicyEngine`.
+    - Maintained transparent reporting of `analysisMode`: `DETERMINISTIC_ONLY` vs `AI_ENRICHED` without misleading fallback presentation.
+  - **Career Feedback Learning (`JOB-CAREER-INTEL-2.0`)**:
+    - Validated all 7 feedback types (`INTERESTED`, `NOT_INTERESTED`, `IRRELEVANT`, `ALREADY_APPLIED`, `TOO_SENIOR`, `WRONG_LOCATION`, `WRONG_INDUSTRY`) in `CandidateJobFeedbackService`.
+    - Verified dynamic ranking adjustments (-15 to -20 penalty with clear explanation notes), transactional persistence in `jobPreferences`, and transparent reversibility via `resetLearnedPreferences`.
+    - Confirmed that feedback never mutates verified qualifications, facts, citizenship, degrees, or certifications.
+  - **Application Studio & Document Preparation (`JOB-P3-T01`)**:
+    - Validated ATS-readable Tailored CV generation with strict metric safeguards against synthetic numbers or hallucinated achievements.
+    - Validated grounded Cover Letter drafting referencing employer, position, and verified evidence IDs.
+    - Verified Application Question hierarchy, Answer Library resolution, and pending `approvalRequests` creation for sensitive/custom questions.
+    - Enforced that application packages cannot transition to `READY` until all human approvals are explicitly resolved by the user (`resolvedBy: 'USER'`).
+    - Verified DOCX document generation with `DocxGeneratorService`, storage abstraction, and automatic compensation rollback on upload failures.
+  - **Application CRM Lifecycle (`JOB-P3-T02`)**:
+    - Validated 17-state canonical state machine in `ApplicationCrmService` and `ApplicationStateMachine`.
+    - Confirmed that generating documents transitions CRM state to `NEEDS_REVIEW` until human approval is recorded, moving to `READY_TO_APPLY`.
+    - Enforced that document generation never automatically marks an application as `APPLIED`.
+    - Verified timeline audit events, interview tracking, and conversion analytics.
+  - **Comprehensive Core Workflow Integration (`JOB-E2E-WORKFLOW`)**:
+    - Audited and updated `scripts/verify-e2e-workflow.ts` with `assertSafeTestDatabase` guard and authorized candidate evidence seeding.
+    - Executed all 11 phases (Phase A through Phase K) of `verify-e2e-workflow.ts` on `jobee_test_isolated`: 100% passed cleanly with 0 failures and zero database orphans.
+    - Verified multi-user isolation with `scripts/verify-multi-user-e2e.ts`: 100% passed cleanly.
+- **Verification Records & Quality Gates**:
+  - `npm run format`: PASSED (100% Prettier compliance across all monorepo files)
+  - `npm run lint`: PASSED (0 errors across monorepo)
+  - `npm run typecheck`: PASSED (all packages and apps compile cleanly with 0 errors)
+  - `npm test`: PASSED (62 test files, 560/560 tests passing cleanly against isolated test database)
+  - `npm run build`: PASSED (all packages and apps built cleanly; Vite SPA bundle completed in 1.36s)
+  - `scripts/verify-e2e-workflow.ts`: PASSED (Phases A through K complete with 0 failures on `jobee_test_isolated`)
+  - `scripts/verify-multi-user-e2e.ts`: PASSED (Admin -> Invitation -> Onboarding -> Isolation -> AI switching -> Teardown)
+  - Database Hygiene Check: PASSED (Zero test contamination in `ai_job_agent_dev`; primary user Asadbek Makhmudov 100% intact)

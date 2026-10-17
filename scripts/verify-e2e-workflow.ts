@@ -121,6 +121,9 @@ async function main() {
   console.log('======================================================================\n');
 
   const config = getConfig();
+  const { assertSafeTestDatabase } = await import('@job-agent/database');
+  assertSafeTestDatabase(config.DATABASE_URL);
+
   const db = getDb(config.DATABASE_URL);
   const user = await getOrCreatePrimaryUser(db);
   const userId = user.id;
@@ -347,7 +350,7 @@ async function main() {
       })
       .returning();
 
-    // Seed candidate verified skills matching the requirements
+    // Seed candidate verified skills and experience matching the requirements
     const [testSkill] = await db
       .insert(candidateSkills)
       .values({
@@ -356,9 +359,26 @@ async function main() {
         category: 'Technical',
         proficiency: 'ADVANCED',
         isTopSkill: true,
+        verificationStatus: 'VERIFIED',
+        allowAiUse: true,
       })
       .returning();
     ctx.createdSkillIds.push(testSkill.id);
+
+    const [testExp] = await db
+      .insert(candidateExperiences)
+      .values({
+        userId,
+        position: 'Project Operations Specialist',
+        organization: 'Global FinTech Corp',
+        startDate: '2023-01-01',
+        isCurrent: true,
+        achievements: ['Coordinated project delivery workflows across 5 cross-functional teams'],
+        verificationStatus: 'VERIFIED',
+        allowAiUse: true,
+      })
+      .returning();
+    ctx.createdExpIds.push(testExp.id);
 
     const [testFact] = await db
       .insert(candidateFacts)
@@ -1096,6 +1116,13 @@ async function main() {
     if (ctx.createdSkillIds.length > 0) {
       console.log(`✓ Cleaning up ${ctx.createdSkillIds.length} test skill(s)...`);
       await db.delete(candidateSkills).where(inArray(candidateSkills.id, ctx.createdSkillIds));
+    }
+
+    if (ctx.createdExpIds.length > 0) {
+      console.log(`✓ Cleaning up ${ctx.createdExpIds.length} test experience(s)...`);
+      await db
+        .delete(candidateExperiences)
+        .where(inArray(candidateExperiences.id, ctx.createdExpIds));
     }
 
     if (ctx.createdFactIds.length > 0) {

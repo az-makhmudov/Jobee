@@ -75,6 +75,32 @@ export function evaluateTestDatabaseSafety(databaseUrl?: string): TestDatabaseSa
     hostname === 'postgres'; // Docker / CI service container hostname
 
   if (isLocalhost) {
+    // Prohibit primary development databases on localhost without explicit test isolation designation
+    const isPrimaryDev =
+      pathname === '/ai_job_agent_dev' ||
+      pathname === '/jobee_dev' ||
+      pathname === '/postgres' ||
+      pathname.endsWith('_dev');
+
+    const isExplicitTestDb =
+      pathname.includes('test') || pathname.includes('isolated') || pathname.includes('sandbox');
+
+    if (isPrimaryDev && !isExplicitTestDb && process.env.ALLOW_DEV_DB_TESTING !== 'true') {
+      return {
+        safe: false,
+        reason: `Refusing to run tests against primary development database '${parsed.pathname}' on localhost. Do not assume localhost is disposable. Tests must target an explicitly designated isolated test database (e.g. 'jobee_test_isolated').`,
+        target: { hostname, pathname },
+      };
+    }
+
+    if (!isExplicitTestDb && process.env.ALLOW_DEV_DB_TESTING !== 'true') {
+      return {
+        safe: false,
+        reason: `Database '${parsed.pathname}' on localhost is not explicitly designated as an isolated test database. Integration tests require a database name containing 'test', 'isolated', or 'sandbox'.`,
+        target: { hostname, pathname },
+      };
+    }
+
     return {
       safe: true,
       target: { hostname, pathname },

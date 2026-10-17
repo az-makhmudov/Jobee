@@ -173,3 +173,15 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
   - `CandidateJobFeedbackService` supporting 7 user feedback types (`INTERESTED`, `NOT_INTERESTED`, `IRRELEVANT`, `ALREADY_APPLIED`, `TOO_SENIOR`, `WRONG_LOCATION`, `WRONG_INDUSTRY`) with inspectable and reset-able preference weights.
   - Dedicated React 19 UI: `CareerIntelligenceView.tsx`, `CareerFitBadge.tsx`, `JobFeedbackBar.tsx`, integrated into Job Inbox, Job Detail, and navigation.
   - Multi-tenant isolated test suite `career-intelligence.test.ts` (12 integration tests) and 100% clean quality gates (59 test suites, 527 tests, 0 lint/typecheck errors, clean Vite production build, authentic seed candidate data verified with 0 synthetic records).
+
+### `JOBEE-MACRO-PHASE-1 — Core Job Intelligence & Application Workflow Stabilization & E2E Validation`
+
+- **Status**: COMPLETED
+- **Scope**: Autonomous multi-system implementation, repair, integration, and validation covering:
+  - Critical test safety & database isolation: Hardened global safety guard in `packages/database/src/safety.ts`, rejecting primary development databases (`ai_job_agent_dev`, `jobee_dev`, `postgres`) on localhost, requiring explicitly isolated test databases (`jobee_test_isolated`).
+  - Job Discovery (`JOB-P2-T01`): Verified Arbeitnow and Greenhouse public job boards; fixed Greenhouse job title boilerplate in `greenhouse-extractor.ts`; verified URL and content-hash deduplication and multi-source provenance.
+  - Requirement Analysis & Matching (`JOB-P2-T02` & `JOB-CAREER-INTEL-2.0`): Enforced verified `projects` inclusion under `verificationStatus === 'VERIFIED' && allowAiUse === true`; extended generalizable transferable capability families in `candidate-evidence-resolver.ts` without candidate-specific hardcoding; validated 6 Career Fit categories.
+  - Career Feedback Learning (`JOB-CAREER-INTEL-2.0`): Validated 7 user feedback types, deterministic ranking penalties, and reversible preference weights without candidate fact mutation.
+  - Application Studio (`JOB-P3-T01`): Verified ATS-readable Tailored CV DOCX and grounded Cover Letter generation with metric safeguards; verified Question/Answer Library matching with human approval gating.
+  - Application CRM (`JOB-P3-T02`): Verified 17-state CRM lifecycle, human-in-the-loop transition to `READY_TO_APPLY`, and audit history.
+  - End-to-End Workflow (`JOB-E2E-WORKFLOW`): Validated all 11 phases (Phase A–K) cleanly on `jobee_test_isolated` with 0 failures, 0 database orphans, and 100% clean quality gates (format, lint, typecheck, 560/560 vitest tests, build). Verified pristine preservation of real candidate data in `ai_job_agent_dev`.
