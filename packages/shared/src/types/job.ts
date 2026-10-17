@@ -382,8 +382,7 @@ export const CareerFitCategories = {
   INSUFFICIENT_INFORMATION: 'INSUFFICIENT_INFORMATION',
 } as const;
 
-export type CareerFitCategory =
-  (typeof CareerFitCategories)[keyof typeof CareerFitCategories];
+export type CareerFitCategory = (typeof CareerFitCategories)[keyof typeof CareerFitCategories];
 
 export interface JobMatchAnalysisDto {
   id: string;

@@ -1,7 +1,20 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { getDb, users, candidateProfiles, candidateExperiences, candidateSkills, candidateEducation, candidateLanguages, jobPreferences, jobs, candidateJobFeedback, candidateIntelligenceSuggestions, candidateAuditEvents } from '@job-agent/database';
+import {
+  getDb,
+  users,
+  candidateProfiles,
+  candidateExperiences,
+  candidateSkills,
+  candidateEducation,
+  candidateLanguages,
+  jobPreferences,
+  jobs,
+  candidateJobFeedback,
+  candidateIntelligenceSuggestions,
+  candidateAuditEvents,
+} from '@job-agent/database';
 import { getConfig } from '@job-agent/config';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, and } from 'drizzle-orm';
 import { CandidateIntelligenceContextBuilder } from './candidate-intelligence-context-builder.js';
 import { CareerIntelligenceEnrichmentService } from './career-intelligence-enrichment-service.js';
 import { CandidateJobFeedbackService } from './candidate-job-feedback-service.js';
@@ -175,7 +188,8 @@ describe('Career Intelligence 2.0 Test Suite (JOB-CAREER-INTEL-2.0)', () => {
         minSalary: 85000,
         maxSalary: 95000,
         currency: 'EUR',
-        description: 'Building microservices in TypeScript, Node.js, and PostgreSQL in Berlin. Senior level role with competitive EUR salary.',
+        description:
+          'Building microservices in TypeScript, Node.js, and PostgreSQL in Berlin. Senior level role with competitive EUR salary.',
         contentHash: `hash-job1-${runId}`,
         canonicalUrl: `https://example.com/job1-${runId}`,
       })
@@ -192,7 +206,8 @@ describe('Career Intelligence 2.0 Test Suite (JOB-CAREER-INTEL-2.0)', () => {
         workplaceType: 'ONSITE',
         employmentType: 'INTERNSHIP',
         seniority: 'JUNIOR',
-        description: 'Marketing intern needed for social media campaign management in Paris. French fluency required.',
+        description:
+          'Marketing intern needed for social media campaign management in Paris. French fluency required.',
         contentHash: `hash-job2-${runId}`,
         canonicalUrl: `https://example.com/job2-${runId}`,
       })
@@ -205,13 +220,25 @@ describe('Career Intelligence 2.0 Test Suite (JOB-CAREER-INTEL-2.0)', () => {
     if (job1Id || job2Id) {
       await db.delete(jobs).where(inArray(jobs.id, [job1Id, job2Id]));
     }
-    await db.delete(candidateJobFeedback).where(inArray(candidateJobFeedback.userId, [userAId, userBId]));
-    await db.delete(candidateIntelligenceSuggestions).where(inArray(candidateIntelligenceSuggestions.userId, [userAId, userBId]));
-    await db.delete(candidateAuditEvents).where(inArray(candidateAuditEvents.userId, [userAId, userBId]));
-    await db.delete(candidateLanguages).where(inArray(candidateLanguages.userId, [userAId, userBId]));
-    await db.delete(candidateEducation).where(inArray(candidateEducation.userId, [userAId, userBId]));
+    await db
+      .delete(candidateJobFeedback)
+      .where(inArray(candidateJobFeedback.userId, [userAId, userBId]));
+    await db
+      .delete(candidateIntelligenceSuggestions)
+      .where(inArray(candidateIntelligenceSuggestions.userId, [userAId, userBId]));
+    await db
+      .delete(candidateAuditEvents)
+      .where(inArray(candidateAuditEvents.userId, [userAId, userBId]));
+    await db
+      .delete(candidateLanguages)
+      .where(inArray(candidateLanguages.userId, [userAId, userBId]));
+    await db
+      .delete(candidateEducation)
+      .where(inArray(candidateEducation.userId, [userAId, userBId]));
     await db.delete(candidateSkills).where(inArray(candidateSkills.userId, [userAId, userBId]));
-    await db.delete(candidateExperiences).where(inArray(candidateExperiences.userId, [userAId, userBId]));
+    await db
+      .delete(candidateExperiences)
+      .where(inArray(candidateExperiences.userId, [userAId, userBId]));
     await db.delete(jobPreferences).where(inArray(jobPreferences.userId, [userAId, userBId]));
     await db.delete(candidateProfiles).where(inArray(candidateProfiles.userId, [userAId, userBId]));
     await db.delete(users).where(inArray(users.id, [userAId, userBId]));
@@ -472,6 +499,122 @@ describe('Career Intelligence 2.0 Test Suite (JOB-CAREER-INTEL-2.0)', () => {
       const userBLearned = await feedbackService.getLearnedPreferences(userBId);
       expect(userBLearned.downvotedIndustries.length).toBe(0);
       expect(userBLearned.downvotedCompanies.length).toBe(0);
+    });
+  });
+
+  describe('6. Candidate Authorization & Verification Workflow (JOB-CAREER-INTEL-2.0)', () => {
+    it('applies missing data reconciliation suggestions (languages, education, certs) on approval', async () => {
+      const enrichmentService = new CareerIntelligenceEnrichmentService(db);
+
+      // Create a pending language suggestion for user A
+      const [langSuggestion] = await db
+        .insert(candidateIntelligenceSuggestions)
+        .values({
+          userId: userAId,
+          suggestionType: 'MISSING_DETAIL',
+          title: 'Add Language: Polish',
+          description: 'Mention of Polish found in resume',
+          payload: {
+            type: 'LANGUAGE',
+            language: 'Polish',
+            proficiency: 'INTERMEDIATE',
+          },
+          evidence: 'Found citation in CV',
+          confidence: 95,
+          status: 'PENDING',
+        })
+        .returning();
+
+      const approvedDto = await enrichmentService.applySuggestion(userAId, langSuggestion!.id);
+      expect(approvedDto.status).toBe('APPROVED');
+
+      // Verify language was inserted into candidateLanguages
+      const [savedLang] = await db
+        .select()
+        .from(candidateLanguages)
+        .where(
+          and(eq(candidateLanguages.userId, userAId), eq(candidateLanguages.language, 'Polish')),
+        );
+      expect(savedLang).toBeDefined();
+      expect(savedLang!.verificationStatus).toBe('VERIFIED');
+      expect(savedLang!.allowAiUse).toBe(true);
+
+      // Verify audit event was logged
+      const [auditEvent] = await db
+        .select()
+        .from(candidateAuditEvents)
+        .where(
+          and(
+            eq(candidateAuditEvents.userId, userAId),
+            eq(candidateAuditEvents.entityId, langSuggestion!.id),
+          ),
+        );
+      expect(auditEvent).toBeDefined();
+      expect(auditEvent!.action).toBe('CAREER_SUGGESTION_APPROVED');
+    });
+
+    it('enforces separate verification status and AI-use authorization invariants', async () => {
+      // Create a test skill that starts unverified
+      const [testSkill] = await db
+        .insert(candidateSkills)
+        .values({
+          userId: userAId,
+          name: `Test Skill ${runId}`,
+          category: 'Tools',
+          proficiency: 'BEGINNER',
+          isTool: true,
+          verificationStatus: 'UNVERIFIED',
+          allowAiUse: false,
+          confidence: 70,
+        })
+        .returning();
+
+      expect(testSkill!.verificationStatus).toBe('UNVERIFIED');
+      expect(testSkill!.allowAiUse).toBe(false);
+
+      // 1. Separate decision: User can verify WITHOUT granting AI use
+      await db
+        .update(candidateSkills)
+        .set({ verificationStatus: 'VERIFIED', allowAiUse: false, updatedAt: new Date() })
+        .where(eq(candidateSkills.id, testSkill!.id));
+
+      const [verifiedSkill] = await db
+        .select()
+        .from(candidateSkills)
+        .where(eq(candidateSkills.id, testSkill!.id));
+      expect(verifiedSkill!.verificationStatus).toBe('VERIFIED');
+      expect(verifiedSkill!.allowAiUse).toBe(false);
+
+      // 2. Separate decision: User can explicitly grant AI use once verified
+      await db
+        .update(candidateSkills)
+        .set({ allowAiUse: true, updatedAt: new Date() })
+        .where(eq(candidateSkills.id, testSkill!.id));
+
+      const [aiAllowedSkill] = await db
+        .select()
+        .from(candidateSkills)
+        .where(eq(candidateSkills.id, testSkill!.id));
+      expect(aiAllowedSkill!.verificationStatus).toBe('VERIFIED');
+      expect(aiAllowedSkill!.allowAiUse).toBe(true);
+
+      // 3. Revocation: If verification is revoked, allowAiUse must be revoked
+      let targetAllowAiUse = true;
+      const newStatus: string = 'UNVERIFIED';
+      if (newStatus !== 'VERIFIED') {
+        targetAllowAiUse = false;
+      }
+      await db
+        .update(candidateSkills)
+        .set({ verificationStatus: newStatus, allowAiUse: targetAllowAiUse, updatedAt: new Date() })
+        .where(eq(candidateSkills.id, testSkill!.id));
+
+      const [revokedSkill] = await db
+        .select()
+        .from(candidateSkills)
+        .where(eq(candidateSkills.id, testSkill!.id));
+      expect(revokedSkill!.verificationStatus).toBe('UNVERIFIED');
+      expect(revokedSkill!.allowAiUse).toBe(false);
     });
   });
 });

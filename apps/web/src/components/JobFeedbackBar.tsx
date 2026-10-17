@@ -15,13 +15,43 @@ const FEEDBACK_OPTIONS: {
   icon: string;
   tooltip: string;
 }[] = [
-  { type: 'INTERESTED', label: 'Interested', icon: '👍', tooltip: 'Prioritize similar opportunities' },
-  { type: 'NOT_INTERESTED', label: 'Not Interested', icon: '👎', tooltip: 'Downweight this company' },
+  {
+    type: 'INTERESTED',
+    label: 'Interested',
+    icon: '👍',
+    tooltip: 'Prioritize similar opportunities',
+  },
+  {
+    type: 'NOT_INTERESTED',
+    label: 'Not Interested',
+    icon: '👎',
+    tooltip: 'Downweight this company',
+  },
   { type: 'IRRELEVANT', label: 'Irrelevant', icon: '🚫', tooltip: 'Irrelevant to my profile' },
-  { type: 'ALREADY_APPLIED', label: 'Applied', icon: '📨', tooltip: 'I already applied outside Jobee' },
-  { type: 'TOO_SENIOR', label: 'Too Senior', icon: '⬆️', tooltip: 'Learn: downweight senior/lead roles' },
-  { type: 'WRONG_LOCATION', label: 'Wrong Loc', icon: '📍', tooltip: 'Learn: downweight this city/country' },
-  { type: 'WRONG_INDUSTRY', label: 'Wrong Field', icon: '🏢', tooltip: 'Learn: downweight this industry' },
+  {
+    type: 'ALREADY_APPLIED',
+    label: 'Applied',
+    icon: '📨',
+    tooltip: 'I already applied outside Jobee',
+  },
+  {
+    type: 'TOO_SENIOR',
+    label: 'Too Senior',
+    icon: '⬆️',
+    tooltip: 'Learn: downweight senior/lead roles',
+  },
+  {
+    type: 'WRONG_LOCATION',
+    label: 'Wrong Loc',
+    icon: '📍',
+    tooltip: 'Learn: downweight this city/country',
+  },
+  {
+    type: 'WRONG_INDUSTRY',
+    label: 'Wrong Field',
+    icon: '🏢',
+    tooltip: 'Learn: downweight this industry',
+  },
 ];
 
 export const JobFeedbackBar: React.FC<JobFeedbackBarProps> = ({
@@ -232,9 +262,7 @@ export const JobFeedbackBar: React.FC<JobFeedbackBarProps> = ({
         </div>
       )}
 
-      {error && (
-        <span style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>⚠️ {error}</span>
-      )}
+      {error && <span style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>⚠️ {error}</span>}
     </div>
   );
 };

@@ -67,20 +67,55 @@ async function main() {
   console.log(`  Manifest dryRun: ${manifest.dryRun}`);
   console.log(`  Manifest recorded changes: ${manifest.totalChanges}`);
   console.log(`  Pre-remediation snapshot present: ${Boolean(manifest.preRemediationBackup)}`);
-  console.log(`  Pre-remediation snapshot total items: ${manifest.preRemediationBackup?.items?.length || 0}`);
+  console.log(
+    `  Pre-remediation snapshot total items: ${manifest.preRemediationBackup?.items?.length || 0}`,
+  );
 
   // Query database records for primary candidate
-  const [profile] = await db.select().from(candidateProfiles).where(eq(candidateProfiles.userId, primaryUserId));
-  const experiences = await db.select().from(candidateExperiences).where(eq(candidateExperiences.userId, primaryUserId));
-  const education = await db.select().from(candidateEducation).where(eq(candidateEducation.userId, primaryUserId));
-  const skills = await db.select().from(candidateSkills).where(eq(candidateSkills.userId, primaryUserId));
-  const certifications = await db.select().from(candidateCertifications).where(eq(candidateCertifications.userId, primaryUserId));
-  const languages = await db.select().from(candidateLanguages).where(eq(candidateLanguages.userId, primaryUserId));
-  const links = await db.select().from(candidateLinks).where(eq(candidateLinks.userId, primaryUserId));
-  const facts = await db.select().from(candidateFacts).where(eq(candidateFacts.userId, primaryUserId));
-  const documents = await db.select().from(candidateDocuments).where(eq(candidateDocuments.userId, primaryUserId));
-  const sessions = await db.select().from(profileImportSessions).where(eq(profileImportSessions.userId, primaryUserId));
-  const auditEvents = await db.select().from(candidateAuditEvents).where(eq(candidateAuditEvents.userId, primaryUserId));
+  const [profile] = await db
+    .select()
+    .from(candidateProfiles)
+    .where(eq(candidateProfiles.userId, primaryUserId));
+  const experiences = await db
+    .select()
+    .from(candidateExperiences)
+    .where(eq(candidateExperiences.userId, primaryUserId));
+  const education = await db
+    .select()
+    .from(candidateEducation)
+    .where(eq(candidateEducation.userId, primaryUserId));
+  const skills = await db
+    .select()
+    .from(candidateSkills)
+    .where(eq(candidateSkills.userId, primaryUserId));
+  const certifications = await db
+    .select()
+    .from(candidateCertifications)
+    .where(eq(candidateCertifications.userId, primaryUserId));
+  const languages = await db
+    .select()
+    .from(candidateLanguages)
+    .where(eq(candidateLanguages.userId, primaryUserId));
+  const links = await db
+    .select()
+    .from(candidateLinks)
+    .where(eq(candidateLinks.userId, primaryUserId));
+  const facts = await db
+    .select()
+    .from(candidateFacts)
+    .where(eq(candidateFacts.userId, primaryUserId));
+  const documents = await db
+    .select()
+    .from(candidateDocuments)
+    .where(eq(candidateDocuments.userId, primaryUserId));
+  const sessions = await db
+    .select()
+    .from(profileImportSessions)
+    .where(eq(profileImportSessions.userId, primaryUserId));
+  const auditEvents = await db
+    .select()
+    .from(candidateAuditEvents)
+    .where(eq(candidateAuditEvents.userId, primaryUserId));
 
   console.log('\nProduction Candidate Record Counts:');
   console.log(`  - Profile: ${profile ? 'Found' : 'MISSING'} (${profile?.fullName})`);
@@ -100,34 +135,40 @@ async function main() {
 
   // Check 1: Synthetic record removal
   const syntheticKeywords = [
-    'Elena Rostova', 'Jane Hopper', 'Apex Neural Dynamics', 'Stanford University',
-    'Distributed Systems', 'Kubernetes Architecture', 'Rust Concurrency',
-    'Microservices Orchestration', 'German'
+    'Elena Rostova',
+    'Jane Hopper',
+    'Apex Neural Dynamics',
+    'Stanford University',
+    'Distributed Systems',
+    'Kubernetes Architecture',
+    'Rust Concurrency',
+    'Microservices Orchestration',
+    'German',
   ];
 
   const syntheticFindings: string[] = [];
-  experiences.forEach(e => {
-    if (syntheticKeywords.some(k => e.organization.includes(k) || e.position.includes(k))) {
+  experiences.forEach((e) => {
+    if (syntheticKeywords.some((k) => e.organization.includes(k) || e.position.includes(k))) {
       syntheticFindings.push(`Experience: ${e.organization} - ${e.position}`);
     }
   });
-  education.forEach(ed => {
-    if (syntheticKeywords.some(k => ed.institution.includes(k))) {
+  education.forEach((ed) => {
+    if (syntheticKeywords.some((k) => ed.institution.includes(k))) {
       syntheticFindings.push(`Education: ${ed.institution}`);
     }
   });
-  skills.forEach(s => {
-    if (syntheticKeywords.some(k => s.name.includes(k))) {
+  skills.forEach((s) => {
+    if (syntheticKeywords.some((k) => s.name.includes(k))) {
       syntheticFindings.push(`Skill: ${s.name}`);
     }
   });
-  languages.forEach(l => {
+  languages.forEach((l) => {
     if (l.language.toLowerCase() === 'german') {
       syntheticFindings.push(`Language: ${l.language}`);
     }
   });
-  facts.forEach(f => {
-    if (syntheticKeywords.some(k => f.statement.includes(k))) {
+  facts.forEach((f) => {
+    if (syntheticKeywords.some((k) => f.statement.includes(k))) {
       syntheticFindings.push(`Fact: ${f.statement}`);
     }
   });
@@ -137,32 +178,42 @@ async function main() {
     console.log('  ✓ Zero synthetic records found in production database (100% clean).');
   } else {
     console.error(`  ✕ Discrepancy: ${syntheticFindings.length} synthetic records still present!`);
-    syntheticFindings.forEach(f => console.error(`    * ${f}`));
+    syntheticFindings.forEach((f) => console.error(`    * ${f}`));
   }
 
   // Check 2: AI-Authorized Facts
   console.log('\nAI-Authorized Facts Check:');
-  const aiAuthorizedFacts = facts.filter(f => f.allowAiUse === true);
+  const aiAuthorizedFacts = facts.filter((f) => f.allowAiUse === true);
   console.log(`  Total facts with allowAiUse=true: ${aiAuthorizedFacts.length}`);
   if (aiAuthorizedFacts.length === 0) {
-    console.log('  ✓ Zero synthetic or unverified AI-authorized facts exist (Strict Prime Directive compliance).');
+    console.log(
+      '  ✓ Zero synthetic or unverified AI-authorized facts exist (Strict Prime Directive compliance).',
+    );
   } else {
     console.warn(`  ! Found ${aiAuthorizedFacts.length} AI-authorized facts. Listing:`);
-    aiAuthorizedFacts.forEach(f => console.log(`    - [${f.verificationStatus}] ${f.factKey}: ${f.statement}`));
+    aiAuthorizedFacts.forEach((f) =>
+      console.log(`    - [${f.verificationStatus}] ${f.factKey}: ${f.statement}`),
+    );
   }
 
   // Check 3: Genuine candidate records preserved
   console.log('\nGenuine Candidate Records Check:');
-  const hasAuthenticMasterDoc = documents.some(d => d.displayName.includes('Asadbek') && d.isMaster);
-  const hasAuthenticExp = experiences.some(e => e.organization === 'Asia Alliance Bank' && e.position.includes('Operations'));
-  const hasAuthenticEdu = education.some(ed => ed.institution.includes('Vistula'));
-  const hasAuthenticCert = certifications.some(c => c.name.includes('Google Project Management'));
-  const hasAuthenticLang = languages.some(l => l.language.toLowerCase() === 'english');
+  const hasAuthenticMasterDoc = documents.some(
+    (d) => d.displayName.includes('Asadbek') && d.isMaster,
+  );
+  const hasAuthenticExp = experiences.some(
+    (e) => e.organization === 'Asia Alliance Bank' && e.position.includes('Operations'),
+  );
+  const hasAuthenticEdu = education.some((ed) => ed.institution.includes('Vistula'));
+  const hasAuthenticCert = certifications.some((c) => c.name.includes('Google Project Management'));
+  const hasAuthenticLang = languages.some((l) => l.language.toLowerCase() === 'english');
 
   console.log(`  - Master CV preserved: ${hasAuthenticMasterDoc ? '✓ YES' : '✕ NO'}`);
   console.log(`  - Asia Alliance Bank experience preserved: ${hasAuthenticExp ? '✓ YES' : '✕ NO'}`);
   console.log(`  - Vistula University education preserved: ${hasAuthenticEdu ? '✓ YES' : '✕ NO'}`);
-  console.log(`  - Google Project Management cert preserved: ${hasAuthenticCert ? '✓ YES' : '✕ NO'}`);
+  console.log(
+    `  - Google Project Management cert preserved: ${hasAuthenticCert ? '✓ YES' : '✕ NO'}`,
+  );
   console.log(`  - English fluency preserved: ${hasAuthenticLang ? '✓ YES' : '✕ NO'}`);
 
   // ============================================================================
@@ -186,25 +237,43 @@ async function main() {
 
   console.log(`\nVerified & AI-Authorized Claims (Exposed to Generative AI Prompt):`);
   console.log(`  - Verified AI Experiences: ${intelContext.verifiedAiExperiences.length}`);
-  intelContext.verifiedAiExperiences.forEach(e => console.log(`    * ${e.organization}: ${e.position}`));
+  intelContext.verifiedAiExperiences.forEach((e) =>
+    console.log(`    * ${e.organization}: ${e.position}`),
+  );
 
   console.log(`  - Verified AI Skills: ${intelContext.verifiedAiSkills.length}`);
-  intelContext.verifiedAiSkills.forEach(s => console.log(`    * ${s.name} (${s.proficiency})`));
+  intelContext.verifiedAiSkills.forEach((s) => console.log(`    * ${s.name} (${s.proficiency})`));
 
   console.log(`  - Verified AI Education: ${intelContext.verifiedAiEducation.length}`);
-  intelContext.verifiedAiEducation.forEach(ed => console.log(`    * ${ed.institution}: ${ed.degree}`));
+  intelContext.verifiedAiEducation.forEach((ed) =>
+    console.log(`    * ${ed.institution}: ${ed.degree}`),
+  );
 
   console.log(`  - Verified AI Certifications: ${intelContext.verifiedAiCertifications.length}`);
-  intelContext.verifiedAiCertifications.forEach(c => console.log(`    * ${c.name}`));
+  intelContext.verifiedAiCertifications.forEach((c) => console.log(`    * ${c.name}`));
 
   console.log(`\nExcluded Claims & Reason:`);
-  const unverifiedSkills = intelContext.allSkills.filter(s => s.verificationStatus !== 'VERIFIED' || !s.allowAiUse);
+  const unverifiedSkills = intelContext.allSkills.filter(
+    (s) => s.verificationStatus !== 'VERIFIED' || !s.allowAiUse,
+  );
   console.log(`  - Unverified / AI-Gated Skills: ${unverifiedSkills.length}`);
-  unverifiedSkills.slice(0, 5).forEach(s => console.log(`    * ${s.name}: verificationStatus=${s.verificationStatus}, allowAiUse=${s.allowAiUse}`));
+  unverifiedSkills
+    .slice(0, 5)
+    .forEach((s) =>
+      console.log(
+        `    * ${s.name}: verificationStatus=${s.verificationStatus}, allowAiUse=${s.allowAiUse}`,
+      ),
+    );
 
-  const unverifiedFacts = intelContext.allFacts.filter(f => f.verificationStatus !== 'VERIFIED' || !f.allowAiUse);
+  const unverifiedFacts = intelContext.allFacts.filter(
+    (f) => f.verificationStatus !== 'VERIFIED' || !f.allowAiUse,
+  );
   console.log(`  - Unverified / AI-Gated Facts: ${unverifiedFacts.length}`);
-  unverifiedFacts.forEach(f => console.log(`    * ${f.factKey}: verificationStatus=${f.verificationStatus}, allowAiUse=${f.allowAiUse}`));
+  unverifiedFacts.forEach((f) =>
+    console.log(
+      `    * ${f.factKey}: verificationStatus=${f.verificationStatus}, allowAiUse=${f.allowAiUse}`,
+    ),
+  );
 
   console.log(`\nClarification Needs Generated (High-Impact Questions):`);
   intelContext.summary.whatNeedsClarification.forEach((c, idx) => {
@@ -224,7 +293,9 @@ async function main() {
     }
   }
   if (!promptLeakFound) {
-    console.log('✓ Invariant Verified: No unverified or AI-disallowed claims are present in aiPromptContext.');
+    console.log(
+      '✓ Invariant Verified: No unverified or AI-disallowed claims are present in aiPromptContext.',
+    );
   }
 
   // ============================================================================
@@ -255,13 +326,23 @@ async function main() {
     city: 'Warsaw',
     country: 'Poland',
     availability: 'IMMEDIATE',
-    transferableCapabilities: ['Agile Project Management', 'Scrum & Kanban', 'Banking Operations', 'Process Optimization'],
+    transferableCapabilities: [
+      'Agile Project Management',
+      'Scrum & Kanban',
+      'Banking Operations',
+      'Process Optimization',
+    ],
   });
 
   // Insert job preferences (matching Warsaw, hybrid/onsite, PM roles, sponsorship not needed)
   await db.insert(jobPreferences).values({
     userId: testUserId,
-    targetTitles: ['Project Coordinator', 'Junior Project Manager', 'PMO Assistant', 'Operations Coordinator'],
+    targetTitles: [
+      'Project Coordinator',
+      'Junior Project Manager',
+      'PMO Assistant',
+      'Operations Coordinator',
+    ],
     preferredLocations: ['Warsaw', 'Poland'],
     workModes: ['hybrid', 'remote', 'onsite'],
     employmentTypes: ['full-time', 'internship'],
@@ -283,7 +364,10 @@ async function main() {
       startDate: '2023-05',
       endDate: '2023-08',
       isCurrent: false,
-      responsibilities: ['Managed document workflows', 'Assisted in banking operations and cross-functional task coordination'],
+      responsibilities: [
+        'Managed document workflows',
+        'Assisted in banking operations and cross-functional task coordination',
+      ],
       achievements: ['Streamlined client documentation verification cycle'],
       skills: ['Banking Operations', 'Process Optimization', 'Advanced Excel'],
       verificationStatus: 'VERIFIED',
@@ -393,7 +477,8 @@ async function main() {
       minSalary: 55000,
       maxSalary: 70000,
       currency: 'PLN',
-      description: 'Junior Project Coordinator to support project delivery, sprint planning with Jira, and Agile ceremonies in our Warsaw office. English fluency required.',
+      description:
+        'Junior Project Coordinator to support project delivery, sprint planning with Jira, and Agile ceremonies in our Warsaw office. English fluency required.',
       requirements: [
         { rawText: 'Agile methodologies and ceremonies', category: 'SKILL', strength: 'MANDATORY' },
         { rawText: 'Scrum sprint coordination', category: 'SKILL', strength: 'MANDATORY' },
@@ -412,7 +497,8 @@ async function main() {
       minSalary: 50000,
       maxSalary: 65000,
       currency: 'PLN',
-      description: 'PMO Assistant required to assist project managers with scheduling, process documentation, and tracking team deliverables. Jira and Excel required.',
+      description:
+        'PMO Assistant required to assist project managers with scheduling, process documentation, and tracking team deliverables. Jira and Excel required.',
       requirements: [
         { rawText: 'Project Management coordination', category: 'SKILL', strength: 'MANDATORY' },
         { rawText: 'Process Optimization', category: 'SKILL', strength: 'MANDATORY' },
@@ -431,7 +517,8 @@ async function main() {
       minSalary: 52000,
       maxSalary: 68000,
       currency: 'PLN',
-      description: 'Operations Coordinator for banking process workflows, cross-department coordination, and operational audits. Background in banking operations or finance preferred.',
+      description:
+        'Operations Coordinator for banking process workflows, cross-department coordination, and operational audits. Background in banking operations or finance preferred.',
       requirements: [
         { rawText: 'Banking Operations processes', category: 'SKILL', strength: 'MANDATORY' },
         { rawText: 'Process Optimization', category: 'SKILL', strength: 'MANDATORY' },
@@ -449,7 +536,8 @@ async function main() {
       minSalary: 35000,
       maxSalary: 42000,
       currency: 'PLN',
-      description: 'Project Management Intern to support scrum teams and task scheduling. University students in project management or business management encouraged to apply.',
+      description:
+        'Project Management Intern to support scrum teams and task scheduling. University students in project management or business management encouraged to apply.',
       requirements: [
         { rawText: 'Project Management fundamentals', category: 'SKILL', strength: 'MANDATORY' },
         { rawText: 'Scrum team participation', category: 'SKILL', strength: 'MANDATORY' },
@@ -467,11 +555,24 @@ async function main() {
       minSalary: 180000,
       maxSalary: 240000,
       currency: 'PLN',
-      description: 'Senior Software Engineer with 8+ years experience in distributed Go/Rust microservices, Kubernetes clusters, and high-frequency trading engines.',
+      description:
+        'Senior Software Engineer with 8+ years experience in distributed Go/Rust microservices, Kubernetes clusters, and high-frequency trading engines.',
       requirements: [
-        { rawText: 'Go or Rust microservice development', category: 'SKILL', strength: 'MANDATORY' },
-        { rawText: 'Kubernetes cluster deployment and operations', category: 'SKILL', strength: 'MANDATORY' },
-        { rawText: '8+ years senior software engineering experience', category: 'EXPERIENCE', strength: 'MANDATORY' },
+        {
+          rawText: 'Go or Rust microservice development',
+          category: 'SKILL',
+          strength: 'MANDATORY',
+        },
+        {
+          rawText: 'Kubernetes cluster deployment and operations',
+          category: 'SKILL',
+          strength: 'MANDATORY',
+        },
+        {
+          rawText: '8+ years senior software engineering experience',
+          category: 'EXPERIENCE',
+          strength: 'MANDATORY',
+        },
         { rawText: 'English communication', category: 'LANGUAGE', strength: 'MANDATORY' },
       ],
     },
@@ -487,46 +588,66 @@ async function main() {
 
   try {
     for (const bJob of benchmarkJobs) {
-      const [inserted] = await db.insert(jobs).values({
-        userId: testUserId,
-        title: bJob.title,
-        company: bJob.company,
-        locationText: bJob.locationText,
-        workplaceType: bJob.workplaceType,
-        employmentType: bJob.employmentType,
-        seniority: bJob.seniority,
-        minSalary: bJob.minSalary,
-        maxSalary: bJob.maxSalary,
-        currency: bJob.currency,
-        description: bJob.description,
-        contentHash: `bench-${bJob.key}-${runId}`,
-        canonicalUrl: `https://example.com/jobs/${bJob.key}-${runId}`,
-      }).returning();
+      const [inserted] = await db
+        .insert(jobs)
+        .values({
+          userId: testUserId,
+          title: bJob.title,
+          company: bJob.company,
+          locationText: bJob.locationText,
+          workplaceType: bJob.workplaceType,
+          employmentType: bJob.employmentType,
+          seniority: bJob.seniority,
+          minSalary: bJob.minSalary,
+          maxSalary: bJob.maxSalary,
+          currency: bJob.currency,
+          description: bJob.description,
+          contentHash: `bench-${bJob.key}-${runId}`,
+          canonicalUrl: `https://example.com/jobs/${bJob.key}-${runId}`,
+        })
+        .returning();
 
       insertedJobIds.push(inserted!.id);
 
       // Persist requirements
-      const insertedReqs = await db.insert(jobRequirements).values(
-        bJob.requirements.map((r, idx) => ({
-          jobId: inserted!.id,
-          userId: testUserId,
-          rawText: r.rawText,
-          category: r.category as 'SKILL' | 'LANGUAGE' | 'EDUCATION' | 'EXPERIENCE',
-          requirementStrength: r.strength as 'MANDATORY' | 'PREFERRED',
-          displayOrder: idx,
-        }))
-      ).returning();
+      const insertedReqs = await db
+        .insert(jobRequirements)
+        .values(
+          bJob.requirements.map((r, idx) => ({
+            jobId: inserted!.id,
+            userId: testUserId,
+            rawText: r.rawText,
+            category: r.category as 'SKILL' | 'LANGUAGE' | 'EDUCATION' | 'EXPERIENCE',
+            requirementStrength: r.strength as 'MANDATORY' | 'PREFERRED',
+            displayOrder: idx,
+          })),
+        )
+        .returning();
 
       // Deterministic requirement evaluation
-      const evaluations = insertedReqs.map(r => evidenceResolver.evaluateRequirement(r, matchingContext));
+      const evaluations = insertedReqs.map((r) =>
+        evidenceResolver.evaluateRequirement(r, matchingContext),
+      );
 
       const hardPolicyResult = hardPolicyEngine.evaluate(inserted!, matchingContext);
-      const scoreResult = scoringEngine.calculate(inserted!, matchingContext, hardPolicyResult, evaluations, null);
+      const scoreResult = scoringEngine.calculate(
+        inserted!,
+        matchingContext,
+        hardPolicyResult,
+        evaluations,
+        null,
+      );
 
       console.log(`\nBenchmark Job: "${bJob.title}" at ${bJob.company}`);
-      console.log(`  Seniority: ${bJob.seniority} | Compensation: ${bJob.minSalary}-${bJob.maxSalary} ${bJob.currency}`);
-      console.log(`  Hard Blockers: ${hardPolicyResult.hasBlockers ? hardPolicyResult.blockers.join('; ') : 'None'}`);
-      console.log(`  Overall Score: ${scoreResult.overallScore}% | Confidence: ${scoreResult.confidenceScore}%`);
+      console.log(
+        `  Seniority: ${bJob.seniority} | Compensation: ${bJob.minSalary}-${bJob.maxSalary} ${bJob.currency}`,
+      );
+      console.log(
+        `  Hard Blockers: ${hardPolicyResult.hasBlockers ? hardPolicyResult.blockers.join('; ') : 'None'}`,
+      );
+      console.log(
+        `  Overall Score: ${scoreResult.overallScore}% | Confidence: ${scoreResult.confidenceScore}%`,
+      );
       console.log(`  Decision: ${scoreResult.decision}`);
       console.log(`  Career Fit Category: ${scoreResult.careerFitCategory}`);
       console.log(`  Summary: ${scoreResult.summaryExplanation}`);
@@ -543,17 +664,23 @@ async function main() {
           scoreResult.careerFitCategory === CareerFitCategories.STRONG_MATCH ||
           scoreResult.careerFitCategory === CareerFitCategories.GOOD_MATCH ||
           scoreResult.careerFitCategory === CareerFitCategories.TRANSFERABLE_SKILLS_MATCH;
-        console.log(`  ✓ Assessment: ${isValidMatch ? 'PASSED (Role recognized accurately)' : 'UNEXPECTED'}`);
+        console.log(
+          `  ✓ Assessment: ${isValidMatch ? 'PASSED (Role recognized accurately)' : 'UNEXPECTED'}`,
+        );
       } else if (bJob.key === 'JOB_4') {
         // Intern role with salary below candidate min (35k < 45k)
-        console.log(`  ✓ Assessment: Evaluated with warning or policy check as expected (Score: ${scoreResult.overallScore}%, Fit: ${scoreResult.careerFitCategory})`);
+        console.log(
+          `  ✓ Assessment: Evaluated with warning or policy check as expected (Score: ${scoreResult.overallScore}%, Fit: ${scoreResult.careerFitCategory})`,
+        );
       } else if (bJob.key === 'JOB_5') {
         // Senior Software Engineer
         const isNotRecommendedOrLow =
           scoreResult.decision === 'SKIP' ||
           scoreResult.careerFitCategory === CareerFitCategories.NOT_CURRENTLY_ELIGIBLE ||
           scoreResult.overallScore < 55;
-        console.log(`  ✓ Assessment: ${isNotRecommendedOrLow ? 'PASSED (Senior tech role NOT recommended to PM candidate)' : 'FAIL: Tech role incorrectly recommended'}`);
+        console.log(
+          `  ✓ Assessment: ${isNotRecommendedOrLow ? 'PASSED (Senior tech role NOT recommended to PM candidate)' : 'FAIL: Tech role incorrectly recommended'}`,
+        );
       }
     }
   } finally {
@@ -576,7 +703,7 @@ async function main() {
   await closeDbPool();
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('Validation script failed:', err);
   process.exit(1);
 });

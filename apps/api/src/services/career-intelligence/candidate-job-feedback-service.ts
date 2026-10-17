@@ -80,12 +80,7 @@ export class CandidateJobFeedbackService {
       const [existing] = await tx
         .select()
         .from(candidateJobFeedback)
-        .where(
-          and(
-            eq(candidateJobFeedback.userId, userId),
-            eq(candidateJobFeedback.jobId, jobId),
-          ),
-        );
+        .where(and(eq(candidateJobFeedback.userId, userId), eq(candidateJobFeedback.jobId, jobId)));
 
       if (existing) {
         const [updated] = await tx
@@ -142,27 +137,16 @@ export class CandidateJobFeedbackService {
     return this.mapToDto(savedFeedback!);
   }
 
-  async getFeedbackForJob(
-    userId: string,
-    jobId: string,
-  ): Promise<CandidateJobFeedbackDto | null> {
+  async getFeedbackForJob(userId: string, jobId: string): Promise<CandidateJobFeedbackDto | null> {
     const [row] = await this.db
       .select()
       .from(candidateJobFeedback)
-      .where(
-        and(
-          eq(candidateJobFeedback.userId, userId),
-          eq(candidateJobFeedback.jobId, jobId),
-        ),
-      );
+      .where(and(eq(candidateJobFeedback.userId, userId), eq(candidateJobFeedback.jobId, jobId)));
 
     return row ? this.mapToDto(row) : null;
   }
 
-  async listUserFeedback(
-    userId: string,
-    limit: number = 50,
-  ): Promise<CandidateJobFeedbackDto[]> {
+  async listUserFeedback(userId: string, limit: number = 50): Promise<CandidateJobFeedbackDto[]> {
     const rows = await this.db
       .select()
       .from(candidateJobFeedback)

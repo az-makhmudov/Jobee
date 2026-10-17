@@ -13,7 +13,7 @@
 
 - **Current Official Mode:** Autonomous Product Completion & Production Deployment
 - **Active Backlog Item:** `JOB-CAREER-INTEL-2.0: COMPLETED` (Candidate Brain & AI Career Intelligence 2.0 — Rich Intelligence Context, Transferable Capabilities, 6 Career Fit Categories, Dynamic User Feedback Learning, Dedicated UI & Quality Gates)
-- **Milestone Status:** CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 COMPLETE (59/59 test files, 527/527 tests passing; PostgreSQL migration 0021 applied; CandidateIntelligenceContextBuilder with deterministic SHA-256 state hash; CareerIntelligenceEnrichmentService with human-approved suggestions; MatchingScoringEngine with 6 CareerFitCategories; CandidateJobFeedbackService with 7 feedback types and dynamic ranking adjustments; CareerIntelligenceView, CareerFitBadge, JobFeedbackBar integrated in web app; 12/12 integration tests passing; 0 synthetic candidate records on production seed user)
+- **Milestone Status:** CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 COMPLETE (60/60 test files, 533/533 tests passing; PostgreSQL migration 0021 applied; CandidateIntelligenceContextBuilder with deterministic SHA-256 state hash; CareerIntelligenceEnrichmentService with human-approved suggestions and authentic CV reconciliation; MatchingScoringEngine with 6 CareerFitCategories; CandidateJobFeedbackService with 7 feedback types and dynamic ranking adjustments; CareerIntelligenceView with Section 3 Candidate Records Review & Batch Authorization, CareerFitBadge, JobFeedbackBar integrated in web app; 14/14 integration tests passing; 4 frontend UI tests passing; 0 synthetic candidate records on production seed user)
 - **Previous Completed Milestone:** `JOB-SMART-PROFILE-IMPORT`
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + STUDIO PACKAGE REPAIR FULLY VERIFIED + SMART PROFILE IMPORT HARDENED + CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 DELIVERED**
 - **Active Git Checkpoint:** `JOB-CAREER-INTEL-2.0`
@@ -22,45 +22,45 @@
 
 ## 2. Milestone Progress Tracker
 
-| Milestone ID               | Description                                                        | Status        | Verification & Checkpoint                        |
-| -------------------------- | ------------------------------------------------------------------ | ------------- | ------------------------------------------------ |
-| `JOB-P0-T01`               | Project Foundation, Architecture, Policies                         | COMPLETED     | Verified in `docs/`                              |
-| `JOB-P1-T01`               | Workspace, DB & Core Platform Foundation                           | COMPLETED     | `e4e4815`                                        |
-| `JOB-P1-T02`               | Candidate Brain, Documents, Answer Library                         | COMPLETED     | `e4e4815`                                        |
-| `JOB-P2-T01`               | Job Ingestion, Parsing, Normalization, Inbox                       | COMPLETED     | `b7e7e80`                                        |
-| `JOB-P2-T02`               | Requirement Analysis, Matching & Policy Engine                     | COMPLETED     | `432cfa0`                                        |
-| `JOB-P3-T01`               | Application Studio & Tailored Materials                            | COMPLETED     | `024c742`                                        |
-| `JOB-P3-T02`               | Application CRM, Lifecycle & Analytics (MVP)                       | COMPLETED     | `6941d1f`                                        |
-| `JOB-P4-T01`               | Email Intelligence & CRM Status Sync                               | COMPLETED     | `6591f44`                                        |
-| `JOB-P4-T02`               | Calendar, Interview Scheduling & Prep Workspace                    | COMPLETED     | `2de982d`                                        |
-| `JOB-P5-T01`               | Browser Application Worker & Initial ATS Adapters                  | COMPLETED     | `d9006e7`                                        |
-| `JOB-P5-T02`               | Autonomous Orchestrator, Scheduling & Hardening                    | COMPLETED     | `9a1c56b`                                        |
-| `REAL-ACT`                 | Real Functionality Activation & Truthful De-bias                   | PARTIAL       | Remediated in `REAL-ACT-REMEDIATION` (`c7537b4`) |
-| `REAL-ACT-REMEDIATION`     | Candidate Data Integrity, Human Authorization & Safety Boundaries  | COMPLETED     | `bd28ca8`                                        |
-| `JOB-P0-T01`               | Jobee Foundation, Rebrand & Private GitHub Repo Setup              | COMPLETED     | `4f932fe`                                        |
-| `JOB-P0-T01-REMEDIATION`   | Post-Migration Security & CI Remediation                           | COMPLETED     | `442fa23`                                        |
-| `JOB-P0-T01-CLEANUP`       | Git History Security Cleanup & Sensitive SQL Purge                 | COMPLETED     | `1b62e69`                                        |
-| `JOB-P0-T01-STABILIZATION` | Autonomous Stabilization & Readiness Hardening                     | COMPLETED     | `696b1cc`                                        |
-| `JOB-PROD-01`              | Backend Authorization, Submission Guardrails & Profile Sandbox     | COMPLETED     | `904c19f`                                        |
-| `JOB-PROD-02`              | Cryptographic Manifest-Bound Submission Authorization              | COMPLETED     | `8f58075`                                        |
-| `JOB-AUTH-01`              | Better Auth Identity, Multi-Tenant Isolation & Private Pilot       | COMPLETED     | `f04ca1a`                                        |
-| `JOB-PROD-03`              | Public Job Discovery, Ingestion & Containerized Cloud Deployment   | COMPLETED     | `d65c337`                                        |
-| `JOB-PROD-04`              | Multi-Tenant Auth Hardening, Open AI Architecture & Mobile UI      | COMPLETED     | `9806b7d`                                        |
-| `JOB-PROD-05`              | Multi-Tenant Isolation, Dynamic AI, Cloud Storage & Onboarding     | COMPLETED     | `30c843a` (BL-01 to BL-06)                       |
-| `JOB-HOST-01`              | Free-First Hosting Policy (Oracle ARM64, Neon, Cloudflare R2)      | COMPLETED     | `dcba669` (BL-07, BL-08)                         |
-| `JOB-HOST-02`              | Official Railway Hosting (Multi-Service, Neon, Cloudflare R2, IaC) | COMPLETED     | `0d6a0ed` (BL-09)                                |
-| `JOB-DEPLOY-AUDIT`         | Pre-Deployment Readiness Check, Auto-Migrations & Zero-Config IaC  | COMPLETED     | `5309898` (BL-10)                                |
-| `JOB-FINAL-FIXES`          | Email Sender Unification, Migration Script & Auth Profile Linking  | COMPLETED     | `48ee22d` (BL-10)                                |
-| `JOB-RAILWAY-PREP`         | Railway CLI Link, IaC Read-Only Plan & Service Topology Reconcile  | COMPLETED     | `51d7d0d` (BL-11)                                |
-| `JOB-AUTH-VERIFY`          | Owner Email Config, Google Auth Linking & Tenant Isolation Guards  | COMPLETED     | `151f2c8` (BL-11)                                |
-| `JOB-PROD-DEPLOY`          | Topological Build Fix, Dual Railway Services Online, SPA Verified  | COMPLETED     | `a9c0f98` (BL-12)                                |
-| `JOB-AUTH-REPAIR`          | Google Sign-In Verification ID Fix, Error Handling & CI Guardrails | COMPLETED     | `d3ffc70` (BL-13)                                |
-| `JOB-POST-DEPLOY`          | UI Repair, Google Integrations & Production Stabilization          | COMPLETED     | `56f5771` (BL-14)                                |
-| `JOB-PROD-MIGRATION`       | Production Data Migration & Cloudflare R2 Document Sync            | COMPLETED     | `363aeb1` (BL-15)                                |
-| `JOB-AI-MGMT`              | AI Integration Repair, Gemini 3.8/3.5 Models & Resilient Failover  | COMPLETED     | Verified with live Google API (BL-16)            |
-| `JOB-E2E-WORKFLOW`         | End-to-End Workflow Verification & Stabilization (Phases A-K)      | COMPLETED     | Verified across all 11 phases (BL-17)            |
-| `JOB-STUDIO-REPAIR`        | Production Studio Repair: DOCX Generation, R2 Upload & Recovery    | COMPLETED     | Verified across all 11 phases (BL-18)            |
-| `JOB-SMART-PROFILE-IMPORT` | Smart Candidate Profile Creation & Enrichment via AI Extraction    | COMPLETED     | `4dbc5e3` (BL-19)                                |
+| Milestone ID               | Description                                                        | Status        | Verification & Checkpoint                          |
+| -------------------------- | ------------------------------------------------------------------ | ------------- | -------------------------------------------------- |
+| `JOB-P0-T01`               | Project Foundation, Architecture, Policies                         | COMPLETED     | Verified in `docs/`                                |
+| `JOB-P1-T01`               | Workspace, DB & Core Platform Foundation                           | COMPLETED     | `e4e4815`                                          |
+| `JOB-P1-T02`               | Candidate Brain, Documents, Answer Library                         | COMPLETED     | `e4e4815`                                          |
+| `JOB-P2-T01`               | Job Ingestion, Parsing, Normalization, Inbox                       | COMPLETED     | `b7e7e80`                                          |
+| `JOB-P2-T02`               | Requirement Analysis, Matching & Policy Engine                     | COMPLETED     | `432cfa0`                                          |
+| `JOB-P3-T01`               | Application Studio & Tailored Materials                            | COMPLETED     | `024c742`                                          |
+| `JOB-P3-T02`               | Application CRM, Lifecycle & Analytics (MVP)                       | COMPLETED     | `6941d1f`                                          |
+| `JOB-P4-T01`               | Email Intelligence & CRM Status Sync                               | COMPLETED     | `6591f44`                                          |
+| `JOB-P4-T02`               | Calendar, Interview Scheduling & Prep Workspace                    | COMPLETED     | `2de982d`                                          |
+| `JOB-P5-T01`               | Browser Application Worker & Initial ATS Adapters                  | COMPLETED     | `d9006e7`                                          |
+| `JOB-P5-T02`               | Autonomous Orchestrator, Scheduling & Hardening                    | COMPLETED     | `9a1c56b`                                          |
+| `REAL-ACT`                 | Real Functionality Activation & Truthful De-bias                   | PARTIAL       | Remediated in `REAL-ACT-REMEDIATION` (`c7537b4`)   |
+| `REAL-ACT-REMEDIATION`     | Candidate Data Integrity, Human Authorization & Safety Boundaries  | COMPLETED     | `bd28ca8`                                          |
+| `JOB-P0-T01`               | Jobee Foundation, Rebrand & Private GitHub Repo Setup              | COMPLETED     | `4f932fe`                                          |
+| `JOB-P0-T01-REMEDIATION`   | Post-Migration Security & CI Remediation                           | COMPLETED     | `442fa23`                                          |
+| `JOB-P0-T01-CLEANUP`       | Git History Security Cleanup & Sensitive SQL Purge                 | COMPLETED     | `1b62e69`                                          |
+| `JOB-P0-T01-STABILIZATION` | Autonomous Stabilization & Readiness Hardening                     | COMPLETED     | `696b1cc`                                          |
+| `JOB-PROD-01`              | Backend Authorization, Submission Guardrails & Profile Sandbox     | COMPLETED     | `904c19f`                                          |
+| `JOB-PROD-02`              | Cryptographic Manifest-Bound Submission Authorization              | COMPLETED     | `8f58075`                                          |
+| `JOB-AUTH-01`              | Better Auth Identity, Multi-Tenant Isolation & Private Pilot       | COMPLETED     | `f04ca1a`                                          |
+| `JOB-PROD-03`              | Public Job Discovery, Ingestion & Containerized Cloud Deployment   | COMPLETED     | `d65c337`                                          |
+| `JOB-PROD-04`              | Multi-Tenant Auth Hardening, Open AI Architecture & Mobile UI      | COMPLETED     | `9806b7d`                                          |
+| `JOB-PROD-05`              | Multi-Tenant Isolation, Dynamic AI, Cloud Storage & Onboarding     | COMPLETED     | `30c843a` (BL-01 to BL-06)                         |
+| `JOB-HOST-01`              | Free-First Hosting Policy (Oracle ARM64, Neon, Cloudflare R2)      | COMPLETED     | `dcba669` (BL-07, BL-08)                           |
+| `JOB-HOST-02`              | Official Railway Hosting (Multi-Service, Neon, Cloudflare R2, IaC) | COMPLETED     | `0d6a0ed` (BL-09)                                  |
+| `JOB-DEPLOY-AUDIT`         | Pre-Deployment Readiness Check, Auto-Migrations & Zero-Config IaC  | COMPLETED     | `5309898` (BL-10)                                  |
+| `JOB-FINAL-FIXES`          | Email Sender Unification, Migration Script & Auth Profile Linking  | COMPLETED     | `48ee22d` (BL-10)                                  |
+| `JOB-RAILWAY-PREP`         | Railway CLI Link, IaC Read-Only Plan & Service Topology Reconcile  | COMPLETED     | `51d7d0d` (BL-11)                                  |
+| `JOB-AUTH-VERIFY`          | Owner Email Config, Google Auth Linking & Tenant Isolation Guards  | COMPLETED     | `151f2c8` (BL-11)                                  |
+| `JOB-PROD-DEPLOY`          | Topological Build Fix, Dual Railway Services Online, SPA Verified  | COMPLETED     | `a9c0f98` (BL-12)                                  |
+| `JOB-AUTH-REPAIR`          | Google Sign-In Verification ID Fix, Error Handling & CI Guardrails | COMPLETED     | `d3ffc70` (BL-13)                                  |
+| `JOB-POST-DEPLOY`          | UI Repair, Google Integrations & Production Stabilization          | COMPLETED     | `56f5771` (BL-14)                                  |
+| `JOB-PROD-MIGRATION`       | Production Data Migration & Cloudflare R2 Document Sync            | COMPLETED     | `363aeb1` (BL-15)                                  |
+| `JOB-AI-MGMT`              | AI Integration Repair, Gemini 3.8/3.5 Models & Resilient Failover  | COMPLETED     | Verified with live Google API (BL-16)              |
+| `JOB-E2E-WORKFLOW`         | End-to-End Workflow Verification & Stabilization (Phases A-K)      | COMPLETED     | Verified across all 11 phases (BL-17)              |
+| `JOB-STUDIO-REPAIR`        | Production Studio Repair: DOCX Generation, R2 Upload & Recovery    | COMPLETED     | Verified across all 11 phases (BL-18)              |
+| `JOB-SMART-PROFILE-IMPORT` | Smart Candidate Profile Creation & Enrichment via AI Extraction    | COMPLETED     | `4dbc5e3` (BL-19)                                  |
 | `JOB-CAREER-INTEL-2.0`     | Candidate Brain & AI Career Intelligence 2.0 Platform              | **COMPLETED** | `6721267` (59/59 test suites, 527 tests, 0 errors) |
 
 ---

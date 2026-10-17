@@ -162,7 +162,9 @@ export class MatchingScoringEngine {
     // cap the composite score so non-matching careers are not recommended based purely on location/language
     if (roleFit.status === 'SCORED' && roleFit.score !== null && roleFit.score < 30) {
       overallScore = Math.min(overallScore, 40);
-      gaps.push(`Role title '${job.title}' does not align with candidate target or adjacent roles (${roleFit.score}%)`);
+      gaps.push(
+        `Role title '${job.title}' does not align with candidate target or adjacent roles (${roleFit.score}%)`,
+      );
     }
 
     // Compute Confidence Score
@@ -265,21 +267,27 @@ export class MatchingScoringEngine {
       const loc = `${job.city || ''} ${job.country || ''} ${job.locationText || ''}`.toLowerCase();
       const comp = job.company.toLowerCase();
 
-      if (downvotedInds.some((i) => dept.includes(i.toLowerCase()) || title.includes(i.toLowerCase()))) {
+      if (
+        downvotedInds.some((i) => dept.includes(i.toLowerCase()) || title.includes(i.toLowerCase()))
+      ) {
         learnedRankingAdjustment -= 15;
-        learnedAdjustmentReason = 'Adjusted based on learned feedback: role matches an industry you previously marked as Wrong Industry.';
+        learnedAdjustmentReason =
+          'Adjusted based on learned feedback: role matches an industry you previously marked as Wrong Industry.';
       } else if (downvotedLocs.some((l) => loc.includes(l.toLowerCase()))) {
         learnedRankingAdjustment -= 15;
-        learnedAdjustmentReason = 'Adjusted based on learned feedback: location matches a region you previously marked as Wrong Location.';
+        learnedAdjustmentReason =
+          'Adjusted based on learned feedback: location matches a region you previously marked as Wrong Location.';
       } else if (downvotedComps.some((c) => comp.includes(c.toLowerCase()))) {
         learnedRankingAdjustment -= 20;
-        learnedAdjustmentReason = 'Adjusted based on learned feedback: company matches an organization you previously marked as Not Interested.';
+        learnedAdjustmentReason =
+          'Adjusted based on learned feedback: company matches an organization you previously marked as Not Interested.';
       } else if (
         (job.seniority === 'SENIOR' || job.seniority === 'LEAD') &&
         (learned.tooSeniorCount || 0) >= 2
       ) {
         learnedRankingAdjustment -= 15;
-        learnedAdjustmentReason = 'Adjusted based on learned feedback: seniority matches level you previously marked as Too Senior.';
+        learnedAdjustmentReason =
+          'Adjusted based on learned feedback: seniority matches level you previously marked as Too Senior.';
       }
     }
 
@@ -298,7 +306,10 @@ export class MatchingScoringEngine {
       careerFitCategory = 'STRONG_MATCH';
     } else if (overallScore >= 68 && (roleFit.score ?? 50) >= 50) {
       careerFitCategory = 'GOOD_MATCH';
-    } else if (transferableSkills.length >= 2 || (transferableSkills.length >= 1 && overallScore >= 55)) {
+    } else if (
+      transferableSkills.length >= 2 ||
+      (transferableSkills.length >= 1 && overallScore >= 55)
+    ) {
       careerFitCategory = 'TRANSFERABLE_SKILLS_MATCH';
     } else if (overallScore >= 45 && (roleFit.score ?? 50) >= 35) {
       careerFitCategory = 'GROWTH_OPPORTUNITY';

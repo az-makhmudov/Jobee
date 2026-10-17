@@ -51,7 +51,6 @@ export const candidateIntelligenceSuggestions = pgTable(
   ],
 );
 
-export type CandidateIntelligenceSuggestion =
-  typeof candidateIntelligenceSuggestions.$inferSelect;
+export type CandidateIntelligenceSuggestion = typeof candidateIntelligenceSuggestions.$inferSelect;
 export type NewCandidateIntelligenceSuggestion =
   typeof candidateIntelligenceSuggestions.$inferInsert;

@@ -173,4 +173,3 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
   - `CandidateJobFeedbackService` supporting 7 user feedback types (`INTERESTED`, `NOT_INTERESTED`, `IRRELEVANT`, `ALREADY_APPLIED`, `TOO_SENIOR`, `WRONG_LOCATION`, `WRONG_INDUSTRY`) with inspectable and reset-able preference weights.
   - Dedicated React 19 UI: `CareerIntelligenceView.tsx`, `CareerFitBadge.tsx`, `JobFeedbackBar.tsx`, integrated into Job Inbox, Job Detail, and navigation.
   - Multi-tenant isolated test suite `career-intelligence.test.ts` (12 integration tests) and 100% clean quality gates (59 test suites, 527 tests, 0 lint/typecheck errors, clean Vite production build, authentic seed candidate data verified with 0 synthetic records).
-

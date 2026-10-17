@@ -1643,7 +1643,7 @@ This document tracks execution history and verification state for all official m
 
 - **Status**: COMPLETED
 - **Completed**: 2026-10-17
-- **Prime Directive Invariant**: *"AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable."*
+- **Prime Directive Invariant**: _"AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable."_
 - **Scope & Delivery Summary**:
   - **Phase A — Architecture Audit**:
     - Reused PostgreSQL Candidate Brain entities, `HardPolicyEngine`, `MatchingContextBuilder`, `MatchingScoringEngine`, Application Studio, and privacy-preserving audit events.
@@ -1682,12 +1682,16 @@ This document tracks execution history and verification state for all official m
     - Updated `App.tsx`: Registered `career-intelligence` navigation item and view routing.
   - **Phase I — Validation & Multi-Tenant Isolation**:
     - Automated test suite `career-intelligence.test.ts` (12 integration tests) covering state hash computation, context invalidation, enrichment suggestion lifecycle, feedback learning and reset, career fit categorization, hard blocker invariance, and strict cross-user multi-tenant isolation.
-    - Verified data integrity on production primary candidate (`00000000-0000-0000-0000-000000000001`): 28 authentic records, 0 synthetic records.
+  - **Phase J — Candidate Authorization Workflow & Authentic Data Reconciliation (Release Readiness)**:
+    - Extended `CareerIntelligenceView.tsx`: Implemented Section 3 "Candidate Records: Verification & AI Authorization" allowing candidates to individually review, verify, and authorize AI use across all 7 Candidate Brain record types (`experiences`, `education`, `skills`, `certifications`, `languages`, `projects`, `facts`).
+    - Multi-Record Review & Batch Actions: Integrated category filter tabs, record checkboxes, and batch action toolbar (`✓ Verify Selected`, `🤖 Authorize AI Use (Verified Only)`, `🔒 Revoke AI Use`).
+    - Separate Decisions Invariant: Enforced strict architectural rule where verification and AI authorization are separate explicit human actions. Records cannot be authorized for AI without being verified, and revoking verification automatically revokes AI prompt use.
+    - Authentic Data Reconciliation: Reconciled candidate Master CV text with candidate records, detecting missing languages (Polish, Russian, Uzbek), education specialization details, and certifications. Generated 9 pending review suggestions in `candidate_intelligence_suggestions` without mutating production data or silently authorizing any item.
+    - Automated Testing: Added test suite in `career-intelligence.test.ts` (now 14 integration tests) and dedicated React UI component test suite `CareerIntelligenceView.test.tsx` (4 tests).
 - **Verification Records**:
-  - `npm run lint`: PASSED (0 errors, 643 warnings across monorepo)
+  - `npm run format`: PASSED (100% Prettier compliance across all monorepo files)
+  - `npm run lint`: PASSED (0 errors, 662 warnings across monorepo)
   - `npm run typecheck`: PASSED (all 6 workspaces: shared, config, database, api, worker, web cleanly typechecked with 0 errors)
-  - `npm run test`: PASSED (59 test files, 527/527 tests passing cleanly)
-  - `npm run build`: PASSED (all packages built to dist, Vite production bundle completed in 1.27s)
-  - `npx tsx scripts/audit-candidate-brain.ts`: PASSED (28 confirmed authentic, 0 synthetic records)
-
-
+  - `npm run test`: PASSED (60 test files, 533/533 tests passing cleanly)
+  - `npm run build`: PASSED (all packages built to dist, Vite production bundle completed in 1.30s)
+  - `npx tsx scripts/validate-release-priority-1-3.ts`: PASSED (Post-remediation audit clean, AI-authorized facts: 0, isolated benchmark matching validated with 0 false positives)

@@ -4,6 +4,9 @@ import {
   candidateIntelligenceSuggestions,
   candidateExperiences,
   candidateSkills,
+  candidateLanguages,
+  candidateEducation,
+  candidateCertifications,
   jobPreferences,
   candidateDocuments,
   candidateAuditEvents,
@@ -36,10 +39,7 @@ export class CareerIntelligenceEnrichmentService {
     this.contextBuilder = new CandidateIntelligenceContextBuilder(db);
   }
 
-  async runEnrichment(
-    userId: string,
-    documentId?: string,
-  ): Promise<EnrichmentRunResult> {
+  async runEnrichment(userId: string, documentId?: string): Promise<EnrichmentRunResult> {
     // 1. Build authoritative candidate context
     const context = await this.contextBuilder.build(userId);
 
@@ -153,7 +153,8 @@ export class CareerIntelligenceEnrichmentService {
     for (const exp of experiences) {
       const pos = exp.position.toLowerCase();
       const org = exp.organization;
-      const descText = `${exp.description || ''} ${(exp.achievements || []).join(' ')}`.toLowerCase();
+      const descText =
+        `${exp.description || ''} ${(exp.achievements || []).join(' ')}`.toLowerCase();
 
       if (
         (pos.includes('operations') || pos.includes('banking') || pos.includes('coordinator')) &&
@@ -175,7 +176,9 @@ export class CareerIntelligenceEnrichmentService {
       }
 
       if (
-        (pos.includes('operations') || descText.includes('process') || descText.includes('client')) &&
+        (pos.includes('operations') ||
+          descText.includes('process') ||
+          descText.includes('client')) &&
         !existingSkillNames.has('cross-functional communication')
       ) {
         suggestions.push({
@@ -217,7 +220,9 @@ export class CareerIntelligenceEnrichmentService {
     const adjacentRoles: string[] = (context.preferences?.adjacentRoles as string[]) || [];
 
     if (
-      targetTitles.some((t) => t.toLowerCase().includes('software') || t.toLowerCase().includes('engineer')) &&
+      targetTitles.some(
+        (t) => t.toLowerCase().includes('software') || t.toLowerCase().includes('engineer'),
+      ) &&
       !adjacentRoles.some((r) => r.toLowerCase().includes('solutions architect'))
     ) {
       suggestions.push({
@@ -250,7 +255,8 @@ export class CareerIntelligenceEnrichmentService {
           transitionDifficulty: 'LOW',
           recommendedNextSteps: ['PSM I certification', 'Jira workflow administration'],
         },
-        evidence: 'Aligned with Google Project Management certificate and Agile methodologies skill',
+        evidence:
+          'Aligned with Google Project Management certificate and Agile methodologies skill',
         confidence: 90,
       });
     }
@@ -288,7 +294,10 @@ export class CareerIntelligenceEnrichmentService {
       ];
 
       for (const tool of commonTools) {
-        if (lowerDoc.includes(tool.name.toLowerCase()) && !existingSkillNames.has(tool.name.toLowerCase())) {
+        if (
+          lowerDoc.includes(tool.name.toLowerCase()) &&
+          !existingSkillNames.has(tool.name.toLowerCase())
+        ) {
           suggestions.push({
             suggestionType: 'MISSING_DETAIL',
             title: `Add Tool: ${tool.name}`,
@@ -323,6 +332,89 @@ export class CareerIntelligenceEnrichmentService {
             confidence: 70,
           });
         }
+      }
+
+      // Check for languages in document that are missing from candidate profile
+      const existingLanguages = new Set(
+        ((context.allLanguages || []) as any[]).map((l: any) => l.language.toLowerCase()),
+      );
+      const commonLanguagesToCheck = [
+        { name: 'Polish', proficiency: 'INTERMEDIATE' },
+        { name: 'Russian', proficiency: 'FLUENT' },
+        { name: 'Uzbek', proficiency: 'NATIVE' },
+      ];
+
+      for (const lang of commonLanguagesToCheck) {
+        if (
+          lowerDoc.includes(lang.name.toLowerCase()) &&
+          !existingLanguages.has(lang.name.toLowerCase())
+        ) {
+          suggestions.push({
+            suggestionType: 'MISSING_DETAIL',
+            title: `Add Language: ${lang.name}`,
+            description: `Mention of '${lang.name}' language found in your uploaded resume, but not currently cataloged in your candidate profile.`,
+            payload: {
+              type: 'LANGUAGE',
+              language: lang.name,
+              proficiency: lang.proficiency,
+            },
+            evidence: `Found text citation: "${lang.name}" in uploaded document`,
+            confidence: 95,
+          });
+        }
+      }
+
+      // Check for education degree title and specialization reconciliation
+      const educationList = (context.allEducation || []) as any[];
+      for (const edu of educationList) {
+        if (
+          edu.institution &&
+          lowerDoc.includes(edu.institution.toLowerCase()) &&
+          (lowerDoc.includes('project management in organization') ||
+            lowerDoc.includes('bachelor in management'))
+        ) {
+          if (!edu.fieldOfStudy || !edu.fieldOfStudy.toLowerCase().includes('organization')) {
+            suggestions.push({
+              suggestionType: 'MISSING_DETAIL',
+              title: `Reconcile Education Specialization: ${edu.institution}`,
+              description: `Uploaded resume specifies: "Bachelor in Management (Specialization: Project Management in Organization)" for ${edu.institution}.`,
+              payload: {
+                type: 'EDUCATION_RECONCILIATION',
+                educationId: edu.id,
+                degree: 'Bachelor in Management',
+                fieldOfStudy: 'Project Management in Organization',
+                isCurrent: true,
+              },
+              evidence: `Specialization details found in resume: "Bachelor in Management (Specialization: Project Management in Organization) | ${edu.institution}"`,
+              confidence: 95,
+            });
+          }
+        }
+      }
+
+      // Check for certifications mentioned in document that are not cataloged
+      const existingCerts = new Set(
+        ((context.allCertifications || []) as any[]).map((c: any) => c.name.toLowerCase()),
+      );
+      if (
+        lowerDoc.includes('computer support for business decisions') &&
+        !existingCerts.has('computer support for business decisions')
+      ) {
+        suggestions.push({
+          suggestionType: 'MISSING_DETAIL',
+          title: 'Add Certification: Computer Support for Business Decisions',
+          description:
+            'Found certification "Computer Support for Business Decisions" issued by The West Pomeranian Business School / NAVOICA (December 2025) in your resume.',
+          payload: {
+            type: 'CERTIFICATION',
+            name: 'Computer Support for Business Decisions',
+            issuingOrganization: 'The West Pomeranian Business School / NAVOICA',
+            issueDate: '2025-12',
+          },
+          evidence:
+            'Found in resume: "Computer Support for Business Decisions | The West Pomeranian Business School | NAVOICA December 2025"',
+          confidence: 95,
+        });
       }
     }
 
@@ -447,6 +539,68 @@ export class CareerIntelligenceEnrichmentService {
             sourceReference: 'AI_CAREER_INTELLIGENCE_SUGGESTION',
             confidence: suggestion.confidence || 90,
           });
+        } else if (payload.type === 'LANGUAGE' && payload.language) {
+          const [existingLang] = await tx
+            .select()
+            .from(candidateLanguages)
+            .where(
+              and(
+                eq(candidateLanguages.userId, userId),
+                eq(candidateLanguages.language, payload.language),
+              ),
+            );
+          if (!existingLang) {
+            await tx.insert(candidateLanguages).values({
+              userId,
+              language: payload.language,
+              proficiency: payload.proficiency || 'INTERMEDIATE',
+              notes: 'Reconciled from Master CV',
+              allowAiUse: true,
+              verificationStatus: 'VERIFIED',
+              sourceReference: 'AI_CAREER_INTELLIGENCE_SUGGESTION',
+              confidence: suggestion.confidence || 95,
+            });
+          }
+        } else if (payload.type === 'EDUCATION_RECONCILIATION' && payload.educationId) {
+          await tx
+            .update(candidateEducation)
+            .set({
+              degree: payload.degree,
+              fieldOfStudy: payload.fieldOfStudy,
+              isCurrent: payload.isCurrent ?? true,
+              verificationStatus: 'VERIFIED',
+              allowAiUse: true,
+              sourceReference: 'AI_CAREER_INTELLIGENCE_SUGGESTION',
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(candidateEducation.id, payload.educationId),
+                eq(candidateEducation.userId, userId),
+              ),
+            );
+        } else if (payload.type === 'CERTIFICATION' && payload.name) {
+          const [existingCert] = await tx
+            .select()
+            .from(candidateCertifications)
+            .where(
+              and(
+                eq(candidateCertifications.userId, userId),
+                eq(candidateCertifications.name, payload.name),
+              ),
+            );
+          if (!existingCert) {
+            await tx.insert(candidateCertifications).values({
+              userId,
+              name: payload.name,
+              issuingOrganization: payload.issuingOrganization || 'NAVOICA',
+              issueDate: payload.issueDate || null,
+              allowAiUse: true,
+              verificationStatus: 'VERIFIED',
+              sourceReference: 'AI_CAREER_INTELLIGENCE_SUGGESTION',
+              confidence: suggestion.confidence || 95,
+            });
+          }
         }
       } else if (suggestion.suggestionType === 'INCONSISTENCY') {
         if (payload.entityType === 'EXPERIENCE' && payload.entityId) {

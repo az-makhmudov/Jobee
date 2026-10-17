@@ -312,7 +312,9 @@ export class CandidateIntelligenceContextBuilder {
     for (const s of skillRows)
       hash.update(`${s.id}:${s.updatedAt?.toISOString()}:${s.verificationStatus}:${s.allowAiUse}`);
     for (const ed of eduRows)
-      hash.update(`${ed.id}:${ed.updatedAt?.toISOString()}:${ed.verificationStatus}:${ed.allowAiUse}`);
+      hash.update(
+        `${ed.id}:${ed.updatedAt?.toISOString()}:${ed.verificationStatus}:${ed.allowAiUse}`,
+      );
     for (const l of langRows)
       hash.update(`${l.id}:${l.updatedAt?.toISOString()}:${l.verificationStatus}:${l.allowAiUse}`);
     for (const c of certRows)

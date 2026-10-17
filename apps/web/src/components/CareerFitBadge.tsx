@@ -39,7 +39,8 @@ const BADGE_CONFIGS: Record<CareerFitCategory, BadgeConfig> = {
     bgColor: 'rgba(139, 92, 246, 0.18)',
     textColor: '#a78bfa',
     borderColor: 'rgba(139, 92, 246, 0.35)',
-    description: 'Direct skills differ, but verified capabilities translate strongly into this role.',
+    description:
+      'Direct skills differ, but verified capabilities translate strongly into this role.',
   },
   GROWTH_OPPORTUNITY: {
     label: 'Growth Opportunity',
@@ -47,7 +48,8 @@ const BADGE_CONFIGS: Record<CareerFitCategory, BadgeConfig> = {
     bgColor: 'rgba(245, 158, 11, 0.15)',
     textColor: '#fbbf24',
     borderColor: 'rgba(245, 158, 11, 0.35)',
-    description: 'Stretch role offering career advancement; some requirements will need skill growth.',
+    description:
+      'Stretch role offering career advancement; some requirements will need skill growth.',
   },
   NOT_CURRENTLY_ELIGIBLE: {
     label: 'Not Currently Eligible',
@@ -78,7 +80,8 @@ export const CareerFitBadge: React.FC<CareerFitBadgeProps> = ({
 
   const config = BADGE_CONFIGS[category];
 
-  const padding = size === 'sm' ? '0.15rem 0.5rem' : size === 'lg' ? '0.4rem 0.9rem' : '0.25rem 0.7rem';
+  const padding =
+    size === 'sm' ? '0.15rem 0.5rem' : size === 'lg' ? '0.4rem 0.9rem' : '0.25rem 0.7rem';
   const fontSize = size === 'sm' ? '0.72rem' : size === 'lg' ? '0.9rem' : '0.8rem';
 
   return (

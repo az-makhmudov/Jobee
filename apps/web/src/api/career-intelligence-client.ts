@@ -59,8 +59,7 @@ export interface CareerIntelligenceOverviewDto {
 
 export const careerIntelligenceApi = {
   // 1. Get Candidate Intelligence Overview
-  getIntelligenceOverview: () =>
-    request<CareerIntelligenceOverviewDto>('/candidate/intelligence'),
+  getIntelligenceOverview: () => request<CareerIntelligenceOverviewDto>('/candidate/intelligence'),
 
   // 2. Answer a high-impact clarification question
   submitClarification: (field: string, value: unknown) =>
@@ -105,18 +104,11 @@ export const careerIntelligenceApi = {
     ),
 
   // 7. Record Job Feedback
-  recordJobFeedback: (
-    jobId: string,
-    feedbackType: CandidateJobFeedbackType,
-    notes?: string,
-  ) =>
-    request<{ success: boolean; feedback: CandidateJobFeedbackDto }>(
-      `/jobs/${jobId}/feedback`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ feedbackType, notes }),
-      },
-    ),
+  recordJobFeedback: (jobId: string, feedbackType: CandidateJobFeedbackType, notes?: string) =>
+    request<{ success: boolean; feedback: CandidateJobFeedbackDto }>(`/jobs/${jobId}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify({ feedbackType, notes }),
+    }),
 
   // 8. Get Feedback for Job
   getJobFeedback: (jobId: string) =>
@@ -124,9 +116,7 @@ export const careerIntelligenceApi = {
 
   // 9. Get Learned Preferences
   getLearnedPreferences: () =>
-    request<{ learnedPreferences: LearnedPreferencesDto }>(
-      '/candidate/learned-preferences',
-    ),
+    request<{ learnedPreferences: LearnedPreferencesDto }>('/candidate/learned-preferences'),
 
   // 10. Update Learned Preferences
   updateLearnedPreferences: (updates: Partial<LearnedPreferencesDto>) =>
@@ -144,4 +134,69 @@ export const careerIntelligenceApi = {
       '/candidate/learned-preferences/reset',
       { method: 'POST' },
     ),
+
+  // 12. Get All Candidate Records for Verification & AI-Use Authorization
+  getRecords: () => request<CandidateRecordsResponseDto>('/candidate/intelligence/records'),
+
+  // 13. Update Individual Record Authorization
+  updateRecordAuthorization: (
+    entityType: string,
+    id: string,
+    payload: { verificationStatus?: string; allowAiUse?: boolean },
+  ) =>
+    request<{ success: boolean; record: any }>(
+      `/candidate/intelligence/records/${entityType}/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      },
+    ),
+
+  // 14. Batch Update Record Authorizations
+  batchAuthorizeRecords: (
+    items: Array<{
+      entityType: string;
+      id: string;
+      verificationStatus?: string;
+      allowAiUse?: boolean;
+    }>,
+  ) =>
+    request<{ success: boolean; updatedCount: number }>(
+      '/candidate/intelligence/records/batch-authorize',
+      {
+        method: 'POST',
+        body: JSON.stringify({ items }),
+      },
+    ),
 };
+
+export interface CandidateRecordItemDto {
+  id: string;
+  entityType:
+    'experiences' | 'education' | 'skills' | 'certifications' | 'languages' | 'projects' | 'facts';
+  title: string;
+  subtitle: string;
+  verificationStatus: 'UNVERIFIED' | 'VERIFIED' | 'REJECTED';
+  allowAiUse: boolean;
+  sourceReference: string | null;
+  confidence: number | null;
+  lastConfirmedAt: string | null;
+}
+
+export interface CandidateRecordsResponseDto {
+  records: {
+    experiences: CandidateRecordItemDto[];
+    education: CandidateRecordItemDto[];
+    skills: CandidateRecordItemDto[];
+    certifications: CandidateRecordItemDto[];
+    languages: CandidateRecordItemDto[];
+    projects: CandidateRecordItemDto[];
+    facts: CandidateRecordItemDto[];
+  };
+  counts: {
+    total: number;
+    verified: number;
+    aiAuthorized: number;
+    unverified: number;
+  };
+}
