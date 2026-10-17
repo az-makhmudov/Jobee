@@ -1,13 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { getConfig } from '@job-agent/config';
 import { eq } from 'drizzle-orm';
-import {
-  getDb,
-  getOrCreatePrimaryUser,
-  closeDbPool,
-  calendarAccounts,
-  type Database,
-} from '@job-agent/database';
+import { getDb, users, closeDbPool, calendarAccounts, type Database } from '@job-agent/database';
 import { CalendarProviderType, CalendarAccountStatus, ConflictSeverity } from '@job-agent/shared';
 import { CalendarService } from './calendar-service.js';
 import { FixtureCalendarProvider } from './fixture-calendar-provider.js';
@@ -24,11 +18,17 @@ describe('CalendarService Unit & Integration Tests (JOB-P4-T02)', () => {
 
   beforeAll(async () => {
     db = getDb(config.DATABASE_URL);
-    const user = await getOrCreatePrimaryUser(db);
-    userId = user.id;
-
-    // Purge any stale calendar accounts for clean isolated test state
-    await db.delete(calendarAccounts).where(eq(calendarAccounts.userId, userId));
+    const [testUser] = await db
+      .insert(users)
+      .values({
+        id: crypto.randomUUID(),
+        email: `disposable_cal_tester_${Date.now()}@example.com`,
+        name: 'Disposable Calendar Tester',
+        emailVerified: true,
+        role: 'user',
+      })
+      .returning();
+    userId = testUser!.id;
 
     cryptoService = new TokenCryptoService(config.EMAIL_TOKEN_ENCRYPTION_KEY);
     fixtureProvider = new FixtureCalendarProvider();
@@ -47,8 +47,9 @@ describe('CalendarService Unit & Integration Tests (JOB-P4-T02)', () => {
   });
 
   afterAll(async () => {
-    // Clean up any accounts created for the test user
+    // Clean up any accounts created for the disposable test user
     await db.delete(calendarAccounts).where(eq(calendarAccounts.userId, userId));
+    await db.delete(users).where(eq(users.id, userId));
     await closeDbPool();
   });
 

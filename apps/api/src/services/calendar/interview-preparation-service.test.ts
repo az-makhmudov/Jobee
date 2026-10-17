@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { getConfig } from '@job-agent/config';
 import {
   getDb,
-  getOrCreatePrimaryUser,
+  users,
   closeDbPool,
   jobs,
   jobRequirements,
@@ -31,20 +31,26 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
 
   beforeAll(async () => {
     db = getDb(config.DATABASE_URL);
-    const user = await getOrCreatePrimaryUser(db);
-    userId = user.id;
+    const [testUser] = await db
+      .insert(users)
+      .values({
+        id: crypto.randomUUID(),
+        email: `disposable_prep_tester_${Date.now()}@example.com`,
+        name: 'Disposable Prep Tester',
+        emailVerified: true,
+        role: 'user',
+      })
+      .returning();
+    userId = testUser!.id;
 
     prepService = new InterviewPreparationService({ db });
 
-    // Ensure Candidate Profile exists
-    await db
-      .insert(candidateProfiles)
-      .values({
-        userId,
-        fullName: 'Bek Test Candidate',
-        headline: 'Lead Systems & Operations Engineer',
-      })
-      .onConflictDoNothing();
+    // Ensure Candidate Profile exists for disposable user
+    await db.insert(candidateProfiles).values({
+      userId,
+      fullName: 'Bek Test Candidate',
+      headline: 'Lead Systems & Operations Engineer',
+    });
 
     // Create Candidate Skill
     const [skill] = await db
@@ -156,6 +162,10 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
     }
     if (testSkillId) {
       await db.delete(candidateSkills).where(eq(candidateSkills.id, testSkillId));
+    }
+    if (userId) {
+      await db.delete(candidateProfiles).where(eq(candidateProfiles.userId, userId));
+      await db.delete(users).where(eq(users.id, userId));
     }
 
     await closeDbPool();
