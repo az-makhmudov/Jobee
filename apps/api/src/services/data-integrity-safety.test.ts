@@ -74,6 +74,11 @@ describe('Data Integrity, Safety Invariants, and Authorization Gates', () => {
         sourceEntityId: null,
         verificationStatus: 'VERIFIED',
         allowAiUse: false, // Quarantined from AI
+        confidence: null,
+        lastConfirmedAt: null,
+        hasContradiction: false,
+        contradictionDetails: null,
+        sources: [],
         createdAt: new Date(),
         updatedAt: new Date(),
       };

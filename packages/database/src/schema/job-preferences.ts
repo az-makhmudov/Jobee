@@ -9,6 +9,11 @@ export const jobPreferences = pgTable('job_preferences', {
     .unique(),
   targetTitles: jsonb('target_titles').$type<string[]>().default([]).notNull(),
   targetCategories: jsonb('target_categories').$type<string[]>().default([]).notNull(),
+  adjacentRoles: jsonb('adjacent_roles').$type<string[]>().default([]).notNull(),
+  preferredIndustries: jsonb('preferred_industries').$type<string[]>().default([]).notNull(),
+  careerTransitions: jsonb('career_transitions').$type<string[]>().default([]).notNull(),
+  longTermGoals: text('long_term_goals'),
+  developmentPriorities: jsonb('development_priorities').$type<string[]>().default([]).notNull(),
   preferredLocations: jsonb('preferred_locations').$type<string[]>().default([]).notNull(),
   workModes: jsonb('work_modes').$type<string[]>().default([]).notNull(), // 'remote', 'hybrid', 'onsite'
   employmentTypes: jsonb('employment_types').$type<string[]>().default([]).notNull(), // 'full-time', 'part-time', 'contract', 'internship'
@@ -22,7 +27,14 @@ export const jobPreferences = pgTable('job_preferences', {
   acceptUnpaid: boolean('accept_unpaid').default(false).notNull(),
   willingToRelocate: boolean('willing_to_relocate'), // null = not configured
   needsSponsorship: boolean('needs_sponsorship'), // null = not configured
+  workAuthorizationCountries: jsonb('work_authorization_countries')
+    .$type<string[]>()
+    .default([])
+    .notNull(),
+  internshipEligible: boolean('internship_eligible'),
+  availability: text('availability'),
   customPreferences: jsonb('custom_preferences'),
+  learnedPreferences: jsonb('learned_preferences'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
     .defaultNow()

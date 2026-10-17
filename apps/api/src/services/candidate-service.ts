@@ -73,17 +73,111 @@ export class CandidateService {
     }
   }
 
+  private mapProfileToDto(row: any): CandidateProfileDto {
+    return {
+      ...row,
+      transferableCapabilities: (row.transferableCapabilities as string[]) || [],
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private mapExperienceToDto(row: any): CandidateExperienceDto {
+    return {
+      ...row,
+      verificationStatus: row.verificationStatus as any,
+      responsibilities: (row.responsibilities as string[]) || [],
+      skills: (row.skills as string[]) || [],
+      transferableCapabilities: (row.transferableCapabilities as string[]) || [],
+      lastConfirmedAt: row.lastConfirmedAt ? row.lastConfirmedAt.toISOString() : null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private mapEducationToDto(row: any): CandidateEducationDto {
+    return {
+      ...row,
+      verificationStatus: row.verificationStatus as any,
+      lastConfirmedAt: row.lastConfirmedAt ? row.lastConfirmedAt.toISOString() : null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private mapSkillToDto(row: any): CandidateSkillDto {
+    return {
+      ...row,
+      verificationStatus: row.verificationStatus as any,
+      transferableCapabilities: (row.transferableCapabilities as string[]) || [],
+      lastConfirmedAt: row.lastConfirmedAt ? row.lastConfirmedAt.toISOString() : null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private mapLanguageToDto(row: any): CandidateLanguageDto {
+    return {
+      ...row,
+      verificationStatus: row.verificationStatus as any,
+      lastConfirmedAt: row.lastConfirmedAt ? row.lastConfirmedAt.toISOString() : null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private mapCertificationToDto(row: any): CandidateCertificationDto {
+    return {
+      ...row,
+      verificationStatus: row.verificationStatus as any,
+      lastConfirmedAt: row.lastConfirmedAt ? row.lastConfirmedAt.toISOString() : null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private mapProjectToDto(row: any): CandidateProjectDto {
+    return {
+      ...row,
+      verificationStatus: row.verificationStatus as any,
+      lastConfirmedAt: row.lastConfirmedAt ? row.lastConfirmedAt.toISOString() : null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private mapFactToDto(row: any): CandidateFactDto {
+    return {
+      ...row,
+      verificationStatus: row.verificationStatus as any,
+      sources: (row.sources as string[]) || [],
+      lastConfirmedAt: row.lastConfirmedAt ? row.lastConfirmedAt.toISOString() : null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  private mapPreferencesToDto(row: any): JobPreferencesDto {
+    return {
+      ...row,
+      adjacentRoles: (row.adjacentRoles as string[]) || [],
+      preferredIndustries: (row.preferredIndustries as string[]) || [],
+      careerTransitions: (row.careerTransitions as string[]) || [],
+      developmentPriorities: (row.developmentPriorities as string[]) || [],
+      workAuthorizationCountries: (row.workAuthorizationCountries as string[]) || [],
+      learnedPreferences: (row.learnedPreferences as any) || null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
   // --- Profile ---
   public async getProfile(userId: string): Promise<CandidateProfileDto | null> {
     const profile = await this.db.query.candidateProfiles.findFirst({
       where: eq(candidateProfiles.userId, userId),
     });
     if (!profile) return null;
-    return {
-      ...profile,
-      createdAt: profile.createdAt.toISOString(),
-      updatedAt: profile.updatedAt.toISOString(),
-    };
+    return this.mapProfileToDto(profile);
   }
 
   public async upsertProfile(
@@ -113,11 +207,7 @@ export class CandidateService {
         })
         .where(eq(candidateProfiles.userId, userId))
         .returning();
-      result = {
-        ...updated!,
-        createdAt: updated!.createdAt.toISOString(),
-        updatedAt: updated!.updatedAt.toISOString(),
-      };
+      result = this.mapProfileToDto(updated!);
       await this.recordAudit({
         userId,
         entityType: 'PROFILE',
@@ -134,11 +224,7 @@ export class CandidateService {
           ...data,
         })
         .returning();
-      result = {
-        ...created!,
-        createdAt: created!.createdAt.toISOString(),
-        updatedAt: created!.updatedAt.toISOString(),
-      };
+      result = this.mapProfileToDto(created!);
       await this.recordAudit({
         userId,
         entityType: 'PROFILE',
@@ -158,12 +244,7 @@ export class CandidateService {
       where: eq(candidateExperiences.userId, userId),
       orderBy: [candidateExperiences.displayOrder, desc(candidateExperiences.startDate)],
     });
-    return rows.map((r) => ({
-      ...r,
-      verificationStatus: r.verificationStatus as any,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    }));
+    return rows.map((r) => this.mapExperienceToDto(r));
   }
 
   public async createExperience(
@@ -209,12 +290,7 @@ export class CandidateService {
       metadata: null,
     });
 
-    return {
-      ...row!,
-      verificationStatus: row!.verificationStatus as any,
-      createdAt: row!.createdAt.toISOString(),
-      updatedAt: row!.updatedAt.toISOString(),
-    };
+    return this.mapExperienceToDto(row!);
   }
 
   public async updateExperience(
@@ -254,12 +330,7 @@ export class CandidateService {
       metadata: null,
     });
 
-    return {
-      ...row,
-      verificationStatus: row.verificationStatus as any,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    };
+    return this.mapExperienceToDto(row);
   }
 
   public async deleteExperience(userId: string, id: string): Promise<void> {
@@ -285,12 +356,7 @@ export class CandidateService {
       where: eq(candidateEducation.userId, userId),
       orderBy: [candidateEducation.displayOrder, desc(candidateEducation.startDate)],
     });
-    return rows.map((r) => ({
-      ...r,
-      verificationStatus: r.verificationStatus as any,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    }));
+    return rows.map((r) => this.mapEducationToDto(r));
   }
 
   public async createEducation(
@@ -336,12 +402,7 @@ export class CandidateService {
       metadata: null,
     });
 
-    return {
-      ...row!,
-      verificationStatus: row!.verificationStatus as any,
-      createdAt: row!.createdAt.toISOString(),
-      updatedAt: row!.updatedAt.toISOString(),
-    };
+    return this.mapEducationToDto(row!);
   }
 
   public async updateEducation(
@@ -381,12 +442,7 @@ export class CandidateService {
       metadata: null,
     });
 
-    return {
-      ...row,
-      verificationStatus: row.verificationStatus as any,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    };
+    return this.mapEducationToDto(row);
   }
 
   public async deleteEducation(userId: string, id: string): Promise<void> {
@@ -412,12 +468,7 @@ export class CandidateService {
       where: eq(candidateProjects.userId, userId),
       orderBy: [candidateProjects.displayOrder, desc(candidateProjects.startDate)],
     });
-    return rows.map((r) => ({
-      ...r,
-      verificationStatus: r.verificationStatus as any,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    }));
+    return rows.map((r) => this.mapProjectToDto(r));
   }
 
   public async createProject(
@@ -463,12 +514,7 @@ export class CandidateService {
       metadata: null,
     });
 
-    return {
-      ...row!,
-      verificationStatus: row!.verificationStatus as any,
-      createdAt: row!.createdAt.toISOString(),
-      updatedAt: row!.updatedAt.toISOString(),
-    };
+    return this.mapProjectToDto(row!);
   }
 
   public async updateProject(
@@ -508,12 +554,7 @@ export class CandidateService {
       metadata: null,
     });
 
-    return {
-      ...row,
-      verificationStatus: row.verificationStatus as any,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    };
+    return this.mapProjectToDto(row);
   }
 
   public async deleteProject(userId: string, id: string): Promise<void> {
@@ -539,12 +580,7 @@ export class CandidateService {
       where: eq(candidateSkills.userId, userId),
       orderBy: [candidateSkills.category, candidateSkills.name],
     });
-    return rows.map((r) => ({
-      ...r,
-      verificationStatus: r.verificationStatus as any,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    }));
+    return rows.map((r) => this.mapSkillToDto(r));
   }
 
   public async createSkill(
@@ -580,12 +616,7 @@ export class CandidateService {
       metadata: null,
     });
 
-    return {
-      ...row!,
-      verificationStatus: row!.verificationStatus as any,
-      createdAt: row!.createdAt.toISOString(),
-      updatedAt: row!.updatedAt.toISOString(),
-    };
+    return this.mapSkillToDto(row!);
   }
 
   public async updateSkill(
@@ -620,12 +651,7 @@ export class CandidateService {
       metadata: null,
     });
 
-    return {
-      ...row,
-      verificationStatus: row.verificationStatus as any,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    };
+    return this.mapSkillToDto(row);
   }
 
   public async deleteSkill(userId: string, id: string): Promise<void> {
@@ -650,12 +676,7 @@ export class CandidateService {
     const rows = await this.db.query.candidateLanguages.findMany({
       where: eq(candidateLanguages.userId, userId),
     });
-    return rows.map((r) => ({
-      ...r,
-      verificationStatus: r.verificationStatus as any,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    }));
+    return rows.map((r) => this.mapLanguageToDto(r));
   }
 
   public async createLanguage(
@@ -689,12 +710,7 @@ export class CandidateService {
       metadata: null,
     });
 
-    return {
-      ...row!,
-      verificationStatus: row!.verificationStatus as any,
-      createdAt: row!.createdAt.toISOString(),
-      updatedAt: row!.updatedAt.toISOString(),
-    };
+    return this.mapLanguageToDto(row!);
   }
 
   public async updateLanguage(
@@ -728,12 +744,7 @@ export class CandidateService {
       metadata: null,
     });
 
-    return {
-      ...row,
-      verificationStatus: row.verificationStatus as any,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    };
+    return this.mapLanguageToDto(row);
   }
 
   public async deleteLanguage(userId: string, id: string): Promise<void> {
@@ -758,12 +769,7 @@ export class CandidateService {
     const rows = await this.db.query.candidateCertifications.findMany({
       where: eq(candidateCertifications.userId, userId),
     });
-    return rows.map((r) => ({
-      ...r,
-      verificationStatus: r.verificationStatus as any,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    }));
+    return rows.map((r) => this.mapCertificationToDto(r));
   }
 
   public async createCertification(
@@ -801,12 +807,7 @@ export class CandidateService {
       metadata: null,
     });
 
-    return {
-      ...row!,
-      verificationStatus: row!.verificationStatus as any,
-      createdAt: row!.createdAt.toISOString(),
-      updatedAt: row!.updatedAt.toISOString(),
-    };
+    return this.mapCertificationToDto(row!);
   }
 
   public async updateCertification(
@@ -842,12 +843,7 @@ export class CandidateService {
       metadata: null,
     });
 
-    return {
-      ...row,
-      verificationStatus: row.verificationStatus as any,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    };
+    return this.mapCertificationToDto(row);
   }
 
   public async deleteCertification(userId: string, id: string): Promise<void> {
@@ -983,12 +979,7 @@ export class CandidateService {
       where: and(...conditions),
       orderBy: [desc(candidateFacts.createdAt)],
     });
-    return rows.map((r) => ({
-      ...r,
-      verificationStatus: r.verificationStatus as any,
-      createdAt: r.createdAt.toISOString(),
-      updatedAt: r.updatedAt.toISOString(),
-    }));
+    return rows.map((r) => this.mapFactToDto(r));
   }
 
   public async createFact(
@@ -1032,12 +1023,7 @@ export class CandidateService {
       metadata: { factKey: row!.factKey, category: row!.category },
     });
 
-    return {
-      ...row!,
-      verificationStatus: row!.verificationStatus as any,
-      createdAt: row!.createdAt.toISOString(),
-      updatedAt: row!.updatedAt.toISOString(),
-    };
+    return this.mapFactToDto(row!);
   }
 
   public async updateFact(
@@ -1089,12 +1075,7 @@ export class CandidateService {
       metadata: { factKey: row.factKey, category: row.category },
     });
 
-    return {
-      ...row,
-      verificationStatus: row.verificationStatus as any,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    };
+    return this.mapFactToDto(row);
   }
 
   public async deleteFact(userId: string, id: string): Promise<void> {
@@ -1388,11 +1369,7 @@ export class CandidateService {
       where: eq(jobPreferences.userId, userId),
     });
     if (!row) return null;
-    return {
-      ...row,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
-    };
+    return this.mapPreferencesToDto(row);
   }
 
   public async upsertPreferences(
@@ -1428,11 +1405,7 @@ export class CandidateService {
         })
         .where(eq(jobPreferences.userId, userId))
         .returning();
-      result = {
-        ...updated!,
-        createdAt: updated!.createdAt.toISOString(),
-        updatedAt: updated!.updatedAt.toISOString(),
-      };
+      result = this.mapPreferencesToDto(updated!);
     } else {
       const [created] = await this.db
         .insert(jobPreferences)
@@ -1456,11 +1429,7 @@ export class CandidateService {
           customPreferences: data.customPreferences ?? null,
         })
         .returning();
-      result = {
-        ...created!,
-        createdAt: created!.createdAt.toISOString(),
-        updatedAt: created!.updatedAt.toISOString(),
-      };
+      result = this.mapPreferencesToDto(created!);
     }
 
     await this.recordAudit({

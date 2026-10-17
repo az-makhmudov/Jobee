@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, boolean, integer } from 'drizzle-orm/pg-core';
 import { users } from './users.js';
 
 export const candidateLanguages = pgTable('candidate_languages', {
@@ -11,6 +11,13 @@ export const candidateLanguages = pgTable('candidate_languages', {
   cefrLevel: text('cefr_level'), // Optional CEFR e.g. B2, C1, C2
   notes: text('notes'),
   verificationStatus: text('verification_status').default('UNVERIFIED').notNull(),
+  sourceReference: text('source_reference'),
+  sourceEntityId: text('source_entity_id'),
+  allowAiUse: boolean('allow_ai_use').default(false).notNull(),
+  confidence: integer('confidence'),
+  lastConfirmedAt: timestamp('last_confirmed_at', { withTimezone: true, mode: 'date' }),
+  hasContradiction: boolean('has_contradiction').default(false).notNull(),
+  contradictionDetails: text('contradiction_details'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
     .defaultNow()

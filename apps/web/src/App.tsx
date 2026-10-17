@@ -12,6 +12,7 @@ import { ApplicationsCrmView } from './components/ApplicationsCrmView.js';
 import { ApplicationDetailView } from './components/ApplicationDetailView.js';
 import { ApplicationPackagesListView } from './components/ApplicationPackagesListView.js';
 import { ApplicationStudioView } from './components/ApplicationStudioView.js';
+import { CareerIntelligenceView } from './components/CareerIntelligenceView.js';
 import { ApprovalsInboxView } from './components/ApprovalsInboxView.js';
 import { EmailIntelligenceView } from './components/EmailIntelligenceView.js';
 import { InterviewWorkspaceView } from './components/InterviewWorkspaceView.js';
@@ -24,6 +25,7 @@ import { PilotInvitationsModal } from './components/PilotInvitationsModal.js';
 export type NavSection =
   | 'dashboard'
   | 'profile'
+  | 'career-intelligence'
   | 'documents'
   | 'answers'
   | 'preferences'
@@ -101,6 +103,7 @@ export default function App() {
   const navItems: { id: NavSection; label: string; tag?: string }[] = [
     { id: 'dashboard', label: 'Dashboard' },
     { id: 'profile', label: 'Candidate Profile', tag: 'Brain' },
+    { id: 'career-intelligence', label: 'Career Intelligence', tag: '2.0' },
     { id: 'documents', label: 'Document Vault', tag: 'Files' },
     { id: 'answers', label: 'Answer Library', tag: 'Rules' },
     { id: 'preferences', label: 'Preferences & Policy', tag: 'Safety' },
@@ -383,6 +386,8 @@ export default function App() {
         {currentSection === 'profile' && (
           <ProfileView initialTab={profileTab} onUpdate={() => setRefreshKey((k) => k + 1)} />
         )}
+
+        {currentSection === 'career-intelligence' && <CareerIntelligenceView />}
 
         {currentSection === 'documents' && (
           <DocumentsView onUpdate={() => setRefreshKey((k) => k + 1)} />

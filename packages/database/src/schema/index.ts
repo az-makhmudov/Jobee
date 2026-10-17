@@ -51,3 +51,5 @@ export * from './auth.js';
 export * from './pilot-invitations.js';
 export * from './profile-import-sessions.js';
 export * from './profile-import-items.js';
+export * from './candidate-job-feedback.js';
+export * from './candidate-intelligence-suggestions.js';

@@ -14,7 +14,7 @@ import {
   jobPreferences,
   applicationPolicy,
 } from '@job-agent/database';
-import { CandidateEvidenceItemDto } from '@job-agent/shared';
+import { CandidateEvidenceItemDto, LearnedPreferencesDto } from '@job-agent/shared';
 import { AiCandidateContext } from '../ai/types.js';
 
 export interface CandidateMatchingContext {
@@ -30,6 +30,8 @@ export interface CandidateMatchingContext {
   projects: schema.CandidateProject[];
   verifiedFacts: schema.CandidateFact[]; // strictly verified & allowAiUse = true
   allCandidateFacts: schema.CandidateFact[];
+  transferableCapabilities: string[];
+  learnedPreferences: LearnedPreferencesDto | null;
   evidenceMap: Map<string, CandidateEvidenceItemDto>;
   aiContext: AiCandidateContext;
   candidateStateHash: string;
@@ -186,8 +188,27 @@ export class MatchingContextBuilder {
       })),
     };
 
+    // Aggregate transferable capabilities
+    const transferableSet = new Set<string>();
+    if (Array.isArray(profile?.transferableCapabilities)) {
+      for (const cap of profile.transferableCapabilities as string[]) transferableSet.add(cap);
+    }
+    for (const e of expRows) {
+      if (Array.isArray(e.transferableCapabilities)) {
+        for (const cap of e.transferableCapabilities as string[]) transferableSet.add(cap);
+      }
+    }
+    for (const s of skillRows) {
+      if (Array.isArray(s.transferableCapabilities)) {
+        for (const cap of s.transferableCapabilities as string[]) transferableSet.add(cap);
+      }
+    }
+
+    const learnedPreferences = (preferences?.learnedPreferences as LearnedPreferencesDto) || null;
+
     // Deterministic state hash for staleness detection
     const hash = crypto.createHash('sha256');
+    hash.update('v2.0.0:');
     hash.update(profile?.updatedAt?.toISOString() ?? 'none');
     hash.update(preferences?.updatedAt?.toISOString() ?? 'none');
     hash.update(policy?.updatedAt?.toISOString() ?? 'none');
@@ -214,6 +235,8 @@ export class MatchingContextBuilder {
       projects: projectRows,
       verifiedFacts,
       allCandidateFacts: factRows,
+      transferableCapabilities: Array.from(transferableSet),
+      learnedPreferences,
       evidenceMap,
       aiContext,
       candidateStateHash,

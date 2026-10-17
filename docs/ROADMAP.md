@@ -160,3 +160,17 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
 
 - **Status**: COMPLETED
 - **Scope**: Implemented intelligent Candidate Profile creation and enrichment using uploaded CVs (PDF & DOCX) and LinkedIn profile exports. DocumentTextExtractor with format auto-detection and control-character stripping. SmartProfileExtractor powered by Google Gemini AI with strict zero-hallucination guardrails and sourceReference citations, complemented by a deterministic heuristic fallback parser for users declining AI consent. ProfileComparisonEngine featuring 6-way classification (MATCHED, DUPLICATE, NEW, CONFLICT, INCOMPLETE, LOW_CONFIDENCE). SmartProfileImportService providing transactional session management, human-in-the-loop review, conflict resolution, selective commit into Candidate Brain (isVerified: false initially per Prime Directive, separate AI authorization toggle), full audit trail (candidate_audit_events), and automatic profile completeness recalculation. Multi-step interactive SmartProfileImportModal in frontend, integrated into Dashboard, Profile, and Documents views.
+
+### `JOB-CAREER-INTEL-2.0 — Candidate Brain & AI Career Intelligence 2.0 Platform`
+
+- **Status**: COMPLETED
+- **Scope**: Transformed Jobee from a CV-based job matching system into an AI-powered personal career intelligence platform. Implemented Phase A–I across all layers:
+  - Extended Candidate Brain with rich intelligence (transferable capabilities, verification provenance, AI permission flags, source references, last confirmed dates, contradiction tracking).
+  - Migration `0021_career_intelligence_2.sql` with new tables `candidate_job_feedback` and `candidate_intelligence_suggestions`.
+  - `CareerIntelligenceEnrichmentService` proposing transferable skills, career paths, and missing details gated behind human approval.
+  - `CandidateIntelligenceContextBuilder` with deterministic SHA-256 state hashing and privacy-minimized context selection strictly gating on verified and authorized claims.
+  - `MatchingScoringEngine` evaluating 6 Career Fit Categories (`STRONG_MATCH`, `GOOD_MATCH`, `TRANSFERABLE_SKILLS_MATCH`, `GROWTH_OPPORTUNITY`, `NOT_CURRENTLY_ELIGIBLE`, `INSUFFICIENT_INFORMATION`) with deterministic hard blocker enforcement and dynamic learned preference adjustments.
+  - `CandidateJobFeedbackService` supporting 7 user feedback types (`INTERESTED`, `NOT_INTERESTED`, `IRRELEVANT`, `ALREADY_APPLIED`, `TOO_SENIOR`, `WRONG_LOCATION`, `WRONG_INDUSTRY`) with inspectable and reset-able preference weights.
+  - Dedicated React 19 UI: `CareerIntelligenceView.tsx`, `CareerFitBadge.tsx`, `JobFeedbackBar.tsx`, integrated into Job Inbox, Job Detail, and navigation.
+  - Multi-tenant isolated test suite `career-intelligence.test.ts` (12 integration tests) and 100% clean quality gates (59 test suites, 527 tests, 0 lint/typecheck errors, clean Vite production build, authentic seed candidate data verified with 0 synthetic records).
+

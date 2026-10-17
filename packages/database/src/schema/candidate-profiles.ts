@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, integer, jsonb } from 'drizzle-orm/pg-core';
 import { users } from './users.js';
 
 export const candidateProfiles = pgTable('candidate_profiles', {
@@ -17,6 +17,10 @@ export const candidateProfiles = pgTable('candidate_profiles', {
   country: text('country'),
   summary: text('summary'),
   availability: text('availability'),
+  careerStage: text('career_stage'), // 'STUDENT' | 'ENTRY' | 'MID' | 'SENIOR' | 'LEAD' | 'TRANSITIONING'
+  targetSalary: integer('target_salary'),
+  targetSalaryCurrency: text('target_salary_currency').default('USD'),
+  transferableCapabilities: jsonb('transferable_capabilities').$type<string[]>().default([]),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
     .defaultNow()

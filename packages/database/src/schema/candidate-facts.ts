@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, boolean, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, boolean, integer, jsonb } from 'drizzle-orm/pg-core';
 import { users } from './users.js';
 
 export const CandidateFactVerificationStatuses = {
@@ -36,6 +36,11 @@ export const candidateFacts = pgTable('candidate_facts', {
   sourceEntityId: text('source_entity_id'),
   verificationStatus: text('verification_status').default('UNVERIFIED').notNull(),
   allowAiUse: boolean('allow_ai_use').default(false).notNull(), // Must be explicitly allowed
+  confidence: integer('confidence'),
+  lastConfirmedAt: timestamp('last_confirmed_at', { withTimezone: true, mode: 'date' }),
+  hasContradiction: boolean('has_contradiction').default(false).notNull(),
+  contradictionDetails: text('contradiction_details'),
+  sources: jsonb('sources').$type<string[]>().default([]),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
     .defaultNow()

@@ -41,7 +41,7 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
     availability: 'IMMEDIATE',
     createdAt: new Date(),
     updatedAt: new Date(),
-  };
+  } as CandidateProfile;
 
   const dummyExperiences: CandidateExperience[] = [
     {
@@ -63,7 +63,7 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       verificationStatus: 'VERIFIED',
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
+    } as any,
   ];
 
   const dummyEducation: CandidateEducation[] = [
@@ -83,7 +83,7 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       verificationStatus: 'VERIFIED',
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
+    } as any,
   ];
 
   const dummySkills: CandidateSkill[] = [
@@ -98,7 +98,7 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       verificationStatus: 'VERIFIED',
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
+    } as any,
     {
       id: 'skill-2',
       userId: dummyProfile.userId,
@@ -110,7 +110,7 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       verificationStatus: 'VERIFIED',
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
+    } as any,
   ];
 
   const dummyLanguages: CandidateLanguage[] = [
@@ -124,7 +124,7 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       verificationStatus: 'VERIFIED',
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
+    } as any,
   ];
 
   const dummyCertifications: CandidateCertification[] = [
@@ -140,7 +140,7 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       verificationStatus: 'VERIFIED',
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
+    } as any,
   ];
 
   const dummyProjects: CandidateProject[] = [
@@ -160,7 +160,7 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       verificationStatus: 'VERIFIED',
       createdAt: new Date(),
       updatedAt: new Date(),
-    },
+    } as any,
   ];
 
   const dummyLinks: CandidateLink[] = [
@@ -399,7 +399,7 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
             verificationStatus: 'VERIFIED',
             createdAt: new Date(),
             updatedAt: new Date(),
-          },
+          } as any,
         ],
         skills: [
           {
@@ -413,7 +413,7 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
             verificationStatus: 'VERIFIED',
             createdAt: new Date(),
             updatedAt: new Date(),
-          },
+          } as any,
           {
             id: 'skill-pm2',
             userId: dummyProfile.userId,
@@ -425,7 +425,7 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
             verificationStatus: 'VERIFIED',
             createdAt: new Date(),
             updatedAt: new Date(),
-          },
+          } as any,
         ],
       };
 
@@ -509,7 +509,7 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       customPreferences: null,
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    } as any;
 
     it('Level 1: resolves non-sensitive verified AUTO answer without approval needed', () => {
       const res = ApplicationQuestionEngine.resolveQuestion(

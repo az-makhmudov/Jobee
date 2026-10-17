@@ -50,6 +50,9 @@ import { JobDiscoveryService } from './services/job-discovery-service.js';
 import { createSettingsRoutes } from './routes/settings-routes.js';
 import { SmartProfileImportService } from './services/import/smart-profile-import-service.js';
 import { createCandidateImportRoutes } from './routes/candidate-import-routes.js';
+import { createCareerIntelligenceRoutes } from './routes/career-intelligence-routes.js';
+import { CareerIntelligenceEnrichmentService } from './services/career-intelligence/career-intelligence-enrichment-service.js';
+import { CandidateJobFeedbackService } from './services/career-intelligence/candidate-job-feedback-service.js';
 
 export interface AppOptions {
   config: AppConfig;
@@ -194,6 +197,23 @@ export function buildApp(options: AppOptions): FastifyInstance {
         prefix: '/api',
       });
       app.register(createCandidateImportRoutes(smartImportService, linkedInConfig));
+    }
+
+    if (db) {
+      const storage = options.storage ?? createStorageProvider(config);
+      const careerEnrichmentService = new CareerIntelligenceEnrichmentService(
+        db,
+        aiProvider,
+        storage,
+      );
+      const careerFeedbackService = new CandidateJobFeedbackService(db);
+      app.register(
+        createCareerIntelligenceRoutes(db, careerEnrichmentService, careerFeedbackService),
+        { prefix: '/api' },
+      );
+      app.register(
+        createCareerIntelligenceRoutes(db, careerEnrichmentService, careerFeedbackService),
+      );
     }
   }
 

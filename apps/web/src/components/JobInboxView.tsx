@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { jobApi } from '../api/job-client.js';
 import { AddJobModal } from './AddJobModal.js';
+import { CareerFitBadge } from './CareerFitBadge.js';
 import type {
   JobSummaryDto,
   JobState,
@@ -477,6 +478,14 @@ export function JobInboxView({ onSelectJob }: Props) {
                       <td style={{ padding: '1rem' }}>
                         {job.matchSummary ? (
                           <div>
+                            {job.matchSummary.careerFitCategory && (
+                              <div style={{ marginBottom: '0.3rem' }}>
+                                <CareerFitBadge
+                                  category={job.matchSummary.careerFitCategory}
+                                  size="sm"
+                                />
+                              </div>
+                            )}
                             <div
                               style={{
                                 display: 'flex',

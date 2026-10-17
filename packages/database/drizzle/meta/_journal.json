@@ -148,6 +148,13 @@
       "when": 1792045000000,
       "tag": "0020_conflict_resolution",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792050000000,
+      "tag": "0021_career_intelligence_2",
+      "breakpoints": true
     }
   ]
 }

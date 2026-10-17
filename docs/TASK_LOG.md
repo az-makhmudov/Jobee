@@ -1637,3 +1637,57 @@ This document tracks execution history and verification state for all official m
       - 58 test files (515/515 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean.
       - Production candidate data remains 100% untouched awaiting explicit owner confirmation.
 
+---
+
+### `JOB-CAREER-INTEL-2.0` — Candidate Brain & AI Career Intelligence 2.0
+
+- **Status**: COMPLETED
+- **Completed**: 2026-10-17
+- **Prime Directive Invariant**: *"AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable."*
+- **Scope & Delivery Summary**:
+  - **Phase A — Architecture Audit**:
+    - Reused PostgreSQL Candidate Brain entities, `HardPolicyEngine`, `MatchingContextBuilder`, `MatchingScoringEngine`, Application Studio, and privacy-preserving audit events.
+  - **Phase B & C — Rich Candidate Intelligence & Evidence**:
+    - Generated and applied Drizzle migration `0021_career_intelligence_2.sql`.
+    - Added tables `candidate_job_feedback` and `candidate_intelligence_suggestions`.
+    - Extended `candidate_profiles`, `candidate_experiences`, `candidate_skills`, `candidate_education`, `candidate_certifications`, `candidate_projects`, `candidate_languages`, `candidate_facts`, `job_preferences`, and `job_match_analyses` with transferable capabilities, verification status, AI permission flags, source references, entity IDs, last confirmed timestamps, and contradiction tracking.
+  - **Phase D — Intelligent Profile Enrichment**:
+    - Implemented `CareerIntelligenceEnrichmentService` in `apps/api/src/services/career-intelligence/career-intelligence-enrichment-service.ts`.
+    - Evaluates candidate documents and verified profile data to propose transferable skills, career paths, and missing details.
+    - Suggestions are strictly gated behind human approval (`PENDING`, `APPROVED`, `DISMISSED`) with full audit event logging.
+  - **Phase E — Trusted AI Context Builder**:
+    - Implemented `CandidateIntelligenceContextBuilder` in `apps/api/src/services/career-intelligence/candidate-intelligence-context-builder.ts`.
+    - Builds dynamic, PostgreSQL-grounded context with deterministic SHA-256 `candidateStateHash` for cache invalidation.
+    - Strips PII and enforces strict gating: only claims with `verificationStatus === 'VERIFIED'` and `allowAiUse === true` are passed to generative AI.
+  - **Phase F — Intelligent Job Matching & 6 Career Fit Categories**:
+    - Enhanced `MatchingScoringEngine` and `MatchingContextBuilder` to evaluate 6 distinct `CareerFitCategory` values:
+      1. `STRONG_MATCH`: High alignment with verified qualifications, seniority, and preferences.
+      2. `GOOD_MATCH`: Solid profile alignment with minor differences.
+      3. `TRANSFERABLE_SKILLS_MATCH`: Verified transferable capabilities translate strongly into role.
+      4. `GROWTH_OPPORTUNITY`: Stretch role offering career advancement.
+      5. `NOT_CURRENTLY_ELIGIBLE`: Excluded by hard policy blockers (sponsorship, location, salary).
+      6. `INSUFFICIENT_INFORMATION`: Missing key candidate preferences or job posting details.
+    - Enforced deterministic hard blocker policy without AI bypass.
+  - **Phase G — Learning from User Feedback**:
+    - Implemented `CandidateJobFeedbackService` in `apps/api/src/services/career-intelligence/candidate-job-feedback-service.ts`.
+    - Captures 7 feedback types: `INTERESTED`, `NOT_INTERESTED`, `IRRELEVANT`, `ALREADY_APPLIED`, `TOO_SENIOR`, `WRONG_LOCATION`, `WRONG_INDUSTRY`.
+    - Dynamically updates learned preference weights (`downvotedIndustries`, `downvotedLocations`, `downvotedCompanies`, `tooSeniorCount`) to adjust ranking scores.
+    - Invariant strictly maintained: Inferred preferences adjust scoring weights but are NEVER treated as permanent candidate facts; users can inspect, update, and reset learned preferences at any time.
+  - **Phase H — User Interface**:
+    - Created `CareerIntelligenceView.tsx`: Dedicated dashboard with "What Jobee Knows" (ground truth), "What Jobee Needs to Clarify" (interactive inline answers for visa sponsorship, target salary, availability, countries), "AI Suggestions & Discovered Capabilities" (review cards with [Approve]/[Dismiss]), and "Learned Career Preferences" (downvoted lists with [Reset]).
+    - Created `CareerFitBadge.tsx`: Visual badge component with color-coding and icons for the 6 career fit categories.
+    - Created `JobFeedbackBar.tsx`: Accessible 7-button feedback bar with active status highlighting and notes support.
+    - Updated `JobInboxView.tsx`: Displays `CareerFitBadge` in the Match Decision column.
+    - Updated `JobDetailView.tsx`: Integrates `JobFeedbackBar` into header and `CareerFitBadge` into KPI scorecard.
+    - Updated `App.tsx`: Registered `career-intelligence` navigation item and view routing.
+  - **Phase I — Validation & Multi-Tenant Isolation**:
+    - Automated test suite `career-intelligence.test.ts` (12 integration tests) covering state hash computation, context invalidation, enrichment suggestion lifecycle, feedback learning and reset, career fit categorization, hard blocker invariance, and strict cross-user multi-tenant isolation.
+    - Verified data integrity on production primary candidate (`00000000-0000-0000-0000-000000000001`): 28 authentic records, 0 synthetic records.
+- **Verification Records**:
+  - `npm run lint`: PASSED (0 errors, 643 warnings across monorepo)
+  - `npm run typecheck`: PASSED (all 6 workspaces: shared, config, database, api, worker, web cleanly typechecked with 0 errors)
+  - `npm run test`: PASSED (59 test files, 527/527 tests passing cleanly)
+  - `npm run build`: PASSED (all packages built to dist, Vite production bundle completed in 1.27s)
+  - `npx tsx scripts/audit-candidate-brain.ts`: PASSED (28 confirmed authentic, 0 synthetic records)
+
+

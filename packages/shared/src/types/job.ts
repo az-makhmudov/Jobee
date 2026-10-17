@@ -373,6 +373,18 @@ export interface JobMatchDimensionDto {
   createdAt: string;
 }
 
+export const CareerFitCategories = {
+  STRONG_MATCH: 'STRONG_MATCH',
+  GOOD_MATCH: 'GOOD_MATCH',
+  TRANSFERABLE_SKILLS_MATCH: 'TRANSFERABLE_SKILLS_MATCH',
+  GROWTH_OPPORTUNITY: 'GROWTH_OPPORTUNITY',
+  NOT_CURRENTLY_ELIGIBLE: 'NOT_CURRENTLY_ELIGIBLE',
+  INSUFFICIENT_INFORMATION: 'INSUFFICIENT_INFORMATION',
+} as const;
+
+export type CareerFitCategory =
+  (typeof CareerFitCategories)[keyof typeof CareerFitCategories];
+
 export interface JobMatchAnalysisDto {
   id: string;
   jobId: string;
@@ -380,6 +392,7 @@ export interface JobMatchAnalysisDto {
   overallScore: number;
   confidenceScore: number;
   decision: MatchDecision;
+  careerFitCategory?: CareerFitCategory | null;
   autoApplyEligible: boolean;
   analysisMode: MatchAnalysisMode;
   algorithmVersion: string;
@@ -392,6 +405,9 @@ export interface JobMatchAnalysisDto {
   unknowns: string[];
   warnings: string[];
   hardBlockers: string[];
+  transferableSkills?: string[];
+  learnedRankingAdjustment?: number;
+  learnedAdjustmentReason?: string | null;
   reasonCodes: string[];
   summaryExplanation: string;
   dimensions?: JobMatchDimensionDto[];
@@ -404,6 +420,7 @@ export interface JobMatchSummaryDto {
   overallScore: number;
   confidenceScore: number;
   decision: MatchDecision;
+  careerFitCategory?: CareerFitCategory | null;
   isStale: boolean;
   analysisMode: MatchAnalysisMode;
   analyzedAt: string;

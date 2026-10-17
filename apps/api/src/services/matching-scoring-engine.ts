@@ -1,6 +1,7 @@
 import { Job } from '@job-agent/database';
 import {
   MatchDecision,
+  CareerFitCategory,
   DimensionType,
   DimensionStatus,
   DIMENSION_DEFAULT_WEIGHTS,
@@ -25,6 +26,7 @@ export interface MatchScoringResult {
   overallScore: number;
   confidenceScore: number;
   decision: MatchDecision;
+  careerFitCategory: CareerFitCategory;
   autoApplyEligible: boolean;
   algorithmVersion: string;
   dimensions: DimensionScoreResult[];
@@ -33,6 +35,9 @@ export interface MatchScoringResult {
   unknowns: string[];
   warnings: string[];
   hardBlockers: string[];
+  transferableSkills: string[];
+  learnedRankingAdjustment: number;
+  learnedAdjustmentReason: string | null;
   reasonCodes: DecisionReasonCode[];
   summaryExplanation: string;
 }
@@ -153,6 +158,13 @@ export class MatchingScoringEngine {
     // Bound overall score between 0 and 100
     overallScore = Math.min(100, Math.max(0, overallScore));
 
+    // Role fit safeguard: If candidate target roles are configured and role fit is very poor (< 30%),
+    // cap the composite score so non-matching careers are not recommended based purely on location/language
+    if (roleFit.status === 'SCORED' && roleFit.score !== null && roleFit.score < 30) {
+      overallScore = Math.min(overallScore, 40);
+      gaps.push(`Role title '${job.title}' does not align with candidate target or adjacent roles (${roleFit.score}%)`);
+    }
+
     // Compute Confidence Score
     const confidenceScore = this.calculateConfidenceScore(
       job,
@@ -225,10 +237,80 @@ export class MatchingScoringEngine {
       }`;
     }
 
+    // Evaluate transferable capabilities overlap with job requirements
+    const transferableSkills: string[] = [];
+    const candidateCaps = context.transferableCapabilities || [];
+    const jobText = `${job.title} ${job.description}`.toLowerCase();
+    for (const cap of candidateCaps) {
+      if (jobText.includes(cap.toLowerCase()) && !transferableSkills.includes(cap)) {
+        transferableSkills.push(cap);
+      }
+    }
+    if (transferableSkills.length > 0) {
+      strengths.push(
+        `Candidate possesses ${transferableSkills.length} transferable capability(ies) relevant to role: ${transferableSkills.slice(0, 3).join(', ')}`,
+      );
+    }
+
+    // Evaluate Learned Ranking Adjustments from User Feedback
+    let learnedRankingAdjustment = 0;
+    let learnedAdjustmentReason: string | null = null;
+    const learned = context.learnedPreferences;
+    if (learned) {
+      const downvotedInds = learned.downvotedIndustries || [];
+      const downvotedLocs = learned.downvotedLocations || [];
+      const downvotedComps = learned.downvotedCompanies || [];
+      const dept = (job.department || '').toLowerCase();
+      const title = job.title.toLowerCase();
+      const loc = `${job.city || ''} ${job.country || ''} ${job.locationText || ''}`.toLowerCase();
+      const comp = job.company.toLowerCase();
+
+      if (downvotedInds.some((i) => dept.includes(i.toLowerCase()) || title.includes(i.toLowerCase()))) {
+        learnedRankingAdjustment -= 15;
+        learnedAdjustmentReason = 'Adjusted based on learned feedback: role matches an industry you previously marked as Wrong Industry.';
+      } else if (downvotedLocs.some((l) => loc.includes(l.toLowerCase()))) {
+        learnedRankingAdjustment -= 15;
+        learnedAdjustmentReason = 'Adjusted based on learned feedback: location matches a region you previously marked as Wrong Location.';
+      } else if (downvotedComps.some((c) => comp.includes(c.toLowerCase()))) {
+        learnedRankingAdjustment -= 20;
+        learnedAdjustmentReason = 'Adjusted based on learned feedback: company matches an organization you previously marked as Not Interested.';
+      } else if (
+        (job.seniority === 'SENIOR' || job.seniority === 'LEAD') &&
+        (learned.tooSeniorCount || 0) >= 2
+      ) {
+        learnedRankingAdjustment -= 15;
+        learnedAdjustmentReason = 'Adjusted based on learned feedback: seniority matches level you previously marked as Too Senior.';
+      }
+    }
+
+    if (learnedRankingAdjustment !== 0) {
+      overallScore = Math.max(0, Math.min(100, overallScore + learnedRankingAdjustment));
+      warnings.push(`Learned ranking adjustment applied: ${learnedAdjustmentReason}`);
+    }
+
+    // Determine CareerFitCategory
+    let careerFitCategory: CareerFitCategory;
+    if (hardPolicy.hasBlockers) {
+      careerFitCategory = 'NOT_CURRENTLY_ELIGIBLE';
+    } else if (hardPolicy.missingSensitiveInfo || confidenceScore < 50) {
+      careerFitCategory = 'INSUFFICIENT_INFORMATION';
+    } else if (overallScore >= 80 && (roleFit.score ?? 50) >= 70) {
+      careerFitCategory = 'STRONG_MATCH';
+    } else if (overallScore >= 68 && (roleFit.score ?? 50) >= 50) {
+      careerFitCategory = 'GOOD_MATCH';
+    } else if (transferableSkills.length >= 2 || (transferableSkills.length >= 1 && overallScore >= 55)) {
+      careerFitCategory = 'TRANSFERABLE_SKILLS_MATCH';
+    } else if (overallScore >= 45 && (roleFit.score ?? 50) >= 35) {
+      careerFitCategory = 'GROWTH_OPPORTUNITY';
+    } else {
+      careerFitCategory = 'NOT_CURRENTLY_ELIGIBLE';
+    }
+
     return {
       overallScore,
       confidenceScore,
       decision,
+      careerFitCategory,
       autoApplyEligible,
       algorithmVersion: MATCH_ALGORITHM_VERSION,
       dimensions,
@@ -237,6 +319,9 @@ export class MatchingScoringEngine {
       unknowns,
       warnings,
       hardBlockers: hardPolicy.blockers,
+      transferableSkills,
+      learnedRankingAdjustment,
+      learnedAdjustmentReason,
       reasonCodes,
       summaryExplanation,
     };

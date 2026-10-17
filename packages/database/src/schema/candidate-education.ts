@@ -15,8 +15,16 @@ export const candidateEducation = pgTable('candidate_education', {
   location: text('location'),
   description: text('description'),
   activities: text('activities'),
+  honors: text('honors'),
   displayOrder: integer('display_order').default(0).notNull(),
   verificationStatus: text('verification_status').default('UNVERIFIED').notNull(),
+  sourceReference: text('source_reference'),
+  sourceEntityId: text('source_entity_id'),
+  allowAiUse: boolean('allow_ai_use').default(false).notNull(),
+  confidence: integer('confidence'),
+  lastConfirmedAt: timestamp('last_confirmed_at', { withTimezone: true, mode: 'date' }),
+  hasContradiction: boolean('has_contradiction').default(false).notNull(),
+  contradictionDetails: text('contradiction_details'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
     .defaultNow()

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { jobApi } from '../api/job-client.js';
 import { applicationPackageClient } from '../api/application-package-client.js';
 import { ApplicationCrmClient } from '../api/application-crm-client.js';
+import { CareerFitBadge } from './CareerFitBadge.js';
+import { JobFeedbackBar } from './JobFeedbackBar.js';
 import type {
   JobDto,
   UpdateJobRequest,
@@ -377,6 +379,17 @@ export function JobDetailView({
               </a>
             </div>
           )}
+        </div>
+
+        {/* Career Intelligence Feedback Bar */}
+        <div
+          style={{
+            marginTop: '1.25rem',
+            paddingTop: '1rem',
+            borderTop: '1px solid var(--surface-border)',
+          }}
+        >
+          <JobFeedbackBar jobId={job.id} />
         </div>
       </div>
 
@@ -829,6 +842,16 @@ export function JobDetailView({
                       : analysis.decision === 'REVIEW'
                         ? 'Requires human judgment'
                         : 'Blocked by policy or gaps'}
+                  </div>
+                </div>
+
+                <div className="status-item">
+                  <div className="status-item-label">Career Fit</div>
+                  <div style={{ marginTop: '0.45rem' }}>
+                    <CareerFitBadge category={analysis.careerFitCategory} />
+                  </div>
+                  <div className="status-item-meta" style={{ marginTop: '0.5rem' }}>
+                    Career Intelligence 2.0
                   </div>
                 </div>
 

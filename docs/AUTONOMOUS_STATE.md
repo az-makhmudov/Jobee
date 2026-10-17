@@ -12,11 +12,11 @@
 ## 1. Roadmap Snapshot
 
 - **Current Official Mode:** Autonomous Product Completion & Production Deployment
-- **Active Backlog Item:** `BL-19: COMPLETED` (`JOB-SMART-PROFILE-IMPORT` Candidate Brain Remediation Safety Revision — Record-Level Provenance Classifier, Transactional Remediation & Rollback Architecture, Isolated Rehearsal Verified; Awaiting Owner Approval)
-- **Milestone Status:** CANDIDATE BRAIN DATA REMEDIATION SAFETY REVISION COMPLETE (58/58 test files, 515/515 tests passing; record-level provenance classifier implemented eliminating blanket heuristic filters; transactional remediation service with atomic single-transaction execution, pre-remediation backup manifest generation, and deterministic non-destructive rollback; 5/5 rehearsal tests passing in isolated test suite; production candidate records 100% untouched; awaiting explicit owner approval before executing production remediation)
-- **Previous Completed Milestone:** `JOB-STUDIO-REPAIR`
-- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + STUDIO PACKAGE REPAIR FULLY VERIFIED + SMART PROFILE IMPORT HARDENED, QA REMEDIATED, REVIEW UI REPAIRED, UPLOAD STABILIZED, LINKEDIN QA, MULTI-SOURCE COMPARISON, CONFLICT RESOLUTION & SAFE MERGE FINALIZED + CANDIDATE DATA AUDITED, ISOLATED & REMEDIATION SAFETY ENGINE COMPLETED**
-- **Active Git Checkpoint:** `4f0468d` (`JOB-SMART-PROFILE-IMPORT`)
+- **Active Backlog Item:** `JOB-CAREER-INTEL-2.0: COMPLETED` (Candidate Brain & AI Career Intelligence 2.0 — Rich Intelligence Context, Transferable Capabilities, 6 Career Fit Categories, Dynamic User Feedback Learning, Dedicated UI & Quality Gates)
+- **Milestone Status:** CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 COMPLETE (59/59 test files, 527/527 tests passing; PostgreSQL migration 0021 applied; CandidateIntelligenceContextBuilder with deterministic SHA-256 state hash; CareerIntelligenceEnrichmentService with human-approved suggestions; MatchingScoringEngine with 6 CareerFitCategories; CandidateJobFeedbackService with 7 feedback types and dynamic ranking adjustments; CareerIntelligenceView, CareerFitBadge, JobFeedbackBar integrated in web app; 12/12 integration tests passing; 0 synthetic candidate records on production seed user)
+- **Previous Completed Milestone:** `JOB-SMART-PROFILE-IMPORT`
+- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + STUDIO PACKAGE REPAIR FULLY VERIFIED + SMART PROFILE IMPORT HARDENED + CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 DELIVERED**
+- **Active Git Checkpoint:** `JOB-CAREER-INTEL-2.0`
 
 ---
 
@@ -60,7 +60,8 @@
 | `JOB-AI-MGMT`              | AI Integration Repair, Gemini 3.8/3.5 Models & Resilient Failover  | COMPLETED     | Verified with live Google API (BL-16)            |
 | `JOB-E2E-WORKFLOW`         | End-to-End Workflow Verification & Stabilization (Phases A-K)      | COMPLETED     | Verified across all 11 phases (BL-17)            |
 | `JOB-STUDIO-REPAIR`        | Production Studio Repair: DOCX Generation, R2 Upload & Recovery    | COMPLETED     | Verified across all 11 phases (BL-18)            |
-| `JOB-SMART-PROFILE-IMPORT` | Smart Candidate Profile Creation & Enrichment via AI Extraction    | **COMPLETED** | `4dbc5e3` (BL-19)                                |
+| `JOB-SMART-PROFILE-IMPORT` | Smart Candidate Profile Creation & Enrichment via AI Extraction    | COMPLETED     | `4dbc5e3` (BL-19)                                |
+| `JOB-CAREER-INTEL-2.0`     | Candidate Brain & AI Career Intelligence 2.0 Platform              | **COMPLETED** | Verified (59/59 test suites, 527 tests, 0 errors) |
 
 ---
 
@@ -108,8 +109,8 @@
 ## 4. Current Quality & Build Status
 
 - **Database Connectivity:** `npm run db:check` -> PASSED (PostgreSQL connected, 39ms latency)
-- **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0020 up to date)
-- **Unit & Integration Tests:** `npm test` -> PASSED (56 test files, 499/499 tests passing)
+- **Database Migrations:** `npm run db:migrate` -> PASSED (0000 through 0021 up to date)
+- **Unit & Integration Tests:** `npm test` -> PASSED (59 test files, 527/527 tests passing)
 - **TypeScript Typecheck:** `npm run typecheck` -> PASSED (0 errors across monorepo)
 - **ESLint:** `npm run lint` -> PASSED (0 errors across codebase)
 - **Build:** `npm run build` -> PASSED (API, Worker, and Web SPA bundle compile cleanly)

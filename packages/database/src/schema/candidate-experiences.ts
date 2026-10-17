@@ -15,8 +15,19 @@ export const candidateExperiences = pgTable('candidate_experiences', {
   isCurrent: boolean('is_current').default(false).notNull(),
   description: text('description'),
   achievements: jsonb('achievements').$type<string[]>().default([]).notNull(),
+  responsibilities: jsonb('responsibilities').$type<string[]>().default([]),
+  skills: jsonb('skills').$type<string[]>().default([]),
+  industry: text('industry'),
+  transferableCapabilities: jsonb('transferable_capabilities').$type<string[]>().default([]),
   displayOrder: integer('display_order').default(0).notNull(),
   verificationStatus: text('verification_status').default('UNVERIFIED').notNull(), // 'UNVERIFIED' | 'VERIFIED' | 'REJECTED'
+  sourceReference: text('source_reference'),
+  sourceEntityId: text('source_entity_id'),
+  allowAiUse: boolean('allow_ai_use').default(false).notNull(),
+  confidence: integer('confidence'),
+  lastConfirmedAt: timestamp('last_confirmed_at', { withTimezone: true, mode: 'date' }),
+  hasContradiction: boolean('has_contradiction').default(false).notNull(),
+  contradictionDetails: text('contradiction_details'),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
     .defaultNow()

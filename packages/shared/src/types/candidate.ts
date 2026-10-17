@@ -38,6 +38,10 @@ export interface CandidateProfileDto {
   country: string | null;
   summary: string | null;
   availability: string | null;
+  careerStage?: string | null;
+  targetSalary?: number | null;
+  targetSalaryCurrency?: string | null;
+  transferableCapabilities?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -54,8 +58,19 @@ export interface CandidateExperienceDto {
   isCurrent: boolean;
   description: string | null;
   achievements: string[];
+  responsibilities?: string[];
+  skills?: string[];
+  industry?: string | null;
+  transferableCapabilities?: string[];
   displayOrder: number;
   verificationStatus: VerificationStatus;
+  sourceReference?: string | null;
+  sourceEntityId?: string | null;
+  allowAiUse?: boolean;
+  confidence?: number | null;
+  lastConfirmedAt?: string | null;
+  hasContradiction?: boolean;
+  contradictionDetails?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -72,8 +87,16 @@ export interface CandidateEducationDto {
   location: string | null;
   description: string | null;
   activities: string | null;
+  honors?: string | null;
   displayOrder: number;
   verificationStatus: VerificationStatus;
+  sourceReference?: string | null;
+  sourceEntityId?: string | null;
+  allowAiUse?: boolean;
+  confidence?: number | null;
+  lastConfirmedAt?: string | null;
+  hasContradiction?: boolean;
+  contradictionDetails?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -92,6 +115,13 @@ export interface CandidateProjectDto {
   isActive: boolean;
   displayOrder: number;
   verificationStatus: VerificationStatus;
+  sourceReference?: string | null;
+  sourceEntityId?: string | null;
+  allowAiUse?: boolean;
+  confidence?: number | null;
+  lastConfirmedAt?: string | null;
+  hasContradiction?: boolean;
+  contradictionDetails?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -104,7 +134,16 @@ export interface CandidateSkillDto {
   proficiency: string | null;
   yearsExperience: number | null;
   isActive: boolean;
+  isTool?: boolean;
+  transferableCapabilities?: string[];
   verificationStatus: VerificationStatus;
+  sourceReference?: string | null;
+  sourceEntityId?: string | null;
+  allowAiUse?: boolean;
+  confidence?: number | null;
+  lastConfirmedAt?: string | null;
+  hasContradiction?: boolean;
+  contradictionDetails?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -117,6 +156,13 @@ export interface CandidateLanguageDto {
   cefrLevel: string | null;
   notes: string | null;
   verificationStatus: VerificationStatus;
+  sourceReference?: string | null;
+  sourceEntityId?: string | null;
+  allowAiUse?: boolean;
+  confidence?: number | null;
+  lastConfirmedAt?: string | null;
+  hasContradiction?: boolean;
+  contradictionDetails?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -131,6 +177,13 @@ export interface CandidateCertificationDto {
   credentialId: string | null;
   credentialUrl: string | null;
   verificationStatus: VerificationStatus;
+  sourceReference?: string | null;
+  sourceEntityId?: string | null;
+  allowAiUse?: boolean;
+  confidence?: number | null;
+  lastConfirmedAt?: string | null;
+  hasContradiction?: boolean;
+  contradictionDetails?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -156,6 +209,11 @@ export interface CandidateFactDto {
   sourceEntityId: string | null;
   verificationStatus: VerificationStatus;
   allowAiUse: boolean;
+  confidence?: number | null;
+  lastConfirmedAt?: string | null;
+  hasContradiction?: boolean;
+  contradictionDetails?: string | null;
+  sources?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -193,11 +251,26 @@ export interface AnswerLibraryEntryDto {
   updatedAt: string;
 }
 
+export interface LearnedPreferencesDto {
+  downvotedIndustries: string[];
+  downvotedLocations: string[];
+  downvotedCompanies: string[];
+  tooSeniorCount: number;
+  tooJuniorCount: number;
+  feedbackCounts: Record<string, number>;
+  lastUpdated?: string;
+}
+
 export interface JobPreferencesDto {
   id: string;
   userId: string;
   targetTitles: string[];
   targetCategories: string[];
+  adjacentRoles?: string[];
+  preferredIndustries?: string[];
+  careerTransitions?: string[];
+  longTermGoals?: string | null;
+  developmentPriorities?: string[];
   preferredLocations: string[];
   workModes: string[];
   employmentTypes: string[];
@@ -211,7 +284,11 @@ export interface JobPreferencesDto {
   acceptUnpaid: boolean;
   willingToRelocate: boolean | null;
   needsSponsorship: boolean | null;
+  workAuthorizationCountries?: string[];
+  internshipEligible?: boolean | null;
+  availability?: string | null;
   customPreferences: unknown | null;
+  learnedPreferences?: LearnedPreferencesDto | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -269,6 +346,101 @@ export interface CandidateAuditEventDto {
   changedFields: string[];
   metadata: Record<string, unknown> | null;
   createdAt: string;
+}
+
+export const CandidateJobFeedbackTypes = {
+  INTERESTED: 'INTERESTED',
+  NOT_INTERESTED: 'NOT_INTERESTED',
+  IRRELEVANT: 'IRRELEVANT',
+  ALREADY_APPLIED: 'ALREADY_APPLIED',
+  TOO_SENIOR: 'TOO_SENIOR',
+  WRONG_LOCATION: 'WRONG_LOCATION',
+  WRONG_INDUSTRY: 'WRONG_INDUSTRY',
+} as const;
+
+export type CandidateJobFeedbackType =
+  (typeof CandidateJobFeedbackTypes)[keyof typeof CandidateJobFeedbackTypes];
+
+export interface CandidateJobFeedbackDto {
+  id: string;
+  userId: string;
+  jobId: string;
+  feedbackType: CandidateJobFeedbackType;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const CandidateIntelligenceSuggestionTypes = {
+  TRANSFERABLE_SKILL: 'TRANSFERABLE_SKILL',
+  CAREER_PATH: 'CAREER_PATH',
+  MISSING_DETAIL: 'MISSING_DETAIL',
+  ACHIEVEMENT: 'ACHIEVEMENT',
+  INCONSISTENCY: 'INCONSISTENCY',
+  PREFERENCE_UPDATE: 'PREFERENCE_UPDATE',
+} as const;
+
+export type CandidateIntelligenceSuggestionType =
+  (typeof CandidateIntelligenceSuggestionTypes)[keyof typeof CandidateIntelligenceSuggestionTypes];
+
+export const CandidateIntelligenceSuggestionStatuses = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  DISMISSED: 'DISMISSED',
+} as const;
+
+export type CandidateIntelligenceSuggestionStatus =
+  (typeof CandidateIntelligenceSuggestionStatuses)[keyof typeof CandidateIntelligenceSuggestionStatuses];
+
+export interface CandidateIntelligenceSuggestionDto {
+  id: string;
+  userId: string;
+  suggestionType: CandidateIntelligenceSuggestionType;
+  title: string;
+  description: string;
+  payload: Record<string, unknown>;
+  evidence?: string | null;
+  sourceDocumentId?: string | null;
+  confidence?: number | null;
+  status: CandidateIntelligenceSuggestionStatus;
+  appliedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CandidateIntelligenceSummaryDto {
+  whatJobeeKnows: {
+    verifiedSkills: string[];
+    verifiedExperiences: { position: string; organization: string; duration: string }[];
+    verifiedEducation: { institution: string; degree: string | null }[];
+    workAuthorization: string[];
+    industries: string[];
+    transferableCapabilities: string[];
+  };
+  whatNeedsClarification: {
+    category: string;
+    question: string;
+    field: string;
+    impact: 'HIGH' | 'MEDIUM' | 'LOW';
+    suggestedValues?: string[];
+  }[];
+  verifiedCount: number;
+  aiSuggestedCount: number;
+  suitableCareerPaths: {
+    primaryRoles: string[];
+    adjacentRoles: string[];
+    careerTransitions: string[];
+    transferableCapabilities: string[];
+  };
+  matchingConstraints: {
+    workModes: string[];
+    locations: string[];
+    minSalary: number | null;
+    excludedCompanies: string[];
+    excludedKeywords: string[];
+    sponsorshipNeeded: boolean | null;
+  };
+  learnedPreferences: LearnedPreferencesDto;
 }
 
 export function isAnswerSafeForAutomation(answer: {
