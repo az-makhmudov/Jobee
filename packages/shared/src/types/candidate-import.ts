@@ -168,6 +168,7 @@ export interface ProfileImportItemDto {
   reviewStatus: ProfileImportReviewStatus;
   userEditedPayload: Record<string, unknown> | null;
   conflictResolution?: ProfileImportConflictResolution | null;
+  explicitlyClearedFields?: string[] | null;
   createdAt: string;
   updatedAt: string;
 }

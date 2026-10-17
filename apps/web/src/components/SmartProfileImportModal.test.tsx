@@ -919,4 +919,144 @@ describe('SmartProfileImportModal — Multi-Source Conflict Resolution & Side-by
       expect(screen.getByText(/1 approved/i)).toBeDefined();
     });
   });
+
+  it('prohibits "Add as Separate" for PROFILE section in CONFLICT review to protect singleton profile', async () => {
+    const profileConflictItem: ProfileImportItemDto = {
+      id: 'item-conflict-profile',
+      sessionId: 'session-qa-conflict',
+      userId: 'user-01',
+      section: 'PROFILE',
+      classification: 'CONFLICT',
+      confidenceScore: 0.85,
+      sourceReference: 'LinkedIn profile: Asadbek M. — Senior PM',
+      extractedPayload: {
+        fullName: 'Asadbek M.',
+        headline: 'Senior Project Manager',
+        email: null,
+      },
+      existingEntityId: 'prof-01',
+      existingPayload: {
+        fullName: 'Asadbek Makhmudov',
+        headline: 'Operations Assistant',
+        email: 'asadbek@example.com',
+      },
+      conflictDetails: 'Headline differs',
+      reviewStatus: 'PENDING',
+      userEditedPayload: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    render(
+      <SmartProfileImportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialStep="REVIEW"
+        initialSession={mockConflictSession}
+        initialItems={[profileConflictItem]}
+      />,
+    );
+
+    // Keep Existing and Replace Existing are available
+    expect(screen.getByRole('button', { name: /Keep Existing/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Replace Existing/i })).toBeDefined();
+
+    // "Add as Separate" must NOT be rendered for PROFILE section
+    expect(screen.queryByRole('button', { name: /Add as Separate/i })).toBeNull();
+  });
+
+  it('prohibits "Add as New" for PROFILE section in POTENTIAL_MATCH review', async () => {
+    const profilePotentialMatchItem: ProfileImportItemDto = {
+      id: 'item-potential-profile',
+      sessionId: 'session-qa-conflict',
+      userId: 'user-01',
+      section: 'PROFILE',
+      classification: 'POTENTIAL_MATCH',
+      confidenceScore: 0.88,
+      sourceReference: 'LinkedIn profile: Asadbek M.',
+      extractedPayload: {
+        fullName: 'Asadbek M.',
+        headline: 'Operations Assistant',
+      },
+      existingEntityId: 'prof-01',
+      existingPayload: {
+        fullName: 'Asadbek Makhmudov',
+        headline: 'Operations Assistant',
+      },
+      conflictDetails: 'Abbreviated name',
+      reviewStatus: 'PENDING',
+      userEditedPayload: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    render(
+      <SmartProfileImportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialStep="REVIEW"
+        initialSession={mockConflictSession}
+        initialItems={[profilePotentialMatchItem]}
+      />,
+    );
+
+    // Confirm Match is available
+    expect(screen.getByRole('button', { name: /Confirm Match/i })).toBeDefined();
+
+    // "Add as New" must NOT be rendered for PROFILE section
+    expect(screen.queryByRole('button', { name: /Add as New/i })).toBeNull();
+  });
+
+  it('displays field-level impact diffs showing updating fields and preserved fields in CONFLICT review', () => {
+    const experienceConflictItem: ProfileImportItemDto = {
+      id: 'item-conflict-exp-diff',
+      sessionId: 'session-qa-conflict',
+      userId: 'user-01',
+      section: 'EXPERIENCE',
+      classification: 'CONFLICT',
+      confidenceScore: 0.9,
+      sourceReference: 'LinkedIn Experience: Asia Alliance Bank (May 2023)',
+      extractedPayload: {
+        organization: 'Asia Alliance Bank',
+        position: 'Operations Assistant',
+        startDate: 'May 2023', // Updating start date
+        description: null, // Missing in source
+        achievements: [], // Missing in source
+      },
+      existingEntityId: 'exp-01',
+      existingPayload: {
+        organization: 'Asia Alliance Bank',
+        position: 'Operations Assistant',
+        startDate: 'June 2023',
+        description: 'Comprehensive operations description.',
+        achievements: ['Achievement 1', 'Achievement 2'],
+      },
+      conflictDetails: 'Start date differs',
+      reviewStatus: 'PENDING',
+      userEditedPayload: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    render(
+      <SmartProfileImportModal
+        isOpen={true}
+        onClose={vi.fn()}
+        initialStep="REVIEW"
+        initialSession={mockConflictSession}
+        initialItems={[experienceConflictItem]}
+      />,
+    );
+
+    // Verify field-level impact header
+    expect(screen.getByText(/Field-Level Impact on Replace Existing/i)).toBeDefined();
+
+    // Verify Start Date is listed under fields to update
+    expect(screen.getByText(/Will update:/i)).toBeDefined();
+    expect(screen.getByText(/Start Date:/i)).toBeDefined();
+
+    // Verify Description and Achievements are listed as preserved
+    expect(screen.getByText(/Preserved verified fields/i)).toBeDefined();
+    expect(screen.getByText(/Description, Achievements/i)).toBeDefined();
+  });
 });

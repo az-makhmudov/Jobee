@@ -1550,3 +1550,40 @@ This document tracks execution history and verification state for all official m
       - Verified all 9 import test suites in `apps/api/src/services/import/` (98/98 tests passing).
     - **Monorepo Quality Gates**:
       - 56 test files (499/499 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB migration 0020 applied.
+  - **18. Safe Multi-Source Merge Hotfix & Profile Singleton Protection**:
+    - **Context & Risks Identified**:
+      - Code review of multi-source conflict resolution identified two data-integrity risks:
+        1. **Destructive Replacement (Risk 1)**: When updating existing entities upon user approval of `REPLACE_EXISTING`, partial data from LinkedIn exports (missing descriptions, achievements, fields) could overwrite and erase existing verified Candidate Brain details.
+        2. **Singleton Profile Overwrite (Risk 2)**: Candidate profile (`candidate_profiles`) is a singleton per user (`userId` unique constraint). Permitting `ADD_AS_SEPARATE` for `PROFILE` would trigger on-conflict updates or database errors, overwriting the candidate's core identity or corrupting full name records when matching abbreviated names (e.g. `"Asadbek M."` overwriting `"Asadbek Makhmudov"`).
+    - **Fixes Implemented**:
+      1. **Field-Aware Merging Engine (`SmartProfileImportService.mergeFieldsWithExisting`)**:
+         - Compares existing record fields and imported payload fields.
+         - Strictly preserves existing non-empty fields when incoming fields are absent, null, empty string, or empty array.
+         - Protects `PROFILE.fullName`: When an abbreviated name match is detected (`ProfileComparisonEngine.isAbbreviatedNameMatch`), the existing verified full name is strictly preserved.
+         - Supports deliberate, explicit field clearing via `options.explicitlyClearedFields` (`_clearedFields`), requiring separate user intent before any verified field can be erased.
+         - Returns structured `{ merged, changedFields, preservedFields }`.
+      2. **Strict Profile Singleton Protection**:
+         - In `SmartProfileImportService.updateItem`: Rejects `ADD_AS_SEPARATE` for `PROFILE` section (both `CONFLICT` and `POTENTIAL_MATCH`) with 400 Bad Request error.
+         - In `SmartProfileImportService.commitSession`: Rejects `ADD_AS_SEPARATE` for `PROFILE` with 400 Bad Request error; executes field-aware merge if a profile record already exists for the user.
+         - In `SmartProfileImportModal.tsx`: Prohibits `[ Add as Separate ]` and `[ Add as New ]` buttons when `item.section === 'PROFILE'`.
+      3. **Side-by-Side Field-Level Impact Diff in UI (`SmartProfileImportModal.tsx`)**:
+         - Implemented `getFieldDiffs(section, existing, imported)` computing `fieldsToChange` and `preservedFields` with user-friendly labels.
+         - Rendered `⚡ Field-Level Impact on Replace Existing` callout in `CONFLICT` review card, detailing exact values updating and verified fields preserved.
+         - Prefilled missing extracted fields with existing verified fields during edit modal initialization.
+      4. **Preserved Verified Facts & Multi-Source Audit Trail**:
+         - In `updateExistingEntity`, updates `candidateFacts` structured value with merged details while appending `session.sourceType` to `sources`.
+         - Preserves `fact.verificationStatus === 'VERIFIED'`, preventing downgrade to `UNVERIFIED`.
+         - Records audit events with `changedFields`, `previousPayload`, and metadata detailing `preservedFields`.
+    - **Automated Regression Verification**:
+      - Created `smart-profile-safe-merge.test.ts` (7/7 tests passing):
+        - Test 1: Replacing experience date preserves descriptions and achievements.
+        - Test 2: Missing imported fields never erase data across all candidate brain sections.
+        - Test 3: Explicit field clearing requires deliberate confirmation.
+        - Test 4: ADD_AS_SEPARATE is strictly prohibited for PROFILE section in updateItem and commitSession.
+        - Test 5: Confirming an abbreviated name preserves the existing full name.
+        - Test 6: Profile replacement updates only approved fields without silent overwrites.
+        - Test 7: Existing verified facts and multi-source audit history remain intact without status downgrade.
+      - Added React component interaction tests in `SmartProfileImportModal.test.tsx` (24/24 tests passing).
+      - Verified all 10 import test suites in `apps/api/src/services/import/` (105/105 tests passing).
+    - **Monorepo Quality Gates**:
+      - 57 test files (509/509 tests passing), 0 lint errors, 0 typecheck errors, monorepo build clean, DB check passing (28ms latency).

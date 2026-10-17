@@ -80,11 +80,17 @@ export const candidateImportApi = {
     action: ProfileImportReviewStatus,
     userEditedPayload?: Record<string, unknown>,
     conflictResolution?: ProfileImportConflictResolution | null,
+    explicitlyClearedFields?: string[],
   ): Promise<ProfileImportItemDto> {
     const res = await fetch(`${API_BASE}/candidate/import/${sessionId}/items/${itemId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, userEditedPayload, conflictResolution }),
+      body: JSON.stringify({
+        action,
+        userEditedPayload,
+        conflictResolution,
+        explicitlyClearedFields,
+      }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

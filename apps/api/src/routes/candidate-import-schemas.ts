@@ -24,6 +24,7 @@ export const updateProfileImportItemSchema = z.object({
     ])
     .optional()
     .nullable(),
+  explicitlyClearedFields: z.array(z.string()).optional(),
 });
 
 export const bulkUpdateProfileImportItemsSchema = z.object({

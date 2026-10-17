@@ -248,9 +248,30 @@ export function SmartProfileImportModal({
 
   const handleStartEdit = (item: ProfileImportItemDto) => {
     setEditingItemId(item.id);
-    setEditFormData({
-      ...(item.userEditedPayload || item.extractedPayload),
-    });
+    const sourceData = item.userEditedPayload || item.extractedPayload;
+    const initialData: Record<string, any> = { ...sourceData };
+
+    if (item.existingPayload && !item.userEditedPayload) {
+      for (const [key, val] of Object.entries(item.existingPayload)) {
+        if (
+          val !== null &&
+          val !== undefined &&
+          val !== '' &&
+          !(Array.isArray(val) && val.length === 0)
+        ) {
+          if (
+            initialData[key] === null ||
+            initialData[key] === undefined ||
+            initialData[key] === '' ||
+            (Array.isArray(initialData[key]) && initialData[key].length === 0)
+          ) {
+            initialData[key] = val;
+          }
+        }
+      }
+    }
+
+    setEditFormData(initialData);
   };
 
   const handleSaveEdit = async (itemId: string, editedPayload?: Record<string, any>) => {
@@ -1228,6 +1249,136 @@ export function SmartProfileImportModal({
   );
 }
 
+export function getFieldDiffs(
+  section: string,
+  existing: Record<string, any> | null | undefined,
+  imported: Record<string, any> | null | undefined,
+): {
+  fieldsToChange: Array<{ label: string; from: string; to: string }>;
+  preservedFields: string[];
+} {
+  if (!existing || !imported) {
+    return { fieldsToChange: [], preservedFields: [] };
+  }
+
+  const fieldsToChange: Array<{ label: string; from: string; to: string }> = [];
+  const preservedFields: string[] = [];
+
+  const fieldLabels: Record<string, string> = {
+    fullName: 'Full Name',
+    preferredName: 'Preferred Name',
+    headline: 'Headline',
+    email: 'Email',
+    phone: 'Phone',
+    city: 'City',
+    country: 'Country',
+    location: 'Location',
+    summary: 'Professional Summary',
+    organization: 'Organization / Company',
+    position: 'Position / Role',
+    employmentType: 'Employment Type',
+    startDate: 'Start Date',
+    endDate: 'End Date',
+    isCurrent: 'Current Position',
+    description: 'Description',
+    achievements: 'Achievements',
+    institution: 'Institution',
+    degree: 'Degree',
+    fieldOfStudy: 'Field of Study',
+    activities: 'Activities',
+    name: 'Name',
+    category: 'Category',
+    proficiency: 'Proficiency',
+    yearsExperience: 'Years of Experience',
+    issuingOrganization: 'Issuing Organization',
+    issueDate: 'Issue Date',
+    expirationDate: 'Expiration Date',
+    credentialId: 'Credential ID',
+    credentialUrl: 'Credential URL',
+    language: 'Language',
+    cefrLevel: 'CEFR Level',
+    notes: 'Notes',
+    role: 'Role',
+    projectUrl: 'Project URL',
+    skills: 'Skills',
+    label: 'Label',
+    url: 'URL',
+  };
+
+  const isValMissing = (val: unknown): boolean => {
+    if (val === undefined || val === null) return true;
+    if (typeof val === 'string' && val.trim() === '') return true;
+    if (Array.isArray(val) && val.length === 0) return true;
+    return false;
+  };
+
+  const isAbbrevName = (ex: string, imp: string): boolean => {
+    const e = ex.trim().toLowerCase();
+    const i = imp.trim().toLowerCase();
+    if (e === i) return false;
+    const eParts = e.split(/\s+/);
+    const iParts = i.split(/\s+/);
+    if (eParts.length >= 2 && iParts.length >= 2) {
+      if (
+        eParts[0] === iParts[0] &&
+        (iParts[1].startsWith(eParts[1][0]) || eParts[1].startsWith(iParts[1][0]))
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  const checkedKeys = new Set([...Object.keys(existing), ...Object.keys(imported)]);
+  checkedKeys.delete('id');
+  checkedKeys.delete('userId');
+  checkedKeys.delete('createdAt');
+  checkedKeys.delete('updatedAt');
+  checkedKeys.delete('verificationStatus');
+  checkedKeys.delete('_clearedFields');
+
+  for (const key of checkedKeys) {
+    const exVal = existing[key];
+    const impVal = imported[key];
+    const label = fieldLabels[key] || key;
+
+    if (section === 'PROFILE' && key === 'fullName') {
+      if (typeof exVal === 'string' && typeof impVal === 'string' && isAbbrevName(exVal, impVal)) {
+        preservedFields.push(`Full Name (Preserved as "${exVal}")`);
+        continue;
+      }
+    }
+
+    if (isValMissing(impVal)) {
+      if (!isValMissing(exVal)) {
+        preservedFields.push(label);
+      }
+      continue;
+    }
+
+    if (isValMissing(exVal)) {
+      fieldsToChange.push({
+        label,
+        from: '(empty)',
+        to: Array.isArray(impVal) ? impVal.join(', ') : String(impVal),
+      });
+      continue;
+    }
+
+    const exStr = Array.isArray(exVal) ? exVal.join(', ') : String(exVal).trim();
+    const impStr = Array.isArray(impVal) ? impVal.join(', ') : String(impVal).trim();
+    if (exStr !== impStr) {
+      fieldsToChange.push({
+        label,
+        from: exStr,
+        to: impStr,
+      });
+    }
+  }
+
+  return { fieldsToChange, preservedFields };
+}
+
 // Subcomponent: ReviewItemCard
 export function ReviewItemCard({
   item,
@@ -1254,6 +1405,7 @@ export function ReviewItemCard({
 }) {
   const [validationError, setValidationError] = useState<string | null>(null);
   const payload = item.userEditedPayload || item.extractedPayload;
+  const fieldDiffs = getFieldDiffs(item.section, item.existingPayload, payload);
 
   const classificationColor = (cls: ProfileImportClassification) => {
     switch (cls) {
@@ -1855,6 +2007,55 @@ export function ReviewItemCard({
                   {renderEntitySummary(item.section, payload)}
                 </div>
               </div>
+
+              {/* Field-level impact preview */}
+              <div
+                style={{
+                  marginTop: '0.5rem',
+                  padding: '0.5rem 0.65rem',
+                  borderRadius: '5px',
+                  backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  fontSize: '0.8rem',
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: '0.78rem',
+                    color: '#93c5fd',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  ⚡ Field-Level Impact on Replace Existing:
+                </div>
+                {fieldDiffs.fieldsToChange.length > 0 ? (
+                  <div style={{ marginBottom: '0.25rem' }}>
+                    <span style={{ color: '#fde047', fontWeight: 600 }}>Will update:</span>
+                    <ul style={{ margin: '0.15rem 0 0.25rem 1.2rem', padding: 0 }}>
+                      {fieldDiffs.fieldsToChange.map((diff) => (
+                        <li key={diff.label}>
+                          <strong>{diff.label}:</strong>{' '}
+                          <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>
+                            {diff.from || '(empty)'}
+                          </span>{' '}
+                          → <strong style={{ color: '#93c5fd' }}>{diff.to}</strong>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <div style={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                    No conflicting field changes detected.
+                  </div>
+                )}
+                {fieldDiffs.preservedFields.length > 0 && (
+                  <div style={{ color: '#86efac', fontSize: '0.78rem' }}>
+                    ✓ <strong>Preserved verified fields (missing in import):</strong>{' '}
+                    {fieldDiffs.preservedFields.join(', ')}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1929,19 +2130,21 @@ export function ReviewItemCard({
                   >
                     Replace Existing
                   </button>
-                  <button
-                    type="button"
-                    className={`btn ${
-                      item.reviewStatus === 'APPROVED' &&
-                      item.conflictResolution === 'ADD_AS_SEPARATE'
-                        ? 'btn-primary'
-                        : 'btn-secondary'
-                    }`}
-                    style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
-                    onClick={() => onResolveConflict && onResolveConflict('ADD_AS_SEPARATE')}
-                  >
-                    Add as Separate
-                  </button>
+                  {item.section !== 'PROFILE' && (
+                    <button
+                      type="button"
+                      className={`btn ${
+                        item.reviewStatus === 'APPROVED' &&
+                        item.conflictResolution === 'ADD_AS_SEPARATE'
+                          ? 'btn-primary'
+                          : 'btn-secondary'
+                      }`}
+                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                      onClick={() => onResolveConflict && onResolveConflict('ADD_AS_SEPARATE')}
+                    >
+                      Add as Separate
+                    </button>
+                  )}
                 </>
               ) : item.classification === 'POTENTIAL_MATCH' ? (
                 <>
@@ -1958,19 +2161,21 @@ export function ReviewItemCard({
                   >
                     Confirm Match
                   </button>
-                  <button
-                    type="button"
-                    className={`btn ${
-                      item.reviewStatus === 'APPROVED' &&
-                      item.conflictResolution === 'ADD_AS_SEPARATE'
-                        ? 'btn-primary'
-                        : 'btn-secondary'
-                    }`}
-                    style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
-                    onClick={() => onResolveConflict && onResolveConflict('ADD_AS_SEPARATE')}
-                  >
-                    Add as New
-                  </button>
+                  {item.section !== 'PROFILE' && (
+                    <button
+                      type="button"
+                      className={`btn ${
+                        item.reviewStatus === 'APPROVED' &&
+                        item.conflictResolution === 'ADD_AS_SEPARATE'
+                          ? 'btn-primary'
+                          : 'btn-secondary'
+                      }`}
+                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
+                      onClick={() => onResolveConflict && onResolveConflict('ADD_AS_SEPARATE')}
+                    >
+                      Add as New
+                    </button>
+                  )}
                 </>
               ) : (
                 <button

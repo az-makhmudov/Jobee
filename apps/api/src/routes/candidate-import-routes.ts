@@ -103,6 +103,7 @@ export function createCandidateImportRoutes(
           body.action,
           body.userEditedPayload,
           body.conflictResolution,
+          body.explicitlyClearedFields,
         );
         return { status: 'ok', data: item, timestamp: new Date().toISOString() };
       },

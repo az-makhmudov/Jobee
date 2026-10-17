@@ -1,4 +1,4 @@
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, or } from 'drizzle-orm';
 import type { Database } from '@job-agent/database';
 import {
   profileImportSessions,
@@ -301,6 +301,7 @@ export class SmartProfileImportService {
     action: ProfileImportReviewStatus,
     userEditedPayload?: Record<string, unknown>,
     conflictResolution?: ProfileImportConflictResolution | null,
+    explicitlyClearedFields?: string[],
   ): Promise<ProfileImportItemDto> {
     const existingItem = await this.db.query.profileImportItems.findFirst({
       where: and(
@@ -314,6 +315,12 @@ export class SmartProfileImportService {
       throw AppError.notFound(`Import item ${itemId} not found`);
     }
 
+    if (existingItem.section === 'PROFILE' && conflictResolution === 'ADD_AS_SEPARATE') {
+      throw AppError.badRequest(
+        'ADD_AS_SEPARATE is not permitted for personal profile records. Please select Keep Existing or Replace Existing.',
+      );
+    }
+
     if (action === 'APPROVED') {
       if (existingItem.classification === 'CONFLICT') {
         const resolution = conflictResolution || existingItem.conflictResolution;
@@ -325,6 +332,19 @@ export class SmartProfileImportService {
             'A conflict resolution (KEEP_EXISTING, REPLACE_EXISTING, or ADD_AS_SEPARATE) is required when approving a CONFLICT item.',
           );
         }
+        if (existingItem.section === 'PROFILE' && resolution === 'ADD_AS_SEPARATE') {
+          throw AppError.badRequest(
+            'ADD_AS_SEPARATE is not permitted for personal profile records. Please select Keep Existing or Replace Existing.',
+          );
+        }
+      } else if (
+        existingItem.classification === 'POTENTIAL_MATCH' &&
+        existingItem.section === 'PROFILE' &&
+        conflictResolution === 'ADD_AS_SEPARATE'
+      ) {
+        throw AppError.badRequest(
+          'Adding as a separate record is not permitted for personal profile records.',
+        );
       }
 
       const payloadToCheck = (userEditedPayload ||
@@ -419,8 +439,17 @@ export class SmartProfileImportService {
       updatedAt: new Date(),
     };
 
-    if (userEditedPayload !== undefined) {
-      updateData.userEditedPayload = userEditedPayload;
+    if (
+      userEditedPayload !== undefined ||
+      (explicitlyClearedFields && explicitlyClearedFields.length > 0)
+    ) {
+      const mergedPayload = {
+        ...((userEditedPayload || existingItem.userEditedPayload || {}) as Record<string, unknown>),
+      };
+      if (explicitlyClearedFields && explicitlyClearedFields.length > 0) {
+        mergedPayload._clearedFields = explicitlyClearedFields;
+      }
+      updateData.userEditedPayload = mergedPayload;
     }
 
     if (conflictResolution !== undefined) {
@@ -583,28 +612,35 @@ export class SmartProfileImportService {
           if (resolution === 'REPLACE_EXISTING') {
             // 2. REPLACE EXISTING:
             // Update existing entity using existingEntityId. Do not insert duplicates. Preserve audit trail and VERIFIED status.
-            if (item.existingEntityId) {
-              const targetVerificationStatus =
-                (item.existingPayload as any)?.verificationStatus === 'VERIFIED'
-                  ? 'VERIFIED'
-                  : verificationStatus;
+            const targetVerificationStatus =
+              (item.existingPayload as any)?.verificationStatus === 'VERIFIED'
+                ? 'VERIFIED'
+                : verificationStatus;
 
-              await this.updateExistingEntity(
-                tx,
-                userId,
-                item.section,
-                item.existingEntityId,
-                payload,
-                targetVerificationStatus,
-                session,
-                'CONFLICT_RESOLVED_REPLACE',
-                item.existingPayload,
-              );
-              continue;
+            await this.updateExistingEntity(
+              tx,
+              userId,
+              item.section,
+              item.existingEntityId || userId,
+              payload,
+              targetVerificationStatus,
+              session,
+              'CONFLICT_RESOLVED_REPLACE',
+              item.existingPayload,
+            );
+            if (item.section === 'PROFILE') {
+              profileUpdated = true;
             }
+            continue;
           }
 
           // 3. ADD AS SEPARATE:
+          if (item.section === 'PROFILE') {
+            throw AppError.badRequest(
+              'ADD_AS_SEPARATE is not permitted for personal profile records. Please select Keep Existing or Replace Existing.',
+            );
+          }
+
           // Fall through to insert branch below, creating a distinct new entity
           await this.recordAuditTx(tx, {
             userId,
@@ -628,6 +664,11 @@ export class SmartProfileImportService {
           item.classification === 'POTENTIAL_MATCH'
         ) {
           if (item.conflictResolution === 'ADD_AS_SEPARATE') {
+            if (item.section === 'PROFILE') {
+              throw AppError.badRequest(
+                'Adding as a separate record is not permitted for personal profile records.',
+              );
+            }
             await this.recordAuditTx(tx, {
               userId,
               entityType: item.section,
@@ -702,48 +743,60 @@ export class SmartProfileImportService {
               targetVerificationStatus,
               session,
               'UPDATE',
+              item.existingPayload,
             );
+            if (item.section === 'PROFILE') {
+              profileUpdated = true;
+            }
             continue;
           }
         }
 
         switch (item.section) {
           case 'PROFILE': {
-            await tx
-              .insert(candidateProfiles)
-              .values({
-                userId,
-                fullName: payload.fullName || null,
-                preferredName: payload.preferredName || null,
-                headline: payload.headline || null,
-                email: payload.email || null,
-                phone: payload.phone || null,
-                city: payload.city || null,
-                region: payload.region || null,
-                country: payload.country || null,
-                summary: payload.summary || null,
-                availability: payload.availability || null,
-              })
-              .onConflictDoUpdate({
-                target: [candidateProfiles.userId],
-                set: {
-                  fullName: payload.fullName || sql`candidate_profiles.full_name`,
-                  headline: payload.headline || sql`candidate_profiles.headline`,
-                  email: payload.email || sql`candidate_profiles.email`,
-                  phone: payload.phone || sql`candidate_profiles.phone`,
-                  city: payload.city || sql`candidate_profiles.city`,
-                  region: payload.region || sql`candidate_profiles.region`,
-                  country: payload.country || sql`candidate_profiles.country`,
-                  summary: payload.summary || sql`candidate_profiles.summary`,
-                  updatedAt: new Date(),
-                },
+            let existingProfile: any = null;
+            if (tx.query?.candidateProfiles) {
+              existingProfile = await tx.query.candidateProfiles.findFirst({
+                where: eq(candidateProfiles.userId, userId),
               });
+            }
+            if (existingProfile) {
+              // Existing profile exists: perform field-aware merge, never overwrite existing full name with abbreviated name
+              await this.updateExistingEntity(
+                tx,
+                userId,
+                'PROFILE',
+                existingProfile.id,
+                payload,
+                verificationStatus,
+                session,
+                'UPDATE',
+                existingProfile,
+              );
+              profileUpdated = true;
+              break;
+            }
+
+            // Candidate has no profile at all: insert new
+            await tx.insert(candidateProfiles).values({
+              userId,
+              fullName: payload.fullName || null,
+              preferredName: payload.preferredName || null,
+              headline: payload.headline || null,
+              email: payload.email || null,
+              phone: payload.phone || null,
+              city: payload.city || null,
+              region: payload.region || null,
+              country: payload.country || null,
+              summary: payload.summary || null,
+              availability: payload.availability || null,
+            });
 
             await this.recordAuditTx(tx, {
               userId,
               entityType: 'PROFILE',
               entityId: userId,
-              action: 'UPDATE',
+              action: 'CREATE',
               changedFields: Object.keys(payload),
               metadata: { source: session.sourceType, sessionId },
             });
@@ -1299,6 +1352,106 @@ export class SmartProfileImportService {
     };
   }
 
+  public static isValueMissing(val: unknown): boolean {
+    if (val === undefined || val === null) return true;
+    if (typeof val === 'string' && val.trim() === '') return true;
+    if (Array.isArray(val) && val.length === 0) return true;
+    return false;
+  }
+
+  public static hasFieldValueChanged(existingVal: unknown, incomingVal: unknown): boolean {
+    if (Array.isArray(existingVal) && Array.isArray(incomingVal)) {
+      if (existingVal.length !== incomingVal.length) return true;
+      return existingVal.some((item, idx) => item !== incomingVal[idx]);
+    }
+    if (typeof existingVal === 'string' || typeof incomingVal === 'string') {
+      return String(existingVal ?? '').trim() !== String(incomingVal ?? '').trim();
+    }
+    if (typeof existingVal === 'boolean' || typeof incomingVal === 'boolean') {
+      return Boolean(existingVal) !== Boolean(incomingVal);
+    }
+    if (typeof existingVal === 'number' || typeof incomingVal === 'number') {
+      return Number(existingVal) !== Number(incomingVal);
+    }
+    return existingVal !== incomingVal;
+  }
+
+  public static mergeFieldsWithExisting(
+    section: string,
+    existing: Record<string, any>,
+    incoming: Record<string, any>,
+    options: { explicitlyClearedFields?: string[]; preserveAbbreviatedName?: boolean } = {},
+  ): {
+    merged: Record<string, any>;
+    changedFields: string[];
+    preservedFields: string[];
+  } {
+    const merged: Record<string, any> = { ...existing };
+    const changedFields: string[] = [];
+    const preservedFields: string[] = [];
+    const clearedFields = new Set(options.explicitlyClearedFields || []);
+
+    const allKeys = new Set([...Object.keys(existing), ...Object.keys(incoming)]);
+    allKeys.delete('id');
+    allKeys.delete('userId');
+    allKeys.delete('createdAt');
+    allKeys.delete('updatedAt');
+    allKeys.delete('verificationStatus');
+    allKeys.delete('_clearedFields');
+
+    for (const key of allKeys) {
+      const existingVal = existing[key];
+      const incomingVal = incoming[key];
+
+      // 1. Explicit clearing deliberate action
+      if (clearedFields.has(key)) {
+        merged[key] = Array.isArray(existingVal) ? [] : null;
+        if (!SmartProfileImportService.isValueMissing(existingVal)) {
+          changedFields.push(key);
+        }
+        continue;
+      }
+
+      // 2. Incoming value is missing / empty: NEVER treat missing imported information as a request to delete existing info
+      if (SmartProfileImportService.isValueMissing(incomingVal)) {
+        if (!SmartProfileImportService.isValueMissing(existingVal)) {
+          merged[key] = existingVal;
+          preservedFields.push(key);
+        } else {
+          merged[key] = incomingVal ?? existingVal ?? null;
+        }
+        continue;
+      }
+
+      // 3. Special rule for PROFILE full name: Abbreviated name must NEVER downgrade or overwrite verified full name
+      if (section === 'PROFILE' && key === 'fullName') {
+        const existingName = typeof existingVal === 'string' ? existingVal.trim() : '';
+        const incomingName = typeof incomingVal === 'string' ? incomingVal.trim() : '';
+        if (
+          existingName &&
+          incomingName &&
+          existingName.toLowerCase() !== incomingName.toLowerCase() &&
+          ProfileComparisonEngine.isAbbreviatedNameMatch(existingName, incomingName)
+        ) {
+          merged.fullName = existing.fullName;
+          preservedFields.push('fullName');
+          continue;
+        }
+      }
+
+      // 4. Value comparison
+      const hasChanged = SmartProfileImportService.hasFieldValueChanged(existingVal, incomingVal);
+      if (hasChanged) {
+        merged[key] = incomingVal;
+        changedFields.push(key);
+      } else {
+        merged[key] = existingVal !== undefined ? existingVal : incomingVal;
+      }
+    }
+
+    return { merged, changedFields, preservedFields };
+  }
+
   private async updateExistingEntity(
     tx: any,
     userId: string,
@@ -1310,20 +1463,138 @@ export class SmartProfileImportService {
     auditAction: string = 'UPDATE',
     previousPayload?: Record<string, unknown> | null,
   ): Promise<void> {
+    let existingRecord: Record<string, any> | null =
+      (previousPayload as Record<string, any>) || null;
+
+    if (!existingRecord && tx.query) {
+      switch (section) {
+        case 'PROFILE':
+          if (tx.query.candidateProfiles) {
+            existingRecord = await tx.query.candidateProfiles.findFirst({
+              where: or(
+                eq(candidateProfiles.id, existingEntityId),
+                eq(candidateProfiles.userId, userId),
+              ),
+            });
+          }
+          break;
+        case 'EXPERIENCE':
+          if (tx.query.candidateExperiences) {
+            existingRecord = await tx.query.candidateExperiences.findFirst({
+              where: and(
+                eq(candidateExperiences.id, existingEntityId),
+                eq(candidateExperiences.userId, userId),
+              ),
+            });
+          }
+          break;
+        case 'EDUCATION':
+          if (tx.query.candidateEducation) {
+            existingRecord = await tx.query.candidateEducation.findFirst({
+              where: and(
+                eq(candidateEducation.id, existingEntityId),
+                eq(candidateEducation.userId, userId),
+              ),
+            });
+          }
+          break;
+        case 'SKILL':
+          if (tx.query.candidateSkills) {
+            existingRecord = await tx.query.candidateSkills.findFirst({
+              where: and(
+                eq(candidateSkills.id, existingEntityId),
+                eq(candidateSkills.userId, userId),
+              ),
+            });
+          }
+          break;
+        case 'CERTIFICATION':
+          if (tx.query.candidateCertifications) {
+            existingRecord = await tx.query.candidateCertifications.findFirst({
+              where: and(
+                eq(candidateCertifications.id, existingEntityId),
+                eq(candidateCertifications.userId, userId),
+              ),
+            });
+          }
+          break;
+        case 'LANGUAGE':
+          if (tx.query.candidateLanguages) {
+            existingRecord = await tx.query.candidateLanguages.findFirst({
+              where: and(
+                eq(candidateLanguages.id, existingEntityId),
+                eq(candidateLanguages.userId, userId),
+              ),
+            });
+          }
+          break;
+        case 'PROJECT':
+          if (tx.query.candidateProjects) {
+            existingRecord = await tx.query.candidateProjects.findFirst({
+              where: and(
+                eq(candidateProjects.id, existingEntityId),
+                eq(candidateProjects.userId, userId),
+              ),
+            });
+          }
+          break;
+        case 'LINK':
+          if (tx.query.candidateLinks) {
+            existingRecord = await tx.query.candidateLinks.findFirst({
+              where: and(
+                eq(candidateLinks.id, existingEntityId),
+                eq(candidateLinks.userId, userId),
+              ),
+            });
+          }
+          break;
+      }
+    }
+
+    const clearedFields: string[] = Array.isArray(payload._clearedFields)
+      ? payload._clearedFields
+      : [];
+
+    const { merged, changedFields, preservedFields } =
+      SmartProfileImportService.mergeFieldsWithExisting(section, existingRecord || {}, payload, {
+        explicitlyClearedFields: clearedFields,
+      });
+
     switch (section) {
+      case 'PROFILE': {
+        await tx
+          .update(candidateProfiles)
+          .set({
+            fullName: merged.fullName ?? null,
+            preferredName: merged.preferredName ?? null,
+            headline: merged.headline ?? null,
+            email: merged.email ?? null,
+            phone: merged.phone ?? null,
+            city: merged.city ?? null,
+            region: merged.region ?? null,
+            country: merged.country ?? null,
+            summary: merged.summary ?? null,
+            availability: merged.availability ?? null,
+            updatedAt: new Date(),
+          })
+          .where(
+            or(eq(candidateProfiles.id, existingEntityId), eq(candidateProfiles.userId, userId)),
+          );
+        break;
+      }
       case 'EXPERIENCE': {
         await tx
           .update(candidateExperiences)
           .set({
-            organization: payload.organization,
-            position: payload.position,
-            location: payload.location || null,
-            employmentType: payload.employmentType || null,
-            startDate: payload.startDate,
-            endDate: payload.endDate || null,
-            isCurrent: payload.isCurrent ?? false,
-            description: payload.description || null,
-            achievements: Array.isArray(payload.achievements) ? payload.achievements : [],
+            organization: merged.organization,
+            position: merged.position,
+            location: merged.location || null,
+            employmentType: merged.employmentType || null,
+            startDate: merged.startDate,
+            endDate: merged.endDate || null,
+            isCurrent: merged.isCurrent ?? false,
+            description: merged.description || null,
+            achievements: Array.isArray(merged.achievements) ? merged.achievements : [],
             verificationStatus: targetVerificationStatus,
             updatedAt: new Date(),
           })
@@ -1339,15 +1610,15 @@ export class SmartProfileImportService {
         await tx
           .update(candidateEducation)
           .set({
-            institution: payload.institution,
-            degree: payload.degree || null,
-            fieldOfStudy: payload.fieldOfStudy || null,
-            startDate: payload.startDate || null,
-            endDate: payload.endDate || null,
-            isCurrent: payload.isCurrent ?? false,
-            location: payload.location || null,
-            description: payload.description || null,
-            activities: payload.activities || null,
+            institution: merged.institution,
+            degree: merged.degree || null,
+            fieldOfStudy: merged.fieldOfStudy || null,
+            startDate: merged.startDate || null,
+            endDate: merged.endDate || null,
+            isCurrent: merged.isCurrent ?? false,
+            location: merged.location || null,
+            description: merged.description || null,
+            activities: merged.activities || null,
             verificationStatus: targetVerificationStatus,
             updatedAt: new Date(),
           })
@@ -1360,10 +1631,10 @@ export class SmartProfileImportService {
         await tx
           .update(candidateSkills)
           .set({
-            name: payload.name,
-            category: payload.category || null,
-            proficiency: payload.proficiency || null,
-            yearsExperience: payload.yearsExperience ?? null,
+            name: merged.name,
+            category: merged.category || null,
+            proficiency: merged.proficiency || null,
+            yearsExperience: merged.yearsExperience ?? null,
             verificationStatus: targetVerificationStatus,
             updatedAt: new Date(),
           })
@@ -1374,12 +1645,12 @@ export class SmartProfileImportService {
         await tx
           .update(candidateCertifications)
           .set({
-            name: payload.name,
-            issuingOrganization: payload.issuingOrganization,
-            issueDate: payload.issueDate || null,
-            expirationDate: payload.expirationDate || null,
-            credentialId: payload.credentialId || null,
-            credentialUrl: payload.credentialUrl || null,
+            name: merged.name,
+            issuingOrganization: merged.issuingOrganization,
+            issueDate: merged.issueDate || null,
+            expirationDate: merged.expirationDate || null,
+            credentialId: merged.credentialId || null,
+            credentialUrl: merged.credentialUrl || null,
             verificationStatus: targetVerificationStatus,
             updatedAt: new Date(),
           })
@@ -1395,10 +1666,10 @@ export class SmartProfileImportService {
         await tx
           .update(candidateLanguages)
           .set({
-            language: payload.language,
-            proficiency: payload.proficiency ? payload.proficiency.trim() : null,
-            cefrLevel: payload.cefrLevel || null,
-            notes: payload.notes || null,
+            language: merged.language,
+            proficiency: merged.proficiency ? String(merged.proficiency).trim() : null,
+            cefrLevel: merged.cefrLevel || null,
+            notes: merged.notes || null,
             verificationStatus: targetVerificationStatus,
             updatedAt: new Date(),
           })
@@ -1411,14 +1682,14 @@ export class SmartProfileImportService {
         await tx
           .update(candidateProjects)
           .set({
-            name: payload.name,
-            role: payload.role || null,
-            description: payload.description || null,
-            startDate: payload.startDate || null,
-            endDate: payload.endDate || null,
-            projectUrl: payload.projectUrl || null,
-            skills: Array.isArray(payload.skills) ? payload.skills : [],
-            achievements: Array.isArray(payload.achievements) ? payload.achievements : [],
+            name: merged.name,
+            role: merged.role || null,
+            description: merged.description || null,
+            startDate: merged.startDate || null,
+            endDate: merged.endDate || null,
+            projectUrl: merged.projectUrl || null,
+            skills: Array.isArray(merged.skills) ? merged.skills : [],
+            achievements: Array.isArray(merged.achievements) ? merged.achievements : [],
             verificationStatus: targetVerificationStatus,
             updatedAt: new Date(),
           })
@@ -1431,8 +1702,8 @@ export class SmartProfileImportService {
         await tx
           .update(candidateLinks)
           .set({
-            label: payload.label,
-            url: payload.url,
+            label: merged.label,
+            url: merged.url,
             updatedAt: new Date(),
           })
           .where(and(eq(candidateLinks.id, existingEntityId), eq(candidateLinks.userId, userId)));
@@ -1440,7 +1711,7 @@ export class SmartProfileImportService {
       }
     }
 
-    if (tx.query?.candidateFacts) {
+    if (tx.query?.candidateFacts && existingEntityId) {
       const existingFacts = await tx.query.candidateFacts.findMany({
         where: and(
           eq(candidateFacts.userId, userId),
@@ -1449,15 +1720,24 @@ export class SmartProfileImportService {
       });
       for (const fact of existingFacts) {
         const existingVal = (fact.structuredValue || {}) as Record<string, unknown>;
+        const sources: string[] = Array.isArray(existingVal.sources)
+          ? [...(existingVal.sources as string[])]
+          : [String(existingVal.documentSource || 'CV')];
+        if (!sources.includes(session.sourceType)) {
+          sources.push(session.sourceType);
+        }
         await tx
           .update(candidateFacts)
           .set({
             structuredValue: {
               ...existingVal,
-              ...payload,
+              ...merged,
+              sources,
               lastConfirmedBySource: session.sourceType,
               lastConfirmedSessionId: session.id,
             },
+            verificationStatus:
+              fact.verificationStatus === 'VERIFIED' ? 'VERIFIED' : targetVerificationStatus,
             updatedAt: new Date(),
           })
           .where(eq(candidateFacts.id, fact.id));
@@ -1469,16 +1749,27 @@ export class SmartProfileImportService {
       entityType: section,
       entityId: existingEntityId,
       action: auditAction,
-      changedFields: Object.keys(payload),
+      changedFields,
       metadata: {
+        conflictResolution:
+          auditAction === 'CONFLICT_RESOLVED_REPLACE' ? 'REPLACE_EXISTING' : undefined,
         source: session.sourceType,
         sessionId: session.id,
-        ...(previousPayload ? { previousPayload } : {}),
+        ...(previousPayload || existingRecord
+          ? { previousPayload: previousPayload || existingRecord }
+          : {}),
+        mergedPayload: merged,
+        preservedFields,
       },
     });
   }
 
   private mapItemDto(item: ProfileImportItem): ProfileImportItemDto {
+    const userEdited = item.userEditedPayload as Record<string, unknown> | null;
+    const cleared = Array.isArray(userEdited?._clearedFields)
+      ? (userEdited?._clearedFields as string[])
+      : null;
+
     return {
       id: item.id,
       sessionId: item.sessionId,
@@ -1495,6 +1786,7 @@ export class SmartProfileImportService {
       userEditedPayload: item.userEditedPayload,
       conflictResolution:
         (item.conflictResolution as ProfileImportConflictResolution | null) || null,
+      explicitlyClearedFields: cleared,
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
     };
