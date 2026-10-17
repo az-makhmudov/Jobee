@@ -18,8 +18,17 @@ export class CoverLetterEngine {
     const jobTitle = job.title;
     const evidenceIds: string[] = [];
 
+    // Strict Invariant: Only records with verificationStatus === 'VERIFIED' AND allowAiUse === true
+    // enter generated cover letters.
+    const authorizedExperiences = (candidate.experiences || []).filter(
+      (e) => e.verificationStatus === 'VERIFIED' && e.allowAiUse === true,
+    );
+    const authorizedSkills = (candidate.skills || []).filter(
+      (s) => s.verificationStatus === 'VERIFIED' && s.allowAiUse === true,
+    );
+
     // Relevant experience from candidate
-    const topExp = candidate.experiences[0];
+    const topExp = authorizedExperiences[0];
     let expMention = '';
     if (topExp) {
       const expRole = topExp.position;
@@ -48,11 +57,11 @@ export class CoverLetterEngine {
     }
 
     // Top verified skills
-    const skillNames = candidate.skills.slice(0, 4).map((s) => s.name);
+    const skillNames = authorizedSkills.slice(0, 4).map((s) => s.name);
     let skillsMention = '';
     if (skillNames.length > 0) {
       skillsMention = `My core competencies include ${skillNames.join(', ')}, which directly align with the requirements outlined in your posting. `;
-      for (const s of candidate.skills.slice(0, 4)) {
+      for (const s of authorizedSkills.slice(0, 4)) {
         evidenceIds.push(`candidate_skill:${s.id}`);
       }
     }
@@ -64,17 +73,19 @@ export class CoverLetterEngine {
       strengthsClause = `I bring a strong background in ${strengths.slice(0, 2).join(' and ')}, allowing me to contribute immediately to your team's objectives.`;
     }
 
+    const bodyParagraph = `${expMention}${skillsMention}${strengthsClause}`.trim();
+
     const paragraphs: string[] = [
       `Dear Hiring Team at ${company},`,
 
       `I am writing to express my strong interest in the ${jobTitle} position at ${company}. Having reviewed the requirements and responsibilities, I am confident that my background, proven track record, and verified competencies make me an excellent candidate for this opportunity.`,
 
-      `${expMention}${skillsMention}${strengthsClause}`,
+      bodyParagraph,
 
       `I am drawn to ${company} because of the opportunity to contribute to meaningful goals and tackle high-impact challenges. I would welcome the opportunity to discuss how my qualifications can support your team's objectives.`,
 
       `Thank you for your time and consideration.\n\nSincerely,\n${candidateName}`,
-    ];
+    ].filter(Boolean);
 
     const text = paragraphs.join('\n\n');
 

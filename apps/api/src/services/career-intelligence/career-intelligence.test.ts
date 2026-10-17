@@ -7,6 +7,9 @@ import {
   candidateSkills,
   candidateEducation,
   candidateLanguages,
+  candidateCertifications,
+  candidateProjects,
+  candidateFacts,
   jobPreferences,
   jobs,
   candidateJobFeedback,
@@ -21,6 +24,8 @@ import { CandidateJobFeedbackService } from './candidate-job-feedback-service.js
 import { MatchingContextBuilder } from '../matching-context-builder.js';
 import { MatchingScoringEngine } from '../matching-scoring-engine.js';
 import { HardPolicyEngine } from '../hard-policy-engine.js';
+import { TailoringEngine } from '../tailoring-engine.js';
+import { CoverLetterEngine } from '../cover-letter-engine.js';
 import { CareerFitCategories } from '@job-agent/shared';
 
 describe('Career Intelligence 2.0 Test Suite (JOB-CAREER-INTEL-2.0)', () => {
@@ -536,8 +541,8 @@ describe('Career Intelligence 2.0 Test Suite (JOB-CAREER-INTEL-2.0)', () => {
           and(eq(candidateLanguages.userId, userAId), eq(candidateLanguages.language, 'Polish')),
         );
       expect(savedLang).toBeDefined();
-      expect(savedLang!.verificationStatus).toBe('VERIFIED');
-      expect(savedLang!.allowAiUse).toBe(true);
+      expect(savedLang!.verificationStatus).toBe('UNVERIFIED');
+      expect(savedLang!.allowAiUse).toBe(false);
 
       // Verify audit event was logged
       const [auditEvent] = await db
@@ -615,6 +620,285 @@ describe('Career Intelligence 2.0 Test Suite (JOB-CAREER-INTEL-2.0)', () => {
         .where(eq(candidateSkills.id, testSkill!.id));
       expect(revokedSkill!.verificationStatus).toBe('UNVERIFIED');
       expect(revokedSkill!.allowAiUse).toBe(false);
+    });
+  });
+
+  describe('7. Trust & Consent Invariants (JOB-CAREER-INTEL-2.0)', () => {
+    it('excludes VERIFIED records with allowAiUse=false from generative AI contexts', async () => {
+      const [userC] = await db
+        .insert(users)
+        .values({
+          name: `User C Trust ${runId}`,
+          email: `user_c_${runId}@example.com`,
+          emailVerified: true,
+          role: 'user',
+          systemKey: `user_c_${runId}`,
+        })
+        .returning();
+      const userCId = userC!.id;
+
+      try {
+        await db.insert(candidateProfiles).values({
+          userId: userCId,
+          fullName: 'Candidate C',
+        });
+
+        // Insert VERIFIED records but allowAiUse = false
+        await db.insert(candidateExperiences).values({
+          userId: userCId,
+          organization: 'Bank Corp',
+          position: 'Analyst',
+          startDate: '2022-01',
+          verificationStatus: 'VERIFIED',
+          allowAiUse: false,
+        });
+
+        await db.insert(candidateSkills).values({
+          userId: userCId,
+          name: 'Financial Modeling',
+          verificationStatus: 'VERIFIED',
+          allowAiUse: false,
+        });
+
+        await db.insert(candidateEducation).values({
+          userId: userCId,
+          institution: 'Finance Academy',
+          degree: 'Bachelor',
+          verificationStatus: 'VERIFIED',
+          allowAiUse: false,
+        });
+
+        await db.insert(candidateLanguages).values({
+          userId: userCId,
+          language: 'German',
+          verificationStatus: 'VERIFIED',
+          allowAiUse: false,
+        });
+
+        await db.insert(candidateCertifications).values({
+          userId: userCId,
+          name: 'CFA Level 1',
+          issuingOrganization: 'CFA Institute',
+          verificationStatus: 'VERIFIED',
+          allowAiUse: false,
+        });
+
+        await db.insert(candidateProjects).values({
+          userId: userCId,
+          name: 'Portfolio Tracker',
+          verificationStatus: 'VERIFIED',
+          allowAiUse: false,
+        });
+
+        await db.insert(candidateFacts).values({
+          userId: userCId,
+          category: 'CERTIFICATION',
+          factKey: 'cfa_exam',
+          statement: 'Passed CFA Level 1',
+          verificationStatus: 'VERIFIED',
+          allowAiUse: false,
+        });
+
+        // Test CandidateIntelligenceContextBuilder
+        const intelBuilder = new CandidateIntelligenceContextBuilder(db);
+        const intelContext = await intelBuilder.build(userCId);
+
+        expect(intelContext.aiPromptContext.experiences).toHaveLength(0);
+        expect(intelContext.aiPromptContext.skills).toHaveLength(0);
+        expect(intelContext.aiPromptContext.education).toHaveLength(0);
+        expect(intelContext.aiPromptContext.languages).toHaveLength(0);
+        expect(intelContext.aiPromptContext.certifications).toHaveLength(0);
+        expect(intelContext.aiPromptContext.projects).toHaveLength(0);
+        expect(intelContext.aiPromptContext.verifiedFacts).toHaveLength(0);
+
+        // Test MatchingContextBuilder
+        const matchBuilder = new MatchingContextBuilder(db);
+        const matchContext = await matchBuilder.buildContext(userCId);
+
+        expect(matchContext.aiContext.experiences).toHaveLength(0);
+        expect(matchContext.aiContext.skills).toHaveLength(0);
+        expect(matchContext.aiContext.education).toHaveLength(0);
+        expect(matchContext.aiContext.languages).toHaveLength(0);
+        expect(matchContext.aiContext.certifications).toHaveLength(0);
+        expect(matchContext.aiContext.verifiedFacts).toHaveLength(0);
+
+        // But deterministic records are preserved on matchContext
+        expect(matchContext.experiences).toHaveLength(1);
+        expect(matchContext.skills).toHaveLength(1);
+      } finally {
+        await db.delete(candidateFacts).where(eq(candidateFacts.userId, userCId));
+        await db.delete(candidateProjects).where(eq(candidateProjects.userId, userCId));
+        await db.delete(candidateCertifications).where(eq(candidateCertifications.userId, userCId));
+        await db.delete(candidateLanguages).where(eq(candidateLanguages.userId, userCId));
+        await db.delete(candidateEducation).where(eq(candidateEducation.userId, userCId));
+        await db.delete(candidateSkills).where(eq(candidateSkills.userId, userCId));
+        await db.delete(candidateExperiences).where(eq(candidateExperiences.userId, userCId));
+        await db.delete(candidateProfiles).where(eq(candidateProfiles.userId, userCId));
+        await db.delete(users).where(eq(users.id, userCId));
+      }
+    });
+
+    it('includes records in generative AI context when VERIFIED and allowAiUse=true', async () => {
+      const intelBuilder = new CandidateIntelligenceContextBuilder(db);
+      const intelContext = await intelBuilder.build(userAId);
+
+      // userA has Acme Cloud (VERIFIED + allowAiUse=true) and TypeScript (VERIFIED + allowAiUse=true)
+      // and Stealth Startup (UNVERIFIED + allowAiUse=false) and Rust (UNVERIFIED + allowAiUse=false)
+      expect(intelContext.aiPromptContext.experiences).toHaveLength(1);
+      expect(intelContext.aiPromptContext.experiences[0]!.organization).toBe('Acme Cloud');
+      expect(intelContext.aiPromptContext.skills).toHaveLength(1);
+      expect(intelContext.aiPromptContext.skills[0]!.name).toBe('TypeScript');
+
+      const matchBuilder = new MatchingContextBuilder(db);
+      const matchContext = await matchBuilder.buildContext(userAId);
+      expect(matchContext.aiContext.experiences).toHaveLength(1);
+      expect(matchContext.aiContext.experiences[0]!.organization).toBe('Acme Cloud');
+      expect(matchContext.aiContext.skills).toHaveLength(1);
+      expect(matchContext.aiContext.skills[0]!.name).toBe('TypeScript');
+    });
+
+    it('enforces that unverified candidate experience cannot influence generative CV content in TailoringEngine', () => {
+      const candidateCtx = {
+        profile: {
+          id: 'prof-1',
+          userId: 'user-1',
+          fullName: 'Jane Doe',
+          headline: 'Engineer',
+        } as any,
+        experiences: [
+          {
+            id: 'exp-unverified',
+            userId: 'user-1',
+            organization: 'Secret Stealth Co',
+            position: 'Chief Architect',
+            startDate: '2023-01',
+            verificationStatus: 'UNVERIFIED',
+            allowAiUse: false,
+            achievements: ['Invented quantum compiler with 999% speedup'],
+          } as any,
+          {
+            id: 'exp-verified-no-ai',
+            userId: 'user-1',
+            organization: 'Normal Corp',
+            position: 'Software Developer',
+            startDate: '2021-01',
+            verificationStatus: 'VERIFIED',
+            allowAiUse: false,
+            achievements: ['Built APIs'],
+          } as any,
+        ],
+        skills: [
+          {
+            id: 'skl-unverified',
+            name: 'Quantum Computing',
+            verificationStatus: 'UNVERIFIED',
+            allowAiUse: false,
+          } as any,
+        ],
+        education: [],
+        languages: [],
+        certifications: [],
+        projects: [],
+        links: [],
+      };
+
+      const dummyJob = { id: 'job-1', title: 'Developer', company: 'Acme' } as any;
+      const tailored = TailoringEngine.buildTailoredCv(candidateCtx, dummyJob, null, []);
+
+      expect(tailored.experiences).toHaveLength(0);
+      expect(tailored.skills).toHaveLength(0);
+
+      const cl = CoverLetterEngine.generateCoverLetter(candidateCtx, dummyJob);
+      expect(cl.evidenceIds).toHaveLength(0);
+      expect(cl.text).not.toContain('Secret Stealth Co');
+      expect(cl.text).not.toContain('Chief Architect');
+      expect(cl.text).not.toContain('Quantum Computing');
+    });
+
+    it('does not fabricate default work authorization countries when none are specified', async () => {
+      const [userD] = await db
+        .insert(users)
+        .values({
+          name: `User D WorkAuth ${runId}`,
+          email: `user_d_${runId}@example.com`,
+          emailVerified: true,
+          role: 'user',
+          systemKey: `user_d_${runId}`,
+        })
+        .returning();
+      const userDId = userD!.id;
+
+      try {
+        await db.insert(candidateProfiles).values({
+          userId: userDId,
+          fullName: 'Candidate D',
+        });
+        await db.insert(jobPreferences).values({
+          userId: userDId,
+          targetTitles: ['Junior Coordinator'],
+          workAuthorizationCountries: [], // explicitly empty / unconfirmed
+        });
+
+        const intelBuilder = new CandidateIntelligenceContextBuilder(db);
+        const intelContext = await intelBuilder.build(userDId);
+
+        expect(intelContext.summary.whatJobeeKnows.workAuthorization).toEqual([]);
+        expect(intelContext.summary.whatJobeeKnows.workAuthorization).not.toContain('Poland');
+        expect(intelContext.summary.whatJobeeKnows.workAuthorization).not.toContain('EU');
+
+        // Clarification must be present asking for work authorization countries
+        const authClarification = intelContext.summary.whatNeedsClarification.find(
+          (c) => c.field === 'workAuthorizationCountries',
+        );
+        expect(authClarification).toBeDefined();
+        expect(authClarification!.impact).toBe('HIGH');
+      } finally {
+        await db.delete(jobPreferences).where(eq(jobPreferences.userId, userDId));
+        await db.delete(candidateProfiles).where(eq(candidateProfiles.userId, userDId));
+        await db.delete(users).where(eq(users.id, userDId));
+      }
+    });
+
+    it('generates suggestions with null proficiency when not specified and leaves applied records UNVERIFIED and allowAiUse=false', async () => {
+      const enrichment = new CareerIntelligenceEnrichmentService(db);
+      const result = await enrichment.runEnrichment(userAId);
+
+      // Verify that language suggestions have null proficiency (no hardcoded intermediate/native)
+      const langSuggestions = result.suggestions.filter(
+        (s) => s.suggestionType === 'MISSING_DETAIL' && (s.payload as any)?.type === 'LANGUAGE',
+      );
+      for (const ls of langSuggestions) {
+        expect((ls.payload as any).proficiency).toBeNull();
+      }
+
+      // If we insert a pending suggestion with null proficiency and apply it:
+      const [pendingSkillSug] = await db
+        .insert(candidateIntelligenceSuggestions)
+        .values({
+          userId: userAId,
+          suggestionType: 'MISSING_DETAIL',
+          title: 'Add Git tool',
+          description: 'Suggested tool skill',
+          payload: { type: 'SKILL', name: 'Git', isTool: true },
+          confidence: 85,
+          status: 'PENDING',
+        })
+        .returning();
+
+      await enrichment.applySuggestion(userAId, pendingSkillSug!.id);
+
+      const [insertedSkill] = await db
+        .select()
+        .from(candidateSkills)
+        .where(and(eq(candidateSkills.userId, userAId), eq(candidateSkills.name, 'Git')));
+
+      expect(insertedSkill).toBeDefined();
+      expect(insertedSkill!.proficiency).toBeNull();
+      expect(insertedSkill!.verificationStatus).toBe('UNVERIFIED');
+      expect(insertedSkill!.allowAiUse).toBe(false);
+
+      // Clean up
+      await db.delete(candidateSkills).where(eq(candidateSkills.id, insertedSkill!.id));
     });
   });
 });

@@ -85,6 +85,12 @@ export interface TrustedCandidateIntelligenceContext {
       name: string;
       issuingOrganization: string;
     }[];
+    projects: {
+      id: string;
+      name: string;
+      role: string | null;
+      description: string | null;
+    }[];
     verifiedFacts: {
       id: string;
       category: string;
@@ -229,28 +235,16 @@ export class CandidateIntelligenceContextBuilder {
 
     // Build privacy-minimized context for generative AI
     // Strips PII (email, phone, street address), sends only professional qualifications
-    // For experiences/skills: only include items authorized for AI use!
-    // If no items have allowAiUse=true yet (initial candidate state), include verified items with minimal footprint
-    const experiencesForAi =
-      verifiedAiExperiences.length > 0
-        ? verifiedAiExperiences
-        : expRows.filter((e) => e.verificationStatus === 'VERIFIED');
-    const skillsForAi =
-      verifiedAiSkills.length > 0
-        ? verifiedAiSkills
-        : skillRows.filter((s) => s.verificationStatus === 'VERIFIED');
-    const educationForAi =
-      verifiedAiEducation.length > 0
-        ? verifiedAiEducation
-        : eduRows.filter((e) => e.verificationStatus === 'VERIFIED');
-    const languagesForAi =
-      verifiedAiLanguages.length > 0
-        ? verifiedAiLanguages
-        : langRows.filter((l) => l.verificationStatus === 'VERIFIED');
-    const certsForAi =
-      verifiedAiCertifications.length > 0
-        ? verifiedAiCertifications
-        : certRows.filter((c) => c.verificationStatus === 'VERIFIED');
+    // STRICT INVARIANT: A record may enter a generative AI context ONLY when:
+    // verificationStatus === 'VERIFIED' AND allowAiUse === true
+    // Zero fallback to unverified or unauthorized records!
+    const experiencesForAi = verifiedAiExperiences;
+    const skillsForAi = verifiedAiSkills;
+    const educationForAi = verifiedAiEducation;
+    const languagesForAi = verifiedAiLanguages;
+    const certsForAi = verifiedAiCertifications;
+    const projectsForAi = verifiedAiProjects;
+    const factsForAi = verifiedAiFacts;
 
     const aiPromptContext = {
       targetRoles: preferences?.targetTitles ?? [],
@@ -294,7 +288,13 @@ export class CandidateIntelligenceContextBuilder {
         name: c.name,
         issuingOrganization: c.issuingOrganization,
       })),
-      verifiedFacts: verifiedAiFacts.map((f) => ({
+      projects: projectsForAi.map((p) => ({
+        id: `candidate_project:${p.id}`,
+        name: p.name,
+        role: p.role,
+        description: p.description,
+      })),
+      verifiedFacts: factsForAi.map((f) => ({
         id: `candidate_fact:${f.id}`,
         category: f.category,
         statement: f.statement,
@@ -396,7 +396,7 @@ export class CandidateIntelligenceContextBuilder {
         question: `Confirm statement: "${uf.statement}"`,
         field: `fact:${uf.id}`,
         impact: 'HIGH',
-        suggestedValues: ['Verify and allow AI use', 'Reject statement'],
+        suggestedValues: ['Verify statement', 'Verify and allow AI use', 'Reject statement'],
       });
     }
 
@@ -439,7 +439,7 @@ export class CandidateIntelligenceContextBuilder {
             institution: ed.institution,
             degree: ed.degree,
           })),
-        workAuthorization: workAuthCountries.length > 0 ? workAuthCountries : ['Poland', 'EU'],
+        workAuthorization: workAuthCountries,
         industries: Array.from(industrySet),
         transferableCapabilities: Array.from(transferableSet),
       },

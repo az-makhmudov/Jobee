@@ -56,6 +56,27 @@ export class TailoringEngine {
       links: candidate.links.map((l) => ({ label: l.label, url: l.url })),
     };
 
+    // Strict Invariant: Only records with verificationStatus === 'VERIFIED' AND allowAiUse === true
+    // enter tailored candidate documents. Unverified or unauthorized records must never influence tailored content.
+    const authorizedSkills = (candidate.skills || []).filter(
+      (s) => s.verificationStatus === 'VERIFIED' && s.allowAiUse === true,
+    );
+    const authorizedExperiences = (candidate.experiences || []).filter(
+      (e) => e.verificationStatus === 'VERIFIED' && e.allowAiUse === true,
+    );
+    const authorizedEducation = (candidate.education || []).filter(
+      (e) => e.verificationStatus === 'VERIFIED' && e.allowAiUse === true,
+    );
+    const authorizedLanguages = (candidate.languages || []).filter(
+      (l) => l.verificationStatus === 'VERIFIED' && l.allowAiUse === true,
+    );
+    const authorizedCertifications = (candidate.certifications || []).filter(
+      (c) => c.verificationStatus === 'VERIFIED' && c.allowAiUse === true,
+    );
+    const authorizedProjects = (candidate.projects || []).filter(
+      (p) => p.verificationStatus === 'VERIFIED' && p.allowAiUse === true,
+    );
+
     // 2. Identify matching skills and requirements
     const matchedSkillNames = new Set<string>();
     for (const ev of evaluations) {
@@ -64,7 +85,7 @@ export class TailoringEngine {
         for (const evId of evIds) {
           if (evId.startsWith('candidate_skill:')) {
             const skillId = evId.replace('candidate_skill:', '');
-            const foundSkill = candidate.skills.find((s) => s.id === skillId);
+            const foundSkill = authorizedSkills.find((s) => s.id === skillId);
             if (foundSkill) matchedSkillNames.add(foundSkill.name.toLowerCase());
           }
         }
@@ -72,7 +93,7 @@ export class TailoringEngine {
     }
 
     // 3. Tailored Skills (Prioritize matching skills)
-    const tailoredSkills: TailoredCvSkill[] = candidate.skills.map((skill) => {
+    const tailoredSkills: TailoredCvSkill[] = authorizedSkills.map((skill) => {
       const isHighlighted = matchedSkillNames.has(skill.name.toLowerCase());
       return {
         id: skill.id,
@@ -98,7 +119,7 @@ export class TailoringEngine {
 
     // 4. Tailored Experiences
     // Sort experiences chronologically, giving relevance boost if title/bullets match job requirements
-    const experiencesCopy = [...candidate.experiences];
+    const experiencesCopy = [...authorizedExperiences];
     experiencesCopy.sort((a, b) => {
       // Primary: most recent first
       const dateA = new Date(a.startDate).getTime() || 0;
@@ -142,7 +163,7 @@ export class TailoringEngine {
     );
 
     // 5. Tailored Education
-    const tailoredEducation: TailoredCvEducation[] = candidate.education.map((edu) => ({
+    const tailoredEducation: TailoredCvEducation[] = authorizedEducation.map((edu) => ({
       id: edu.id,
       institution: edu.institution, // Immutable factual field
       degree: edu.degree || 'Degree', // Immutable factual field
@@ -153,7 +174,7 @@ export class TailoringEngine {
     }));
 
     // 6. Tailored Languages
-    const tailoredLanguages: TailoredCvLanguage[] = candidate.languages.map((l) => ({
+    const tailoredLanguages: TailoredCvLanguage[] = authorizedLanguages.map((l) => ({
       id: l.id,
       language: l.language, // Immutable factual field
       proficiencyLevel: l.proficiency || undefined, // Immutable factual field
@@ -161,7 +182,7 @@ export class TailoringEngine {
     }));
 
     // 7. Tailored Certifications
-    const tailoredCertifications: TailoredCvCertification[] = candidate.certifications.map((c) => ({
+    const tailoredCertifications: TailoredCvCertification[] = authorizedCertifications.map((c) => ({
       id: c.id,
       name: c.name, // Immutable factual field
       issuer: c.issuingOrganization, // Immutable factual field
@@ -169,7 +190,7 @@ export class TailoringEngine {
     }));
 
     // 8. Tailored Projects
-    const tailoredProjects: TailoredCvProject[] = candidate.projects.map((p) => ({
+    const tailoredProjects: TailoredCvProject[] = authorizedProjects.map((p) => ({
       id: p.id,
       title: p.name,
       role: p.role || undefined,

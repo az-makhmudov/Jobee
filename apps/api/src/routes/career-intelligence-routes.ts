@@ -129,11 +129,12 @@ export function createCareerIntelligenceRoutes(
             value === true ||
             value === 'VERIFIED' ||
             String(value).toLowerCase().includes('verify');
+          const allowsAi = isVerified && String(value).toLowerCase().includes('allow ai');
           await tx
             .update(candidateFacts)
             .set({
               verificationStatus: isVerified ? 'VERIFIED' : 'REJECTED',
-              allowAiUse: isVerified,
+              allowAiUse: allowsAi,
               lastConfirmedAt: new Date(),
               updatedAt: new Date(),
             })

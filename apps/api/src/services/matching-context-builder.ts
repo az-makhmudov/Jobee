@@ -149,34 +149,52 @@ export class MatchingContextBuilder {
       });
     }
 
+    // Strict Invariant: Only records with verificationStatus === 'VERIFIED' AND allowAiUse === true
+    // enter generative AI contexts. Never pass unverified or unauthorized claims to AI.
+    const verifiedAiExperiences = expRows.filter(
+      (e) => e.verificationStatus === 'VERIFIED' && e.allowAiUse === true,
+    );
+    const verifiedAiSkills = skillRows.filter(
+      (s) => s.verificationStatus === 'VERIFIED' && s.allowAiUse === true,
+    );
+    const verifiedAiEducation = eduRows.filter(
+      (ed) => ed.verificationStatus === 'VERIFIED' && ed.allowAiUse === true,
+    );
+    const verifiedAiLanguages = langRows.filter(
+      (l) => l.verificationStatus === 'VERIFIED' && l.allowAiUse === true,
+    );
+    const verifiedAiCertifications = certRows.filter(
+      (c) => c.verificationStatus === 'VERIFIED' && c.allowAiUse === true,
+    );
+
     // Build privacy-minimized context for AI
     const aiContext: AiCandidateContext = {
       targetRoles: preferences?.targetTitles ?? [],
-      experiences: expRows.map((e) => ({
+      experiences: verifiedAiExperiences.map((e) => ({
         id: `candidate_experience:${e.id}`,
         position: e.position,
         organization: e.organization,
         duration: e.endDate ? `${e.startDate} to ${e.endDate}` : `${e.startDate} to present`,
         highlights: Array.isArray(e.achievements) ? e.achievements : [],
       })),
-      skills: skillRows.map((s) => ({
+      skills: verifiedAiSkills.map((s) => ({
         id: `candidate_skill:${s.id}`,
         name: s.name,
         proficiency: s.proficiency,
       })),
-      education: eduRows.map((ed) => ({
+      education: verifiedAiEducation.map((ed) => ({
         id: `candidate_education:${ed.id}`,
         institution: ed.institution,
         degree: ed.degree,
         fieldOfStudy: ed.fieldOfStudy,
       })),
-      languages: langRows.map((l) => ({
+      languages: verifiedAiLanguages.map((l) => ({
         id: `candidate_language:${l.id}`,
         language: l.language,
         proficiency: l.proficiency,
         cefrLevel: l.cefrLevel,
       })),
-      certifications: certRows.map((c) => ({
+      certifications: verifiedAiCertifications.map((c) => ({
         id: `candidate_certification:${c.id}`,
         name: c.name,
         issuingOrganization: c.issuingOrganization,

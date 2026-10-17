@@ -339,9 +339,9 @@ export class CareerIntelligenceEnrichmentService {
         ((context.allLanguages || []) as any[]).map((l: any) => l.language.toLowerCase()),
       );
       const commonLanguagesToCheck = [
-        { name: 'Polish', proficiency: 'INTERMEDIATE' },
-        { name: 'Russian', proficiency: 'FLUENT' },
-        { name: 'Uzbek', proficiency: 'NATIVE' },
+        { name: 'Polish', proficiency: null },
+        { name: 'Russian', proficiency: null },
+        { name: 'Uzbek', proficiency: null },
       ];
 
       for (const lang of commonLanguagesToCheck) {
@@ -484,22 +484,21 @@ export class CareerIntelligenceEnrichmentService {
                 .update(candidateSkills)
                 .set({
                   transferableCapabilities: [...currentCaps, skillName],
-                  allowAiUse: true,
-                  verificationStatus: 'VERIFIED',
                   updatedAt: new Date(),
                 })
                 .where(eq(candidateSkills.id, existingSkill.id));
             }
           } else {
+            // New transferable skill suggestion: initial state is UNVERIFIED and AI-gated
             await tx.insert(candidateSkills).values({
               userId,
               name: skillName,
               category: payload.category || 'Transferable Capabilities',
-              proficiency: 'ADVANCED',
+              proficiency: payload.proficiency || null,
               transferableCapabilities: [skillName],
               isTool: false,
-              allowAiUse: true,
-              verificationStatus: 'VERIFIED',
+              allowAiUse: false,
+              verificationStatus: 'UNVERIFIED',
               sourceReference: 'AI_CAREER_INTELLIGENCE_SUGGESTION',
               confidence: suggestion.confidence || 85,
             });
@@ -532,10 +531,10 @@ export class CareerIntelligenceEnrichmentService {
             userId,
             name: payload.name,
             category: payload.category || 'Tools & Technologies',
-            proficiency: 'INTERMEDIATE',
+            proficiency: payload.proficiency || null,
             isTool: payload.isTool ?? true,
-            allowAiUse: true,
-            verificationStatus: 'VERIFIED',
+            allowAiUse: false,
+            verificationStatus: 'UNVERIFIED',
             sourceReference: 'AI_CAREER_INTELLIGENCE_SUGGESTION',
             confidence: suggestion.confidence || 90,
           });
@@ -553,10 +552,10 @@ export class CareerIntelligenceEnrichmentService {
             await tx.insert(candidateLanguages).values({
               userId,
               language: payload.language,
-              proficiency: payload.proficiency || 'INTERMEDIATE',
+              proficiency: payload.proficiency || null,
               notes: 'Reconciled from Master CV',
-              allowAiUse: true,
-              verificationStatus: 'VERIFIED',
+              allowAiUse: false,
+              verificationStatus: 'UNVERIFIED',
               sourceReference: 'AI_CAREER_INTELLIGENCE_SUGGESTION',
               confidence: suggestion.confidence || 95,
             });
@@ -568,8 +567,6 @@ export class CareerIntelligenceEnrichmentService {
               degree: payload.degree,
               fieldOfStudy: payload.fieldOfStudy,
               isCurrent: payload.isCurrent ?? true,
-              verificationStatus: 'VERIFIED',
-              allowAiUse: true,
               sourceReference: 'AI_CAREER_INTELLIGENCE_SUGGESTION',
               updatedAt: new Date(),
             })
@@ -593,10 +590,10 @@ export class CareerIntelligenceEnrichmentService {
             await tx.insert(candidateCertifications).values({
               userId,
               name: payload.name,
-              issuingOrganization: payload.issuingOrganization || 'NAVOICA',
+              issuingOrganization: payload.issuingOrganization || null,
               issueDate: payload.issueDate || null,
-              allowAiUse: true,
-              verificationStatus: 'VERIFIED',
+              allowAiUse: false,
+              verificationStatus: 'UNVERIFIED',
               sourceReference: 'AI_CAREER_INTELLIGENCE_SUGGESTION',
               confidence: suggestion.confidence || 95,
             });

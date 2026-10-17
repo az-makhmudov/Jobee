@@ -1687,11 +1687,16 @@ This document tracks execution history and verification state for all official m
     - Multi-Record Review & Batch Actions: Integrated category filter tabs, record checkboxes, and batch action toolbar (`✓ Verify Selected`, `🤖 Authorize AI Use (Verified Only)`, `🔒 Revoke AI Use`).
     - Separate Decisions Invariant: Enforced strict architectural rule where verification and AI authorization are separate explicit human actions. Records cannot be authorized for AI without being verified, and revoking verification automatically revokes AI prompt use.
     - Authentic Data Reconciliation: Reconciled candidate Master CV text with candidate records, detecting missing languages (Polish, Russian, Uzbek), education specialization details, and certifications. Generated 9 pending review suggestions in `candidate_intelligence_suggestions` without mutating production data or silently authorizing any item.
-    - Automated Testing: Added test suite in `career-intelligence.test.ts` (now 14 integration tests) and dedicated React UI component test suite `CareerIntelligenceView.test.tsx` (4 tests).
+  - **Phase K — Trust & Consent Fix (JOB-CAREER-INTEL-2.0 Hardening)**:
+    - AI Context Gating: Removed fallback in `CandidateIntelligenceContextBuilder` where un-authorized `VERIFIED` records were included if no records had `allowAiUse=true`. A record enters generative AI context ONLY when `verificationStatus === 'VERIFIED'` AND `allowAiUse === true` across all 7 Candidate Brain entities.
+    - Zero Fabrication Invariants: Removed hardcoded work authorization fallback (`['Poland', 'EU']`) so unconfirmed work authorization remains strictly unknown until explicitly verified by the user. Removed hardcoded proficiency assumptions (`'ADVANCED'`, `'INTERMEDIATE'`, `'NATIVE'`, `'NAVOICA'`), defaulting unspecified proficiencies to `null`.
+    - Unified AI Consumers: Gated generative AI contexts in `MatchingContextBuilder.aiContext`, `TailoringEngine.buildTailoredCv`, and `CoverLetterEngine.generateCoverLetter` to strictly filter candidate experiences, skills, education, languages, certifications, and projects on `verificationStatus === 'VERIFIED' && allowAiUse === true`. Unverified claims can never enter or influence tailored documents.
+    - AI Suggestion Approval: Hardened `CareerIntelligenceEnrichmentService.applySuggestion()` so accepting an AI suggestion inserts records with `verificationStatus = 'UNVERIFIED'` and `allowAiUse = false`, preserving strict separation between accepting a suggestion, verifying a fact, and authorizing generative AI use.
+    - Fact Clarifications: Updated `career-intelligence-routes.ts` clarification answering so verifying a statement does not implicitly grant `allowAiUse`.
 - **Verification Records**:
   - `npm run format`: PASSED (100% Prettier compliance across all monorepo files)
-  - `npm run lint`: PASSED (0 errors, 662 warnings across monorepo)
+  - `npm run lint`: PASSED (0 errors, 671 warnings across monorepo)
   - `npm run typecheck`: PASSED (all 6 workspaces: shared, config, database, api, worker, web cleanly typechecked with 0 errors)
-  - `npm run test`: PASSED (60 test files, 533/533 tests passing cleanly)
-  - `npm run build`: PASSED (all packages built to dist, Vite production bundle completed in 1.30s)
-  - `npx tsx scripts/validate-release-priority-1-3.ts`: PASSED (Post-remediation audit clean, AI-authorized facts: 0, isolated benchmark matching validated with 0 false positives)
+  - `npm run test`: PASSED (60 test files, 538/538 tests passing cleanly with 19/19 in career-intelligence.test.ts)
+  - `npm run build`: PASSED (all packages built to dist, Vite production bundle completed cleanly)
+  - `npm run db:check`: PASSED (PostgreSQL connected with 43ms latency)
