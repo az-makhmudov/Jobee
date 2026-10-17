@@ -17,7 +17,7 @@
 - **Milestone Status:** MACRO PHASE 1 FULLY OPERATIONAL & VERIFIED (62/62 test files, 560/560 tests passing; dedicated isolated test database `jobee_test_isolated` enforced via hardened `packages/database/src/safety.ts`; primary development database `ai_job_agent_dev` 100% untainted; 0 synthetic records on candidate Asadbek Makhmudov; live public discovery validated across Arbeitnow [300 jobs] and Greenhouse boards [1,700+ jobs across Canonical, GitLab, Stripe, Figma, Elastic]; Greenhouse title HTML boilerplate cleanup; generalizable transferable capability families recognized in `CandidateEvidenceResolver`; strict generative AI context gating on `verificationStatus === 'VERIFIED' && allowAiUse === true` across all 7 candidate entities including projects; ATS-readable Tailored CV and grounded Cover Letter DOCX generation with metric safeguards against synthetic claims; question hierarchy and pending human approval requests blocking package submission; 17-state CRM lifecycle validated without auto-marking applications as applied; `scripts/verify-e2e-workflow.ts` Phases A-K passing 100% cleanly; `scripts/verify-multi-user-e2e.ts` passing 100% cleanly)
 - **Previous Completed Milestone:** `JOB-CAREER-INTEL-2.0`
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + STUDIO PACKAGE REPAIR FULLY VERIFIED + SMART PROFILE IMPORT HARDENED + CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 DELIVERED & HARDENED + MACRO PHASE 1 CORE JOB INTELLIGENCE & APPLICATION WORKFLOW COMPLETED & VERIFIED**
-- **Active Git Checkpoint:** `JOBEE-MACRO-PHASE-1`
+- **Active Git Checkpoint:** `47732d9`
 
 ---
 
@@ -62,7 +62,8 @@
 | `JOB-E2E-WORKFLOW`         | End-to-End Workflow Verification & Stabilization (Phases A-K)      | COMPLETED     | Verified across all 11 phases (BL-17)              |
 | `JOB-STUDIO-REPAIR`        | Production Studio Repair: DOCX Generation, R2 Upload & Recovery    | COMPLETED     | Verified across all 11 phases (BL-18)              |
 | `JOB-SMART-PROFILE-IMPORT` | Smart Candidate Profile Creation & Enrichment via AI Extraction    | COMPLETED     | `4dbc5e3` (BL-19)                                  |
-| `JOB-CAREER-INTEL-2.0`     | Candidate Brain & AI Career Intelligence 2.0 Platform              | **COMPLETED** | `6721267` (59/59 test suites, 527 tests, 0 errors) |
+| `JOB-CAREER-INTEL-2.0`     | Candidate Brain & AI Career Intelligence 2.0 Platform              | COMPLETED     | `6721267` (59/59 test suites, 527 tests, 0 errors) |
+| `JOBEE-MACRO-PHASE-1`      | Core Job Intelligence & Application Workflow E2E Validation        | **COMPLETED** | `47732d9` (62/62 test files, 560 tests, E2E clean) |
 
 ---
 
