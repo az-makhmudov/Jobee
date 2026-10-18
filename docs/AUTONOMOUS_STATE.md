@@ -17,7 +17,7 @@
 - **Milestone Status:** PRODUCTION READY (Sanitized documentation commits pushed to origin/main; remote CI passed green; live Railway services online; 27/27 real-user acceptance scenarios passed cleanly covering authentication guardrails, Candidate Brain truthfulness, 24 authentic vacancies, 92% match intelligence, Application Studio tailoring, CRM & Revolut APPLIED manual provenance verification, Gmail connection, auto-apply circuit breakers, and Playwright Chromium headless browser UI/UX rendering across desktop and mobile viewports with 0 horizontal overflow).
 - **Previous Completed Milestone:** `JOB-SEC-REMEDIATION-01`
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 DELIVERED & HARDENED + MACRO PHASES 1, 2 & 3 COMPLETED & VERIFIED + RELEASE BLOCKERS RESOLVED + PRODUCTION RELEASED & LIVE VERIFIED + PRODUCTION SECURITY REMEDIATION COMPLETED & VERIFIED + REAL-USER ACCEPTANCE VALIDATED**
-- **Active Git Checkpoint:** `db8de74` (origin/main up to date, working tree clean)
+- **Active Git Checkpoint:** `f2e9770` (origin/main up to date, working tree clean)
 
 ---
 
