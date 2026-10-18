@@ -2,6 +2,8 @@
 
 Status: **PREVIEW COMPLETE / RELEASE PENDING**. Lead implementation: Codex, explicitly assigned by the product owner. Production release remains pending preview review and authorization.
 
+Implementation checkpoint: `675ec5c06b5e6a572ea5b8ae23803516a7dc904e` (local only).
+
 Baseline: `9c1b206debf25be97cb16b832daf09e287a32803`. Isolated branch: `codex/jobee-design-system-migration`.
 
 ## Delivered interfaces

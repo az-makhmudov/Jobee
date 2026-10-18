@@ -2083,7 +2083,7 @@ This document tracks execution history and verification state for all official m
 
 ## JOB-UI-MIGRATION-01 — Complete local design-system preview (2026-10-18)
 
-- **Lead:** Codex, explicitly assigned by the owner; audited baseline `9c1b206`.
+- **Lead:** Codex, explicitly assigned by the owner; audited baseline `9c1b206`. Local implementation checkpoint: `675ec5c06b5e6a572ea5b8ae23803516a7dc904e`.
 - **Status:** PREVIEW COMPLETE / RELEASE PENDING. Isolated branch `codex/jobee-design-system-migration`; production and the original checkout remain unchanged.
 - **Delivery:** Figma semantic Light/Dark tokens, local Google Sans Flex/SVGs, shared controls/dialogs, eight destinations, all 17 original views and 25 mapped components, grouped Profile/Applications/Settings workspaces, content-driven cards and desktop presentation with narrow-screen compatibility. Inline PDF/DOCX/TXT document preview uses the existing owner-checked download endpoint and cancellable local rendering.
 - **Preservation:** Reconciled 184 existing API calls/payloads against the baseline. Retained all 17 lifecycle statuses, eight browser-run states, import/verification/AI permission/material approval/policy override/submission authorization boundaries. No backend, database schema, worker or shared domain-type changes.

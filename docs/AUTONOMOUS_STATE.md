@@ -2,6 +2,8 @@
 
 > Active authorized work: **JOB-UI-MIGRATION-01**, led by Codex at the owner’s explicit request. Isolated branch `codex/jobee-design-system-migration`. **Preview complete; production release pending review and explicit authorization.** Verified 586 unit/integration tests, 25 browser checks and all quality gates. See `docs/UI_MIGRATION.md`. Prior release history below is retained.
 
+**UI implementation checkpoint:** `675ec5c06b5e6a572ea5b8ae23803516a7dc904e` (local only, not pushed).
+
 **Document Status:** Canonical Durable Execution State  
 **Updated At:** 2026-10-18 14:04:24 UTC
 
