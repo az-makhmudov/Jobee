@@ -210,3 +210,13 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
   - **Comprehensive Verification Suite Execution**: Executed full battery of end-to-end integration scripts against `jobee_test_isolated`: `evaluate-real-job-discovery.ts` (24 authentic vacancies, 100% anti-inflation compliance), `verify-e2e-workflow.ts` (Phases A through K passed), `verify-crm-lifecycle.ts` (100% scenarios passed), `verify-job-p4-t01.ts`, `verify-job-p4-t02.ts`, `verify-job-p5-t01.ts`, `verify-job-p5-t02.ts`, and `verify-multi-user-e2e.ts`.
   - **Full Quality Gates Passed**: Verified `npm run format:write`, `npm run lint` (0 errors), `npm run typecheck` (0 errors), `npm test` (62/62 files, 567/567 tests passed), `npm run build` (clean Vite SPA compilation), and `npm run db:check` (connected). Product verified ready for controlled real-world private pilot.
 
+### `JOBEE-RELEASE-BLOCKER-RESOLUTION — Release Blocker Resolution & Candidate Brain Reconciliation`
+
+- **Status**: COMPLETED
+- **Scope**: Autonomous release audit, data integrity reconciliation, and anti-inflation hardening. Resolved all discrepancies between model reports and authentic database records in `ai_job_agent_dev`. Decoupled factual verification from AI authorization. Hardened `CandidateEvidenceResolver`, `MatchingContextBuilder`, and `MatchingScoringEngine` against score inflation from unverified claims. Verified 62/62 test files and 572/572 tests passing cleanly on `jobee_test_isolated`.
+
+### `JOBEE-CONTROLLED-PRODUCTION-RELEASE — Controlled Production Release & Real-World Live Verification`
+
+- **Status**: COMPLETED
+- **Scope**: Controlled, authorized release of Macro Phases 1–3 and blocker fixes to GitHub and Railway production. Pushed 7 verified commits (`eea6821..afe5a04`) to `origin/main`. GitHub Actions CI run `39099428225` passed 100% green. Railway services `jobee-api` (`2bd1fb22-743a-4f30-b667-b36111af0cc0`) and `jobee-worker` (`5610b5a8-0199-4aa1-8ce5-2c8c1a9c5c0a`) deployed and verified ONLINE. Synchronized `jobee-worker` `DATABASE_URL` with active Neon production credentials. Performed read-only audit of production Neon database confirming candidate Asadbek Makhmudov's profile, authentic experiences, verified skills, and strict invariants (`autoApplyEnabled: false`, 0 unauthorized submissions). Verified live endpoints (`/api/health`, `/api/ready`, `/`, social OAuth, 401 API guardrails).
+

@@ -1900,4 +1900,42 @@ This document tracks execution history and verification state for all official m
   - `npm run build`: PASSED (Shared, Config, Database, API, Worker, and Web SPA bundle compiled cleanly)
   - `npm run db:check`: PASSED (PostgreSQL connected, 30ms latency)
 
+---
+
+## 2026-10-18: JOBEE — CONTROLLED PRODUCTION RELEASE: MACRO PHASES 1–3 + RELEASE BLOCKER RESOLUTION
+
+- **Official Task Stamps**: `JOB-CAREER-INTEL-2.0`, `JOB-P2-T01`, `JOB-P2-T02`, `JOB-P3-T01`, `JOB-P3-T02`, `JOB-P4-T01`, `JOB-P4-T02`, `JOB-P5-T01`, `JOB-P5-T02`, `JOB-E2E-WORKFLOW`, `JOB-AUTH-01`, `BL-06`, `BL-10`
+- **Lead Engineer**: Antigravity (Goal-Driven Autonomous Delivery Mode)
+- **Scope**: Authorized Production Release, GitHub Push, CI Verification, Railway Deployment, Production Neon Data Integrity Audit, Worker Configuration Synchronization, and Live Production Acceptance Verification.
+- **Key Deliverables & Verification Records**:
+  - **Git Lineage & GitHub Push**:
+    - Reconciled commit ancestry: 7 commits ahead of `eea6821`: `47732d9`, `70b72ca`, `69882a1`, `d762625`, `f2ca67e`, `db6dbbc`, `afe5a04`.
+    - Pushed to `origin/main` (`https://github.com/az-makhmudov/Jobee`): `eea6821..afe5a04 main -> main`. Zero force-push, zero data loss.
+  - **GitHub Actions CI Quality Gate**:
+    - Workflow Run ID: `39099428225` (`https://github.com/az-makhmudov/Jobee/actions/runs/39099428225`).
+    - Conclusion: **SUCCESS** (All steps passed: Checkout, Node setup, Install, Lint, Typecheck, DB connectivity, DB migrations, Vitest tests, Build).
+  - **Railway Cloud Deployments**:
+    - Project: `Jobee` (`9a64cf6a-350e-41ba-85dd-a46b9d8e28a9`), Environment: `production` (`79807bb8-0677-477d-9e84-c05e412f8f70`).
+    - `jobee-api`: Deployment `2bd1fb22-743a-4f30-b667-b36111af0cc0` -> **SUCCESS / ONLINE**.
+    - `jobee-worker`: Initial deployment `58faba06-0a03-4c55-98aa-19e2837d02e1` -> Redeployed as `5610b5a8-0199-4aa1-8ce5-2c8c1a9c5c0a` -> **SUCCESS / ONLINE**.
+  - **Production Worker Configuration Synchronization**:
+    - Detected stale password override in `jobee-worker` service variable for `DATABASE_URL`.
+    - Updated `DATABASE_URL` via Railway CLI to match active Neon production database credentials: `postgresql://neondb_owner:npg_tXoAZ0Onl6KM@ep-shiny-salad-b480qwkd-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require`.
+    - Verified worker logs: `Database connectivity check: connected` (latency: 246ms), `Worker service started successfully. Running in standby mode.`
+    - Orchestrator executed scheduled pipeline cycle: matched live Arbeitnow opportunity, strictly enforced circuit breaker `[Orchestrator][AUTO_APPLY] Auto-apply circuit breaker is OFF (auto_apply_enabled=false). Human authorization required for submissions.`, zero automatic submissions.
+  - **Production Neon Read-Only Data Integrity Audit**:
+    - Candidate Profile: Asadbek Makhmudov (`81d5cb73-3c7f-48ec-88b9-52ce39ed0fbf`), Project Manager.
+    - Experience: `Asia alliance bank`, Operations Assistant, `2023-06 to 2023-08`, VERIFIED, allowAiUse: true.
+    - Education: `Vistula University`, B.A. Management (Project Management in a Organization), `2023 to ongoing`, VERIFIED, allowAiUse: true.
+    - Skills (12): All 12 verified, allowAiUse: true.
+    - Certifications (2): Google Project Management (Coursera 2025-03), Computer Support for business decisions (2025-12).
+    - Documents (2): `Resume.pdf` (MASTER_CV, 1,131,604 bytes) and `Profile (1).pdf` (CV, 41,384 bytes).
+    - Jobs (23), Applications (20). Invariants verified: `autoApplyEnabled: false`. Drizzle migrations 0000..0021 verified applied.
+  - **Live Production Endpoints Verified**:
+    - `GET https://jobee-api-production.up.railway.app/api/health` -> HTTP 200 `{"status":"ok","service":"api","version":"0.1.0"}`.
+    - `GET https://jobee-api-production.up.railway.app/api/ready` -> HTTP 200 (DB connected, 19ms; Gemini 3.8 Flash configured; Gmail & Calendar configured).
+    - `GET https://jobee-api-production.up.railway.app/` -> HTTP 200 (serving SPA with verified Vite assets `index-C2A91of9.js`).
+    - `POST https://jobee-api-production.up.railway.app/api/auth/sign-in/social` -> HTTP 200 (Google OAuth URL returned).
+    - `GET https://jobee-api-production.up.railway.app/api/jobs` -> HTTP 401 UNAUTHORIZED (Route protection verified).
+
 
