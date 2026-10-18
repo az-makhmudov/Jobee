@@ -1,11 +1,11 @@
 # Jobee — Autonomous Execution State
 
-> Active authorized work: **JOB-UI-MIGRATION-01**, led by Codex at the owner’s explicit request. Main checkout now includes `codex/jobee-design-system-migration`. **Owner explicitly authorized local integration and live deployment; release in progress.** Verified 586 unit/integration tests, 25 browser checks and all quality gates. See `docs/UI_MIGRATION.md`. Prior release history below is retained.
+> Active authorized work: **JOB-UI-MIGRATION-01**, led by Codex at the owner’s explicit request. Main checkout now includes `codex/jobee-design-system-migration`. **Owner authorized local integration and live deployment; deployed and live verified.** Verified 586 unit/integration tests, 25 browser checks and all quality gates. See `docs/UI_MIGRATION.md`. Prior release history below is retained.
 
-**UI implementation checkpoint:** `675ec5c06b5e6a572ea5b8ae23803516a7dc904e` (integrated into main through `27627be`; release packaging and deployment in progress).
+**UI implementation checkpoint:** `675ec5c06b5e6a572ea5b8ae23803516a7dc904e` (integrated into main; production application release `7b6b85d`, both Railway services successful).
 
 **Document Status:** Canonical Durable Execution State  
-**Updated At:** 2026-10-18 14:04:24 UTC
+**Updated At:** 2026-10-18 15:19:00 UTC
 
 **Active Lead Engineer:** Codex (JOB-UI-MIGRATION-01, explicit owner assignment)
 

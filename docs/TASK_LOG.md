@@ -2098,3 +2098,10 @@ This document tracks execution history and verification state for all official m
 - **Safety:** Existing Railway project/services and deployment configuration retained. Tests target only disposable loopback PostgreSQL with live provider credentials disabled. No production schema migration, candidate-data mutation or external application/email/calendar action is included.
 - **Rollback baseline:** API `93b7ca5f-e9de-402e-96b7-0c5814aff0bd`; worker `0c576a10-ee9c-4c37-8d63-ab7b5ab067d6`, both successful at `9c1b206`.
 - **Progress:** Fresh main checks passed: production build, typecheck, lint (0 errors / 701 existing warnings), formatting, 586 tests / 64 files, isolated database connectivity and existing migrations. The initial isolated-test run exposed two test-environment default mismatches; restoring the expected owner and orchestrator defaults resolved both without source changes. Remote CI, Railway deployment and live read-only checks are in progress; final evidence will be recorded after verification.
+
+### Release verification and platform visual references
+
+- Published main application release `7b6b85d`. Railway API `4f500dac-db06-40e9-b1f2-ab76ed0d848b` and worker `06625dde-81ae-4e7b-bcd1-2a2269154f54` reached SUCCESS. GitHub quality run `39139329468` passed.
+- Cloud browser run `39139329469`: Docker builder and 184 API contracts passed; 24 behavior checks passed. The only failure was cross-platform Home text rasterization against the macOS image (2% pixels). Reviewed both Linux theme renders and introduced platform-separated references, retaining the original 1% threshold. Focused macOS visual comparison passes.
+- Live health/readiness are 200; unauthenticated Jobs remains 401. Exact frontend/theme/font/PDF asset hashes match the checked build. Verified eight destinations, Google Sans Flex, appearance selection, remembered dark mode and no 1440px root overflow. Authenticated journeys and document content were exercised only against isolated synthetic data.
+- No production data/configuration migration or external provider mutation. The owner’s concurrent local AGENTS.md role update was preserved outside release staging.

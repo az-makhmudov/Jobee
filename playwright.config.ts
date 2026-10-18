@@ -27,7 +27,7 @@ const env = {
 };
 export default defineConfig({
   testDir: './apps/web/e2e',
-  snapshotPathTemplate: '{testDir}/snapshots/{arg}{ext}',
+  snapshotPathTemplate: '{testDir}/snapshots/{platform}/{arg}{ext}',
   testMatch: '**/*.spec.ts',
   fullyParallel: false,
   workers: 1,

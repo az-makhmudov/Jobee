@@ -1,8 +1,8 @@
 # JOB-UI-MIGRATION-01 — Jobee design system migration
 
-Status: **RELEASE AUTHORIZED / DEPLOYMENT IN PROGRESS**. Lead implementation: Codex, explicitly assigned by the product owner. The owner approved applying the migration to the main checkout and deploying live on 18 October 2026.
+Status: **DEPLOYED / LIVE VERIFIED**. Lead implementation: Codex, explicitly assigned by the product owner. The owner approved applying the migration to the main checkout and deploying live on 18 October 2026.
 
-Implementation checkpoint: `675ec5c06b5e6a572ea5b8ae23803516a7dc904e`; main checkout fast-forwarded through `27627be`.
+Implementation checkpoint: `675ec5c06b5e6a572ea5b8ae23803516a7dc904e`; main checkout fast-forwarded through `27627be`. Production application release: `7b6b85d394861cd3c75d4a0f8e9178099466ad2c`.
 
 Baseline: `9c1b206debf25be97cb16b832daf09e287a32803`. Isolated branch: `codex/jobee-design-system-migration`.
 
@@ -64,4 +64,12 @@ Live ATS submission, real recruiter email, calendar mutations and paid AI provid
 
 Chromium is the automated browser target. The authorized release adds the document-preview resource setup script to the Docker builder context; no production configuration or database schema changes are required.
 
-The migration is applied to the main local checkout. Deployment and live verification are in progress. Retained rollback deployments at baseline `9c1b206`: API `93b7ca5f-e9de-402e-96b7-0c5814aff0bd`, worker `0c576a10-ee9c-4c37-8d63-ab7b5ab067d6`. No production database migration or external provider action is part of this UI release.
+The migration is applied to main and live at https://jobee-api-production.up.railway.app/. Both Railway services successfully deployed release `7b6b85d`: API `4f500dac-db06-40e9-b1f2-ab76ed0d848b`, worker `06625dde-81ae-4e7b-bcd1-2a2269154f54`. Retained rollback deployments at baseline `9c1b206`: API `93b7ca5f-e9de-402e-96b7-0c5814aff0bd`, worker `0c576a10-ee9c-4c37-8d63-ab7b5ab067d6`. No production database migration or external provider action is part of this UI release.
+
+## Authorized release evidence — 18 October 2026
+
+- Main checkout reran all required gates successfully, including 586 tests / 64 files and isolated database checks. GitHub quality workflow [39139329468](https://github.com/az-makhmudov/Jobee/actions/runs/39139329468) passed.
+- First cloud browser run [39139329469](https://github.com/az-makhmudov/Jobee/actions/runs/39139329469) passed Docker compilation, all 184 source contracts and 24 behavior tests. Its Home screenshot comparison exposed platform font-rasterization differences. Reviewed Linux Light/Dark references now sit alongside the original macOS references; the 1% threshold is unchanged. The Linux Home inventory image exactly matched the independently captured failed-comparison actual image. Local visual comparison passed after platform separation. Subsequent workflow results are available in [UI migration preview](https://github.com/az-makhmudov/Jobee/actions/workflows/ui-preview.yml).
+- Live read-only checks: health and readiness HTTP 200; protected Jobs endpoint HTTP 401 without a session. Frontend JavaScript/CSS, theme bootstrap, self-hosted font, PDF worker, CMap, standard font and WASM bytes match the local production build.
+- Live browser: eight destinations, Google Sans Flex, Settings Light/Dark/System selection, dark persistence after reload and 1440px layout verified. Screenshots are under ignored `output/playwright/live/`. No candidate account or production document was used; authenticated feature coverage comes from the isolated browser suite. Expected guest HTTP 401 responses remain visible in browser network logs; no uncaught application exception was observed during these checks.
+- No production data migration, environment-variable change, real application submission, outbound email, calendar mutation or paid AI call was performed for this release. Existing baseline dependency advisories remain as documented above.
