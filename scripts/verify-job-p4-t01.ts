@@ -512,7 +512,11 @@ On Thu, Oct 8, 2026 at 10:00 AM Bek wrote:
   }
 }
 
-main().catch((err) => {
-  console.error('VERIFICATION FAILED:', err);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('VERIFICATION FAILED:', err);
+    process.exit(1);
+  });

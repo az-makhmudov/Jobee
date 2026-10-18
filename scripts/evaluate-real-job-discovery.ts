@@ -6,6 +6,7 @@ import {
   closeDbPool,
   users,
   candidateProfiles,
+  candidateEducation,
   candidateExperiences,
   candidateSkills,
   jobPreferences,
@@ -144,18 +145,44 @@ async function main() {
       },
     ]);
 
-    // Verified Experience
+    // Candidate Education
+    await db.insert(candidateEducation).values([
+      {
+        userId: testUserId,
+        institution: 'Vistula University',
+        degree: 'Bachelor in Management',
+        fieldOfStudy: 'Project Management in Organization',
+        startDate: '2021-10',
+        endDate: '2024-07',
+        location: 'Warsaw, Poland',
+        verificationStatus: 'VERIFIED',
+        allowAiUse: true,
+      },
+      {
+        userId: unverifiedUserId,
+        institution: 'Vistula University',
+        degree: 'Bachelor in Management',
+        fieldOfStudy: 'Project Management in Organization',
+        startDate: '2021-10',
+        endDate: '2024-07',
+        location: 'Warsaw, Poland',
+        verificationStatus: 'UNVERIFIED',
+        allowAiUse: false,
+      },
+    ]);
+
+    // Authentic Verified Experience from Master CV
     await db.insert(candidateExperiences).values([
       {
         userId: testUserId,
-        organization: 'Universal Mobile Systems',
-        position: 'Lead Specialist of Banking Operations',
-        startDate: '2022-01',
-        endDate: '2024-03',
+        organization: 'Asia Alliance Bank',
+        position: 'Operations Assistant',
+        startDate: '2023-05',
+        endDate: '2023-08',
         isCurrent: false,
-        location: 'Tashkent / Warsaw',
+        location: 'Samarkand, Uzbekistan',
         description:
-          'Led banking operations workflows, cross-functional project tracking in Jira, stakeholder communications, and process improvements.',
+          'Operations Assistant supporting daily banking operations workflows, client account reconciliation, document verification, stakeholder reporting, and operational efficiency improvements.',
         verificationStatus: 'VERIFIED',
         allowAiUse: true,
         transferableCapabilities: [
@@ -170,14 +197,14 @@ async function main() {
       // Clone experience as UNVERIFIED
       {
         userId: unverifiedUserId,
-        organization: 'Universal Mobile Systems',
-        position: 'Lead Specialist of Banking Operations',
-        startDate: '2022-01',
-        endDate: '2024-03',
+        organization: 'Asia Alliance Bank',
+        position: 'Operations Assistant',
+        startDate: '2023-05',
+        endDate: '2023-08',
         isCurrent: false,
-        location: 'Tashkent / Warsaw',
+        location: 'Samarkand, Uzbekistan',
         description:
-          'Led banking operations workflows, cross-functional project tracking in Jira, stakeholder communications, and process improvements.',
+          'Operations Assistant supporting daily banking operations workflows, client account reconciliation, document verification, stakeholder reporting, and operational efficiency improvements.',
         verificationStatus: 'UNVERIFIED',
         allowAiUse: false,
         transferableCapabilities: [],
@@ -553,6 +580,8 @@ async function main() {
 
     await db.delete(candidateSkills).where(eq(candidateSkills.userId, testUserId));
     await db.delete(candidateSkills).where(eq(candidateSkills.userId, unverifiedUserId));
+    await db.delete(candidateEducation).where(eq(candidateEducation.userId, testUserId));
+    await db.delete(candidateEducation).where(eq(candidateEducation.userId, unverifiedUserId));
     await db.delete(candidateExperiences).where(eq(candidateExperiences.userId, testUserId));
     await db.delete(candidateExperiences).where(eq(candidateExperiences.userId, unverifiedUserId));
     await db.delete(jobPreferences).where(eq(jobPreferences.userId, testUserId));
@@ -567,7 +596,11 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error('\n❌ ACCEPTANCE EVALUATION FAILED:', err);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('\n❌ ACCEPTANCE EVALUATION FAILED:', err);
+    process.exit(1);
+  });

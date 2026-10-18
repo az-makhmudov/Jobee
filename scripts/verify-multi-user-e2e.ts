@@ -33,12 +33,21 @@ async function runMultiUserValidation() {
   console.log('======================================================================\n');
 
   const config = getConfig();
-  const db = getDb(config.DATABASE_URL);
+  const testDbUrl =
+    process.env.TEST_DATABASE_URL ||
+    (config.DATABASE_URL
+      ? config.DATABASE_URL.replace(/\/[^/]+$/, '/jobee_test_isolated')
+      : 'postgresql://bek@localhost:5432/jobee_test_isolated');
+  const { assertSafeTestDatabase, assertSafeTestUser, assertScopedCleanup } =
+    await import('@job-agent/database');
+  assertSafeTestDatabase(testDbUrl);
+  const db = getDb(testDbUrl);
   const invitationService = new PilotInvitationService(db);
   const emailService = new TransactionalEmailService(config);
 
   const timestamp = Date.now();
-  const adminId = '00000000-0000-0000-0000-000000000001'; // Primary Admin Asadbek
+  const adminId = crypto.randomUUID();
+  assertSafeTestUser(adminId);
   const testerEmail = `tester.e2e.${timestamp}@pilot.local`;
   let testerUserId = '';
   let invitationId = '';
@@ -51,7 +60,16 @@ async function runMultiUserValidation() {
     // -------------------------------------------------------------------------
     // STEP 1: Verify Primary Candidate / Admin Integrity
     // -------------------------------------------------------------------------
-    console.log('--- STEP 1: Verifying Primary Candidate & Admin Account ---');
+    console.log('--- STEP 1: Seeding Disposable Admin Account in Isolated DB ---');
+    await db.insert(users).values({
+      id: adminId,
+      systemKey: `test_admin_${timestamp}`,
+      name: 'Asadbek Makhmudov (Disposable Admin)',
+      email: `admin.e2e.${timestamp}@example.com`,
+      emailVerified: true,
+      role: 'admin',
+    });
+
     const primaryAdmin = await db.query.users.findFirst({
       where: (u, { eq }) => eq(u.id, adminId),
     });
@@ -290,7 +308,7 @@ async function runMultiUserValidation() {
     process.exitCode = 1;
   } finally {
     console.log('--- TEARDOWN: Cleaning up ephemeral test artifacts ---');
-    const userIds = [testerUserId].filter(Boolean);
+    const userIds = [adminId, testerUserId].filter(Boolean);
     if (testApprovalAId)
       await db.delete(approvalRequests).where(eq(approvalRequests.id, testApprovalAId));
     if (testPackageAId)
@@ -301,6 +319,9 @@ async function runMultiUserValidation() {
       await db.delete(pilotInvitations).where(eq(pilotInvitations.id, invitationId));
 
     if (userIds.length > 0) {
+      assertScopedCleanup({ userId: adminId });
+      if (testerUserId) assertScopedCleanup({ userId: testerUserId });
+      await db.delete(applicationPolicy).where(inArray(applicationPolicy.userId, userIds));
       await db.delete(candidateFacts).where(inArray(candidateFacts.userId, userIds));
       await db.delete(candidateSkills).where(inArray(candidateSkills.userId, userIds));
       await db.delete(candidateProfiles).where(inArray(candidateProfiles.userId, userIds));
@@ -312,4 +333,11 @@ async function runMultiUserValidation() {
   }
 }
 
-void runMultiUserValidation();
+runMultiUserValidation()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('\n❌ Fatal error during multi-user validation:', err);
+    process.exit(1);
+  });

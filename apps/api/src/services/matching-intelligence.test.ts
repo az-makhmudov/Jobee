@@ -126,6 +126,7 @@ describe('Matching Intelligence Unit Tests (JOB-P2-T02)', () => {
         durationMonths: 48,
         description: 'Built scalable microservices in Node and TypeScript',
         isCurrent: false,
+        verificationStatus: 'VERIFIED',
         createdAt: new Date(),
         updatedAt: new Date(),
       } as any,
@@ -137,6 +138,7 @@ describe('Matching Intelligence Unit Tests (JOB-P2-T02)', () => {
         degree: 'Bachelor of Science',
         fieldOfStudy: 'Computer Science',
         institution: 'TU Berlin',
+        verificationStatus: 'VERIFIED',
         createdAt: new Date(),
         updatedAt: new Date(),
       } as any,
@@ -429,6 +431,98 @@ describe('Matching Intelligence Unit Tests (JOB-P2-T02)', () => {
       const result = resolver.evaluateRequirement(reqKubernetes, candidate);
       expect(['NOT_MET', 'UNKNOWN']).toContain(result.status);
       expect(result.evidenceIds).toHaveLength(0);
+    });
+
+    it('unverified candidate skills evaluate as PARTIAL with verification required and cannot clear mandatory blocker', () => {
+      const candidate = createMockCandidateContext({
+        skills: [
+          {
+            id: 'candidate_skill:unverified-ts',
+            userId: 'user-test-1',
+            name: 'TypeScript',
+            category: 'Language',
+            proficiency: 'ADVANCED',
+            isActive: true,
+            verificationStatus: 'UNVERIFIED',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } as any,
+        ],
+      });
+
+      const reqTs = createMockRequirement({
+        rawText: 'Strong knowledge of TypeScript required',
+        normalizedText: 'TypeScript experience',
+        category: 'SKILL',
+        requirementStrength: 'MANDATORY',
+      });
+
+      const result = resolver.evaluateRequirement(reqTs, candidate);
+      expect(result.status).toBe('PARTIAL');
+      expect(result.confidence).toBe(50);
+      expect(result.contributesToBlocker).toBe(true);
+      expect(result.reason).toContain('verification required');
+    });
+
+    it('rejected candidate skills are strictly ignored and evaluated as NOT_MET', () => {
+      const candidate = createMockCandidateContext({
+        skills: [
+          {
+            id: 'candidate_skill:rejected-ts',
+            userId: 'user-test-1',
+            name: 'TypeScript',
+            category: 'Language',
+            proficiency: 'ADVANCED',
+            isActive: true,
+            verificationStatus: 'REJECTED',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } as any,
+        ],
+      });
+
+      const reqTs = createMockRequirement({
+        rawText: 'Strong knowledge of TypeScript required',
+        normalizedText: 'TypeScript experience',
+        category: 'SKILL',
+        requirementStrength: 'MANDATORY',
+      });
+
+      const result = resolver.evaluateRequirement(reqTs, candidate);
+      expect(result.status).toBe('NOT_MET');
+      expect(result.evidenceIds).toHaveLength(0);
+      expect(result.contributesToBlocker).toBe(true);
+    });
+
+    it('unverified candidate experiences evaluate as PARTIAL with verification required', () => {
+      const candidate = createMockCandidateContext({
+        experiences: [
+          {
+            id: 'candidate_experience:unverified-role',
+            userId: 'user-test-1',
+            position: 'Software Engineer',
+            organization: 'Unverified Corp',
+            startDate: '2020-01',
+            endDate: '2024-01',
+            verificationStatus: 'UNVERIFIED',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } as any,
+        ],
+      });
+
+      const reqExp = createMockRequirement({
+        rawText: 'Requires at least 2 years of professional software engineering experience',
+        normalizedText: '2 years experience',
+        category: 'EXPERIENCE',
+        requirementStrength: 'MANDATORY',
+      });
+
+      const result = resolver.evaluateRequirement(reqExp, candidate);
+      expect(result.status).toBe('PARTIAL');
+      expect(result.confidence).toBe(50);
+      expect(result.contributesToBlocker).toBe(true);
+      expect(result.reason).toContain('verification required');
     });
   });
 

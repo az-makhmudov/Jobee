@@ -511,4 +511,11 @@ async function main() {
   }
 }
 
-void main();
+main()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('Fatal unhandled error in verify-job-p5-t01:', err);
+    process.exit(1);
+  });

@@ -71,6 +71,62 @@ export class InterviewPreparationService {
     };
   }
 
+  private computeSourceFingerprint(
+    job: { updatedAt: Date },
+    interview: { updatedAt: Date },
+    candidateProfile: { updatedAt?: Date | null } | undefined,
+    experiences: Array<{
+      id: string;
+      verificationStatus: string;
+      allowAiUse: boolean;
+      updatedAt: Date;
+    }>,
+    skills: Array<{
+      id: string;
+      verificationStatus: string;
+      allowAiUse: boolean;
+      updatedAt: Date;
+    }>,
+    projects: Array<{
+      id: string;
+      verificationStatus: string;
+      allowAiUse: boolean;
+      updatedAt: Date;
+    }>,
+  ): string {
+    const expTokens = [...experiences]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map(
+        (e) => `${e.id}:${e.verificationStatus}:${e.allowAiUse ? 1 : 0}:${e.updatedAt.getTime()}`,
+      )
+      .join('|');
+
+    const skillTokens = [...skills]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map(
+        (s) => `${s.id}:${s.verificationStatus}:${s.allowAiUse ? 1 : 0}:${s.updatedAt.getTime()}`,
+      )
+      .join('|');
+
+    const projTokens = [...projects]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map(
+        (p) => `${p.id}:${p.verificationStatus}:${p.allowAiUse ? 1 : 0}:${p.updatedAt.getTime()}`,
+      )
+      .join('|');
+
+    const payload = [
+      job.updatedAt.getTime(),
+      interview.updatedAt.getTime(),
+      candidateProfile?.updatedAt ? candidateProfile.updatedAt.getTime() : 0,
+      expTokens,
+      skillTokens,
+      projTokens,
+    ].join(':::');
+
+    return crypto.createHash('sha256').update(payload).digest('hex').substring(0, 16);
+  }
+
   /**
    * Generates or refreshes a structured, evidence-grounded interview preparation brief.
    * Strictly enforces candidate truthfulness: all strengths and frameworks link directly
@@ -142,12 +198,14 @@ export class InterviewPreparationService {
       .where(eq(candidateProjects.userId, userId));
 
     // Calculate source fingerprint
-    const fingerprintInput = `${job.updatedAt.toISOString()}:${interview.updatedAt.toISOString()}:${candidateProfile?.updatedAt?.toISOString() || ''}:${experiences.length}:${skills.length}`;
-    const sourceFingerprint = crypto
-      .createHash('sha256')
-      .update(fingerprintInput)
-      .digest('hex')
-      .substring(0, 16);
+    const sourceFingerprint = this.computeSourceFingerprint(
+      job,
+      interview,
+      candidateProfile,
+      experiences,
+      skills,
+      projects,
+    );
 
     // 4. Check existing brief
     const [existing] = await this.db
@@ -179,12 +237,21 @@ export class InterviewPreparationService {
             'Strong communication and problem-solving skills',
           ];
 
-    // Grounded candidate strengths matching job requirements
+    // Partition candidate facts by verification status to guarantee candidate truthfulness
+    const verifiedSkills = skills.filter((s) => s.verificationStatus === 'VERIFIED');
+    const unverifiedSkills = skills.filter((s) => s.verificationStatus !== 'VERIFIED');
+
+    const verifiedExperiences = experiences.filter((e) => e.verificationStatus === 'VERIFIED');
+    const unverifiedExperiences = experiences.filter((e) => e.verificationStatus !== 'VERIFIED');
+
+    const verifiedProjects = projects.filter((p) => p.verificationStatus === 'VERIFIED');
+
+    // Grounded candidate strengths matching job requirements (STRICTLY VERIFIED)
     const candidateStrengths: PreparationEvidenceRef[] = [];
     const lowerJobText = (job.description + ' ' + job.title).toLowerCase();
 
-    // Match skills
-    for (const skill of skills) {
+    // Match verified skills
+    for (const skill of verifiedSkills) {
       if (lowerJobText.includes(skill.name.toLowerCase())) {
         candidateStrengths.push({
           evidenceType: 'skill',
@@ -196,8 +263,8 @@ export class InterviewPreparationService {
       }
     }
 
-    // Match experiences
-    for (const exp of experiences) {
+    // Match verified experiences
+    for (const exp of verifiedExperiences) {
       candidateStrengths.push({
         evidenceType: 'experience',
         evidenceId: exp.id,
@@ -208,8 +275,8 @@ export class InterviewPreparationService {
       if (candidateStrengths.length >= 5) break;
     }
 
-    // Match projects
-    for (const proj of projects) {
+    // Match verified projects
+    for (const proj of verifiedProjects) {
       candidateStrengths.push({
         evidenceType: 'project',
         evidenceId: proj.id,
@@ -222,7 +289,7 @@ export class InterviewPreparationService {
       if (candidateStrengths.length >= 6) break;
     }
 
-    // Candidate gaps (from match analysis or soft missing areas)
+    // Candidate gaps (from match analysis, soft missing areas, and unverified matching claims)
     const candidateGaps: string[] = [];
     if (
       matchAnalysis &&
@@ -234,6 +301,23 @@ export class InterviewPreparationService {
     if (matchAnalysis && matchAnalysis.gaps && (matchAnalysis.gaps as string[]).length > 0) {
       candidateGaps.push(...(matchAnalysis.gaps as string[]));
     }
+
+    // Flag unverified skills or experiences that match job text as requiring verification
+    for (const unverifiedSkill of unverifiedSkills) {
+      if (lowerJobText.includes(unverifiedSkill.name.toLowerCase())) {
+        candidateGaps.push(
+          `Unverified skill requires confirmation before citing: ${unverifiedSkill.name}`,
+        );
+      }
+    }
+    for (const unverifiedExp of unverifiedExperiences) {
+      if (lowerJobText.includes(unverifiedExp.position.toLowerCase())) {
+        candidateGaps.push(
+          `Unverified experience requires confirmation before citing: ${unverifiedExp.position} at ${unverifiedExp.organization}`,
+        );
+      }
+    }
+
     if (candidateGaps.length === 0) {
       candidateGaps.push(
         'Ensure familiarity with specific internal tooling and workflows during discussions.',
@@ -311,9 +395,9 @@ export class InterviewPreparationService {
       );
     }
 
-    // Suggested STAR frameworks grounded strictly in candidate experiences
+    // Suggested STAR frameworks grounded strictly in candidate verified experiences
     const suggestedAnswerFrameworks: StarFramework[] = [];
-    for (const exp of experiences.slice(0, 2)) {
+    for (const exp of verifiedExperiences.slice(0, 2)) {
       suggestedAnswerFrameworks.push({
         question: `Can you share an example of how you contributed at ${exp.organization}?`,
         situation: `At ${exp.organization} as ${exp.position}`,
@@ -467,6 +551,80 @@ export class InterviewPreparationService {
       .limit(1);
 
     if (!row) return null;
+
+    // Check if underlying candidate or job data has changed since generation
+    if (!row.isStale) {
+      const [interview] = await this.db
+        .select()
+        .from(applicationInterviews)
+        .where(eq(applicationInterviews.id, interviewId))
+        .limit(1);
+
+      if (interview) {
+        const [appRow] = await this.db
+          .select({ app: applications, job: jobs })
+          .from(applications)
+          .innerJoin(jobs, eq(applications.jobId, jobs.id))
+          .where(and(eq(applications.id, interview.applicationId), eq(applications.userId, userId)))
+          .limit(1);
+
+        if (appRow) {
+          const [candidateProfile] = await this.db
+            .select()
+            .from(candidateProfiles)
+            .where(eq(candidateProfiles.userId, userId))
+            .limit(1);
+
+          const experiences = await this.db
+            .select()
+            .from(candidateExperiences)
+            .where(eq(candidateExperiences.userId, userId));
+
+          const skills = await this.db
+            .select()
+            .from(candidateSkills)
+            .where(eq(candidateSkills.userId, userId));
+
+          const projects = await this.db
+            .select()
+            .from(candidateProjects)
+            .where(eq(candidateProjects.userId, userId));
+
+          const currentFingerprint = this.computeSourceFingerprint(
+            appRow.job,
+            interview,
+            candidateProfile,
+            experiences,
+            skills,
+            projects,
+          );
+
+          if (row.sourceFingerprint !== currentFingerprint) {
+            let reason: PreparationStalenessReason = PreparationStalenessReason.CANDIDATE_UPDATED;
+            if (appRow.job.updatedAt > row.updatedAt) {
+              reason = PreparationStalenessReason.JOB_UPDATED;
+            } else if (interview.updatedAt > row.updatedAt) {
+              reason = PreparationStalenessReason.INTERVIEW_UPDATED;
+            }
+
+            const [updated] = await this.db
+              .update(interviewPreparationBriefs)
+              .set({
+                isStale: true,
+                stalenessReason: reason,
+                updatedAt: new Date(),
+              })
+              .where(eq(interviewPreparationBriefs.id, row.id))
+              .returning();
+
+            if (updated) {
+              return this.mapBriefDto(updated);
+            }
+          }
+        }
+      }
+    }
+
     return this.mapBriefDto(row);
   }
 

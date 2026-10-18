@@ -1195,7 +1195,11 @@ async function main() {
   console.log('======================================================================\n');
 }
 
-main().catch((err) => {
-  console.error('Fatal unhandled error during end-to-end verification:', err);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('Fatal unhandled error during end-to-end verification:', err);
+    process.exit(1);
+  });

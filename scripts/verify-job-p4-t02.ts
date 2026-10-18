@@ -189,9 +189,11 @@ async function main() {
         organization: 'Helios Cloud Systems',
         position: 'Staff Infrastructure Engineer',
         employmentType: 'FULL_TIME',
-        locationText: 'San Francisco, CA',
+        location: 'San Francisco, CA',
         startDate: '2021-03-01',
         isCurrent: true,
+        verificationStatus: 'VERIFIED',
+        allowAiUse: true,
         description: 'Led core cloud platform and distributed microservices architecture.',
         achievements: [
           'Architected distributed event pipeline handling 100M+ events daily with zero downtime',
@@ -209,8 +211,8 @@ async function main() {
         name: 'Distributed Systems',
         category: 'BACKEND',
         proficiency: 'EXPERT',
-        verified: true,
-        evidenceCount: 3,
+        verificationStatus: 'VERIFIED',
+        allowAiUse: true,
       })
       .returning();
     createdSkillIds.push(skill.id);
@@ -459,7 +461,11 @@ async function main() {
   console.log('===============================================================');
 }
 
-main().catch((err) => {
-  console.error('\n❌ VERIFICATION FAILED:', err);
-  process.exit(1);
-});
+main()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error('\n❌ VERIFICATION FAILED:', err);
+    process.exit(1);
+  });

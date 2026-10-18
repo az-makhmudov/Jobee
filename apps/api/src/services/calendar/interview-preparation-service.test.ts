@@ -52,18 +52,29 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
       headline: 'Lead Systems & Operations Engineer',
     });
 
-    // Create Candidate Skill
+    // Create Verified Candidate Skill
     const [skill] = await db
       .insert(candidateSkills)
       .values({
         userId,
         name: 'TypeScriptArchitecture',
         proficiency: 'EXPERT',
+        verificationStatus: 'VERIFIED',
+        allowAiUse: true,
       })
       .returning();
     testSkillId = skill!.id;
 
-    // Create Candidate Experience
+    // Create Unverified Candidate Skill to test truthfulness boundary
+    await db.insert(candidateSkills).values({
+      userId,
+      name: 'DockerSwarmCluster',
+      proficiency: 'INTERMEDIATE',
+      verificationStatus: 'UNVERIFIED',
+      allowAiUse: false,
+    });
+
+    // Create Verified Candidate Experience
     const [exp] = await db
       .insert(candidateExperiences)
       .values({
@@ -72,6 +83,8 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
         position: 'Senior Software Engineer',
         startDate: '2023-01',
         description: 'Led core backend distributed systems and TypeScript APIs',
+        verificationStatus: 'VERIFIED',
+        allowAiUse: true,
         achievements: [
           'Architected high-throughput message processing pipeline',
           'Reduced latency by 45% across platform microservices',
@@ -80,7 +93,7 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
       .returning();
     testExpId = exp!.id;
 
-    // Create Job
+    // Create Job mentioning both verified and unverified skills
     const [job] = await db
       .insert(jobs)
       .values({
@@ -88,7 +101,7 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
         title: 'Senior TypeScriptArchitecture Platform Engineer',
         company: 'CloudCorp Global',
         description:
-          'We are seeking a Senior TypeScriptArchitecture Platform Engineer proficient in TypeScriptArchitecture, distributed architectures, and API services.',
+          'We are seeking a Senior TypeScriptArchitecture Platform Engineer proficient in TypeScriptArchitecture, DockerSwarmCluster, distributed architectures, and API services.',
         locationText: 'Remote',
         contentHash: 'hash-test-job-prep-123',
       })
@@ -160,10 +173,8 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
     if (testExpId) {
       await db.delete(candidateExperiences).where(eq(candidateExperiences.id, testExpId));
     }
-    if (testSkillId) {
-      await db.delete(candidateSkills).where(eq(candidateSkills.id, testSkillId));
-    }
     if (userId) {
+      await db.delete(candidateSkills).where(eq(candidateSkills.userId, userId));
       await db.delete(candidateProfiles).where(eq(candidateProfiles.userId, userId));
       await db.delete(users).where(eq(users.id, userId));
     }
@@ -182,7 +193,7 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
     expect(brief.companyContext).toContain('CloudCorp Global');
     expect(brief.keyRequirements.length).toBeGreaterThan(0);
 
-    // Verify candidate strengths are strictly grounded in candidate facts
+    // Verify candidate strengths are strictly grounded in candidate verified facts
     expect(brief.candidateStrengths.length).toBeGreaterThan(0);
     const tsStrength = brief.candidateStrengths.find(
       (s) => s.evidenceTitle === 'TypeScriptArchitecture',
@@ -190,6 +201,17 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
     expect(tsStrength).toBeDefined();
     expect(tsStrength?.evidenceType).toBe('skill');
     expect(tsStrength?.evidenceId).toBe(testSkillId);
+
+    // Verify unverified skill is strictly NOT present in candidateStrengths
+    const unverifiedStrength = brief.candidateStrengths.find(
+      (s) => s.evidenceTitle === 'DockerSwarmCluster',
+    );
+    expect(unverifiedStrength).toBeUndefined();
+
+    // Verify unverified skill IS surfaced in candidateGaps for candidate awareness
+    const gapEntry = brief.candidateGaps.find((g) => g.includes('DockerSwarmCluster'));
+    expect(gapEntry).toBeDefined();
+    expect(gapEntry).toContain('Unverified skill requires confirmation before citing');
 
     const expStrength = brief.candidateStrengths.find(
       (s) => s.evidenceType === 'experience' && s.evidenceId === testExpId,
@@ -252,5 +274,41 @@ describe('InterviewPreparationService Unit & Integration Tests (JOB-P4-T02)', ()
 
     expect(debrief).toBeDefined();
     expect(debrief.status).toBe('COMPLETED');
+  });
+
+  it('6. dynamically flags brief as stale when interview is updated and when candidate facts change', async () => {
+    // 1. Debrief in previous test updated the interview record, so brief is now flagged INTERVIEW_UPDATED
+    const interviewStale = await prepService.getPreparationBrief(testInterviewId, userId);
+    expect(interviewStale).toBeDefined();
+    expect(interviewStale?.isStale).toBe(true);
+    expect(interviewStale?.stalenessReason).toBe('INTERVIEW_UPDATED');
+
+    // 2. Refresh the brief after interview update
+    const freshBrief = await prepService.generatePreparationBrief(testInterviewId, userId);
+    expect(freshBrief.isStale).toBe(false);
+    expect(freshBrief.version).toBe(2);
+
+    // 3. Candidate adds a new verified skill
+    await db.insert(candidateSkills).values({
+      userId,
+      name: 'KubernetesHelm',
+      proficiency: 'ADVANCED',
+      verificationStatus: 'VERIFIED',
+      allowAiUse: true,
+    });
+
+    // 4. Next retrieval detects candidate data change and flags CANDIDATE_UPDATED
+    const candidateStale = await prepService.getPreparationBrief(testInterviewId, userId);
+    expect(candidateStale).toBeDefined();
+    expect(candidateStale?.isStale).toBe(true);
+    expect(candidateStale?.stalenessReason).toBe('CANDIDATE_UPDATED');
+  });
+
+  it('7. regenerates stale brief when requested, bumping version and clearing staleness', async () => {
+    const refreshed = await prepService.generatePreparationBrief(testInterviewId, userId);
+    expect(refreshed).toBeDefined();
+    expect(refreshed.isStale).toBe(false);
+    expect(refreshed.stalenessReason).toBeNull();
+    expect(refreshed.version).toBe(3);
   });
 });
