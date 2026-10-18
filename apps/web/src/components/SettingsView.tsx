@@ -1,3 +1,4 @@
+import { Button, Card, Icon, Select } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 
 interface HealthData {
@@ -210,7 +211,7 @@ export function SettingsView() {
   return (
     <div>
       <header className="page-header">
-        <h1 className="page-title">Platform Settings & Connectivity</h1>
+        <h2 className="page-title">Configuration</h2>
         <p className="page-subtitle">
           Core runtime configuration, intelligence engines, external integrations, and security
           boundaries
@@ -218,7 +219,7 @@ export function SettingsView() {
       </header>
 
       {/* System Health & Readiness */}
-      <div className="card">
+      <Card className="card">
         <div
           style={{
             display: 'flex',
@@ -230,9 +231,9 @@ export function SettingsView() {
           <div className="card-title" style={{ marginBottom: 0 }}>
             System Health & Infrastructure
           </div>
-          <button className="btn btn-primary btn-sm" onClick={checkConnectivity} disabled={loading}>
+          <Button className="btn btn-primary btn-sm" onClick={checkConnectivity} disabled={loading}>
             {loading ? 'Probing...' : 'Re-probe Services'}
-          </button>
+          </Button>
         </div>
 
         {apiError ? (
@@ -279,10 +280,10 @@ export function SettingsView() {
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* AI Intelligence Engine & Provider Configuration */}
-      <div className="card">
+      <Card className="card">
         <div
           style={{
             display: 'flex',
@@ -292,31 +293,46 @@ export function SettingsView() {
             flexWrap: 'wrap',
             gap: '0.5rem',
           }}
+          className="layout-group"
         >
           <div className="card-title" style={{ marginBottom: 0 }}>
             AI Intelligence Engine & Provider Architecture
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={handleTestAi} disabled={testingAi}>
-            {testingAi ? 'Testing AI Pipeline...' : '⚡ Test AI Connectivity'}
-          </button>
+          <Button className="btn btn-secondary btn-sm" onClick={handleTestAi} disabled={testingAi}>
+            {testingAi ? (
+              'Testing AI Pipeline...'
+            ) : (
+              <>
+                <Icon name="ai" size={20} /> Test AI Connectivity
+              </>
+            )}
+          </Button>
         </div>
 
         {testResult && (
           <div
             style={{
               padding: '0.75rem 1rem',
-              borderRadius: '0.375rem',
+              borderRadius: '16px',
               marginBottom: '1rem',
               backgroundColor: testResult.success
-                ? 'rgba(16, 185, 129, 0.15)'
-                : 'rgba(239, 68, 68, 0.15)',
-              border: `1px solid ${testResult.success ? '#10b981' : '#ef4444'}`,
-              color: testResult.success ? '#34d399' : '#f87171',
+                ? 'var(--status-success-container)'
+                : 'var(--status-danger-container)',
+              border: `1px solid ${testResult.success ? 'var(--status-success-border)' : 'var(--status-danger-border)'}`,
+              color: testResult.success ? 'var(--status-success)' : 'var(--status-danger)',
               fontSize: '0.875rem',
             }}
           >
             <strong>
-              {testResult.success ? '✓ AI Connection Test Successful' : '✗ AI Connection Failed'}
+              {testResult.success ? (
+                <>
+                  <Icon name="check" size={20} /> AI Connection Test Successful
+                </>
+              ) : (
+                <>
+                  <Icon name="cancel" size={20} /> AI Connection Failed
+                </>
+              )}
             </strong>
             {testResult.latencyMs !== undefined && (
               <span style={{ marginLeft: '0.5rem', opacity: 0.9 }}>
@@ -387,6 +403,7 @@ export function SettingsView() {
               gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
               gap: '1rem',
             }}
+            className="layout-group"
           >
             {aiSettings?.supportedProviders.map((prov) => {
               const isActive = (aiSettings?.activeProvider || 'disabled') === prov.id;
@@ -402,11 +419,11 @@ export function SettingsView() {
                   }}
                   style={{
                     padding: '1rem',
-                    borderRadius: '0.375rem',
+                    borderRadius: '16px',
                     border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--surface-border)'}`,
                     backgroundColor: isSelected
-                      ? 'rgba(59, 130, 246, 0.08)'
-                      : 'rgba(15, 23, 42, 0.5)',
+                      ? 'var(--m3-secondary-container)'
+                      : 'var(--m3-surface-container-low)',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease-in-out',
                   }}
@@ -443,7 +460,7 @@ export function SettingsView() {
                   >
                     {prov.description}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#93c5fd' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--m3-on-surface)' }}>
                     Recommended Model: <code>{prov.recommendedModel}</code>
                   </div>
                   <div
@@ -465,8 +482,8 @@ export function SettingsView() {
             style={{
               marginTop: '1.25rem',
               padding: '1rem',
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
-              borderRadius: '0.375rem',
+              backgroundColor: 'var(--m3-surface-container-low)',
+              borderRadius: '16px',
               border: '1px solid var(--accent)',
             }}
           >
@@ -478,10 +495,11 @@ export function SettingsView() {
                 flexWrap: 'wrap',
                 gap: '1rem',
               }}
+              className="layout-group"
             >
               <div>
                 <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>
-                  ⚙️ Active Engine Configuration
+                  <Icon name="settings" /> Active Engine Configuration
                 </div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   Selected Provider:{' '}
@@ -493,12 +511,16 @@ export function SettingsView() {
 
               <div
                 style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}
+                className="layout-group"
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                  className="layout-group"
+                >
                   <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                     Model:
                   </label>
-                  <select
+                  <Select
                     value={selectedModel}
                     onChange={(e) => setSelectedModel(e.target.value)}
                     style={{
@@ -532,16 +554,16 @@ export function SettingsView() {
                     {selectedProviderId === 'disabled' && (
                       <option value="none">none (Offline Rule-Based Deterministic)</option>
                     )}
-                  </select>
+                  </Select>
                 </div>
 
-                <button
+                <Button
                   className="btn btn-primary btn-sm"
                   onClick={handleSaveAiSettings}
                   disabled={savingAi}
                 >
                   {savingAi ? 'Saving...' : 'Save AI Configuration'}
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -553,64 +575,75 @@ export function SettingsView() {
                   borderRadius: '0.25rem',
                   fontSize: '0.825rem',
                   backgroundColor: saveResult.success
-                    ? 'rgba(16, 185, 129, 0.15)'
-                    : 'rgba(239, 68, 68, 0.15)',
-                  border: `1px solid ${saveResult.success ? '#10b981' : '#ef4444'}`,
-                  color: saveResult.success ? '#34d399' : '#f87171',
+                    ? 'var(--status-success-container)'
+                    : 'var(--status-danger-container)',
+                  border: `1px solid ${saveResult.success ? 'var(--status-success-border)' : 'var(--status-danger-border)'}`,
+                  color: saveResult.success ? 'var(--status-success)' : 'var(--status-danger)',
                 }}
               >
-                {saveResult.success ? '✓ ' : '✗ '}
+                {saveResult.success ? (
+                  <>
+                    <Icon name="check" size={20} />{' '}
+                  </>
+                ) : (
+                  <>
+                    <Icon name="cancel" size={20} />{' '}
+                  </>
+                )}
                 {saveResult.message}
               </div>
             )}
           </div>
         </div>
 
-        {/* Configuration Instructions Box */}
-        <div
-          style={{
-            padding: '1rem',
-            borderRadius: '0.375rem',
-            backgroundColor: 'rgba(30, 41, 59, 0.7)',
-            border: '1px solid var(--surface-border)',
-            fontSize: '0.85rem',
-            lineHeight: '1.5',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
-            📖 How to Switch Providers & Configure Credentials
+        <details className="advanced-details">
+          <summary>Advanced provider setup</summary>
+          {/* Configuration Instructions Box */}
+          <div
+            style={{
+              padding: '1rem',
+              borderRadius: '16px',
+              backgroundColor: 'var(--m3-secondary-container)',
+              border: '1px solid var(--surface-border)',
+              fontSize: '0.85rem',
+              lineHeight: '1.5',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+              <Icon name="document" size={20} /> How to Switch Providers & Configure Credentials
+            </div>
+            <p style={{ marginBottom: '0.5rem' }}>
+              To activate or switch providers, configure the corresponding environment variables in
+              your <code>.env</code> file or container runtime:
+            </p>
+            <ul style={{ paddingLeft: '1.25rem', marginBottom: '0.5rem' }}>
+              <li>
+                <strong>Google Gemini:</strong> Set <code>AI_PROVIDER=gemini</code> and{' '}
+                <code>GEMINI_API_KEY=your_gemini_api_key</code>. Recommended model:{' '}
+                <code>gemini-3.8-flash</code> (with automatic <code>gemini-3.5-flash-lite</code>{' '}
+                failover).
+              </li>
+              <li>
+                <strong>OpenAI:</strong> Set <code>AI_PROVIDER=openai</code> and{' '}
+                <code>OPENAI_API_KEY=your_openai_api_key</code>. Recommended model:{' '}
+                <code>gpt-4o-mini</code>.
+              </li>
+              <li>
+                <strong>Deterministic (Offline):</strong> Set <code>AI_PROVIDER=disabled</code>.
+                Zero API keys needed; runs 100% locally with zero hallucination.
+              </li>
+            </ul>
+            <div style={{ fontSize: '0.8rem', color: 'var(--status-warning)' }}>
+              <Icon name="permissions" /> <em>Security Invariant:</em> API keys are held strictly in
+              backend server memory and are never committed to Git or exposed over client bundles.
+            </div>
           </div>
-          <p style={{ marginBottom: '0.5rem' }}>
-            To activate or switch providers, configure the corresponding environment variables in
-            your <code>.env</code> file or container runtime:
-          </p>
-          <ul style={{ paddingLeft: '1.25rem', marginBottom: '0.5rem' }}>
-            <li>
-              <strong>Google Gemini:</strong> Set <code>AI_PROVIDER=gemini</code> and{' '}
-              <code>GEMINI_API_KEY=your_gemini_api_key</code>. Recommended model:{' '}
-              <code>gemini-3.8-flash</code> (with automatic <code>gemini-3.5-flash-lite</code>{' '}
-              failover).
-            </li>
-            <li>
-              <strong>OpenAI:</strong> Set <code>AI_PROVIDER=openai</code> and{' '}
-              <code>OPENAI_API_KEY=your_openai_api_key</code>. Recommended model:{' '}
-              <code>gpt-4o-mini</code>.
-            </li>
-            <li>
-              <strong>Deterministic (Offline):</strong> Set <code>AI_PROVIDER=disabled</code>. Zero
-              API keys needed; runs 100% locally with zero hallucination.
-            </li>
-          </ul>
-          <div style={{ fontSize: '0.8rem', color: '#fbbf24' }}>
-            🔒 <em>Security Invariant:</em> API keys are held strictly in backend server memory and
-            are never committed to Git or exposed over client bundles.
-          </div>
-        </div>
-      </div>
+        </details>
+      </Card>
 
       {/* External Communications & OAuth Integrations */}
-      <div className="card">
+      <Card className="card">
         <div className="card-title">Communications & Calendar Integrations</div>
         <div className="status-grid">
           <div className="status-item">
@@ -663,86 +696,86 @@ export function SettingsView() {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
-      {/* Application Automation & Browser ATS Worker */}
-      <div className="card">
-        <div className="card-title">Application Automation & Browser ATS Worker</div>
-        <div className="status-grid">
-          <div className="status-item">
-            <div className="status-item-header">
-              <span className="status-item-label">Playwright Browser Worker</span>
-              <span className="status-badge connected">SUPERVISED DRY-RUN</span>
+      <details className="advanced-details">
+        <summary>Security & automation details</summary>
+        {/* Application Automation & Browser ATS Worker */}
+        <Card className="card">
+          <div className="card-title">Application Automation & Browser ATS Worker</div>
+          <div className="status-grid">
+            <div className="status-item">
+              <div className="status-item-header">
+                <span className="status-item-label">Playwright Browser Worker</span>
+                <span className="status-badge connected">SUPERVISED DRY-RUN</span>
+              </div>
+              <div className="status-item-meta">Supported ATS: Greenhouse, Lever, Workday</div>
+              <div
+                style={{
+                  marginTop: '0.5rem',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                  lineHeight: '1.4',
+                }}
+              >
+                Form introspection and field mapping execute in dry-run mode. Final application
+                submission requires explicit deterministic user authorization.
+              </div>
             </div>
-            <div className="status-item-meta">Supported ATS: Greenhouse, Lever, Workday</div>
-            <div
-              style={{
-                marginTop: '0.5rem',
-                fontSize: '0.8rem',
-                color: 'var(--text-secondary)',
-                lineHeight: '1.4',
-              }}
-            >
-              Form introspection and field mapping execute in dry-run mode. Final application
-              submission requires explicit deterministic user authorization.
+
+            <div className="status-item">
+              <div className="status-item-header">
+                <span className="status-item-label">Cryptographic Token Envelopes</span>
+                <span className="status-badge ok">SECURE</span>
+              </div>
+              <div className="status-item-meta">Algorithm: AES-256-GCM + PBKDF2 Nonce</div>
+              <div
+                style={{
+                  marginTop: '0.5rem',
+                  fontSize: '0.8rem',
+                  color: 'var(--text-secondary)',
+                  lineHeight: '1.4',
+                }}
+              >
+                All external OAuth tokens and refresh tokens are encrypted at rest with verified
+                entropy keys before persisting to PostgreSQL.
+              </div>
             </div>
           </div>
+        </Card>
 
-          <div className="status-item">
-            <div className="status-item-header">
-              <span className="status-item-label">Cryptographic Token Envelopes</span>
-              <span className="status-badge ok">SECURE</span>
-            </div>
-            <div className="status-item-meta">Algorithm: AES-256-GCM + PBKDF2 Nonce</div>
-            <div
-              style={{
-                marginTop: '0.5rem',
-                fontSize: '0.8rem',
-                color: 'var(--text-secondary)',
-                lineHeight: '1.4',
-              }}
-            >
-              All external OAuth tokens and refresh tokens are encrypted at rest with verified
-              entropy keys before persisting to PostgreSQL.
-            </div>
+        {/* Identity & Security Model (Better Auth) */}
+        <Card className="card">
+          <div className="card-title">Identity & Multi-User Security Model (Better Auth)</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
+            <p>
+              <strong>Authoritative Authentication & Multi-Tenant Isolation:</strong> Jobee is
+              powered by Better Auth with strict tenant workspace isolation. Each authenticated user
+              has an isolated Candidate Brain, Document Vault, Preferences, Applications CRM, and
+              Email/Calendar sync.
+            </p>
+            <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
+              <li>
+                <code>Authentication Provider</code>:{' '}
+                <strong>Better Auth (Google OAuth & Email/Password)</strong>
+              </li>
+              <li>
+                <code>Private Pilot Policy</code>: Registration is invite-only via cryptographic
+                pilot tokens.
+              </li>
+
+              <li>
+                <code>Multi-User Safety</code>: All API mutations and queries are strictly bound to
+                authenticated session identity.
+              </li>
+              <li>
+                <code>Zero Hallucination Guardrail</code>: Candidate Brain acts as the immutable
+                ground truth; unverified facts are strictly quarantined.
+              </li>
+            </ul>
           </div>
-        </div>
-      </div>
-
-      {/* Identity & Security Model (Better Auth) */}
-      <div className="card">
-        <div className="card-title">Identity & Multi-User Security Model (Better Auth)</div>
-        <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6' }}>
-          <p>
-            <strong>Authoritative Authentication & Multi-Tenant Isolation:</strong> Jobee is powered
-            by Better Auth with strict tenant workspace isolation. Each authenticated user has an
-            isolated Candidate Brain, Document Vault, Preferences, Applications CRM, and
-            Email/Calendar sync.
-          </p>
-          <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', marginBottom: '1rem' }}>
-            <li>
-              <code>Authentication Provider</code>:{' '}
-              <strong>Better Auth (Google OAuth & Email/Password)</strong>
-            </li>
-            <li>
-              <code>Private Pilot Policy</code>: Registration is invite-only via cryptographic pilot
-              tokens.
-            </li>
-            <li>
-              <code>Primary Owner Candidate</code>: <code>Asadbek Makhmudov</code> (
-              <code>00000000-0000-0000-0000-000000000001</code>)
-            </li>
-            <li>
-              <code>Multi-User Safety</code>: All API mutations and queries are strictly bound to
-              authenticated session identity.
-            </li>
-            <li>
-              <code>Zero Hallucination Guardrail</code>: Candidate Brain acts as the immutable
-              ground truth; unverified facts are strictly quarantined.
-            </li>
-          </ul>
-        </div>
-      </div>
+        </Card>
+      </details>
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import { useFeedback } from '../ui/Feedback.js';
+import { Button, Card, Icon } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import { applicationPackageClient } from '../api/application-package-client.js';
 import type { ApprovalRequestDto } from '@job-agent/shared';
@@ -7,6 +9,7 @@ interface ApprovalsInboxViewProps {
 }
 
 export function ApprovalsInboxView({ onOpenPackage }: ApprovalsInboxViewProps) {
+  const { alert, prompt } = useFeedback();
   const [approvals, setApprovals] = useState<ApprovalRequestDto[]>([]);
   const [statusFilter, setStatusFilter] = useState('PENDING');
   const [loading, setLoading] = useState(true);
@@ -55,49 +58,62 @@ export function ApprovalsInboxView({ onOpenPackage }: ApprovalsInboxViewProps) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+      className="layout-group"
+    >
       <header className="page-header" style={{ marginBottom: 0 }}>
         <div>
-          <h1 className="page-title">Human Approvals Inbox</h1>
+          <h1 className="page-title">Approvals</h1>
           <p className="page-subtitle">
-            Centralized review queue for sensitive candidate declarations, legal authorizations, and
-            answer overrides.
+            Review sensitive answers and declarations before they are included in your applications.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
+        <div
+          style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}
+          className="layout-group"
+        >
           {['PENDING', 'APPROVED', 'REJECTED'].map((st) => (
-            <button
-              key={st}
+            <Button
+              key={st[0] + st.slice(1).toLowerCase()}
               className={`button ${statusFilter === st ? 'button-primary' : 'button-secondary'}`}
               style={{ fontSize: '0.85rem' }}
               onClick={() => setStatusFilter(st)}
             >
-              {st}
-            </button>
+              {st[0] + st.slice(1).toLowerCase()}
+            </Button>
           ))}
         </div>
       </header>
 
+      <div className="banner banner-warning">
+        <Icon name="info" size={20} /> Your authorization is required. Check the proposed answer,
+        its risk and the role. Open Studio for context, edit and approve, or reject.
+      </div>
       {loading ? (
-        <div className="card" style={{ padding: '2rem', textAlign: 'center' }}>
+        <Card className="card" style={{ padding: '2rem', textAlign: 'center' }}>
           Loading approvals...
-        </div>
+        </Card>
       ) : error ? (
-        <div className="card" style={{ padding: '2rem', color: 'var(--danger)' }}>
+        <Card className="card" style={{ padding: '2rem', color: 'var(--danger)' }}>
           {error}
-        </div>
+        </Card>
       ) : approvals.length === 0 ? (
-        <div
+        <Card
           className="card"
           style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}
         >
-          ✓ No {statusFilter.toLowerCase()} approvals found in the queue.
-        </div>
+          <Icon name="check" size={20} /> No {statusFilter.toLowerCase()} approvals found in the
+          queue.
+        </Card>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+          className="layout-group"
+        >
           {approvals.map((appr) => (
-            <div key={appr.id} className="card" style={{ padding: '1.25rem' }}>
+            <Card key={appr.id} className="card" style={{ padding: '1.25rem' }}>
               <div
                 style={{
                   display: 'flex',
@@ -106,6 +122,7 @@ export function ApprovalsInboxView({ onOpenPackage }: ApprovalsInboxViewProps) {
                   flexWrap: 'wrap',
                   gap: '0.5rem',
                 }}
+                className="layout-group"
               >
                 <div>
                   <div
@@ -115,26 +132,27 @@ export function ApprovalsInboxView({ onOpenPackage }: ApprovalsInboxViewProps) {
                       gap: '0.5rem',
                       marginBottom: '0.25rem',
                     }}
+                    className="layout-group"
                   >
                     <span className="badge">{appr.approvalType}</span>
                     <span
                       style={{
                         padding: '0.2rem 0.5rem',
-                        borderRadius: '4px',
+                        borderRadius: '16px',
                         fontSize: '0.75rem',
                         fontWeight: 600,
                         background:
                           appr.riskLevel === 'CRITICAL'
-                            ? 'rgba(239, 68, 68, 0.15)'
+                            ? 'var(--status-danger-container)'
                             : appr.riskLevel === 'HIGH'
-                              ? 'rgba(249, 115, 22, 0.15)'
-                              : 'rgba(234, 179, 8, 0.15)',
+                              ? 'var(--status-warning-container)'
+                              : 'var(--status-warning-container)',
                         color:
                           appr.riskLevel === 'CRITICAL'
-                            ? '#dc2626'
+                            ? 'var(--status-danger)'
                             : appr.riskLevel === 'HIGH'
-                              ? '#ea580c'
-                              : '#ca8a04',
+                              ? 'var(--status-warning)'
+                              : 'var(--status-warning)',
                       }}
                     >
                       Risk: {appr.riskLevel}
@@ -165,14 +183,17 @@ export function ApprovalsInboxView({ onOpenPackage }: ApprovalsInboxViewProps) {
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <button
+                <div
+                  style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+                  className="layout-group"
+                >
+                  <Button
                     className="button button-secondary"
                     style={{ fontSize: '0.85rem' }}
                     onClick={() => onOpenPackage(appr.packageId)}
                   >
                     Open Studio ↗
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -180,8 +201,8 @@ export function ApprovalsInboxView({ onOpenPackage }: ApprovalsInboxViewProps) {
                 style={{
                   margin: '0.75rem 0',
                   padding: '0.75rem',
-                  borderRadius: '6px',
-                  background: 'rgba(0,0,0,0.02)',
+                  borderRadius: '16px',
+                  background: 'var(--m3-surface-container-low)',
                   border: '1px solid var(--border-color)',
                   fontSize: '0.9rem',
                 }}
@@ -191,7 +212,7 @@ export function ApprovalsInboxView({ onOpenPackage }: ApprovalsInboxViewProps) {
                   {appr.proposedValue || <em style={{ color: 'var(--text-secondary)' }}>None</em>}
                 </span>
                 {appr.userEditedValue && (
-                  <div style={{ marginTop: '0.25rem', color: '#16a34a' }}>
+                  <div style={{ marginTop: '0.25rem', color: 'var(--status-success)' }}>
                     <strong>Candidate Edited Value: </strong>
                     <span>{appr.userEditedValue}</span>
                   </div>
@@ -203,53 +224,65 @@ export function ApprovalsInboxView({ onOpenPackage }: ApprovalsInboxViewProps) {
                   style={{
                     margin: '0.5rem 0',
                     padding: '0.5rem 0.75rem',
-                    borderRadius: '4px',
-                    background: 'rgba(234, 179, 8, 0.1)',
-                    border: '1px solid rgba(234, 179, 8, 0.3)',
-                    color: '#ca8a04',
+                    borderRadius: '16px',
+                    background: 'var(--status-warning-container)',
+                    border: '1px solid var(--status-warning-border)',
+                    color: 'var(--status-warning)',
                     fontSize: '0.85rem',
                   }}
                 >
-                  ⚠️ <strong>Candidate Reconfirmation Required:</strong> This answer was quarantined
-                  by safety policy. Your explicit confirmation is required before it can be included
-                  in application materials.
+                  <Icon name="warning" /> <strong>Candidate Reconfirmation Required:</strong> This
+                  answer was quarantined by safety policy. Your explicit confirmation is required
+                  before it can be included in application materials.
                 </div>
               )}
 
               {(appr.status === 'PENDING' || appr.status === 'NEEDS_USER_RECONFIRMATION') && (
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <button
+                <div
+                  style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}
+                  className="layout-group"
+                >
+                  <Button
                     className="button button-primary"
                     style={{ fontSize: '0.85rem' }}
                     onClick={() => handleApprove(appr.id)}
                     disabled={actionLoading}
                   >
-                    {appr.status === 'NEEDS_USER_RECONFIRMATION'
-                      ? '✓ Reconfirm & Approve'
-                      : '✓ Approve'}
-                  </button>
-                  <button
+                    {appr.status === 'NEEDS_USER_RECONFIRMATION' ? (
+                      <>
+                        <Icon name="check" size={20} /> Reconfirm &amp; Approve
+                      </>
+                    ) : (
+                      <>
+                        <Icon name="check" size={20} /> Approve
+                      </>
+                    )}
+                  </Button>
+                  <Button
                     className="button button-secondary"
                     style={{ fontSize: '0.85rem' }}
-                    onClick={() => {
-                      const val = prompt('Edit value before approval:', appr.proposedValue || '');
+                    onClick={async () => {
+                      const val = await prompt(
+                        'Edit value before approval:',
+                        appr.proposedValue || '',
+                      );
                       if (val !== null) handleApprove(appr.id, val);
                     }}
                     disabled={actionLoading}
                   >
-                    ✏ Edit & Approve
-                  </button>
-                  <button
+                    <Icon name="edit" size={20} /> Edit & Approve
+                  </Button>
+                  <Button
                     className="button button-secondary"
                     style={{ fontSize: '0.85rem', color: 'var(--danger)' }}
                     onClick={() => handleReject(appr.id)}
                     disabled={actionLoading}
                   >
-                    ✕ Reject
-                  </button>
+                    <Icon name="close" size={20} /> Reject
+                  </Button>
                 </div>
               )}
-            </div>
+            </Card>
           ))}
         </div>
       )}

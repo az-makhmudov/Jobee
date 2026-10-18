@@ -1,3 +1,5 @@
+import type { IconName } from '../ui/icons.js';
+import { Button, Icon, Input } from '../ui/Primitives.js';
 import React, { useState, useEffect } from 'react';
 import type { CandidateJobFeedbackDto, CandidateJobFeedbackType } from '@job-agent/shared';
 import { careerIntelligenceApi } from '../api/career-intelligence-client.js';
@@ -12,44 +14,44 @@ interface JobFeedbackBarProps {
 const FEEDBACK_OPTIONS: {
   type: CandidateJobFeedbackType;
   label: string;
-  icon: string;
+  icon: IconName;
   tooltip: string;
 }[] = [
   {
     type: 'INTERESTED',
     label: 'Interested',
-    icon: '👍',
+    icon: 'check',
     tooltip: 'Prioritize similar opportunities',
   },
   {
     type: 'NOT_INTERESTED',
     label: 'Not Interested',
-    icon: '👎',
+    icon: 'cancel',
     tooltip: 'Downweight this company',
   },
-  { type: 'IRRELEVANT', label: 'Irrelevant', icon: '🚫', tooltip: 'Irrelevant to my profile' },
+  { type: 'IRRELEVANT', label: 'Irrelevant', icon: 'error', tooltip: 'Irrelevant to my profile' },
   {
     type: 'ALREADY_APPLIED',
     label: 'Applied',
-    icon: '📨',
+    icon: 'applications',
     tooltip: 'I already applied outside Jobee',
   },
   {
     type: 'TOO_SENIOR',
     label: 'Too Senior',
-    icon: '⬆️',
+    icon: 'chevron-up',
     tooltip: 'Learn: downweight senior/lead roles',
   },
   {
     type: 'WRONG_LOCATION',
     label: 'Wrong Loc',
-    icon: '📍',
+    icon: 'location',
     tooltip: 'Learn: downweight this city/country',
   },
   {
     type: 'WRONG_INDUSTRY',
     label: 'Wrong Field',
-    icon: '🏢',
+    icon: 'error',
     tooltip: 'Learn: downweight this industry',
   },
 ];
@@ -134,7 +136,10 @@ export const JobFeedbackBar: React.FC<JobFeedbackBarProps> = ({
   const fontSize = isSmall ? '0.75rem' : '0.82rem';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}
+      className="layout-group"
+    >
       <div
         style={{
           display: 'flex',
@@ -142,6 +147,7 @@ export const JobFeedbackBar: React.FC<JobFeedbackBarProps> = ({
           gap: '0.35rem',
           flexWrap: 'wrap',
         }}
+        className="layout-group"
       >
         <span
           style={{
@@ -158,7 +164,7 @@ export const JobFeedbackBar: React.FC<JobFeedbackBarProps> = ({
           const isLoading = loadingType === opt.type;
 
           return (
-            <button
+            <Button
               key={opt.type}
               type="button"
               disabled={isLoading}
@@ -176,23 +182,27 @@ export const JobFeedbackBar: React.FC<JobFeedbackBarProps> = ({
                 fontWeight: isSelected ? 700 : 500,
                 borderRadius: '0.35rem',
                 border: isSelected ? '1px solid var(--accent)' : '1px solid var(--surface-border)',
-                backgroundColor: isSelected
-                  ? 'rgba(59, 130, 246, 0.25)'
-                  : 'rgba(255, 255, 255, 0.04)',
-                color: isSelected ? '#93c5fd' : 'var(--text-secondary)',
+                backgroundColor: isSelected ? 'var(--m3-secondary-container)' : 'var(--m3-surface)',
+                color: isSelected ? 'var(--m3-on-surface)' : 'var(--text-secondary)',
                 cursor: isLoading ? 'wait' : 'pointer',
                 transition: 'all 0.15s ease',
               }}
             >
-              <span>{opt.icon}</span>
+              <span>
+                <Icon name={opt.icon} size={18} />
+              </span>
               <span>{opt.label}</span>
-              {isSelected && <span style={{ fontSize: '0.7rem' }}>✓</span>}
-            </button>
+              {isSelected && (
+                <span style={{ fontSize: '0.7rem' }}>
+                  <Icon name="check" size={20} />
+                </span>
+              )}
+            </Button>
           );
         })}
 
         {currentFeedback && (
-          <button
+          <Button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
@@ -210,8 +220,8 @@ export const JobFeedbackBar: React.FC<JobFeedbackBarProps> = ({
               marginLeft: '0.2rem',
             }}
           >
-            💬 {currentFeedback.notes ? 'Edit note' : '+ note'}
-          </button>
+            <Icon name="messages" size={20} /> {currentFeedback.notes ? 'Edit note' : '+ note'}
+          </Button>
         )}
       </div>
 
@@ -222,13 +232,14 @@ export const JobFeedbackBar: React.FC<JobFeedbackBarProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
-            backgroundColor: 'rgba(15, 23, 42, 0.7)',
+            backgroundColor: 'var(--m3-surface-container-low)',
             padding: '0.5rem',
             borderRadius: '0.35rem',
             border: '1px solid var(--surface-border)',
           }}
+          className="layout-group"
         >
-          <input
+          <Input
             type="text"
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
@@ -243,26 +254,30 @@ export const JobFeedbackBar: React.FC<JobFeedbackBarProps> = ({
               fontSize: '0.8rem',
             }}
           />
-          <button
+          <Button
             type="button"
             onClick={handleSaveWithNote}
             className="btn btn-primary btn-sm"
             style={{ padding: '0.25rem 0.6rem' }}
           >
             Save
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => setShowNoteInput(false)}
             className="btn btn-secondary btn-sm"
             style={{ padding: '0.25rem 0.6rem' }}
           >
             Cancel
-          </button>
+          </Button>
         </div>
       )}
 
-      {error && <span style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>⚠️ {error}</span>}
+      {error && (
+        <span style={{ color: 'var(--danger)', fontSize: '0.75rem' }}>
+          <Icon name="warning" /> {error}
+        </span>
+      )}
     </div>
   );
 };

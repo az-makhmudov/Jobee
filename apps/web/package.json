@@ -6,11 +6,15 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "predev": "node ../../scripts/sync-preview-assets.mjs",
+    "prebuild": "node ../../scripts/sync-preview-assets.mjs"
   },
   "dependencies": {
     "@job-agent/shared": "*",
     "better-auth": "^1.7.7",
+    "docx-preview": "^0.4.1",
+    "pdfjs-dist": "^5.4.296",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

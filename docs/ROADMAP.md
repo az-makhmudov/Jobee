@@ -253,3 +253,7 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
   - **Release & Production Deployment**: Committed as `d35f408` and pushed to `origin/main`. GitHub Actions CI Run `39107123893` completed with `conclusion: success`. Railway services `jobee-api` (`263bdba1-8307-42eb-91a3-f1c273480699`) and `jobee-worker` (`6ec4d793-2fd4-418b-9f4b-dbbadb53023f`) auto-built and deployed to `SUCCESS / ONLINE`.
   - **Database Reconciliation**: Safely reconciled historical production packages with the new `PackageReadinessEngine`. Package `f4ad8b34-34af-48cb-b317-47cc564e9714` (Caspar Health) with candidate-rejected approval was transitioned from `READY` to `NEEDS_REVIEW`.
   - **Live Acceptance Suite Verification**: Executed `scripts/run-real-user-acceptance.ts` live against production: 30 scenarios executed (27 PASSED, 0 FAILED / DEFECTS, 2 REQUIRES_HUMAN for genuine OAuth consent, 1 EXCLUDED by safety invariant). Both `STUDIO-02` and `UI-02` verified completely resolved in live production!
+
+## JOB-UI-MIGRATION-01 — Desktop design system migration
+
+Status: **PREVIEW COMPLETE / RELEASE PENDING**. Codex completed the visual migration, eight-destination navigation and inline document preview. All 25 mapped components and 18 closure groups have implementation evidence. Quality gates passed: 586 tests, 25 browser checks, typecheck/build/lint/format and isolated database checks. Preview review and explicit release authorization remain. See `docs/UI_MIGRATION.md`.

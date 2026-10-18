@@ -1,3 +1,6 @@
+import { applicationStatusStyle } from '../ui/status.js';
+import { useFeedback } from '../ui/Feedback.js';
+import { Button, Card, Icon, Input, ModalSurface, Select, Textarea } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import { ApplicationCrmClient } from '../api/application-crm-client.js';
 import { jobApi } from '../api/job-client.js';
@@ -62,6 +65,7 @@ export function ApplicationsCrmView({
   onOpenStudio,
   onNavigateToStudioList,
 }: Props) {
+  const { alert } = useFeedback();
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
   const [applications, setApplications] = useState<ApplicationSummaryDto[]>([]);
   const [metrics, setMetrics] = useState<ApplicationCrmMetricsDto | null>(null);
@@ -80,7 +84,7 @@ export function ApplicationsCrmView({
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [showQuickMarkModal, setShowQuickMarkModal] = useState<string | null>(null);
 
-  // Record Existing Application state
+  // Record application state
   const [availableJobs, setAvailableJobs] = useState<JobSummaryDto[]>([]);
   const [selectedJobId, setSelectedJobId] = useState('');
   const [manualAppliedDate, setManualAppliedDate] = useState(new Date().toISOString().slice(0, 10));
@@ -176,49 +180,12 @@ export function ApplicationsCrmView({
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'DISCOVERED':
-      case 'ANALYZED':
-        return '#64748b';
-      case 'MATCHED':
-        return '#6366f1';
-      case 'NEEDS_REVIEW':
-        return '#f97316';
-      case 'READY_TO_APPLY':
-        return '#3b82f6';
-      case 'APPLYING':
-        return '#06b6d4';
-      case 'APPLIED':
-        return '#10b981';
-      case 'CONFIRMATION_RECEIVED':
-        return '#0d9488';
-      case 'SCREENING':
-        return '#f59e0b';
-      case 'ASSESSMENT':
-        return '#d97706';
-      case 'INTERVIEW':
-      case 'FINAL_INTERVIEW':
-        return '#8b5cf6';
-      case 'OFFER':
-        return '#059669';
-      case 'REJECTED':
-        return '#ef4444';
-      case 'WITHDRAWN':
-      case 'EXPIRED':
-      case 'SKIPPED':
-        return '#6b7280';
-      default:
-        return 'var(--text-secondary)';
-    }
-  };
-
   // Grouping for Kanban Board covering all 17 canonical statuses
   const boardColumns = [
     {
       id: 'pre_apply',
       title: 'Pre-Application',
-      color: '#3b82f6',
+      color: 'var(--m3-on-surface)',
       filter: (app: ApplicationSummaryDto) =>
         app.status === 'DISCOVERED' ||
         app.status === 'ANALYZED' ||
@@ -229,7 +196,7 @@ export function ApplicationsCrmView({
     {
       id: 'applied',
       title: 'Applied',
-      color: '#10b981',
+      color: 'var(--status-success)',
       filter: (app: ApplicationSummaryDto) =>
         app.status === 'APPLYING' ||
         app.status === 'APPLIED' ||
@@ -238,27 +205,27 @@ export function ApplicationsCrmView({
     {
       id: 'screening',
       title: 'Screening & Tests',
-      color: '#f59e0b',
+      color: 'var(--status-warning)',
       filter: (app: ApplicationSummaryDto) =>
         app.status === 'SCREENING' || app.status === 'ASSESSMENT',
     },
     {
       id: 'interviews',
       title: 'Interviews',
-      color: '#8b5cf6',
+      color: 'var(--m3-on-surface)',
       filter: (app: ApplicationSummaryDto) =>
         app.status === 'INTERVIEW' || app.status === 'FINAL_INTERVIEW',
     },
     {
       id: 'offers',
       title: 'Offers',
-      color: '#059669',
+      color: 'var(--status-success)',
       filter: (app: ApplicationSummaryDto) => app.status === 'OFFER',
     },
     {
       id: 'closed',
       title: 'Outcome / Closed',
-      color: '#6b7280',
+      color: 'var(--m3-on-surface-variant)',
       filter: (app: ApplicationSummaryDto) =>
         app.status === 'REJECTED' ||
         app.status === 'WITHDRAWN' ||
@@ -268,7 +235,10 @@ export function ApplicationsCrmView({
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '3rem' }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '3rem' }}
+      className="layout-group"
+    >
       {/* Header & Main Actions */}
       <header className="page-header" style={{ marginBottom: 0 }}>
         <div
@@ -279,24 +249,26 @@ export function ApplicationsCrmView({
             flexWrap: 'wrap',
             gap: '1rem',
           }}
+          className="layout-group"
         >
           <div>
-            <h1 className="page-title">Applications CRM</h1>
-            <p className="page-subtitle">
-              Personal ATS — Track, manage, and analyze your job application lifecycle
-            </p>
+            <h1 className="page-title">Applications</h1>
+            <p className="page-subtitle">Track applications, follow up and see your next step.</p>
           </div>
-          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <button className="btn btn-secondary" onClick={() => setShowAnalyticsModal(true)}>
-              📊 View Analytics
-            </button>
-            <button className="btn btn-outline" onClick={handleOpenRecordModal}>
-              📝 Record Existing Application
-            </button>
+          <div
+            style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}
+            className="layout-group"
+          >
+            <Button className="btn btn-secondary" onClick={() => setShowAnalyticsModal(true)}>
+              <Icon name="activity" /> Analytics
+            </Button>
+            <Button className="btn btn-outline" onClick={handleOpenRecordModal}>
+              <Icon name="edit" /> Record application
+            </Button>
             {onNavigateToStudioList && (
-              <button className="btn btn-outline" onClick={onNavigateToStudioList}>
-                🎨 Application Studio
-              </button>
+              <Button className="btn btn-outline" onClick={onNavigateToStudioList}>
+                <Icon name="document" /> Application Studio
+              </Button>
             )}
           </div>
         </div>
@@ -310,65 +282,73 @@ export function ApplicationsCrmView({
               gap: '0.75rem',
               marginTop: '1.25rem',
             }}
+            className="layout-group"
           >
-            <div className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Tracked</div>
               <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{metrics.totalTracked}</div>
-            </div>
-            <div className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+            </Card>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Ready</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#3b82f6' }}>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--m3-on-surface)' }}>
                 {metrics.readyToApply}
               </div>
-            </div>
-            <div className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+            </Card>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Applied</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#10b981' }}>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-success)' }}>
                 {metrics.applied}
               </div>
-            </div>
-            <div className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+            </Card>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Active</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#f59e0b' }}>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-warning)' }}>
                 {metrics.activeProcesses}
               </div>
-            </div>
-            <div className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+            </Card>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Interviews</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#8b5cf6' }}>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--m3-on-surface)' }}>
                 {metrics.interviews}
               </div>
-            </div>
-            <div className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+            </Card>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Offers</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#059669' }}>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-success)' }}>
                 {metrics.offers}
               </div>
-            </div>
-            <div className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+            </Card>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Follow-ups</div>
               <div
                 style={{
                   fontSize: '1.4rem',
                   fontWeight: 700,
-                  color: metrics.overdueFollowUps > 0 ? '#ef4444' : 'var(--text-primary)',
+                  color:
+                    metrics.overdueFollowUps > 0 ? 'var(--status-danger)' : 'var(--text-primary)',
                 }}
               >
                 {metrics.pendingFollowUps + metrics.overdueFollowUps}
                 {metrics.overdueFollowUps > 0 && (
-                  <span style={{ fontSize: '0.75rem', color: '#ef4444', marginLeft: '0.25rem' }}>
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--status-danger)',
+                      marginLeft: '0.25rem',
+                    }}
+                  >
                     ({metrics.overdueFollowUps} overdue)
                   </span>
                 )}
               </div>
-            </div>
+            </Card>
           </div>
         )}
       </header>
 
       {/* Filter and View Mode Toolbar */}
-      <div
-        className="card"
+      <Card
+        className="card crm-filters"
         style={{
           padding: '0.75rem 1rem',
           display: 'flex',
@@ -378,18 +358,23 @@ export function ApplicationsCrmView({
           gap: '0.75rem',
         }}
       >
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
+        <div
+          style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}
+          className="layout-group"
+        >
+          <Input
             type="text"
             className="input"
+            aria-label="Search applications"
             placeholder="Search company or title..."
             style={{ minWidth: '220px' }}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          <select
+          <Select
             className="input"
+            aria-label="Application status"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
           >
@@ -399,10 +384,11 @@ export function ApplicationsCrmView({
                 {formatStatusLabel(s)}
               </option>
             ))}
-          </select>
+          </Select>
 
-          <select
+          <Select
             className="input"
+            aria-label="Application source"
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
           >
@@ -412,7 +398,7 @@ export function ApplicationsCrmView({
                 {m}
               </option>
             ))}
-          </select>
+          </Select>
 
           <label
             style={{
@@ -423,12 +409,12 @@ export function ApplicationsCrmView({
               cursor: 'pointer',
             }}
           >
-            <input
+            <Input
               type="checkbox"
               checked={onlyFollowUps}
               onChange={(e) => setOnlyFollowUps(e.target.checked)}
             />
-            ⏰ Follow-ups Due
+            <Icon name="schedule" size={20} /> Follow-ups Due
           </label>
 
           <label
@@ -440,12 +426,12 @@ export function ApplicationsCrmView({
               cursor: 'pointer',
             }}
           >
-            <input
+            <Input
               type="checkbox"
               checked={showArchived}
               onChange={(e) => setShowArchived(e.target.checked)}
             />
-            📦 Show Archived
+            <Icon name="folder" size={20} /> Show Archived
           </label>
         </div>
 
@@ -456,25 +442,26 @@ export function ApplicationsCrmView({
             gap: '0.25rem',
             background: 'var(--bg-secondary)',
             padding: '2px',
-            borderRadius: '6px',
+            borderRadius: '16px',
           }}
+          className="layout-group"
         >
-          <button
+          <Button
             className={`btn btn-sm ${viewMode === 'board' ? 'btn-primary' : 'btn-ghost'}`}
             style={{ padding: '0.25rem 0.6rem' }}
             onClick={() => setViewMode('board')}
           >
-            📋 Board
-          </button>
-          <button
+            <Icon name="board" /> Board
+          </Button>
+          <Button
             className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-ghost'}`}
             style={{ padding: '0.25rem 0.6rem' }}
             onClick={() => setViewMode('list')}
           >
-            ☰ List
-          </button>
+            <Icon name="list" size={20} /> List
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {error && <div className="banner banner-error">{error}</div>}
 
@@ -487,23 +474,24 @@ export function ApplicationsCrmView({
           </p>
         </div>
       ) : applications.length === 0 ? (
-        <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
+        <Card className="card" style={{ padding: '3rem', textAlign: 'center' }}>
           <h3>No applications tracked yet</h3>
           <p
             style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', marginBottom: '1.5rem' }}
           >
             Prepare an application package in Studio, or record an existing application.
           </p>
-          <button className="btn btn-primary" onClick={handleOpenRecordModal}>
-            📝 Record Existing Application
-          </button>
-        </div>
+          <Button className="btn btn-primary" onClick={handleOpenRecordModal}>
+            <Icon name="edit" /> Record application
+          </Button>
+        </Card>
       ) : viewMode === 'board' ? (
         /* KANBAN STAGE BOARD VIEW */
         <div
+          className="application-board"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gridTemplateColumns: 'repeat(6, minmax(152px, 1fr))',
             gap: '1rem',
             alignItems: 'start',
           }}
@@ -516,13 +504,14 @@ export function ApplicationsCrmView({
                 key={col.id}
                 style={{
                   background: 'var(--bg-secondary)',
-                  borderRadius: '8px',
+                  borderRadius: '16px',
                   padding: '0.75rem',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '0.75rem',
                   minHeight: '280px',
                 }}
+                className="layout-group"
               >
                 {/* Column Header */}
                 <div
@@ -550,9 +539,12 @@ export function ApplicationsCrmView({
                 </div>
 
                 {/* Cards List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                  className="layout-group"
+                >
                   {colApps.map((app) => (
-                    <div
+                    <Card
                       key={app.id}
                       className="card"
                       style={{
@@ -587,7 +579,7 @@ export function ApplicationsCrmView({
                               color: 'var(--color-primary)',
                               background: 'var(--bg-secondary)',
                               padding: '0.15rem 0.4rem',
-                              borderRadius: '4px',
+                              borderRadius: '16px',
                             }}
                           >
                             {app.matchScore}%
@@ -596,14 +588,16 @@ export function ApplicationsCrmView({
                       </div>
 
                       {/* Status & Overdue Badges */}
-                      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                      <div
+                        style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}
+                        className="layout-group"
+                      >
                         <span
                           style={{
-                            background: getStatusColor(app.status),
-                            color: '#fff',
+                            ...applicationStatusStyle(app.status),
                             fontSize: '0.7rem',
                             padding: '0.1rem 0.4rem',
-                            borderRadius: '4px',
+                            borderRadius: '16px',
                             fontWeight: 600,
                           }}
                         >
@@ -611,17 +605,17 @@ export function ApplicationsCrmView({
                         </span>
                         {app.isArchived && (
                           <span className="badge badge-secondary" style={{ fontSize: '0.7rem' }}>
-                            📦 Archived
+                            <Icon name="folder" size={20} /> Archived
                           </span>
                         )}
                         {app.isFollowUpOverdue && (
                           <span className="badge badge-error" style={{ fontSize: '0.7rem' }}>
-                            ⚠️ Overdue
+                            <Icon name="warning" /> Overdue
                           </span>
                         )}
                         {app.isFollowUpDue && !app.isFollowUpOverdue && (
                           <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>
-                            ⏰ Due Today
+                            <Icon name="schedule" size={20} /> Due Today
                           </span>
                         )}
                       </div>
@@ -633,11 +627,11 @@ export function ApplicationsCrmView({
                             fontSize: '0.75rem',
                             background: 'var(--bg-secondary)',
                             padding: '0.35rem 0.5rem',
-                            borderRadius: '4px',
+                            borderRadius: '16px',
                             color: 'var(--text-primary)',
                           }}
                         >
-                          📌 {app.nextAction}
+                          <Icon name="schedule" size={20} /> {app.nextAction}
                         </div>
                       )}
 
@@ -661,9 +655,12 @@ export function ApplicationsCrmView({
                         </span>
 
                         {/* Quick Mark Applied button on ready cards */}
-                        <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                        <div
+                          style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}
+                          className="layout-group"
+                        >
                           {app.packageId && onOpenStudio && (
-                            <button
+                            <Button
                               className="btn btn-secondary btn-sm"
                               style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem' }}
                               onClick={(e) => {
@@ -673,10 +670,10 @@ export function ApplicationsCrmView({
                               title="Open Studio Package"
                             >
                               Studio
-                            </button>
+                            </Button>
                           )}
                           {app.status === 'READY_TO_APPLY' && (
-                            <button
+                            <Button
                               className="btn btn-primary btn-sm"
                               style={{ fontSize: '0.7rem', padding: '0.15rem 0.4rem' }}
                               onClick={(e) => {
@@ -685,11 +682,11 @@ export function ApplicationsCrmView({
                               }}
                             >
                               Mark Applied
-                            </button>
+                            </Button>
                           )}
                         </div>
                       </div>
-                    </div>
+                    </Card>
                   ))}
 
                   {colApps.length === 0 && (
@@ -711,7 +708,7 @@ export function ApplicationsCrmView({
         </div>
       ) : (
         /* TABLE LIST VIEW */
-        <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
+        <Card className="card" style={{ padding: 0, overflowX: 'auto' }}>
           <table className="data-table" style={{ width: '100%' }}>
             <thead>
               <tr>
@@ -740,11 +737,10 @@ export function ApplicationsCrmView({
                   <td>
                     <span
                       style={{
-                        background: getStatusColor(app.status),
-                        color: '#fff',
+                        ...applicationStatusStyle(app.status),
                         fontSize: '0.75rem',
                         padding: '0.15rem 0.5rem',
-                        borderRadius: '4px',
+                        borderRadius: '16px',
                         fontWeight: 600,
                       }}
                     >
@@ -755,7 +751,7 @@ export function ApplicationsCrmView({
                         className="badge badge-secondary"
                         style={{ marginLeft: '0.35rem', fontSize: '0.7rem' }}
                       >
-                        📦 Archived
+                        <Icon name="folder" size={20} /> Archived
                       </span>
                     )}
                   </td>
@@ -785,7 +781,13 @@ export function ApplicationsCrmView({
                       <div>
                         <span>{new Date(app.followUpAt).toLocaleDateString()}</span>
                         {app.isFollowUpOverdue && (
-                          <div style={{ color: '#ef4444', fontSize: '0.75rem', fontWeight: 600 }}>
+                          <div
+                            style={{
+                              color: 'var(--status-danger)',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                            }}
+                          >
                             Overdue
                           </div>
                         )}
@@ -795,9 +797,9 @@ export function ApplicationsCrmView({
                     )}
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: '0.3rem' }}>
+                    <div style={{ display: 'flex', gap: '0.3rem' }} className="layout-group">
                       {app.packageId && onOpenStudio && (
-                        <button
+                        <Button
                           className="btn btn-secondary btn-sm"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -806,9 +808,9 @@ export function ApplicationsCrmView({
                           title="Open Studio Package"
                         >
                           Studio
-                        </button>
+                        </Button>
                       )}
-                      <button
+                      <Button
                         className="btn btn-secondary btn-sm"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -816,14 +818,14 @@ export function ApplicationsCrmView({
                         }}
                       >
                         View
-                      </button>
+                      </Button>
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
       {/* Analytics Modal */}
@@ -832,18 +834,19 @@ export function ApplicationsCrmView({
         onClose={() => setShowAnalyticsModal(false)}
       />
 
-      {/* Record Existing Application Modal */}
+      {/* Record application Modal */}
       {showRecordModal && (
-        <div className="modal-backdrop">
+        <ModalSurface className="modal-backdrop">
           <div className="modal-container" style={{ maxWidth: '550px' }}>
             <header className="modal-header">
-              <h2 className="modal-title">Record Existing Application</h2>
-              <button
+              <h2 className="modal-title">Record application</h2>
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowRecordModal(false)}
+                aria-label="Close"
               >
-                ✕
-              </button>
+                <Icon name="close" size={20} />
+              </Button>
             </header>
             <form
               onSubmit={handleRecordApplication}
@@ -852,7 +855,7 @@ export function ApplicationsCrmView({
             >
               <div>
                 <label className="label">Target Job Listing (Required)</label>
-                <select
+                <Select
                   className="input"
                   required
                   value={selectedJobId}
@@ -863,13 +866,16 @@ export function ApplicationsCrmView({
                       {j.title} at {j.company} ({j.state})
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label className="label">Date Applied</label>
-                  <input
+                  <Input
                     type="date"
                     className="input"
                     required
@@ -879,7 +885,7 @@ export function ApplicationsCrmView({
                 </div>
                 <div>
                   <label className="label">Submission Method</label>
-                  <select
+                  <Select
                     className="input"
                     value={manualMethod}
                     onChange={(e) => setManualMethod(e.target.value)}
@@ -889,13 +895,13 @@ export function ApplicationsCrmView({
                         {m}
                       </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
               </div>
 
               <div>
                 <label className="label">External Confirmation / Reference ID</label>
-                <input
+                <Input
                   type="text"
                   className="input"
                   placeholder="e.g. APPL-2026-99"
@@ -906,7 +912,7 @@ export function ApplicationsCrmView({
 
               <div>
                 <label className="label">Application Portal URL</label>
-                <input
+                <Input
                   type="url"
                   className="input"
                   placeholder="https://..."
@@ -917,7 +923,7 @@ export function ApplicationsCrmView({
 
               <div>
                 <label className="label">Submission Notes</label>
-                <textarea
+                <Textarea
                   className="input"
                   rows={2}
                   placeholder="Notes about where/how you applied..."
@@ -930,34 +936,35 @@ export function ApplicationsCrmView({
                 className="modal-footer"
                 style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
               >
-                <button
+                <Button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowRecordModal(false)}
                 >
                   Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
+                </Button>
+                <Button type="submit" className="btn btn-primary">
                   Record Application
-                </button>
+                </Button>
               </footer>
             </form>
           </div>
-        </div>
+        </ModalSurface>
       )}
 
       {/* Quick Mark Applied Modal */}
       {showQuickMarkModal && (
-        <div className="modal-backdrop">
+        <ModalSurface className="modal-backdrop">
           <div className="modal-container" style={{ maxWidth: '450px' }}>
             <header className="modal-header">
               <h2 className="modal-title">Mark as Applied</h2>
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowQuickMarkModal(null)}
+                aria-label="Close"
               >
-                ✕
-              </button>
+                <Icon name="close" size={20} />
+              </Button>
             </header>
             <form
               onSubmit={handleQuickMarkApplied}
@@ -966,7 +973,7 @@ export function ApplicationsCrmView({
             >
               <div>
                 <label className="label">Submission Method / Platform</label>
-                <select
+                <Select
                   className="input"
                   value={quickMethod}
                   onChange={(e) => setQuickMethod(e.target.value)}
@@ -976,12 +983,12 @@ export function ApplicationsCrmView({
                       {m}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div>
                 <label className="label">External Reference ID (Optional)</label>
-                <input
+                <Input
                   type="text"
                   className="input"
                   placeholder="Confirmation code or ID"
@@ -994,20 +1001,20 @@ export function ApplicationsCrmView({
                 className="modal-footer"
                 style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
               >
-                <button
+                <Button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowQuickMarkModal(null)}
                 >
                   Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
+                </Button>
+                <Button type="submit" className="btn btn-primary">
                   Confirm Applied
-                </button>
+                </Button>
               </footer>
             </form>
           </div>
-        </div>
+        </ModalSurface>
       )}
     </div>
   );

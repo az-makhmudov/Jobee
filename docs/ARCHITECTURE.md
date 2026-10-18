@@ -816,3 +816,13 @@ The official cloud hosting architecture for Jobee is deployed on **Railway**, or
 
 - **Neon PostgreSQL Free Tier**: Uses serverless PostgreSQL 16 with PgBouncer connection pooling (`-pooler` connection strings). Client connection automatically configures non-blocking SSL (`rejectUnauthorized: false`) and a 10,000ms connection timeout to absorb serverless compute resume latency (500ms–2s).
 - **Cloudflare R2 Storage**: Persistent candidate CVs, Cover Letters, and application artifacts are stored in Cloudflare R2 via `S3StorageProvider` using AWS Signature Version 4 (AWS4-HMAC-SHA256). Provides 10 GB free storage with zero egress bandwidth charges.
+
+## 15. Jobee UI migration preview (JOB-UI-MIGRATION-01)
+
+The web client retains React state navigation and all existing domain/API services. `src/ui/navigation.ts` groups the existing section identifiers into eight destinations; record IDs and callbacks still drive detail views. Profile and Settings contain the original views under tabs. `src/ui/` owns semantic Light/Dark tokens, shared primitives, focus-managed dialogs, icon assets and appearance preferences. Google Sans Flex and Material Symbols/Figma SVG exports are served locally.
+
+`jobee.theme` stores the frontend-only `system | light | dark` preference. A small head script applies appearance before React paints; System follows device changes and explicit overrides persist.
+
+Document preview uses the existing owner-checked download endpoint. The only client addition is cancellable Blob retrieval. PDF.js and DOCX rendering are lazy loaded; PDF workers, CMaps, standard fonts and WASM are copied locally by `scripts/sync-preview-assets.mjs` in the web predev/prebuild hooks. DOCX content renders in a same-origin sandbox without scripts and with a restrictive document CSP blocking external resources. Preview selection remounts the renderer, cancels pending retrieval and releases PDF tasks; original download remains available. Document paper intentionally remains light in either app theme.
+
+`playwright.config.ts` and the guarded preview seeder use an isolated loopback database and synthetic accounts. Browser requests to external hosts are blocked. The UI preview CI job runs separately from the existing backend quality gate. No schema, worker or API contract migration is part of this milestone.

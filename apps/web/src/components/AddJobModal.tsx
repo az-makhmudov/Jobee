@@ -1,3 +1,5 @@
+import { Icon } from '../ui/Primitives.js';
+import { Button, Input, ModalSurface, Textarea } from '../ui/Primitives.js';
 import { useState } from 'react';
 import { jobApi } from '../api/job-client.js';
 import type { JobDto } from '@job-agent/shared';
@@ -92,7 +94,7 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <ModalSurface className="modal-backdrop" onClick={onClose}>
       <div
         className="modal-dialog"
         onClick={(e) => e.stopPropagation()}
@@ -107,14 +109,15 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
           }}
         >
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Add Job to Inbox</h2>
-          <button
+          <Button
             className="btn btn-secondary btn-sm"
             onClick={onClose}
             disabled={loading}
             style={{ borderRadius: '50%', width: '28px', height: '28px', padding: 0 }}
+            aria-label="Close"
           >
-            ✕
-          </button>
+            <Icon name="close" size={20} />
+          </Button>
         </div>
 
         {/* Tab Navigation */}
@@ -125,8 +128,9 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
             marginBottom: '1.25rem',
             gap: '0.5rem',
           }}
+          className="layout-group"
         >
-          <button
+          <Button
             type="button"
             className={`btn btn-sm ${tab === 'url' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => {
@@ -137,8 +141,8 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
             disabled={loading}
           >
             Import from URL
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             className={`btn btn-sm ${tab === 'text' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => {
@@ -149,17 +153,17 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
             disabled={loading}
           >
             Paste Job Text
-          </button>
+          </Button>
         </div>
 
         {error && (
           <div
             style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#f87171',
+              backgroundColor: 'var(--status-warning-container)',
+              border: '1px solid var(--status-warning-border)',
+              color: 'var(--status-warning)',
               padding: '0.75rem 1rem',
-              borderRadius: '0.375rem',
+              borderRadius: '16px',
               marginBottom: '1rem',
               fontSize: '0.875rem',
             }}
@@ -171,20 +175,20 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
         {duplicateNotice && (
           <div
             style={{
-              backgroundColor: 'rgba(245, 158, 11, 0.15)',
-              border: '1px solid rgba(245, 158, 11, 0.3)',
-              color: '#fbbf24',
+              backgroundColor: 'var(--status-danger-container)',
+              border: '1px solid var(--status-danger-border)',
+              color: 'var(--status-danger)',
               padding: '0.75rem 1rem',
-              borderRadius: '0.375rem',
+              borderRadius: '16px',
               marginBottom: '1rem',
               fontSize: '0.875rem',
             }}
           >
             <strong>Duplicate Detected:</strong> {duplicateNotice}
             <div style={{ marginTop: '0.5rem' }}>
-              <button className="btn btn-secondary btn-sm" onClick={onClose}>
+              <Button className="btn btn-secondary btn-sm" onClick={onClose}>
                 View Existing Job
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -196,7 +200,7 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
               <label className="form-label" htmlFor="job-url">
                 Job Posting Public URL
               </label>
-              <input
+              <Input
                 id="job-url"
                 type="url"
                 className="form-input"
@@ -226,18 +230,19 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
                 gap: '0.75rem',
                 marginTop: '1.5rem',
               }}
+              className="layout-group"
             >
-              <button
+              <Button
                 type="button"
                 className="btn btn-secondary"
                 onClick={onClose}
                 disabled={loading}
               >
                 Cancel
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
+              </Button>
+              <Button type="submit" className="btn btn-primary" disabled={loading}>
                 {loading ? 'Fetching & Parsing...' : 'Import Job'}
-              </button>
+              </Button>
             </div>
           </form>
         )}
@@ -250,7 +255,7 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
                 <label className="form-label" htmlFor="job-title-hint">
                   Position Title (Optional Hint)
                 </label>
-                <input
+                <Input
                   id="job-title-hint"
                   type="text"
                   className="form-input"
@@ -265,7 +270,7 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
                 <label className="form-label" htmlFor="job-company-hint">
                   Company / Organization (Optional Hint)
                 </label>
-                <input
+                <Input
                   id="job-company-hint"
                   type="text"
                   className="form-input"
@@ -281,7 +286,7 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
               <label className="form-label" htmlFor="job-text">
                 Pasted Job Description *
               </label>
-              <textarea
+              <Textarea
                 id="job-text"
                 className="form-textarea"
                 rows={10}
@@ -297,7 +302,7 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
               <label className="form-label" htmlFor="job-source-notes">
                 Source Notes / Context (Optional)
               </label>
-              <input
+              <Input
                 id="job-source-notes"
                 type="text"
                 className="form-input"
@@ -315,22 +320,23 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
                 gap: '0.75rem',
                 marginTop: '1.5rem',
               }}
+              className="layout-group"
             >
-              <button
+              <Button
                 type="button"
                 className="btn btn-secondary"
                 onClick={onClose}
                 disabled={loading}
               >
                 Cancel
-              </button>
-              <button type="submit" className="btn btn-primary" disabled={loading}>
+              </Button>
+              <Button type="submit" className="btn btn-primary" disabled={loading}>
                 {loading ? 'Normalizing...' : 'Save Job'}
-              </button>
+              </Button>
             </div>
           </form>
         )}
       </div>
-    </div>
+    </ModalSurface>
   );
 }

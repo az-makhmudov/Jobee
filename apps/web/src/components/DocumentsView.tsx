@@ -1,3 +1,6 @@
+import { useFeedback } from '../ui/Feedback.js';
+import { DocumentPreview } from './DocumentPreview.js';
+import { Button, Card, Icon, Input, ModalSurface, Select } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import { candidateApi } from '../api/candidate-client.js';
 import { SmartProfileImportModal } from './SmartProfileImportModal.js';
@@ -8,6 +11,8 @@ interface Props {
 }
 
 export function DocumentsView({ onUpdate }: Props) {
+  const { confirm } = useFeedback();
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const [documents, setDocuments] = useState<CandidateDocumentDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -76,10 +81,11 @@ export function DocumentsView({ onUpdate }: Props) {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+    if (!(await confirm(`Are you sure you want to delete "${name}"?`))) return;
     try {
       await candidateApi.deleteDocument(id);
       showToast('ok', 'Document deleted');
+      if (previewId === id) setPreviewId(null);
       loadDocuments();
       onUpdate?.();
     } catch (err) {
@@ -96,7 +102,7 @@ export function DocumentsView({ onUpdate }: Props) {
   return (
     <div>
       <header className="page-header">
-        <h1 className="page-title">Candidate Document Vault</h1>
+        <h2 className="page-title">CV & Documents</h2>
         <p className="page-subtitle">
           Manage your Master CV, tailored role variants, cover letter templates, and credentials
         </p>
@@ -108,7 +114,9 @@ export function DocumentsView({ onUpdate }: Props) {
           style={{
             borderColor: toast.type === 'error' ? 'var(--danger)' : 'var(--success)',
             backgroundColor:
-              toast.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+              toast.type === 'error'
+                ? 'var(--status-danger-container)'
+                : 'var(--status-success-container)',
           }}
         >
           <span>{toast.message}</span>
@@ -128,144 +136,100 @@ export function DocumentsView({ onUpdate }: Props) {
             {documents.length} document{documents.length === 1 ? '' : 's'} stored securely
           </span>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => setIsSmartImportOpen(true)}>
-            ✨ Smart Import & Extract
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowUploadModal(true)}>
+        <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+          <Button className="btn btn-secondary btn-sm" onClick={() => setIsSmartImportOpen(true)}>
+            <Icon name="ai" /> Smart Import & Extract
+          </Button>
+          <Button className="btn btn-primary btn-sm" onClick={() => setShowUploadModal(true)}>
             + Upload Document
-          </button>
+          </Button>
         </div>
       </div>
 
       {loading && documents.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
+        <Card className="card" style={{ textAlign: 'center', padding: '2rem' }}>
           Loading documents...
-        </div>
+        </Card>
       ) : documents.length === 0 ? (
-        <div className="card placeholder-view">
+        <Card className="card placeholder-view">
           <h3>No Documents Uploaded</h3>
           <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
             Upload your Master CV to establish the baseline for tailored application generation.
           </p>
-          <button
+          <Button
             className="btn btn-primary"
             style={{ marginTop: '1rem' }}
             onClick={() => setShowUploadModal(true)}
           >
             Upload Master CV
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : (
-        <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-          <table
-            style={{
-              width: '100%',
-              borderCollapse: 'collapse',
-              textAlign: 'left',
-              fontSize: '0.9rem',
-            }}
-          >
-            <thead>
-              <tr
-                style={{
-                  backgroundColor: 'rgba(15, 23, 42, 0.8)',
-                  borderBottom: '1px solid var(--surface-border)',
-                }}
-              >
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>Document Name</th>
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>Type</th>
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>Role Focus</th>
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>Version</th>
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>Size</th>
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 600 }}>Uploaded</th>
-                <th style={{ padding: '0.85rem 1rem', fontWeight: 600, textAlign: 'right' }}>
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {documents.map((doc) => (
-                <tr key={doc.id} style={{ borderBottom: '1px solid rgba(51, 65, 85, 0.4)' }}>
-                  <td style={{ padding: '0.85rem 1rem' }}>
-                    <div
-                      style={{
-                        fontWeight: 600,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                      }}
-                    >
-                      {doc.displayName || doc.originalFilename}
-                      {doc.isMaster && (
-                        <span
-                          className="status-badge ok"
-                          style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem' }}
-                        >
-                          ★ Master CV
-                        </span>
-                      )}
-                    </div>
-                    {doc.displayName && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        {doc.originalFilename}
-                      </div>
-                    )}
-                  </td>
-                  <td style={{ padding: '0.85rem 1rem' }}>
-                    <span className="nav-tag">{doc.documentType}</span>
-                  </td>
-                  <td
-                    style={{
-                      padding: '0.85rem 1rem',
-                      color: doc.roleFocus ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    }}
+        <div className="document-workspace">
+          <div className="document-list" aria-label="Uploaded documents">
+            <h2 className="card-title">Uploaded Documents</h2>
+            <p className="page-subtitle">{documents.length} files · Select a file to preview</p>
+            {documents.map((doc) => (
+              <Card key={doc.id} className={previewId === doc.id ? 'document-selected' : ''}>
+                <Button
+                  className="btn-ghost document-select"
+                  aria-pressed={previewId === doc.id}
+                  onClick={() => setPreviewId(doc.id)}
+                >
+                  <Icon
+                    name={doc.documentType === 'COVER_LETTER_TEMPLATE' ? 'letter' : 'document'}
+                  />
+                  <strong>{doc.displayName || doc.originalFilename}</strong>
+                </Button>
+                <p className="page-subtitle">{doc.originalFilename}</p>
+                <span className="nav-tag">
+                  {doc.isMaster ? 'Master CV' : doc.documentType.replaceAll('_', ' ')}
+                </span>
+                <p className="page-subtitle">
+                  {doc.roleFocus || 'All roles'} · v{doc.version}
+                  <br />
+                  {formatFileSize(doc.sizeBytes)} · Uploaded{' '}
+                  {new Date(doc.createdAt).toLocaleDateString()}
+                </p>
+                <div className="account-actions">
+                  <a
+                    className="btn btn-ghost btn-sm"
+                    href={candidateApi.getDocumentDownloadUrl(doc.id)}
+                    download
                   >
-                    {doc.roleFocus || '—'}
-                  </td>
-                  <td style={{ padding: '0.85rem 1rem' }}>v{doc.version}</td>
-                  <td style={{ padding: '0.85rem 1rem', color: 'var(--text-secondary)' }}>
-                    {formatFileSize(doc.sizeBytes)}
-                  </td>
-                  <td
-                    style={{
-                      padding: '0.85rem 1rem',
-                      color: 'var(--text-secondary)',
-                      fontSize: '0.8rem',
-                    }}
+                    Download
+                  </a>
+                  <Button
+                    className="btn-danger btn-sm"
+                    onClick={() => handleDelete(doc.id, doc.displayName || doc.originalFilename)}
                   >
-                    {new Date(doc.createdAt).toLocaleDateString()}
-                  </td>
-                  <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
-                      <a
-                        href={candidateApi.getDocumentDownloadUrl(doc.id)}
-                        className="btn btn-secondary btn-sm"
-                        download
-                        style={{ textDecoration: 'none' }}
-                      >
-                        Download
-                      </a>
-                      <button
-                        className="btn btn-danger btn-sm"
-                        onClick={() =>
-                          handleDelete(doc.id, doc.displayName || doc.originalFilename)
-                        }
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    Delete
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+          {previewId && documents.find((doc) => doc.id === previewId) ? (
+            <DocumentPreview
+              key={previewId}
+              document={documents.find((doc) => doc.id === previewId)!}
+              onClose={() => setPreviewId(null)}
+            />
+          ) : (
+            <Card className="document-placeholder">
+              <Icon name="document" size={40} />
+              <h3>View your uploaded documents</h3>
+              <p className="page-subtitle">
+                Select a document to read it here. Your original files stay unchanged.
+              </p>
+            </Card>
+          )}
         </div>
       )}
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <div className="modal-backdrop">
+        <ModalSurface className="modal-backdrop">
           <div className="modal-dialog">
             <div
               style={{
@@ -276,19 +240,20 @@ export function DocumentsView({ onUpdate }: Props) {
               }}
             >
               <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Upload Candidate Document</h3>
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowUploadModal(false)}
+                aria-label="Close"
               >
-                ✕
-              </button>
+                <Icon name="close" size={20} />
+              </Button>
             </div>
 
             <form onSubmit={handleUpload}>
               <div className="form-grid">
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
                   <label className="form-label">Select File (PDF, DOCX, TXT - max 10MB)</label>
-                  <input
+                  <Input
                     type="file"
                     required
                     className="form-input"
@@ -306,7 +271,7 @@ export function DocumentsView({ onUpdate }: Props) {
 
                 <div className="form-group">
                   <label className="form-label">Document Type</label>
-                  <select
+                  <Select
                     className="form-input"
                     value={docType}
                     onChange={(e) => {
@@ -321,12 +286,12 @@ export function DocumentsView({ onUpdate }: Props) {
                     <option value="CERTIFICATE">CERTIFICATE</option>
                     <option value="PORTFOLIO">PORTFOLIO</option>
                     <option value="OTHER">OTHER</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Display Name / Title</label>
-                  <input
+                  <Input
                     type="text"
                     className="form-input"
                     placeholder="e.g. Master Engineering CV 2026"
@@ -337,7 +302,7 @@ export function DocumentsView({ onUpdate }: Props) {
 
                 <div className="form-group">
                   <label className="form-label">Role Focus (Optional)</label>
-                  <input
+                  <Input
                     type="text"
                     className="form-input"
                     placeholder="e.g. Staff Full-Stack Engineer"
@@ -348,7 +313,7 @@ export function DocumentsView({ onUpdate }: Props) {
 
                 <div className="form-group">
                   <label className="form-label">Version</label>
-                  <input
+                  <Input
                     type="text"
                     className="form-input"
                     placeholder="1.0"
@@ -366,7 +331,7 @@ export function DocumentsView({ onUpdate }: Props) {
                       cursor: 'pointer',
                     }}
                   >
-                    <input
+                    <Input
                       type="checkbox"
                       checked={isMaster}
                       onChange={(e) => setIsMaster(e.target.checked)}
@@ -394,26 +359,27 @@ export function DocumentsView({ onUpdate }: Props) {
                   justifyContent: 'flex-end',
                   gap: '0.5rem',
                 }}
+                className="layout-group"
               >
-                <button
+                <Button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowUploadModal(false)}
                   disabled={uploading}
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="submit"
                   className="btn btn-primary"
                   disabled={uploading || !selectedFile}
                 >
                   {uploading ? 'Uploading...' : 'Upload Document'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
-        </div>
+        </ModalSurface>
       )}
       {isSmartImportOpen && (
         <SmartProfileImportModal

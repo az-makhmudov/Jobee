@@ -1,3 +1,4 @@
+import { Button, Card, Icon, Input, Select } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import { jobApi } from '../api/job-client.js';
 import { AddJobModal } from './AddJobModal.js';
@@ -142,42 +143,48 @@ export function JobInboxView({ onSelectJob }: Props) {
           flexWrap: 'wrap',
           gap: '1rem',
         }}
+        className="layout-group"
       >
         <div>
-          <h1 className="page-title">Job Inbox & Match Intelligence</h1>
+          <h1 className="page-title">Jobs</h1>
           <p className="page-subtitle">
-            Normalized job postings with deterministic policy authorization & grounded requirement
-            matching
+            Find internships and entry-level roles, then check your fit.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <button
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }} className="layout-group">
+          <Button
             className="btn btn-secondary btn-sm"
             onClick={handleDiscoverJobs}
             disabled={discovering || loading}
             title="Discover and ingest opportunities from Arbeitnow and Greenhouse public boards"
           >
-            {discovering ? '🌐 Discovering...' : '🌐 Discover Public Jobs'}
-          </button>
-          <button
+            {discovering ? '🌐 Discovering...' : 'Find jobs'}
+          </Button>
+          <Button
             className="btn btn-secondary btn-sm"
             onClick={handleBatchAnalyze}
             disabled={batchAnalyzing || loading}
             title="Analyze unanalyzed jobs in batch (up to 10)"
           >
-            {batchAnalyzing ? '⏳ Analyzing...' : '⚡ Batch Analyze Unanalyzed'}
-          </button>
-          <button className="btn btn-secondary btn-sm" onClick={loadData} disabled={loading}>
-            🔄 Refresh
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={() => setIsAddModalOpen(true)}>
-            ➕ Add Job
-          </button>
+            {batchAnalyzing ? (
+              <>
+                <Icon name="schedule" size={20} /> Analyzing...
+              </>
+            ) : (
+              'Analyze new jobs'
+            )}
+          </Button>
+          <Button className="btn btn-secondary btn-sm" onClick={loadData} disabled={loading}>
+            <Icon name="sync" /> Refresh
+          </Button>
+          <Button className="btn btn-primary btn-sm" onClick={() => setIsAddModalOpen(true)}>
+            Add job
+          </Button>
         </div>
       </div>
 
       {batchNotice && (
-        <div
+        <Card
           className="card"
           style={{
             borderColor: 'var(--success)',
@@ -189,15 +196,17 @@ export function JobInboxView({ onSelectJob }: Props) {
             alignItems: 'center',
           }}
         >
-          <span>✅ {batchNotice}</span>
-          <button
+          <span>
+            <Icon name="check" /> {batchNotice}
+          </span>
+          <Button
             className="btn btn-secondary btn-sm"
             onClick={() => setBatchNotice(null)}
             style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
           >
             Dismiss
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       {/* Metrics Ribbon */}
@@ -218,36 +227,39 @@ export function JobInboxView({ onSelectJob }: Props) {
           </div>
           <div className="status-item">
             <div className="status-item-label">Analyzed</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#60a5fa' }}>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--m3-on-surface)' }}>
               {metrics.totalAnalyzed ?? 0}
             </div>
             <div className="status-item-meta">Avg: {metrics.averageMatchScore ?? 0}%</div>
           </div>
           <div className="status-item">
             <div className="status-item-label">Matches</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#34d399' }}>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-success)' }}>
               {metrics.matchCount ?? 0}
             </div>
             <div className="status-item-meta">Eligible roles</div>
           </div>
           <div className="status-item">
             <div className="status-item-label">Review Needed</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fbbf24' }}>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-warning)' }}>
               {metrics.reviewCount ?? 0}
             </div>
             <div className="status-item-meta">Gaps or unknowns</div>
           </div>
           <div className="status-item">
             <div className="status-item-label">Policy Skips</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#f87171' }}>
+            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-danger)' }}>
               {metrics.skipCount ?? 0}
             </div>
             <div className="status-item-meta">Hard policy blocked</div>
           </div>
           {metrics.staleAnalysisCount > 0 && (
-            <div className="status-item" style={{ borderLeft: '3px solid #fbbf24' }}>
+            <div
+              className="status-item"
+              style={{ borderLeft: '3px solid var(--status-warning-border)' }}
+            >
               <div className="status-item-label">Stale Analyses</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#fbbf24' }}>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-warning)' }}>
                 {metrics.staleAnalysisCount}
               </div>
               <div className="status-item-meta">Profile changed</div>
@@ -257,15 +269,17 @@ export function JobInboxView({ onSelectJob }: Props) {
       )}
 
       {/* Filter and Search Bar */}
-      <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem' }}>
+      <Card className="card" style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem' }}>
         <form
+          className="job-search-form"
           onSubmit={handleSearchSubmit}
           style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}
         >
           <div style={{ flex: '1 1 200px' }}>
-            <input
+            <Input
               type="text"
               className="form-input"
+              aria-label="Search jobs"
               placeholder="Search by title, company, or keywords..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -273,8 +287,11 @@ export function JobInboxView({ onSelectJob }: Props) {
             />
           </div>
 
-          <div style={{ flex: '0 0 auto', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <select
+          <div
+            style={{ flex: '0 0 auto', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
+            className="layout-group"
+          >
+            <Select
               className="form-input"
               value={decisionFilter}
               onChange={(e) => {
@@ -289,9 +306,9 @@ export function JobInboxView({ onSelectJob }: Props) {
               <option value="REVIEW">REVIEW Only</option>
               <option value="SKIP">SKIP Only</option>
               <option value="UNANALYZED">Unanalyzed Only</option>
-            </select>
+            </Select>
 
-            <select
+            <Select
               className="form-input"
               value={staleFilter}
               onChange={(e) => {
@@ -304,9 +321,9 @@ export function JobInboxView({ onSelectJob }: Props) {
               <option value="">All Freshness</option>
               <option value="stale">Stale Only</option>
               <option value="fresh">Fresh Only</option>
-            </select>
+            </Select>
 
-            <select
+            <Select
               className="form-input"
               value={stateFilter}
               onChange={(e) => {
@@ -320,9 +337,9 @@ export function JobInboxView({ onSelectJob }: Props) {
               <option value="NEW">New</option>
               <option value="NEEDS_REVIEW">Needs Review</option>
               <option value="ARCHIVED">Archived</option>
-            </select>
+            </Select>
 
-            <select
+            <Select
               className="form-input"
               value={providerFilter}
               onChange={(e) => {
@@ -339,9 +356,9 @@ export function JobInboxView({ onSelectJob }: Props) {
               <option value="ARBEITNOW">Arbeitnow (Public Feed)</option>
               <option value="GENERIC">Generic</option>
               <option value="MANUAL">Pasted / Manual</option>
-            </select>
+            </Select>
 
-            <select
+            <Select
               className="form-input"
               value={`${sortBy}:${sortOrder}`}
               onChange={(e) => {
@@ -360,33 +377,40 @@ export function JobInboxView({ onSelectJob }: Props) {
               <option value="confidence:desc">Highest Confidence</option>
               <option value="title:asc">Title (A-Z)</option>
               <option value="company:asc">Company (A-Z)</option>
-            </select>
+            </Select>
 
-            <button type="submit" className="btn btn-secondary btn-sm">
+            <Button type="submit" className="btn btn-secondary btn-sm">
               Search
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
+      </Card>
 
       {error && (
-        <div
+        <Card
           className="card"
-          style={{ borderColor: 'var(--danger)', color: '#f87171', marginBottom: '1.5rem' }}
+          style={{
+            borderColor: 'var(--danger)',
+            color: 'var(--status-danger)',
+            marginBottom: '1.5rem',
+          }}
         >
           {error}
-        </div>
+        </Card>
       )}
 
       {/* Jobs List Table */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <Card
+        className="job-results-container"
+        style={{ padding: 0, border: 0, background: 'transparent' }}
+      >
         {loading ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
             Loading job postings...
           </div>
         ) : jobs.length === 0 ? (
           <div style={{ padding: '3.5rem', textAlign: 'center' }}>
-            <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>No Jobs Found in Inbox</h3>
+            <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>No jobs found</h3>
             <p
               style={{
                 color: 'var(--text-secondary)',
@@ -396,191 +420,68 @@ export function JobInboxView({ onSelectJob }: Props) {
             >
               Import a public job posting URL or paste a job description text to begin tracking.
             </p>
-            <button className="btn btn-primary btn-sm" onClick={() => setIsAddModalOpen(true)}>
-              ➕ Ingest Your First Job
-            </button>
+            <Button className="btn btn-primary btn-sm" onClick={() => setIsAddModalOpen(true)}>
+              ➕ Add your first job
+            </Button>
           </div>
         ) : (
           <div>
-            <div style={{ overflowX: 'auto' }}>
-              <table
-                style={{
-                  width: '100%',
-                  borderCollapse: 'collapse',
-                  textAlign: 'left',
-                  fontSize: '0.9rem',
-                }}
-              >
-                <thead>
-                  <tr
-                    style={{
-                      borderBottom: '1px solid var(--surface-border)',
-                      color: 'var(--text-secondary)',
-                      backgroundColor: 'rgba(15, 23, 42, 0.4)',
-                    }}
-                  >
-                    <th style={{ padding: '0.85rem 1.25rem' }}>Position & Company</th>
-                    <th style={{ padding: '0.85rem 1rem' }}>Location</th>
-                    <th style={{ padding: '0.85rem 1rem' }}>Provider</th>
-                    <th style={{ padding: '0.85rem 1rem' }}>Requirements</th>
-                    <th style={{ padding: '0.85rem 1rem' }}>Match Decision</th>
-                    <th style={{ padding: '0.85rem 1rem' }}>State</th>
-                    <th style={{ padding: '0.85rem 1rem' }}>Discovered</th>
-                    <th style={{ padding: '0.85rem 1.25rem', textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {jobs.map((job) => (
-                    <tr
-                      key={job.id}
-                      style={{
-                        borderBottom: '1px solid var(--surface-border)',
-                        transition: 'background-color 0.15s',
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => onSelectJob(job.id)}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)')
-                      }
-                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-                    >
-                      <td style={{ padding: '1rem 1.25rem' }}>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            color: 'var(--text-primary)',
-                            marginBottom: '0.2rem',
-                          }}
-                        >
-                          {job.title}
-                        </div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                          {job.company}
-                          {job.department && <span> • {job.department}</span>}
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <div>{job.locationText || '—'}</div>
-                        {job.workplaceType && job.workplaceType !== 'UNKNOWN' && (
-                          <span className="nav-tag" style={{ fontSize: '0.7rem' }}>
-                            {job.workplaceType}
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <span className="nav-tag">{job.provider}</span>
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>
-                          {job.requirementCount} items
+            <div className="job-results">
+              {jobs.map((job) => (
+                <Card key={job.id} className="job-card">
+                  <div className="section-toolbar">
+                    <div>
+                      <h2>{job.title}</h2>
+                      <p className="page-subtitle">
+                        {job.company}
+                        {job.department ? ' · ' + job.department : ''} ·{' '}
+                        {job.locationText || 'Location not specified'} · {job.workplaceType} ·{' '}
+                        {job.employmentType}
+                      </p>
+                    </div>
+                    <div>
+                      {job.matchSummary?.careerFitCategory ? (
+                        <CareerFitBadge category={job.matchSummary.careerFitCategory} size="sm" />
+                      ) : (
+                        <span className="nav-tag">
+                          {job.matchSummary?.decision || 'Not analyzed'}
                         </span>
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        {job.matchSummary ? (
-                          <div>
-                            {job.matchSummary.careerFitCategory && (
-                              <div style={{ marginBottom: '0.3rem' }}>
-                                <CareerFitBadge
-                                  category={job.matchSummary.careerFitCategory}
-                                  size="sm"
-                                />
-                              </div>
-                            )}
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.4rem',
-                                flexWrap: 'wrap',
-                              }}
-                            >
-                              <span
-                                className={`status-badge ${
-                                  job.matchSummary.decision === 'MATCH'
-                                    ? 'ok'
-                                    : job.matchSummary.decision === 'REVIEW'
-                                      ? 'degraded'
-                                      : 'disconnected'
-                                }`}
-                                style={{ fontSize: '0.75rem', fontWeight: 600 }}
-                              >
-                                {job.matchSummary.decision}
-                              </span>
-                              <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>
-                                {job.matchSummary.overallScore}%
-                              </span>
-                            </div>
-                            <div
-                              style={{
-                                fontSize: '0.72rem',
-                                color: 'var(--text-secondary)',
-                                marginTop: '0.2rem',
-                              }}
-                            >
-                              Conf: {job.matchSummary.confidenceScore}%
-                              {job.matchSummary.isStale && (
-                                <span style={{ color: '#fbbf24', marginLeft: '0.35rem' }}>
-                                  ⚠️ Stale
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ) : (
-                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                            Unanalyzed
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '1rem' }}>
-                        <span
-                          className={`status-badge ${
-                            job.state === 'INGESTED'
-                              ? 'ok'
-                              : job.state === 'ARCHIVED'
-                                ? 'disconnected'
-                                : 'degraded'
-                          }`}
-                          style={{ fontSize: '0.75rem' }}
-                        >
-                          {job.state}
-                        </span>
-                      </td>
-                      <td
-                        style={{
-                          padding: '1rem',
-                          color: 'var(--text-secondary)',
-                          fontSize: '0.8rem',
-                        }}
+                      )}
+                    </div>
+                  </div>
+                  <div className="section-toolbar" style={{ marginBottom: 0 }}>
+                    <div>
+                      <p className="page-subtitle">
+                        {job.provider} · Added {new Date(job.discoveredDate).toLocaleDateString()} ·{' '}
+                        {job.state}
+                      </p>
+                      <p className="page-subtitle">
+                        {job.requirementCount} requirements
+                        {job.matchSummary
+                          ? ' · ' +
+                            job.matchSummary.overallScore +
+                            '% match · Confidence ' +
+                            job.matchSummary.confidenceScore +
+                            '%'
+                          : ''}
+                        {job.matchSummary?.isStale ? ' · Analysis needs refresh' : ''}
+                      </p>
+                    </div>
+                    <div className="account-actions">
+                      <Button
+                        className="btn-outline"
+                        disabled={analyzingJobId === job.id}
+                        onClick={(event) => handleAnalyzeJob(job.id, event)}
                       >
-                        {new Date(job.discoveredDate).toLocaleDateString()}
-                      </td>
-                      <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            disabled={analyzingJobId === job.id}
-                            onClick={(e) => handleAnalyzeJob(job.id, e)}
-                            title="Analyze match suitability against Candidate Brain"
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                          >
-                            {analyzingJobId === job.id ? '⏳' : '⚡ Analyze'}
-                          </button>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSelectJob(job.id);
-                            }}
-                            style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
-                          >
-                            View →
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        {analyzingJobId === job.id ? 'Analyzing…' : 'Analyze'}
+                      </Button>
+                      <Button className="btn-primary" onClick={() => onSelectJob(job.id)}>
+                        View job
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              ))}
             </div>
 
             {/* Pagination Controls */}
@@ -591,7 +492,7 @@ export function JobInboxView({ onSelectJob }: Props) {
                 alignItems: 'center',
                 padding: '0.85rem 1.25rem',
                 borderTop: '1px solid var(--surface-border)',
-                backgroundColor: 'rgba(15, 23, 42, 0.4)',
+                backgroundColor: 'var(--m3-surface-container-low)',
                 fontSize: '0.85rem',
                 color: 'var(--text-secondary)',
               }}
@@ -599,29 +500,32 @@ export function JobInboxView({ onSelectJob }: Props) {
               <div>
                 Showing {jobs.length} of {totalItems} total jobs
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                <button
+              <div
+                style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+                className="layout-group"
+              >
+                <Button
                   className="btn btn-secondary btn-sm"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   Previous
-                </button>
+                </Button>
                 <span>
                   Page {page} of {totalPages}
                 </span>
-                <button
+                <Button
                   className="btn btn-secondary btn-sm"
                   disabled={page >= totalPages}
                   onClick={() => setPage((p) => p + 1)}
                 >
                   Next
-                </button>
+                </Button>
               </div>
             </div>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Add Job Modal */}
       <AddJobModal

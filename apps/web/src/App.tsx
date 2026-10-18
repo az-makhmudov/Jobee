@@ -1,26 +1,84 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { DashboardView } from './components/DashboardView.js';
-import { ProfileView } from './components/ProfileView.js';
-import { DocumentsView } from './components/DocumentsView.js';
-import { AnswerLibraryView } from './components/AnswerLibraryView.js';
-import { PreferencesView } from './components/PreferencesView.js';
-import { ActivityView } from './components/ActivityView.js';
-import { SettingsView } from './components/SettingsView.js';
-import { JobInboxView } from './components/JobInboxView.js';
-import { JobDetailView } from './components/JobDetailView.js';
-import { ApplicationsCrmView } from './components/ApplicationsCrmView.js';
-import { ApplicationDetailView } from './components/ApplicationDetailView.js';
-import { ApplicationPackagesListView } from './components/ApplicationPackagesListView.js';
-import { ApplicationStudioView } from './components/ApplicationStudioView.js';
-import { CareerIntelligenceView } from './components/CareerIntelligenceView.js';
-import { ApprovalsInboxView } from './components/ApprovalsInboxView.js';
-import { EmailIntelligenceView } from './components/EmailIntelligenceView.js';
-import { InterviewWorkspaceView } from './components/InterviewWorkspaceView.js';
 import { NotificationCenterModal } from './components/NotificationCenterModal.js';
 import { NotificationClient } from './api/notification-client.js';
 import { authClient } from './api/auth-client.js';
 import { AuthModal } from './components/AuthModal.js';
 import { PilotInvitationsModal } from './components/PilotInvitationsModal.js';
+
+import { Icon, Button, Tabs } from './ui/Primitives.js';
+import { destinations, destinationFor } from './ui/navigation.js';
+import { brandDot } from './ui/icons.js';
+import { AppearanceSettings } from './ui/Theme.js';
+import { ProfileOverview } from './components/ProfileOverview.js';
+import type { CSSProperties } from 'react';
+
+const ProfileView = lazy(() =>
+  import('./components/ProfileView.js').then((module) => ({ default: module.ProfileView })),
+);
+const DocumentsView = lazy(() =>
+  import('./components/DocumentsView.js').then((module) => ({ default: module.DocumentsView })),
+);
+const AnswerLibraryView = lazy(() =>
+  import('./components/AnswerLibraryView.js').then((module) => ({
+    default: module.AnswerLibraryView,
+  })),
+);
+const PreferencesView = lazy(() =>
+  import('./components/PreferencesView.js').then((module) => ({ default: module.PreferencesView })),
+);
+const ActivityView = lazy(() =>
+  import('./components/ActivityView.js').then((module) => ({ default: module.ActivityView })),
+);
+const SettingsView = lazy(() =>
+  import('./components/SettingsView.js').then((module) => ({ default: module.SettingsView })),
+);
+const JobInboxView = lazy(() =>
+  import('./components/JobInboxView.js').then((module) => ({ default: module.JobInboxView })),
+);
+const JobDetailView = lazy(() =>
+  import('./components/JobDetailView.js').then((module) => ({ default: module.JobDetailView })),
+);
+const ApplicationsCrmView = lazy(() =>
+  import('./components/ApplicationsCrmView.js').then((module) => ({
+    default: module.ApplicationsCrmView,
+  })),
+);
+const ApplicationDetailView = lazy(() =>
+  import('./components/ApplicationDetailView.js').then((module) => ({
+    default: module.ApplicationDetailView,
+  })),
+);
+const ApplicationPackagesListView = lazy(() =>
+  import('./components/ApplicationPackagesListView.js').then((module) => ({
+    default: module.ApplicationPackagesListView,
+  })),
+);
+const ApplicationStudioView = lazy(() =>
+  import('./components/ApplicationStudioView.js').then((module) => ({
+    default: module.ApplicationStudioView,
+  })),
+);
+const CareerIntelligenceView = lazy(() =>
+  import('./components/CareerIntelligenceView.js').then((module) => ({
+    default: module.CareerIntelligenceView,
+  })),
+);
+const ApprovalsInboxView = lazy(() =>
+  import('./components/ApprovalsInboxView.js').then((module) => ({
+    default: module.ApprovalsInboxView,
+  })),
+);
+const EmailIntelligenceView = lazy(() =>
+  import('./components/EmailIntelligenceView.js').then((module) => ({
+    default: module.EmailIntelligenceView,
+  })),
+);
+const InterviewWorkspaceView = lazy(() =>
+  import('./components/InterviewWorkspaceView.js').then((module) => ({
+    default: module.InterviewWorkspaceView,
+  })),
+);
 
 export type NavSection =
   | 'dashboard'
@@ -48,6 +106,43 @@ export default function App() {
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia('(max-width: 767px)').matches);
+  const sidebarRef = useRef<HTMLElement>(null),
+    menuRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 767px)');
+    const update = () => {
+      setIsNarrow(query.matches);
+      if (!query.matches) setIsMobileMenuOpen(false);
+    };
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
+    if (!isNarrow || !isMobileMenuOpen) return;
+    const first = sidebarRef.current?.querySelector<HTMLElement>('button');
+    first?.focus();
+    const key = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+        menuRef.current?.focus();
+      }
+      if (event.key === 'Tab') {
+        const nodes = Array.from(
+          sidebarRef.current?.querySelectorAll<HTMLElement>('button,a[href]') || [],
+        ).filter((node) => node.getClientRects().length > 0);
+        if (event.shiftKey && document.activeElement === nodes[0]) {
+          event.preventDefault();
+          nodes.at(-1)?.focus();
+        } else if (!event.shiftKey && document.activeElement === nodes.at(-1)) {
+          event.preventDefault();
+          nodes[0]?.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', key);
+    return () => document.removeEventListener('keydown', key);
+  }, [isNarrow, isMobileMenuOpen]);
 
   const { data: session, isPending: isSessionPending } = authClient.useSession();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -85,7 +180,7 @@ export default function App() {
 
   const handleNavigate = (section: string, tabOrId?: string) => {
     setCurrentSection(section as NavSection);
-    if (section === 'profile' && tabOrId) {
+    if (section === 'profile') {
       setProfileTab(tabOrId);
     } else if (section === 'jobs') {
       setSelectedJobId(tabOrId || null);
@@ -100,402 +195,378 @@ export default function App() {
     }
   };
 
-  const navItems: { id: NavSection; label: string; tag?: string }[] = [
-    { id: 'dashboard', label: 'Dashboard' },
-    { id: 'profile', label: 'Candidate Profile', tag: 'Brain' },
-    { id: 'career-intelligence', label: 'Career Intelligence', tag: '2.0' },
-    { id: 'documents', label: 'Document Vault', tag: 'Files' },
-    { id: 'answers', label: 'Answer Library', tag: 'Rules' },
-    { id: 'preferences', label: 'Preferences & Policy', tag: 'Safety' },
-    { id: 'jobs', label: 'Job Inbox', tag: 'Active' },
-    { id: 'applications', label: 'Applications', tag: 'CRM' },
-    { id: 'approvals', label: 'Approvals', tag: 'Review' },
-    { id: 'emails', label: 'Email Intelligence', tag: 'P4' },
-    { id: 'activity', label: 'Activity & Ops', tag: 'P5' },
-    { id: 'interviews', label: 'Interviews', tag: 'P4' },
-    { id: 'settings', label: 'Platform Settings' },
-  ];
-
+  const destination = destinationFor(currentSection);
+  const destinationLabel = destinations.find((item) => item.id === destination)?.label || 'Home';
+  const profileGroup = destination === 'profile';
+  const settingsGroup = destination === 'settings';
+  const role = (session?.user as { role?: string } | undefined)?.role;
+  const navigate = (section: string, tabOrId?: string) => {
+    handleNavigate(section, tabOrId);
+    setIsMobileMenuOpen(false);
+    if (isNarrow) requestAnimationFrame(() => document.getElementById('main-content')?.focus());
+  };
+  const selectDestination = (section: NavSection) => {
+    if (section === 'jobs') setSelectedJobId(null);
+    if (section === 'applications') {
+      setSelectedPackageId(null);
+      setSelectedApplicationId(null);
+    }
+    navigate(section);
+  };
   return (
     <div className="app-container">
-      {/* Mobile Top Header */}
-      <header className="mobile-topbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button
-            className="btn btn-secondary btn-sm"
-            style={{ padding: '0.25rem 0.5rem', fontSize: '1.1rem', cursor: 'pointer' }}
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            aria-label="Toggle navigation menu"
-          >
-            ☰
-          </button>
-          <div className="sidebar-title" style={{ fontSize: '1.1rem' }}>
-            <span>Jobee</span>
-            <span className="sidebar-badge">v0.1</span>
-          </div>
-        </div>
-        <button
-          className="btn btn-secondary btn-sm"
-          style={{ padding: '0.2rem 0.5rem', fontSize: '0.85rem', position: 'relative' }}
-          onClick={() => setIsNotifModalOpen(true)}
-          title="Mobile Notification Alerts"
-        >
-          🔔
-          {unreadNotifsCount > 0 && (
-            <span
-              style={{
-                position: 'absolute',
-                top: '-5px',
-                right: '-5px',
-                backgroundColor: '#ef4444',
-                color: '#fff',
-                borderRadius: '10px',
-                padding: '0.1rem 0.35rem',
-                fontSize: '0.65rem',
-                fontWeight: 700,
-                lineHeight: 1,
-              }}
-            >
-              {unreadNotifsCount}
-            </span>
-          )}
-        </button>
-      </header>
-
-      {/* Mobile Backdrop */}
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
       {isMobileMenuOpen && (
         <div className="sidebar-backdrop" onClick={() => setIsMobileMenuOpen(false)} />
       )}
-
-      {/* Sidebar Navigation */}
-      <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
-        <div
-          className="sidebar-header"
-          style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-        >
-          <div className="sidebar-title">
-            <span>Jobee</span>
-            <span className="sidebar-badge">v0.1</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button
-              className="btn btn-secondary btn-sm"
-              style={{ padding: '0.2rem 0.5rem', fontSize: '0.85rem', position: 'relative' }}
-              onClick={() => setIsNotifModalOpen(true)}
-              title="Notification Center & Alerts"
-            >
-              🔔
-              {unreadNotifsCount > 0 && (
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: '-5px',
-                    right: '-5px',
-                    backgroundColor: '#ef4444',
-                    color: '#fff',
-                    borderRadius: '10px',
-                    padding: '0.1rem 0.35rem',
-                    fontSize: '0.65rem',
-                    fontWeight: 700,
-                    lineHeight: 1,
-                  }}
-                >
-                  {unreadNotifsCount}
-                </span>
-              )}
-            </button>
-            <button
-              className="sidebar-close-btn"
-              onClick={() => setIsMobileMenuOpen(false)}
-              aria-label="Close menu"
-            >
-              ✕
-            </button>
-          </div>
+      <aside
+        ref={sidebarRef}
+        inert={isNarrow && !isMobileMenuOpen}
+        aria-hidden={isNarrow && !isMobileMenuOpen ? true : undefined}
+        className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}
+        aria-label="Workspace sidebar"
+      >
+        <div className="sidebar-title">
+          <a
+            href="#main-content"
+            className="wordmark"
+            onClick={() => selectDestination('dashboard')}
+            aria-label="Jobee Home"
+          >
+            jobee
+            <span
+              className="brand-dot"
+              aria-hidden="true"
+              style={{ '--brand-dot': `url("${brandDot}")` } as CSSProperties}
+            />
+          </a>
+          <button
+            className="sidebar-close-btn btn btn-ghost"
+            aria-label="Close navigation"
+            onClick={() => {
+              setIsMobileMenuOpen(false);
+              menuRef.current?.focus();
+            }}
+          >
+            <Icon name="close" />
+          </button>
         </div>
-        <ul className="nav-list">
-          {navItems.map((item) => (
-            <li key={item.id} className="nav-item">
-              <button
-                className={`nav-button ${currentSection === item.id ? 'active' : ''}`}
-                onClick={() => {
-                  setCurrentSection(item.id);
-                  setIsMobileMenuOpen(false);
-                  if (item.id === 'profile') setProfileTab(undefined);
-                  if (item.id === 'jobs') setSelectedJobId(null);
-                  if (item.id === 'applications') {
-                    setSelectedPackageId(null);
-                    setSelectedApplicationId(null);
-                  }
-                }}
-              >
-                <span>{item.label}</span>
-                {item.tag && <span className="nav-tag">{item.tag}</span>}
-              </button>
-            </li>
-          ))}
-        </ul>
-
-        {/* User Session Profile & Controls */}
-        <div
-          className="sidebar-footer"
-          style={{
-            marginTop: 'auto',
-            padding: '1rem',
-            borderTop: '1px solid var(--surface-border)',
-            backgroundColor: 'rgba(15, 23, 42, 0.4)',
-          }}
-        >
-          {isSessionPending ? (
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Loading session...
-            </div>
-          ) : session?.user ? (
-            <div>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--accent)',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                    fontSize: '0.85rem',
-                  }}
-                >
-                  {session.user.name ? session.user.name[0].toUpperCase() : 'U'}
-                </div>
-                <div style={{ overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      fontSize: '0.85rem',
-                      whiteSpace: 'nowrap',
-                      textOverflow: 'ellipsis',
-                      overflow: 'hidden',
-                      color: 'var(--text-primary)',
-                    }}
-                  >
-                    {session.user.name || 'Candidate'}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.75rem',
-                      color: 'var(--text-secondary)',
-                      whiteSpace: 'nowrap',
-                      textOverflow: 'ellipsis',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {session.user.email}
-                  </div>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  marginBottom: '0.6rem',
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 700,
-                    padding: '0.1rem 0.4rem',
-                    borderRadius: '4px',
-                    backgroundColor:
-                      (session.user as any).role === 'admin'
-                        ? 'rgba(59, 130, 246, 0.2)'
-                        : 'rgba(255, 255, 255, 0.08)',
-                    color:
-                      (session.user as any).role === 'admin' ? '#93c5fd' : 'var(--text-secondary)',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {(session.user as any).role === 'admin' ? 'Owner / Admin' : 'Pilot Tester'}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', gap: '0.4rem' }}>
-                {(session.user as any).role === 'admin' && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    style={{ flex: 1, fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                    onClick={() => setIsPilotModalOpen(true)}
-                    title="Manage Pilot Invitations"
-                  >
-                    🎟️ Invites
-                  </button>
-                )}
+        <nav aria-label="Main navigation">
+          <ul className="nav-list">
+            {destinations.slice(0, 6).map((item) => (
+              <li key={item.id}>
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm"
-                  style={{ flex: 1, fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                  className={`nav-button ${destination === item.id ? 'active' : ''}`}
+                  aria-current={destination === item.id ? 'page' : undefined}
+                  onClick={() => selectDestination(item.id)}
+                >
+                  <Icon name={item.icon} />
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <nav aria-label="Profile and settings" className="sidebar-utilities">
+          <ul className="nav-list">
+            {destinations.slice(6).map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  className={`nav-button ${destination === item.id ? 'active' : ''}`}
+                  aria-current={destination === item.id ? 'page' : undefined}
+                  onClick={() => selectDestination(item.id)}
+                >
+                  <Icon name={item.icon} />
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <div className="sidebar-footer">
+          {isSessionPending ? (
+            <p role="status">Checking account…</p>
+          ) : session?.user ? (
+            <>
+              <div className="account-identity">
+                <Icon name="account" />
+                <div>
+                  <span>{session.user.name || 'Your account'}</span>
+                  <small>{session.user.email}</small>
+                  <small>{role === 'admin' ? 'Owner / Admin' : 'Pilot Tester'}</small>
+                </div>
+              </div>
+              <div className="account-actions">
+                {role === 'admin' && (
+                  <Button className="btn-ghost btn-sm" onClick={() => setIsPilotModalOpen(true)}>
+                    Invites
+                  </Button>
+                )}
+                <Button
+                  className="btn-ghost btn-sm"
                   onClick={async () => {
                     await authClient.signOut();
                     window.location.reload();
                   }}
                 >
                   Sign Out
-                </button>
+                </Button>
               </div>
-            </div>
+            </>
           ) : (
-            <div>
-              <div
-                style={{
-                  fontSize: '0.8rem',
-                  color: 'var(--text-secondary)',
-                  marginBottom: '0.5rem',
-                }}
-              >
-                Not authenticated
-              </div>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                style={{ width: '100%', fontSize: '0.8rem' }}
-                onClick={() => setIsAuthModalOpen(true)}
-              >
-                Sign In / Join Pilot
-              </button>
-            </div>
+            <Button className="btn-primary" onClick={() => setIsAuthModalOpen(true)}>
+              Sign in / Join pilot
+            </Button>
           )}
         </div>
       </aside>
-
-      {/* Main Content Area */}
-      <main className="main-content">
-        {currentSection === 'dashboard' && (
-          <DashboardView onNavigate={handleNavigate} onOpenAuth={() => setIsAuthModalOpen(true)} />
-        )}
-
-        {currentSection === 'profile' && (
-          <ProfileView initialTab={profileTab} onUpdate={() => setRefreshKey((k) => k + 1)} />
-        )}
-
-        {currentSection === 'career-intelligence' && <CareerIntelligenceView />}
-
-        {currentSection === 'documents' && (
-          <DocumentsView onUpdate={() => setRefreshKey((k) => k + 1)} />
-        )}
-
-        {currentSection === 'answers' && (
-          <AnswerLibraryView onUpdate={() => setRefreshKey((k) => k + 1)} />
-        )}
-
-        {currentSection === 'preferences' && (
-          <PreferencesView onUpdate={() => setRefreshKey((k) => k + 1)} />
-        )}
-
-        {currentSection === 'activity' && <ActivityView />}
-
-        {/* Phase 2: Job Inbox and Detail */}
-        {currentSection === 'jobs' &&
-          (selectedJobId ? (
-            <JobDetailView
-              jobId={selectedJobId}
-              onBack={() => setSelectedJobId(null)}
-              onJobUpdated={() => setRefreshKey((k) => k + 1)}
-              onPrepareApplication={(pkgId) => {
-                setSelectedPackageId(pkgId);
-                setSelectedApplicationId(null);
-                setCurrentSection('applications');
-              }}
-              onViewApplicationInCrm={(appId) => {
-                setSelectedApplicationId(appId);
-                setSelectedPackageId(null);
-                setCurrentSection('applications');
-              }}
+      <div className="workspace" inert={isNarrow && isMobileMenuOpen}>
+        <header className="desktop-topbar">
+          <div className="account-actions">
+            <button
+              ref={menuRef}
+              className="mobile-menu-button btn btn-ghost"
+              type="button"
+              aria-label="Open navigation"
+              aria-expanded={isMobileMenuOpen}
+              onClick={() => setIsMobileMenuOpen((v) => !v)}
+            >
+              <Icon name="menu" />
+            </button>
+            <span className="breadcrumb">Your workspace / {destinationLabel}</span>
+          </div>
+          <button
+            className="notification-button"
+            aria-label={`Notifications${unreadNotifsCount ? `, ${unreadNotifsCount} unread` : ''}`}
+            onClick={() => setIsNotifModalOpen(true)}
+          >
+            <Icon name="notifications" />
+            {unreadNotifsCount > 0 && (
+              <span className="notification-count">{unreadNotifsCount}</span>
+            )}
+          </button>
+        </header>
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className={`main-content ${profileGroup || settingsGroup ? 'grouped-view' : ''}`}
+        >
+          {profileGroup && (
+            <>
+              <header className="group-heading">
+                <h1>My Profile</h1>
+                <p className="page-subtitle">Your studies, skills and next steps, in one place.</p>
+              </header>
+              <Tabs
+                label="My Profile"
+                value={
+                  ['documents', 'answers', 'preferences'].includes(currentSection)
+                    ? currentSection
+                    : 'profile'
+                }
+                items={[
+                  { id: 'profile', label: 'Profile' },
+                  { id: 'documents', label: 'CV & Documents' },
+                  { id: 'answers', label: 'Saved Answers' },
+                  { id: 'preferences', label: 'Preferences' },
+                ]}
+                onChange={navigate}
+              />
+              {(currentSection === 'profile' || currentSection === 'career-intelligence') && (
+                <Tabs
+                  label="Profile workspace"
+                  value={
+                    currentSection === 'career-intelligence'
+                      ? 'review'
+                      : profileTab === undefined
+                        ? 'overview'
+                        : 'records'
+                  }
+                  items={[
+                    { id: 'overview', label: 'Overview' },
+                    { id: 'records', label: 'Your details' },
+                    { id: 'review', label: 'Review & suggestions' },
+                  ]}
+                  onChange={(id) =>
+                    navigate(
+                      id === 'review' ? 'career-intelligence' : 'profile',
+                      id === 'records' ? 'personal' : undefined,
+                    )
+                  }
+                />
+              )}
+              {currentSection === 'profile' && profileTab === undefined && (
+                <ProfileOverview onNavigate={navigate} />
+              )}
+            </>
+          )}
+          {settingsGroup && (
+            <>
+              <header className="group-heading">
+                <h1>Settings</h1>
+                <p className="page-subtitle">Manage connections, appearance and system activity.</p>
+              </header>
+              <Tabs
+                label="Settings"
+                value={currentSection}
+                items={[
+                  { id: 'settings', label: 'Configuration' },
+                  { id: 'activity', label: 'System activity' },
+                ]}
+                onChange={navigate}
+              />
+            </>
+          )}
+          {currentSection === 'applications' && !selectedApplicationId && !selectedPackageId && (
+            <Tabs
+              label="Applications"
+              value={applicationsSubView}
+              items={[
+                { id: 'crm', label: 'Tracker' },
+                { id: 'packages', label: 'Prepared materials' },
+              ]}
+              onChange={(id) => setApplicationsSubView(id as 'crm' | 'packages')}
             />
-          ) : (
-            <JobInboxView onSelectJob={(id) => setSelectedJobId(id)} />
-          ))}
+          )}
+          <Suspense
+            fallback={
+              <div className="card" role="status">
+                Loading your workspace…
+              </div>
+            }
+          >
+            {currentSection === 'dashboard' && (
+              <DashboardView
+                onNavigate={handleNavigate}
+                onOpenAuth={() => setIsAuthModalOpen(true)}
+              />
+            )}
 
-        {/* Phase 3: Application CRM & Studio */}
-        {currentSection === 'applications' &&
-          (selectedApplicationId ? (
-            <ApplicationDetailView
-              applicationId={selectedApplicationId}
-              onBack={() => setSelectedApplicationId(null)}
-              onOpenStudio={(pkgId) => {
-                setSelectedPackageId(pkgId);
-                setSelectedApplicationId(null);
-              }}
-              onNavigateToJob={(jId) => {
-                setSelectedJobId(jId);
-                setCurrentSection('jobs');
-              }}
-            />
-          ) : selectedPackageId ? (
-            <ApplicationStudioView
-              packageId={selectedPackageId}
-              onBack={() => setSelectedPackageId(null)}
-              onNavigateToJob={(jId) => {
-                setSelectedJobId(jId);
-                setCurrentSection('jobs');
-              }}
-              onNavigateToApplication={(appId) => {
-                setSelectedApplicationId(appId);
-                setSelectedPackageId(null);
-              }}
-            />
-          ) : applicationsSubView === 'packages' ? (
-            <ApplicationPackagesListView
-              onOpenPackage={(pkgId) => setSelectedPackageId(pkgId)}
-              onNavigateToJobs={() => setCurrentSection('jobs')}
-              onNavigateToCrm={() => setApplicationsSubView('crm')}
-            />
-          ) : (
-            <ApplicationsCrmView
-              onSelectApplication={(id) => setSelectedApplicationId(id)}
-              onOpenStudio={(pkgId) => setSelectedPackageId(pkgId)}
-              onNavigateToStudioList={() => setApplicationsSubView('packages')}
-            />
-          ))}
+            {currentSection === 'profile' && profileTab !== undefined && (
+              <ProfileView
+                key={profileTab}
+                initialTab={profileTab}
+                onUpdate={() => setRefreshKey((k) => k + 1)}
+              />
+            )}
 
-        {/* Phase 3: Approvals Inbox */}
-        {currentSection === 'approvals' && (
-          <ApprovalsInboxView
-            onOpenPackage={(pkgId) => {
-              setSelectedPackageId(pkgId);
-              setSelectedApplicationId(null);
-              setCurrentSection('applications');
-            }}
-          />
-        )}
+            {currentSection === 'career-intelligence' && <CareerIntelligenceView />}
 
-        {/* Phase 4: Email Intelligence & Status Sync */}
-        {currentSection === 'emails' && <EmailIntelligenceView />}
+            {currentSection === 'documents' && (
+              <DocumentsView onUpdate={() => setRefreshKey((k) => k + 1)} />
+            )}
 
-        {currentSection === 'settings' && <SettingsView />}
+            {currentSection === 'answers' && (
+              <AnswerLibraryView onUpdate={() => setRefreshKey((k) => k + 1)} />
+            )}
 
-        {currentSection === 'interviews' && (
-          <InterviewWorkspaceView
-            onNavigateToApplication={(appId) => {
-              setSelectedApplicationId(appId);
-              setSelectedPackageId(null);
-              setCurrentSection('applications');
-            }}
-          />
-        )}
-      </main>
+            {currentSection === 'preferences' && (
+              <PreferencesView onUpdate={() => setRefreshKey((k) => k + 1)} />
+            )}
 
+            {currentSection === 'activity' && <ActivityView />}
+
+            {/* Phase 2: Job Inbox and Detail */}
+            {currentSection === 'jobs' &&
+              (selectedJobId ? (
+                <JobDetailView
+                  jobId={selectedJobId}
+                  onBack={() => setSelectedJobId(null)}
+                  onJobUpdated={() => setRefreshKey((k) => k + 1)}
+                  onPrepareApplication={(pkgId) => {
+                    setSelectedPackageId(pkgId);
+                    setSelectedApplicationId(null);
+                    setCurrentSection('applications');
+                  }}
+                  onViewApplicationInCrm={(appId) => {
+                    setSelectedApplicationId(appId);
+                    setSelectedPackageId(null);
+                    setCurrentSection('applications');
+                  }}
+                />
+              ) : (
+                <JobInboxView onSelectJob={(id) => setSelectedJobId(id)} />
+              ))}
+
+            {/* Phase 3: Application CRM & Studio */}
+            {currentSection === 'applications' &&
+              (selectedApplicationId ? (
+                <ApplicationDetailView
+                  applicationId={selectedApplicationId}
+                  onBack={() => setSelectedApplicationId(null)}
+                  onOpenStudio={(pkgId) => {
+                    setSelectedPackageId(pkgId);
+                    setSelectedApplicationId(null);
+                  }}
+                  onNavigateToJob={(jId) => {
+                    setSelectedJobId(jId);
+                    setCurrentSection('jobs');
+                  }}
+                />
+              ) : selectedPackageId ? (
+                <ApplicationStudioView
+                  packageId={selectedPackageId}
+                  onBack={() => setSelectedPackageId(null)}
+                  onNavigateToJob={(jId) => {
+                    setSelectedJobId(jId);
+                    setCurrentSection('jobs');
+                  }}
+                  onNavigateToApplication={(appId) => {
+                    setSelectedApplicationId(appId);
+                    setSelectedPackageId(null);
+                  }}
+                />
+              ) : applicationsSubView === 'packages' ? (
+                <ApplicationPackagesListView
+                  onOpenPackage={(pkgId) => setSelectedPackageId(pkgId)}
+                  onNavigateToJobs={() => setCurrentSection('jobs')}
+                  onNavigateToCrm={() => setApplicationsSubView('crm')}
+                />
+              ) : (
+                <ApplicationsCrmView
+                  onSelectApplication={(id) => setSelectedApplicationId(id)}
+                  onOpenStudio={(pkgId) => setSelectedPackageId(pkgId)}
+                  onNavigateToStudioList={() => setApplicationsSubView('packages')}
+                />
+              ))}
+
+            {/* Phase 3: Approvals Inbox */}
+            {currentSection === 'approvals' && (
+              <ApprovalsInboxView
+                onOpenPackage={(pkgId) => {
+                  setSelectedPackageId(pkgId);
+                  setSelectedApplicationId(null);
+                  setCurrentSection('applications');
+                }}
+              />
+            )}
+
+            {/* Phase 4: Email Intelligence & Status Sync */}
+            {currentSection === 'emails' && <EmailIntelligenceView />}
+
+            {currentSection === 'settings' && (
+              <>
+                <AppearanceSettings />
+                <SettingsView />
+              </>
+            )}
+
+            {currentSection === 'interviews' && (
+              <InterviewWorkspaceView
+                onNavigateToApplication={(appId) => {
+                  setSelectedApplicationId(appId);
+                  setSelectedPackageId(null);
+                  setCurrentSection('applications');
+                }}
+              />
+            )}
+          </Suspense>
+        </main>
+      </div>
       {/* Phase 5: Notification Center Modal */}
       <NotificationCenterModal
         isOpen={isNotifModalOpen}

@@ -2080,3 +2080,13 @@ This document tracks execution history and verification state for all official m
       - `STUDIO-02`: PASS. Zero packages in READY status with rejected approvals.
       - `UI-02`: PASS. Guest view verified in real Chromium browser; "Welcome to Jobee" hero and "Sign In / Join Private Pilot" button cleanly displayed with zero red 401 error cards. Mobile viewport (390x844) verified with 0 horizontal overflow.
 - **Production Status**: AUTHORIZED ACCEPTANCE FIX RELEASE — DEPLOYED AND LIVE VERIFIED (0 OPEN DEFECTS).
+
+## JOB-UI-MIGRATION-01 — Complete local design-system preview (2026-10-18)
+
+- **Lead:** Codex, explicitly assigned by the owner; audited baseline `9c1b206`.
+- **Status:** PREVIEW COMPLETE / RELEASE PENDING. Isolated branch `codex/jobee-design-system-migration`; production and the original checkout remain unchanged.
+- **Delivery:** Figma semantic Light/Dark tokens, local Google Sans Flex/SVGs, shared controls/dialogs, eight destinations, all 17 original views and 25 mapped components, grouped Profile/Applications/Settings workspaces, content-driven cards and desktop presentation with narrow-screen compatibility. Inline PDF/DOCX/TXT document preview uses the existing owner-checked download endpoint and cancellable local rendering.
+- **Preservation:** Reconciled 184 existing API calls/payloads against the baseline. Retained all 17 lifecycle statuses, eight browser-run states, import/verification/AI permission/material approval/policy override/submission authorization boundaries. No backend, database schema, worker or shared domain-type changes.
+- **Verification:** `format:write`, lint (0 errors, 701 existing warnings), typecheck, **586 tests / 64 files**, build, format, db:check and existing db:migrate passed. Browser suite: **25/25 passed** with local synthetic data, visual Home baselines, 40 desktop theme captures, supporting dialogs, 1280/1920px checks and 393px navigation. Cross-user document retrieval and non-admin invitations remain denied. Live external provider actions were excluded.
+- **Evidence:** `docs/UI_MIGRATION.md`, `docs/UI_MIGRATION_MAP.md`, `scripts/audit-ui-contracts.mjs`, browser report/screens and local comparison gallery under ignored `output/playwright/`.
+- **Release limits:** Remote CI has not run; no push/deploy authorization was requested or assumed. Existing dependency audit advisories are documented in the migration report. Preview review precedes any production release.

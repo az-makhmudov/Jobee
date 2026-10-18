@@ -1,0 +1,222 @@
+[
+  {
+    "name": "search",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/search/materialsymbolsoutlined/search_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "close",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/close/materialsymbolsoutlined/close_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "check-small",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/check_small/materialsymbolsoutlined/check_small_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "back",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/arrow_back/materialsymbolsoutlined/arrow_back_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "forward",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/arrow_forward/materialsymbolsoutlined/arrow_forward_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "notifications",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/notifications/materialsymbolsoutlined/notifications_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "more",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/more_vert/materialsymbolsoutlined/more_vert_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "location",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/location_on/materialsymbolsoutlined/location_on_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "add",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/add/materialsymbolsoutlined/add_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "check",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/check/materialsymbolsoutlined/check_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "settings",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/settings/materialsymbolsoutlined/settings_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "edit",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/edit/materialsymbolsoutlined/edit_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "delete",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/delete/materialsymbolsoutlined/delete_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "account",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/account_circle/materialsymbolsoutlined/account_circle_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "schedule",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/schedule/materialsymbolsoutlined/schedule_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "error",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/error/materialsymbolsoutlined/error_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "cancel",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/cancel/materialsymbolsoutlined/cancel_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "pause",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/pause/materialsymbolsoutlined/pause_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "play",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/play_arrow/materialsymbolsoutlined/play_arrow_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "upload",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/upload/materialsymbolsoutlined/upload_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "download",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/download/materialsymbolsoutlined/download_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "attach-file",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/attach_file/materialsymbolsoutlined/attach_file_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "folder",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/folder/materialsymbolsoutlined/folder_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "star",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/star/materialsymbolsoutlined/star_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "menu",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/menu/materialsymbolsoutlined/menu_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "list",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/list/materialsymbolsoutlined/list_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "sort",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/swap_vert/materialsymbolsoutlined/swap_vert_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "chevron-down",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/keyboard_arrow_down/materialsymbolsoutlined/keyboard_arrow_down_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "chevron-up",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/keyboard_arrow_up/materialsymbolsoutlined/keyboard_arrow_up_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "info",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/info/materialsymbolsoutlined/info_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "sync",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/sync/materialsymbolsoutlined/sync_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "copy",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/content_copy/materialsymbolsoutlined/content_copy_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "link",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/link/materialsymbolsoutlined/link_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "open-external",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/open_in_new/materialsymbolsoutlined/open_in_new_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "board",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/view_kanban/materialsymbolsoutlined/view_kanban_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "warning",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/warning/materialsymbolsoutlined/warning_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "ai",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/auto_awesome/materialsymbolsoutlined/auto_awesome_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "document",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/description/materialsymbolsoutlined/description_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "cv",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/contact_page/materialsymbolsoutlined/contact_page_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "letter",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/article/materialsymbolsoutlined/article_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "verified",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/verified/materialsymbolsoutlined/verified_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "permissions",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/verified_user/materialsymbolsoutlined/verified_user_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "policy",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/rule/materialsymbolsoutlined/rule_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  },
+  {
+    "name": "activity",
+    "source": "https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/monitoring/materialsymbolsoutlined/monitoring_24px.svg",
+    "figmaSource": "Material 3 Design Kit / Material Symbols Outlined, 24px, 400 weight"
+  }
+]

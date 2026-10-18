@@ -1,3 +1,5 @@
+import { useFeedback } from '../ui/Feedback.js';
+import { Button, Card, Icon, Input } from '../ui/Primitives.js';
 import React, { useState, useEffect } from 'react';
 import type { CandidateIntelligenceSuggestionDto, LearnedPreferencesDto } from '@job-agent/shared';
 import {
@@ -8,6 +10,7 @@ import {
 } from '../api/career-intelligence-client.js';
 
 export const CareerIntelligenceView: React.FC = () => {
+  const { confirm } = useFeedback();
   const [data, setData] = useState<CareerIntelligenceOverviewDto | null>(null);
   const [suggestions, setSuggestions] = useState<CandidateIntelligenceSuggestionDto[]>([]);
   const [learnedPrefs, setLearnedPrefs] = useState<LearnedPreferencesDto | null>(null);
@@ -57,7 +60,7 @@ export const CareerIntelligenceView: React.FC = () => {
       setLearnedPrefs(learnedRes.learnedPreferences || null);
       setRecordsData(recordsRes);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load Career Intelligence');
+      setError(err instanceof Error ? err.message : 'Failed to load your profile review');
     } finally {
       setLoading(false);
     }
@@ -207,9 +210,9 @@ export const CareerIntelligenceView: React.FC = () => {
 
   const handleResetLearnedPreferences = async () => {
     if (
-      !window.confirm(
+      !(await confirm(
         'Reset learned preferences? This clears downvoted industries, locations, and companies learned from your feedback.',
-      )
+      ))
     ) {
       return;
     }
@@ -234,24 +237,24 @@ export const CareerIntelligenceView: React.FC = () => {
   if (!data && error) {
     return (
       <div style={{ padding: '2rem' }}>
-        <div
+        <Card
           className="card"
           style={{
             borderColor: 'var(--danger)',
-            backgroundColor: 'rgba(239, 68, 68, 0.08)',
-            color: '#f87171',
+            backgroundColor: 'var(--status-danger-container)',
+            color: 'var(--status-danger)',
             padding: '2rem',
             textAlign: 'center',
           }}
         >
           <div style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-            ⚠️ Failed to load Career Intelligence
+            <Icon name="warning" /> Failed to load your profile review
           </div>
           <p style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>{error}</p>
-          <button type="button" className="btn btn-primary" onClick={loadAll}>
-            🔄 Retry
-          </button>
-        </div>
+          <Button type="button" className="btn btn-primary" onClick={loadAll}>
+            <Icon name="sync" /> Retry
+          </Button>
+        </Card>
       </div>
     );
   }
@@ -274,6 +277,7 @@ export const CareerIntelligenceView: React.FC = () => {
           flexWrap: 'wrap',
           gap: '1rem',
         }}
+        className="layout-group"
       >
         <div>
           <div
@@ -283,8 +287,11 @@ export const CareerIntelligenceView: React.FC = () => {
               gap: '0.75rem',
               marginBottom: '0.25rem',
             }}
+            className="layout-group"
           >
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700 }}>Career Intelligence 2.0</h1>
+            <h2 className="page-title" style={{ fontSize: 24, fontWeight: 400 }}>
+              Review & suggestions
+            </h2>
             <span
               className="status-badge ok"
               style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}
@@ -298,36 +305,48 @@ export const CareerIntelligenceView: React.FC = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <button
+        <div
+          style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}
+          className="layout-group"
+        >
+          <Button
             type="button"
             className="btn btn-secondary btn-sm"
             onClick={loadAll}
             disabled={loading}
           >
-            🔄 Refresh
-          </button>
-          <button
+            <Icon name="sync" /> Refresh
+          </Button>
+          <Button
             type="button"
             className="btn btn-primary btn-sm"
             onClick={handleRunEnrichment}
             disabled={enriching}
             style={{
-              background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+              background:
+                'linear-gradient(135deg, var(--m3-secondary-container), var(--m3-secondary-container))',
               border: 'none',
               fontWeight: 600,
             }}
           >
-            {enriching ? '✨ Analyzing Vault...' : '✨ Run AI Enrichment'}
-          </button>
+            {enriching ? (
+              <>
+                <Icon name="ai" size={20} /> Analyzing Vault...
+              </>
+            ) : (
+              <>
+                <Icon name="ai" size={20} /> Run AI Enrichment
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
       {/* State & Context Integrity Banner */}
-      <div
+      <Card
         className="card"
         style={{
-          backgroundColor: 'rgba(30, 41, 59, 0.7)',
+          backgroundColor: 'var(--m3-secondary-container)',
           border: '1px solid var(--surface-border)',
           padding: '1rem 1.25rem',
           marginBottom: '1.5rem',
@@ -338,7 +357,10 @@ export const CareerIntelligenceView: React.FC = () => {
           gap: '1rem',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}
+          className="layout-group"
+        >
           <div>
             <div
               style={{
@@ -353,8 +375,8 @@ export const CareerIntelligenceView: React.FC = () => {
               style={{
                 fontFamily: 'monospace',
                 fontSize: '0.8rem',
-                color: '#93c5fd',
-                backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                color: 'var(--m3-on-surface)',
+                backgroundColor: 'var(--m3-surface-container-low)',
                 padding: '0.2rem 0.5rem',
                 borderRadius: '0.25rem',
               }}
@@ -385,7 +407,7 @@ export const CareerIntelligenceView: React.FC = () => {
             >
               Verified Claims
             </div>
-            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#34d399' }}>
+            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--status-success)' }}>
               {summary?.verifiedCount ?? 0} verified
             </div>
           </div>
@@ -399,33 +421,42 @@ export const CareerIntelligenceView: React.FC = () => {
             >
               AI Suggestions
             </div>
-            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#fbbf24' }}>
+            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--status-warning)' }}>
               {summary?.aiSuggestedCount ?? 0} pending review
             </div>
           </div>
         </div>
 
         <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-          🔒 Privacy Minimized • AI context strictly gated on verified & authorized records
+          <Icon name="permissions" /> Privacy Minimized • AI context strictly gated on verified &
+          authorized records
         </div>
-      </div>
+      </Card>
 
       {error && (
-        <div
+        <Card
           className="card"
-          style={{ borderColor: 'var(--danger)', color: '#f87171', marginBottom: '1.5rem' }}
+          style={{
+            borderColor: 'var(--danger)',
+            color: 'var(--status-danger)',
+            marginBottom: '1.5rem',
+          }}
         >
-          ⚠️ {error}
-        </div>
+          <Icon name="warning" /> {error}
+        </Card>
       )}
 
       {successMessage && (
-        <div
+        <Card
           className="card"
-          style={{ borderColor: 'var(--success)', color: '#34d399', marginBottom: '1.5rem' }}
+          style={{
+            borderColor: 'var(--success)',
+            color: 'var(--status-success)',
+            marginBottom: '1.5rem',
+          }}
         >
-          ✓ {successMessage}
-        </div>
+          <Icon name="check" size={20} /> {successMessage}
+        </Card>
       )}
 
       {/* Grid Layout: What Jobee Knows vs High-Impact Clarifications */}
@@ -436,11 +467,14 @@ export const CareerIntelligenceView: React.FC = () => {
           gap: '1.5rem',
           marginBottom: '1.5rem',
         }}
+        className="layout-group"
       >
         {/* Section 1: What Jobee Knows */}
-        <div className="card">
+        <Card className="card">
           <div className="card-title">
-            <span>🧠 What Jobee Knows</span>
+            <span>
+              <Icon name="profile" /> What Jobee Knows
+            </span>
             <span
               className="status-badge ok"
               style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}
@@ -454,14 +488,17 @@ export const CareerIntelligenceView: React.FC = () => {
             Verified candidate facts, authorized credentials, and confirmed preferences.
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            className="layout-group"
+          >
             {/* Transferable Capabilities */}
             <div>
               <div
                 style={{
                   fontSize: '0.8rem',
                   fontWeight: 600,
-                  color: '#a78bfa',
+                  color: 'var(--m3-on-surface)',
                   textTransform: 'uppercase',
                   marginBottom: '0.4rem',
                 }}
@@ -470,15 +507,18 @@ export const CareerIntelligenceView: React.FC = () => {
               </div>
               {summary?.whatJobeeKnows?.transferableCapabilities &&
               summary.whatJobeeKnows.transferableCapabilities.length > 0 ? (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                <div
+                  style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}
+                  className="layout-group"
+                >
                   {summary.whatJobeeKnows.transferableCapabilities.map(
                     (cap: string, idx: number) => (
                       <span
                         key={idx}
                         style={{
-                          backgroundColor: 'rgba(139, 92, 246, 0.15)',
-                          border: '1px solid rgba(139, 92, 246, 0.35)',
-                          color: '#c4b5fd',
+                          backgroundColor: 'var(--m3-secondary-container)',
+                          border: '1px solid var(--m3-outline-variant)',
+                          color: 'var(--m3-on-surface)',
                           borderRadius: '0.35rem',
                           padding: '0.2rem 0.6rem',
                           fontSize: '0.8rem',
@@ -513,19 +553,22 @@ export const CareerIntelligenceView: React.FC = () => {
               </div>
               {summary?.whatJobeeKnows?.verifiedSkills &&
               summary.whatJobeeKnows.verifiedSkills.length > 0 ? (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                <div
+                  style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}
+                  className="layout-group"
+                >
                   {summary.whatJobeeKnows.verifiedSkills.map((skill: string, idx: number) => (
                     <span
                       key={idx}
                       className="nav-tag"
                       style={{
-                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                        color: '#6ee7b7',
+                        backgroundColor: 'var(--status-success-container)',
+                        border: '1px solid var(--status-success-border)',
+                        color: 'var(--status-success)',
                         padding: '0.2rem 0.5rem',
                       }}
                     >
-                      ✓ {skill}
+                      <Icon name="check" size={20} /> {skill}
                     </span>
                   ))}
                 </div>
@@ -549,18 +592,21 @@ export const CareerIntelligenceView: React.FC = () => {
               >
                 Target Roles & Adjacent Career Paths
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              <div
+                style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}
+                className="layout-group"
+              >
                 {summary?.suitableCareerPaths?.primaryRoles?.map((title: string, idx: number) => (
                   <span
                     key={idx}
                     className="nav-tag"
                     style={{
-                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                      border: '1px solid rgba(59, 130, 246, 0.3)',
-                      color: '#93c5fd',
+                      backgroundColor: 'var(--m3-secondary-container)',
+                      border: '1px solid var(--m3-outline-variant)',
+                      color: 'var(--m3-on-surface)',
                     }}
                   >
-                    🎯 {title}
+                    <Icon name="jobs" /> {title}
                   </span>
                 ))}
                 {summary?.suitableCareerPaths?.adjacentRoles?.map((adj: string, idx: number) => (
@@ -568,9 +614,9 @@ export const CareerIntelligenceView: React.FC = () => {
                     key={`adj-${idx}`}
                     className="nav-tag"
                     style={{
-                      backgroundColor: 'rgba(148, 163, 184, 0.12)',
-                      border: '1px solid rgba(148, 163, 184, 0.25)',
-                      color: '#cbd5e1',
+                      backgroundColor: 'var(--m3-secondary-container)',
+                      border: '1px solid var(--m3-outline-variant)',
+                      color: 'var(--m3-on-surface-variant)',
                     }}
                   >
                     Adjacent: {adj}
@@ -594,16 +640,17 @@ export const CareerIntelligenceView: React.FC = () => {
               </div>
               <div
                 style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.82rem' }}
+                className="layout-group"
               >
                 <span
                   className="nav-tag"
                   style={{
                     backgroundColor: summary?.whatJobeeKnows?.workAuthorization?.length
-                      ? 'rgba(16, 185, 129, 0.12)'
-                      : 'rgba(239, 68, 68, 0.12)',
+                      ? 'var(--status-success-container)'
+                      : 'var(--status-danger-container)',
                     color: summary?.whatJobeeKnows?.workAuthorization?.length
-                      ? '#34d399'
-                      : '#f87171',
+                      ? 'var(--status-success)'
+                      : 'var(--status-danger)',
                   }}
                 >
                   Countries:{' '}
@@ -618,17 +665,17 @@ export const CareerIntelligenceView: React.FC = () => {
                       : 'Unknown'}
                 </span>
                 {summary?.matchingConstraints?.minSalary && (
-                  <span className="nav-tag" style={{ color: '#34d399' }}>
+                  <span className="nav-tag" style={{ color: 'var(--status-success)' }}>
                     Min Salary: ${summary.matchingConstraints.minSalary.toLocaleString()}
                   </span>
                 )}
               </div>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Section 2: What Jobee Needs to Clarify */}
-        <div className="card">
+        <Card className="card">
           <div className="card-title">
             <span>❓ What Jobee Needs to Clarify</span>
             {summary?.whatNeedsClarification && summary.whatNeedsClarification.length > 0 && (
@@ -649,19 +696,23 @@ export const CareerIntelligenceView: React.FC = () => {
           {!summary?.whatNeedsClarification || summary.whatNeedsClarification.length === 0 ? (
             <div
               style={{
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
+                backgroundColor: 'var(--status-success-container)',
+                border: '1px solid var(--status-success-border)',
                 borderRadius: '0.35rem',
                 padding: '1.25rem',
                 textAlign: 'center',
-                color: '#34d399',
+                color: 'var(--status-success)',
                 fontSize: '0.9rem',
               }}
             >
-              ✓ All critical matching policies and preferences are configured!
+              <Icon name="check" size={20} /> All critical matching policies and preferences are
+              configured!
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+              className="layout-group"
+            >
               {summary.whatNeedsClarification.map((item, idx: number) => {
                 const isSubmitting = clarificationSubmitting === item.field;
 
@@ -669,9 +720,9 @@ export const CareerIntelligenceView: React.FC = () => {
                   <div
                     key={idx}
                     style={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                      backgroundColor: 'var(--m3-surface-container-low)',
                       border: '1px solid var(--surface-border)',
-                      borderRadius: '0.375rem',
+                      borderRadius: '16px',
                       padding: '0.9rem 1.1rem',
                     }}
                   >
@@ -690,29 +741,32 @@ export const CareerIntelligenceView: React.FC = () => {
 
                     {/* Interactive Answer Widgets */}
                     {item.field === 'needsSponsorship' && (
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button
+                      <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+                        <Button
                           type="button"
                           className="btn btn-secondary btn-sm"
                           disabled={isSubmitting}
                           onClick={() => handleAnswerClarification('needsSponsorship', false)}
                         >
                           No (Authorized to work)
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
                           className="btn btn-secondary btn-sm"
                           disabled={isSubmitting}
                           onClick={() => handleAnswerClarification('needsSponsorship', true)}
                         >
                           Yes (Require Visa Sponsorship)
-                        </button>
+                        </Button>
                       </div>
                     )}
 
                     {item.field === 'minSalary' && (
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <input
+                      <div
+                        style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+                        className="layout-group"
+                      >
+                        <Input
                           type="number"
                           placeholder="e.g. 90000"
                           value={salaryInput}
@@ -727,7 +781,7 @@ export const CareerIntelligenceView: React.FC = () => {
                             width: '130px',
                           }}
                         />
-                        <button
+                        <Button
                           type="button"
                           className="btn btn-primary btn-sm"
                           disabled={isSubmitting || !salaryInput}
@@ -736,13 +790,16 @@ export const CareerIntelligenceView: React.FC = () => {
                           }
                         >
                           Save
-                        </button>
+                        </Button>
                       </div>
                     )}
 
                     {item.field === 'workAuthorizationCountries' && (
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <input
+                      <div
+                        style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
+                        className="layout-group"
+                      >
+                        <Input
                           type="text"
                           placeholder="e.g. Germany, EU, US"
                           value={countryInput}
@@ -757,7 +814,7 @@ export const CareerIntelligenceView: React.FC = () => {
                             flex: 1,
                           }}
                         />
-                        <button
+                        <Button
                           type="button"
                           className="btn btn-primary btn-sm"
                           disabled={isSubmitting || !countryInput.trim()}
@@ -772,14 +829,17 @@ export const CareerIntelligenceView: React.FC = () => {
                           }
                         >
                           Save
-                        </button>
+                        </Button>
                       </div>
                     )}
 
                     {item.field === 'availability' && (
-                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <div
+                        style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
+                        className="layout-group"
+                      >
                         {['IMMEDIATE', '2_WEEKS', '1_MONTH', '3_MONTHS'].map((av) => (
-                          <button
+                          <Button
                             key={av}
                             type="button"
                             className="btn btn-secondary btn-sm"
@@ -787,29 +847,29 @@ export const CareerIntelligenceView: React.FC = () => {
                             onClick={() => handleAnswerClarification('availability', av)}
                           >
                             {av.replace('_', ' ')}
-                          </button>
+                          </Button>
                         ))}
                       </div>
                     )}
 
                     {item.field.startsWith('fact:') && (
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button
+                      <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+                        <Button
                           type="button"
                           className="btn btn-primary btn-sm"
                           disabled={isSubmitting}
                           onClick={() => handleAnswerClarification(item.field, 'VERIFIED')}
                         >
-                          ✓ Confirm Verified
-                        </button>
-                        <button
+                          <Icon name="check" size={20} /> Confirm Verified
+                        </Button>
+                        <Button
                           type="button"
                           className="btn btn-secondary btn-sm"
                           disabled={isSubmitting}
                           onClick={() => handleAnswerClarification(item.field, 'REJECTED')}
                         >
-                          ✕ Reject / Incorrect
-                        </button>
+                          <Icon name="close" size={20} /> Reject / Incorrect
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -817,11 +877,11 @@ export const CareerIntelligenceView: React.FC = () => {
               })}
             </div>
           )}
-        </div>
+        </Card>
       </div>
 
       {/* Section 3: Candidate Records Verification & AI-Use Authorization */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
+      <Card className="card" style={{ marginBottom: '1.5rem' }}>
         <div
           style={{
             display: 'flex',
@@ -831,6 +891,7 @@ export const CareerIntelligenceView: React.FC = () => {
             flexWrap: 'wrap',
             gap: '1rem',
           }}
+          className="layout-group"
         >
           <div>
             <div
@@ -840,9 +901,10 @@ export const CareerIntelligenceView: React.FC = () => {
                 gap: '0.5rem',
                 marginBottom: '0.25rem',
               }}
+              className="layout-group"
             >
               <h3 className="card-title" style={{ margin: 0 }}>
-                🛡️ Candidate Records: Verification & AI Authorization
+                <Icon name="permissions" /> Candidate Records: Verification & AI Authorization
               </h3>
               <span
                 className="status-badge ok"
@@ -858,30 +920,45 @@ export const CareerIntelligenceView: React.FC = () => {
           </div>
 
           {/* Counts pill banner */}
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div
+            style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
+            className="layout-group"
+          >
             <span
               className="nav-tag"
-              style={{ backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#93c5fd' }}
+              style={{
+                backgroundColor: 'var(--m3-secondary-container)',
+                color: 'var(--m3-on-surface)',
+              }}
             >
               Total: {recordsData?.counts.total ?? 0}
             </span>
             <span
               className="nav-tag"
-              style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#6ee7b7' }}
+              style={{
+                backgroundColor: 'var(--status-success-container)',
+                color: 'var(--status-success)',
+              }}
             >
-              ✓ Verified: {recordsData?.counts.verified ?? 0}
+              <Icon name="check" size={20} /> Verified: {recordsData?.counts.verified ?? 0}
             </span>
             <span
               className="nav-tag"
-              style={{ backgroundColor: 'rgba(139, 92, 246, 0.15)', color: '#c4b5fd' }}
+              style={{
+                backgroundColor: 'var(--m3-secondary-container)',
+                color: 'var(--m3-on-surface)',
+              }}
             >
-              🤖 In AI Prompt: {recordsData?.counts.aiAuthorized ?? 0}
+              <Icon name="ai" size={20} /> In AI Prompt: {recordsData?.counts.aiAuthorized ?? 0}
             </span>
             <span
               className="nav-tag"
-              style={{ backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#fcd34d' }}
+              style={{
+                backgroundColor: 'var(--status-warning-container)',
+                color: 'var(--status-warning)',
+              }}
             >
-              🔒 AI-Gated: {recordsData?.counts.unverified ?? 0}
+              <Icon name="permissions" /> AI-Gated: {recordsData?.counts.unverified ?? 0}
             </span>
           </div>
         </div>
@@ -895,6 +972,7 @@ export const CareerIntelligenceView: React.FC = () => {
             paddingBottom: '0.5rem',
             marginBottom: '1rem',
           }}
+          className="layout-group"
         >
           {[
             { key: 'all', label: `All (${recordsData?.counts.total ?? 0})` },
@@ -918,7 +996,7 @@ export const CareerIntelligenceView: React.FC = () => {
             { key: 'projects', label: `Projects (${recordsData?.records.projects.length ?? 0})` },
             { key: 'facts', label: `Facts (${recordsData?.records.facts.length ?? 0})` },
           ].map((tab) => (
-            <button
+            <Button
               key={tab.key}
               type="button"
               className={`btn btn-sm ${recordTab === tab.key ? 'btn-primary' : 'btn-secondary'}`}
@@ -926,7 +1004,7 @@ export const CareerIntelligenceView: React.FC = () => {
               onClick={() => setRecordTab(tab.key as any)}
             >
               {tab.label}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -934,9 +1012,9 @@ export const CareerIntelligenceView: React.FC = () => {
         {selectedRecordKeys.size > 0 && (
           <div
             style={{
-              backgroundColor: 'rgba(59, 130, 246, 0.12)',
-              border: '1px solid rgba(59, 130, 246, 0.35)',
-              borderRadius: '0.375rem',
+              backgroundColor: 'var(--m3-secondary-container)',
+              border: '1px solid var(--m3-outline-variant)',
+              borderRadius: '16px',
               padding: '0.75rem 1rem',
               marginBottom: '1rem',
               display: 'flex',
@@ -945,51 +1023,58 @@ export const CareerIntelligenceView: React.FC = () => {
               flexWrap: 'wrap',
               gap: '0.75rem',
             }}
+            className="layout-group"
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontWeight: 600, fontSize: '0.88rem', color: '#93c5fd' }}>
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+              className="layout-group"
+            >
+              <span style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--m3-on-surface)' }}>
                 Selected: {selectedRecordKeys.size} record{selectedRecordKeys.size > 1 ? 's' : ''}
               </span>
-              <button
+              <Button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
                 onClick={() => setSelectedRecordKeys(new Set())}
               >
                 Clear Selection
-              </button>
+              </Button>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button
+            <div
+              style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
+              className="layout-group"
+            >
+              <Button
                 type="button"
                 className="btn btn-primary btn-sm"
                 onClick={handleBatchVerifySelected}
                 title="Mark selected records as VERIFIED without silently granting AI access"
               >
-                ✓ Verify Selected
-              </button>
-              <button
+                <Icon name="check" size={20} /> Verify Selected
+              </Button>
+              <Button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 style={{
-                  backgroundColor: 'rgba(139, 92, 246, 0.25)',
-                  borderColor: '#8b5cf6',
-                  color: '#c4b5fd',
+                  backgroundColor: 'var(--m3-secondary-container)',
+                  borderColor: 'var(--m3-outline-variant)',
+                  color: 'var(--m3-on-surface)',
                 }}
                 onClick={handleBatchAuthorizeAiSelected}
                 title="Explicitly permit AI use for selected records that are verified"
               >
-                🤖 Authorize AI Use (Verified Only)
-              </button>
-              <button
+                <Icon name="ai" size={20} /> Authorize AI Use (Verified Only)
+              </Button>
+              <Button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={handleBatchRevokeAiSelected}
                 title="Revoke AI prompt use from selected records"
               >
-                🔒 Revoke AI Use
-              </button>
+                <Icon name="permissions" /> Revoke AI Use
+              </Button>
             </div>
           </div>
         )}
@@ -1047,7 +1132,7 @@ export const CareerIntelligenceView: React.FC = () => {
                     cursor: 'pointer',
                   }}
                 >
-                  <input
+                  <Input
                     type="checkbox"
                     checked={list.length > 0 && allSelectedInTab}
                     onChange={(e) => {
@@ -1072,7 +1157,10 @@ export const CareerIntelligenceView: React.FC = () => {
               </div>
 
               {/* Items List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}
+                className="layout-group"
+              >
                 {list.map((item) => {
                   const key = `${item.entityType}:${item.id}`;
                   const isSelected = selectedRecordKeys.has(key);
@@ -1089,13 +1177,14 @@ export const CareerIntelligenceView: React.FC = () => {
                         alignItems: 'center',
                         padding: '0.85rem 1rem',
                         backgroundColor: isSelected
-                          ? 'rgba(59, 130, 246, 0.08)'
-                          : 'rgba(15, 23, 42, 0.6)',
-                        border: `1px solid ${isSelected ? 'rgba(59, 130, 246, 0.4)' : 'var(--surface-border)'}`,
-                        borderRadius: '0.375rem',
+                          ? 'var(--m3-secondary-container)'
+                          : 'var(--m3-surface-container-low)',
+                        border: `1px solid ${isSelected ? 'var(--m3-outline-variant)' : 'var(--surface-border)'}`,
+                        borderRadius: '16px',
                         flexWrap: 'wrap',
                         gap: '0.75rem',
                       }}
+                      className="layout-group"
                     >
                       {/* Left: Checkbox + Information */}
                       <div
@@ -1106,8 +1195,9 @@ export const CareerIntelligenceView: React.FC = () => {
                           flex: 1,
                           minWidth: '260px',
                         }}
+                        className="layout-group"
                       >
-                        <input
+                        <Input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => handleToggleSelectRecord(key)}
@@ -1121,6 +1211,7 @@ export const CareerIntelligenceView: React.FC = () => {
                               gap: '0.5rem',
                               flexWrap: 'wrap',
                             }}
+                            className="layout-group"
                           >
                             <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>
                               {item.title}
@@ -1137,14 +1228,24 @@ export const CareerIntelligenceView: React.FC = () => {
                                 padding: '0.15rem 0.5rem',
                                 borderRadius: '0.25rem',
                                 backgroundColor: item.allowAiUse
-                                  ? 'rgba(16, 185, 129, 0.15)'
-                                  : 'rgba(100, 116, 139, 0.2)',
-                                color: item.allowAiUse ? '#34d399' : '#94a3b8',
-                                border: `1px solid ${item.allowAiUse ? 'rgba(16, 185, 129, 0.3)' : 'rgba(100, 116, 139, 0.3)'}`,
+                                  ? 'var(--status-success-container)'
+                                  : 'var(--m3-secondary-container)',
+                                color: item.allowAiUse
+                                  ? 'var(--status-success)'
+                                  : 'var(--m3-on-surface)',
+                                border: `1px solid ${item.allowAiUse ? 'var(--status-success-border)' : 'var(--m3-outline-variant)'}`,
                                 fontWeight: 500,
                               }}
                             >
-                              {item.allowAiUse ? '🤖 In AI Context' : '🔒 Excluded from AI'}
+                              {item.allowAiUse ? (
+                                <>
+                                  <Icon name="ai" size={20} /> In AI Context
+                                </>
+                              ) : (
+                                <>
+                                  <Icon name="permissions" size={20} /> Excluded from AI
+                                </>
+                              )}
                             </span>
                           </div>
 
@@ -1160,7 +1261,11 @@ export const CareerIntelligenceView: React.FC = () => {
 
                           {item.sourceReference && (
                             <div
-                              style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}
+                              style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--m3-on-surface)',
+                                marginTop: '0.2rem',
+                              }}
                             >
                               Source: {item.sourceReference}
                             </div>
@@ -1176,10 +1281,11 @@ export const CareerIntelligenceView: React.FC = () => {
                           gap: '0.5rem',
                           flexWrap: 'wrap',
                         }}
+                        className="layout-group"
                       >
                         {/* Control 1: Verification status */}
                         {!isVerified && (
-                          <button
+                          <Button
                             type="button"
                             className="btn btn-primary btn-sm"
                             disabled={isUpdating}
@@ -1190,12 +1296,12 @@ export const CareerIntelligenceView: React.FC = () => {
                             }
                             title="Verify this factual record without granting AI access"
                           >
-                            ✓ Verify
-                          </button>
+                            <Icon name="check" size={20} /> Verify
+                          </Button>
                         )}
 
                         {isVerified && (
-                          <button
+                          <Button
                             type="button"
                             className="btn btn-secondary btn-sm"
                             disabled={isUpdating}
@@ -1208,16 +1314,19 @@ export const CareerIntelligenceView: React.FC = () => {
                             title="Reset record to UNVERIFIED and revoke AI use"
                           >
                             Unverify
-                          </button>
+                          </Button>
                         )}
 
                         {/* Control 2: AI-Use Authorization (Separate Decision) */}
                         {item.allowAiUse ? (
-                          <button
+                          <Button
                             type="button"
                             className="btn btn-secondary btn-sm"
                             disabled={isUpdating}
-                            style={{ borderColor: '#f87171', color: '#f87171' }}
+                            style={{
+                              borderColor: 'var(--status-danger-border)',
+                              color: 'var(--status-danger)',
+                            }}
                             onClick={() =>
                               handleUpdateRecordAuth(item.entityType, item.id, {
                                 allowAiUse: false,
@@ -1225,17 +1334,19 @@ export const CareerIntelligenceView: React.FC = () => {
                             }
                             title="Revoke AI prompt use while keeping record verified"
                           >
-                            🔒 Revoke AI
-                          </button>
+                            <Icon name="permissions" /> Revoke AI
+                          </Button>
                         ) : (
-                          <button
+                          <Button
                             type="button"
                             className="btn btn-secondary btn-sm"
                             disabled={isUpdating}
                             style={{
-                              backgroundColor: isVerified ? 'rgba(139, 92, 246, 0.2)' : undefined,
-                              borderColor: isVerified ? '#8b5cf6' : undefined,
-                              color: isVerified ? '#c4b5fd' : undefined,
+                              backgroundColor: isVerified
+                                ? 'var(--m3-secondary-container)'
+                                : undefined,
+                              borderColor: isVerified ? 'var(--m3-outline-variant)' : undefined,
+                              color: isVerified ? 'var(--m3-on-surface)' : undefined,
                             }}
                             onClick={() => {
                               if (!isVerified) {
@@ -1256,8 +1367,9 @@ export const CareerIntelligenceView: React.FC = () => {
                                 : 'Verify and authorize for AI in one step'
                             }
                           >
-                            🤖 {isVerified ? 'Allow AI' : 'Verify & Allow AI'}
-                          </button>
+                            <Icon name="ai" size={20} />{' '}
+                            {isVerified ? 'Allow AI' : 'Verify & Allow AI'}
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -1267,10 +1379,10 @@ export const CareerIntelligenceView: React.FC = () => {
             </div>
           );
         })()}
-      </div>
+      </Card>
 
       {/* Section 4: Verified vs. AI-Suggested (Human-in-the-Loop Approval Gating) */}
-      <div className="card" style={{ marginBottom: '1.5rem' }}>
+      <Card className="card" style={{ marginBottom: '1.5rem' }}>
         <div
           style={{
             display: 'flex',
@@ -1280,10 +1392,11 @@ export const CareerIntelligenceView: React.FC = () => {
             flexWrap: 'wrap',
             gap: '0.75rem',
           }}
+          className="layout-group"
         >
           <div>
             <h3 className="card-title" style={{ marginBottom: '0.25rem' }}>
-              ✨ AI Profile Suggestions & Discovered Capabilities
+              <Icon name="ai" /> AI Profile Suggestions & Discovered Capabilities
             </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
               AI analyzes uploaded CVs and documents to propose transferable capabilities, career
@@ -1293,9 +1406,9 @@ export const CareerIntelligenceView: React.FC = () => {
           </div>
 
           {/* Filter Tabs */}
-          <div style={{ display: 'flex', gap: '0.35rem' }}>
+          <div style={{ display: 'flex', gap: '0.35rem' }} className="layout-group">
             {(['PENDING', 'APPROVED', 'DISMISSED', 'ALL'] as const).map((tab) => (
-              <button
+              <Button
                 key={tab}
                 type="button"
                 className={`btn btn-sm ${suggestionTab === tab ? 'btn-primary' : 'btn-secondary'}`}
@@ -1306,7 +1419,7 @@ export const CareerIntelligenceView: React.FC = () => {
                   : tab === 'APPROVED'
                     ? 'Approved'
                     : tab}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -1316,16 +1429,19 @@ export const CareerIntelligenceView: React.FC = () => {
             style={{
               padding: '2.5rem',
               textAlign: 'center',
-              backgroundColor: 'rgba(15, 23, 42, 0.4)',
-              borderRadius: '0.375rem',
+              backgroundColor: 'var(--m3-surface-container-low)',
+              borderRadius: '16px',
             }}
           >
             <div style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>
               No {suggestionTab.toLowerCase()} suggestions
             </div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Click <strong>✨ Run AI Enrichment</strong> above to analyze your documents and
-              discover transferable capabilities.
+              Click{' '}
+              <strong>
+                <Icon name="ai" /> Run AI Enrichment
+              </strong>{' '}
+              above to analyze your documents and discover transferable capabilities.
             </p>
           </div>
         ) : (
@@ -1335,6 +1451,7 @@ export const CareerIntelligenceView: React.FC = () => {
               gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
               gap: '1rem',
             }}
+            className="layout-group"
           >
             {filteredSuggestions.map((sug) => {
               const isPending = sug.status === 'PENDING';
@@ -1344,9 +1461,9 @@ export const CareerIntelligenceView: React.FC = () => {
                 <div
                   key={sug.id}
                   style={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.7)',
-                    border: `1px solid ${isApproved ? 'rgba(16, 185, 129, 0.3)' : 'var(--surface-border)'}`,
-                    borderRadius: '0.375rem',
+                    backgroundColor: 'var(--m3-surface-container-low)',
+                    border: `1px solid ${isApproved ? 'var(--status-success-border)' : 'var(--surface-border)'}`,
+                    borderRadius: '16px',
                     padding: '1.1rem',
                     display: 'flex',
                     flexDirection: 'column',
@@ -1367,16 +1484,16 @@ export const CareerIntelligenceView: React.FC = () => {
                         style={{
                           backgroundColor:
                             sug.suggestionType === 'TRANSFERABLE_SKILL'
-                              ? 'rgba(139, 92, 246, 0.2)'
+                              ? 'var(--m3-secondary-container)'
                               : sug.suggestionType === 'CAREER_PATH'
-                                ? 'rgba(59, 130, 246, 0.2)'
-                                : 'rgba(245, 158, 11, 0.2)',
+                                ? 'var(--m3-secondary-container)'
+                                : 'var(--status-warning-container)',
                           color:
                             sug.suggestionType === 'TRANSFERABLE_SKILL'
-                              ? '#c4b5fd'
+                              ? 'var(--m3-on-surface)'
                               : sug.suggestionType === 'CAREER_PATH'
-                                ? '#93c5fd'
-                                : '#fcd34d',
+                                ? 'var(--m3-on-surface)'
+                                : 'var(--status-warning)',
                         }}
                       >
                         {sug.suggestionType.replace('_', ' ')}
@@ -1403,8 +1520,8 @@ export const CareerIntelligenceView: React.FC = () => {
                       <div
                         style={{
                           fontSize: '0.75rem',
-                          color: '#94a3b8',
-                          backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                          color: 'var(--m3-on-surface)',
+                          backgroundColor: 'var(--m3-surface)',
                           padding: '0.3rem 0.5rem',
                           borderRadius: '0.25rem',
                           marginBottom: '0.85rem',
@@ -1416,35 +1533,38 @@ export const CareerIntelligenceView: React.FC = () => {
                   </div>
 
                   {isPending && (
-                    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}>
-                      <button
+                    <div
+                      style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}
+                      className="layout-group"
+                    >
+                      <Button
                         type="button"
                         className="btn btn-primary btn-sm"
                         style={{ flex: 1 }}
                         onClick={() => handleApplySuggestion(sug.id)}
                       >
-                        ✓ Approve
-                      </button>
-                      <button
+                        <Icon name="check" size={20} /> Approve
+                      </Button>
+                      <Button
                         type="button"
                         className="btn btn-secondary btn-sm"
                         onClick={() => handleDismissSuggestion(sug.id)}
                       >
-                        ✕ Dismiss
-                      </button>
+                        <Icon name="close" size={20} /> Dismiss
+                      </Button>
                     </div>
                   )}
 
                   {isApproved && (
                     <div
                       style={{
-                        color: '#34d399',
+                        color: 'var(--status-success)',
                         fontSize: '0.8rem',
                         fontWeight: 600,
                         marginTop: '0.5rem',
                       }}
                     >
-                      ✓ Approved & Applied to Brain
+                      <Icon name="check" size={20} /> Approved & Applied to Brain
                     </div>
                   )}
 
@@ -1464,10 +1584,10 @@ export const CareerIntelligenceView: React.FC = () => {
             })}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Section 4: Learned Career Preferences (Transparent & Reset-able) */}
-      <div className="card">
+      <Card className="card">
         <div
           style={{
             display: 'flex',
@@ -1477,10 +1597,11 @@ export const CareerIntelligenceView: React.FC = () => {
             flexWrap: 'wrap',
             gap: '0.75rem',
           }}
+          className="layout-group"
         >
           <div>
             <h3 className="card-title" style={{ marginBottom: '0.25rem' }}>
-              📊 Learned Career Preferences from Feedback
+              <Icon name="activity" /> Learned Career Preferences from Feedback
             </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
               Jobee dynamically learns ranking adjustments from your job feedback (e.g. Too Senior,
@@ -1488,13 +1609,13 @@ export const CareerIntelligenceView: React.FC = () => {
             </p>
           </div>
 
-          <button
+          <Button
             type="button"
             className="btn btn-secondary btn-sm"
             onClick={handleResetLearnedPreferences}
           >
             ↺ Reset Learned Preferences
-          </button>
+          </Button>
         </div>
 
         <div
@@ -1503,12 +1624,13 @@ export const CareerIntelligenceView: React.FC = () => {
             gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: '1rem',
           }}
+          className="layout-group"
         >
           <div
             style={{
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
+              backgroundColor: 'var(--m3-surface-container-low)',
               border: '1px solid var(--surface-border)',
-              borderRadius: '0.375rem',
+              borderRadius: '16px',
               padding: '0.9rem',
             }}
           >
@@ -1523,10 +1645,13 @@ export const CareerIntelligenceView: React.FC = () => {
               Downvoted Industries
             </div>
             {learnedPrefs?.downvotedIndustries && learnedPrefs.downvotedIndustries.length > 0 ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+              <div
+                style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}
+                className="layout-group"
+              >
                 {learnedPrefs.downvotedIndustries.map((ind, idx) => (
-                  <span key={idx} className="nav-tag" style={{ color: '#f87171' }}>
-                    ✕ {ind}
+                  <span key={idx} className="nav-tag" style={{ color: 'var(--status-danger)' }}>
+                    <Icon name="close" size={20} /> {ind}
                   </span>
                 ))}
               </div>
@@ -1539,9 +1664,9 @@ export const CareerIntelligenceView: React.FC = () => {
 
           <div
             style={{
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
+              backgroundColor: 'var(--m3-surface-container-low)',
               border: '1px solid var(--surface-border)',
-              borderRadius: '0.375rem',
+              borderRadius: '16px',
               padding: '0.9rem',
             }}
           >
@@ -1556,10 +1681,13 @@ export const CareerIntelligenceView: React.FC = () => {
               Downvoted Locations
             </div>
             {learnedPrefs?.downvotedLocations && learnedPrefs.downvotedLocations.length > 0 ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+              <div
+                style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}
+                className="layout-group"
+              >
                 {learnedPrefs.downvotedLocations.map((loc, idx) => (
-                  <span key={idx} className="nav-tag" style={{ color: '#f87171' }}>
-                    ✕ {loc}
+                  <span key={idx} className="nav-tag" style={{ color: 'var(--status-danger)' }}>
+                    <Icon name="close" size={20} /> {loc}
                   </span>
                 ))}
               </div>
@@ -1572,9 +1700,9 @@ export const CareerIntelligenceView: React.FC = () => {
 
           <div
             style={{
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
+              backgroundColor: 'var(--m3-surface-container-low)',
               border: '1px solid var(--surface-border)',
-              borderRadius: '0.375rem',
+              borderRadius: '16px',
               padding: '0.9rem',
             }}
           >
@@ -1589,10 +1717,13 @@ export const CareerIntelligenceView: React.FC = () => {
               Downvoted Companies
             </div>
             {learnedPrefs?.downvotedCompanies && learnedPrefs.downvotedCompanies.length > 0 ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+              <div
+                style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}
+                className="layout-group"
+              >
                 {learnedPrefs.downvotedCompanies.map((comp, idx) => (
-                  <span key={idx} className="nav-tag" style={{ color: '#f87171' }}>
-                    ✕ {comp}
+                  <span key={idx} className="nav-tag" style={{ color: 'var(--status-danger)' }}>
+                    <Icon name="close" size={20} /> {comp}
                   </span>
                 ))}
               </div>
@@ -1605,9 +1736,9 @@ export const CareerIntelligenceView: React.FC = () => {
 
           <div
             style={{
-              backgroundColor: 'rgba(15, 23, 42, 0.6)',
+              backgroundColor: 'var(--m3-surface-container-low)',
               border: '1px solid var(--surface-border)',
-              borderRadius: '0.375rem',
+              borderRadius: '16px',
               padding: '0.9rem',
             }}
           >
@@ -1628,6 +1759,7 @@ export const CareerIntelligenceView: React.FC = () => {
                 gap: '0.2rem',
                 fontSize: '0.8rem',
               }}
+              className="layout-group"
             >
               <div>Too Senior: {learnedPrefs?.tooSeniorCount ?? 0} times</div>
               <div>Too Junior: {learnedPrefs?.tooJuniorCount ?? 0} times</div>
@@ -1652,7 +1784,7 @@ export const CareerIntelligenceView: React.FC = () => {
           Note: Inferred preferences alter match ranking weights dynamically. They never override
           explicit candidate settings or hard policy checks.
         </div>
-      </div>
+      </Card>
     </div>
   );
 };

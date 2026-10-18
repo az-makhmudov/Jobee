@@ -1,3 +1,4 @@
+import { Button, Card, Icon, Input, Select, Textarea, ModalSurface } from '../ui/Primitives.js';
 import { useState, useEffect, useRef } from 'react';
 import { candidateImportApi } from '../api/candidate-import-client.js';
 import type {
@@ -324,22 +325,23 @@ export function SmartProfileImportModal({
   const approvedCount = items.filter((i) => i.reviewStatus === 'APPROVED').length;
 
   return (
-    <div
+    <ModalSurface
       style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        backgroundColor: 'color-mix(in srgb,var(--m3-scrim) 48%,transparent)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 1000,
         padding: '1.5rem',
       }}
+      className="modal-backdrop"
     >
-      <div
+      <Card
         className="card"
         style={{
           width: '100%',
@@ -347,11 +349,11 @@ export function SmartProfileImportModal({
           maxHeight: '92vh',
           display: 'flex',
           flexDirection: 'column',
-          backgroundColor: 'var(--surface-color, #1e222b)',
-          borderColor: 'var(--border-color, #2f3542)',
+          backgroundColor: 'var(--surface-color, var(--m3-surface-container-low))',
+          borderColor: 'var(--border-color, var(--m3-outline-variant))',
           borderRadius: '12px',
           padding: '1.75rem',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+          boxShadow: '0 20px 40px color-mix(in srgb,var(--m3-scrim) 20%,transparent)',
           overflow: 'hidden',
         }}
       >
@@ -361,7 +363,7 @@ export function SmartProfileImportModal({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-start',
-            borderBottom: '1px solid var(--border-color, #2f3542)',
+            borderBottom: '1px solid var(--border-color, var(--m3-outline-variant))',
             paddingBottom: '1rem',
             marginBottom: '1.25rem',
           }}
@@ -370,14 +372,17 @@ export function SmartProfileImportModal({
             <h2 style={{ fontSize: '1.35rem', fontWeight: 600, margin: '0 0 0.35rem 0' }}>
               Smart Candidate Profile Import
             </h2>
-            <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.85rem' }}>
+            <div
+              style={{ display: 'flex', gap: '0.75rem', fontSize: '0.85rem' }}
+              className="layout-group"
+            >
               <span
                 style={{
                   fontWeight: step === 'UPLOAD' ? 600 : 400,
                   color:
                     step === 'UPLOAD'
-                      ? 'var(--primary, #3b82f6)'
-                      : 'var(--text-secondary, #94a3b8)',
+                      ? 'var(--primary, var(--m3-on-surface))'
+                      : 'var(--text-secondary, var(--m3-on-surface))',
                 }}
               >
                 1. Upload
@@ -388,8 +393,8 @@ export function SmartProfileImportModal({
                   fontWeight: step === 'EXTRACT' ? 600 : 400,
                   color:
                     step === 'EXTRACT'
-                      ? 'var(--primary, #3b82f6)'
-                      : 'var(--text-secondary, #94a3b8)',
+                      ? 'var(--primary, var(--m3-on-surface))'
+                      : 'var(--text-secondary, var(--m3-on-surface))',
                 }}
               >
                 2. Extract
@@ -400,8 +405,8 @@ export function SmartProfileImportModal({
                   fontWeight: step === 'REVIEW' ? 600 : 400,
                   color:
                     step === 'REVIEW'
-                      ? 'var(--primary, #3b82f6)'
-                      : 'var(--text-secondary, #94a3b8)',
+                      ? 'var(--primary, var(--m3-on-surface))'
+                      : 'var(--text-secondary, var(--m3-on-surface))',
                 }}
               >
                 3. Review ({approvedCount} approved)
@@ -412,21 +417,21 @@ export function SmartProfileImportModal({
                   fontWeight: step === 'CONFIRM' ? 600 : 400,
                   color:
                     step === 'CONFIRM'
-                      ? 'var(--primary, #3b82f6)'
-                      : 'var(--text-secondary, #94a3b8)',
+                      ? 'var(--primary, var(--m3-on-surface))'
+                      : 'var(--text-secondary, var(--m3-on-surface))',
                 }}
               >
                 4. Confirm
               </span>
             </div>
           </div>
-          <button
+          <Button
             className="btn btn-secondary"
             onClick={onClose}
             style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
           >
-            ✕ Close
-          </button>
+            <Icon name="close" size={20} /> Close
+          </Button>
         </div>
 
         {/* Global Error Banner (omitted on EXTRACT step to avoid duplicate display with dedicated AI error card) */}
@@ -434,10 +439,10 @@ export function SmartProfileImportModal({
           <div
             style={{
               padding: '0.75rem 1rem',
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid var(--danger, #ef4444)',
-              borderRadius: '6px',
-              color: '#fca5a5',
+              backgroundColor: 'var(--status-danger-container)',
+              border: '1px solid var(--danger, var(--status-danger-border))',
+              borderRadius: '16px',
+              color: 'var(--status-danger)',
               fontSize: '0.9rem',
               marginBottom: '1rem',
             }}
@@ -451,31 +456,34 @@ export function SmartProfileImportModal({
           {/* STEP 1: UPLOAD */}
           {step === 'UPLOAD' && (
             <div>
-              <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                <button
+              <div
+                style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem' }}
+                className="layout-group"
+              >
+                <Button
                   type="button"
                   className={`btn ${sourceType === 'CV' ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setSourceType('CV')}
                   style={{ flex: 1 }}
                 >
-                  📄 Master CV (PDF / DOCX)
-                </button>
-                <button
+                  <Icon name="document" /> Master CV (PDF / DOCX)
+                </Button>
+                <Button
                   type="button"
                   className={`btn ${sourceType === 'LINKEDIN_PDF' ? 'btn-primary' : 'btn-secondary'}`}
                   onClick={() => setSourceType('LINKEDIN_PDF')}
                   style={{ flex: 1 }}
                 >
-                  🔗 LinkedIn Profile Export (PDF)
-                </button>
+                  <Icon name="link" /> LinkedIn Profile Export (PDF)
+                </Button>
               </div>
 
               {sourceType === 'LINKEDIN_PDF' && (
                 <div
                   style={{
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    border: '1px solid rgba(59, 130, 246, 0.3)',
-                    borderRadius: '8px',
+                    backgroundColor: 'var(--m3-secondary-container)',
+                    border: '1px solid var(--m3-outline-variant)',
+                    borderRadius: '16px',
                     padding: '0.85rem 1rem',
                     marginBottom: '1.25rem',
                     fontSize: '0.85rem',
@@ -502,16 +510,16 @@ export function SmartProfileImportModal({
                 <div
                   style={{
                     border: isDragging
-                      ? '2px dashed var(--primary, #3b82f6)'
-                      : '2px dashed var(--border-color, #3b4252)',
+                      ? '2px dashed var(--primary, var(--m3-outline-variant))'
+                      : '2px dashed var(--border-color, var(--m3-outline-variant))',
                     borderRadius: '10px',
                     padding: '2.5rem 1.5rem',
                     textAlign: 'center',
                     cursor: 'pointer',
                     backgroundColor: isDragging
-                      ? 'rgba(59, 130, 246, 0.12)'
+                      ? 'var(--m3-secondary-container)'
                       : selectedFile
-                        ? 'rgba(59, 130, 246, 0.05)'
+                        ? 'var(--m3-secondary-container)'
                         : 'transparent',
                     marginBottom: '1.5rem',
                     transition: 'all 0.15s ease-in-out',
@@ -542,7 +550,7 @@ export function SmartProfileImportModal({
                     }
                   }}
                 >
-                  <input
+                  <Input
                     ref={fileInputRef}
                     id="file-upload-input"
                     type="file"
@@ -560,7 +568,15 @@ export function SmartProfileImportModal({
                     }}
                   />
                   <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>
-                    {isDragging ? '📥' : selectedFile ? '📑' : '📤'}
+                    {isDragging ? (
+                      <>
+                        <Icon name="download" size={20} />{' '}
+                      </>
+                    ) : selectedFile ? (
+                      '📑'
+                    ) : (
+                      '📤'
+                    )}
                   </div>
                   {selectedFile ? (
                     <div>
@@ -595,9 +611,9 @@ export function SmartProfileImportModal({
                     style={{
                       marginBottom: '1rem',
                       padding: '0.75rem 1rem',
-                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                      backgroundColor: 'var(--m3-surface)',
                       border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
+                      borderRadius: '16px',
                     }}
                   >
                     <label
@@ -609,7 +625,7 @@ export function SmartProfileImportModal({
                         fontSize: '0.85rem',
                       }}
                     >
-                      <input
+                      <Input
                         type="checkbox"
                         checked={replaceMasterCv}
                         onChange={(e) => setReplaceMasterCv(e.target.checked)}
@@ -629,8 +645,8 @@ export function SmartProfileImportModal({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '0.85rem',
-                    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-                    borderRadius: '8px',
+                    backgroundColor: 'var(--m3-surface)',
+                    borderRadius: '16px',
                     marginBottom: '1.5rem',
                   }}
                 >
@@ -643,20 +659,25 @@ export function SmartProfileImportModal({
                       facts require review.
                     </div>
                   </div>
-                  <span style={{ fontSize: '1.25rem' }}>🛡️</span>
+                  <span style={{ fontSize: '1.25rem' }}>
+                    <Icon name="permissions" />
+                  </span>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-                  <button type="button" className="btn btn-secondary" onClick={onClose}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}
+                  className="layout-group"
+                >
+                  <Button type="button" className="btn btn-secondary" onClick={onClose}>
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
                     className="btn btn-primary"
                     disabled={!selectedFile || loading}
                   >
                     {loading ? 'Uploading...' : 'Continue to Extraction →'}
-                  </button>
+                  </Button>
                 </div>
               </form>
             </div>
@@ -680,11 +701,14 @@ export function SmartProfileImportModal({
                   borderRadius: '10px',
                   padding: '1.25rem',
                   marginBottom: '1.25rem',
-                  backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                  backgroundColor: 'var(--m3-secondary-container)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                  <input
+                <div
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}
+                  className="layout-group"
+                >
+                  <Input
                     type="checkbox"
                     id="ai-consent"
                     checked={aiConsent}
@@ -718,36 +742,51 @@ export function SmartProfileImportModal({
               {error && (
                 <div
                   style={{
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid var(--danger, #ef4444)',
-                    borderRadius: '8px',
+                    backgroundColor: 'var(--status-danger-container)',
+                    border: '1px solid var(--danger, var(--status-danger-border))',
+                    borderRadius: '16px',
                     padding: '1rem',
                     marginBottom: '1.25rem',
                   }}
                 >
-                  <div style={{ fontWeight: 600, color: '#fca5a5', marginBottom: '0.35rem' }}>
-                    ⚠️ AI Extraction Notice
+                  <div
+                    style={{
+                      fontWeight: 600,
+                      color: 'var(--status-danger)',
+                      marginBottom: '0.35rem',
+                    }}
+                  >
+                    <Icon name="warning" /> AI Extraction Notice
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: '#fca5a5', marginBottom: '0.75rem' }}>
+                  <div
+                    style={{
+                      fontSize: '0.85rem',
+                      color: 'var(--status-danger)',
+                      marginBottom: '0.75rem',
+                    }}
+                  >
                     {error}
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <button
+                  <div
+                    style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
+                    className="layout-group"
+                  >
+                    <Button
                       type="button"
                       className="btn btn-primary"
                       onClick={() => handleStartExtraction(true)}
                       style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}
                     >
-                      🔄 Retry with Gemini AI
-                    </button>
-                    <button
+                      <Icon name="sync" /> Retry with Gemini AI
+                    </Button>
+                    <Button
                       type="button"
                       className="btn btn-secondary"
                       onClick={() => handleStartExtraction(false)}
                       style={{ fontSize: '0.85rem', padding: '0.35rem 0.75rem' }}
                     >
-                      ⚙️ Extract with Basic Parser (No AI)
-                    </button>
+                      <Icon name="settings" /> Extract with Basic Parser (No AI)
+                    </Button>
                   </div>
                 </div>
               )}
@@ -758,8 +797,8 @@ export function SmartProfileImportModal({
                     style={{
                       width: '40px',
                       height: '40px',
-                      border: '3px solid rgba(59, 130, 246, 0.2)',
-                      borderTopColor: 'var(--primary, #3b82f6)',
+                      border: '3px solid var(--m3-outline-variant)',
+                      borderTopColor: 'var(--primary, var(--m3-outline-variant))',
                       borderRadius: '50%',
                       animation: 'spin 1s linear infinite',
                       margin: '0 auto 1rem auto',
@@ -774,22 +813,25 @@ export function SmartProfileImportModal({
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-                  <button
+                <div
+                  style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}
+                  className="layout-group"
+                >
+                  <Button
                     type="button"
                     className="btn btn-secondary"
                     onClick={() => handleStartExtraction(false)}
                   >
                     Extract with Basic Parser (No AI)
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     className="btn btn-primary"
                     disabled={!aiConsent}
                     onClick={() => handleStartExtraction(true)}
                   >
-                    Extract with Gemini AI ✨
-                  </button>
+                    Extract with Gemini AI <Icon name="ai" />
+                  </Button>
                 </div>
               )}
             </div>
@@ -806,15 +848,15 @@ export function SmartProfileImportModal({
                   alignItems: 'center',
                   padding: '0.75rem 1rem',
                   marginBottom: '1rem',
-                  borderRadius: '8px',
+                  borderRadius: '16px',
                   backgroundColor:
                     session?.extractorUsed === 'GEMINI_AI'
-                      ? 'rgba(59, 130, 246, 0.1)'
-                      : 'rgba(234, 179, 8, 0.1)',
+                      ? 'var(--m3-secondary-container)'
+                      : 'var(--status-warning-container)',
                   border: `1px solid ${
                     session?.extractorUsed === 'GEMINI_AI'
-                      ? 'rgba(59, 130, 246, 0.3)'
-                      : 'rgba(234, 179, 8, 0.3)'
+                      ? 'var(--m3-outline-variant)'
+                      : 'var(--status-warning-border)'
                   }`,
                 }}
               >
@@ -823,12 +865,19 @@ export function SmartProfileImportModal({
                     style={{
                       fontWeight: 600,
                       fontSize: '0.9rem',
-                      color: session?.extractorUsed === 'GEMINI_AI' ? '#93c5fd' : '#fde047',
+                      color:
+                        session?.extractorUsed === 'GEMINI_AI'
+                          ? 'var(--m3-on-surface)'
+                          : 'var(--status-warning)',
                     }}
                   >
-                    {session?.extractorUsed === 'GEMINI_AI'
-                      ? '✨ Extracted with Google Gemini 3.8 Flash AI'
-                      : '⚙️ Extracted with Basic Deterministic Parser (Local / Rule-Based)'}
+                    {session?.extractorUsed === 'GEMINI_AI' ? (
+                      <>
+                        <Icon name="ai" size={20} /> Extracted with Google Gemini 3.8 Flash AI
+                      </>
+                    ) : (
+                      '⚙️ Extracted with Basic Deterministic Parser (Local / Rule-Based)'
+                    )}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                     {session?.extractorUsed === 'GEMINI_AI'
@@ -837,7 +886,13 @@ export function SmartProfileImportModal({
                   </div>
                 </div>
                 <span style={{ fontSize: '1.2rem' }}>
-                  {session?.extractorUsed === 'GEMINI_AI' ? '🤖' : '⚙️'}
+                  {session?.extractorUsed === 'GEMINI_AI' ? (
+                    <>
+                      <Icon name="ai" size={20} />{' '}
+                    </>
+                  ) : (
+                    '⚙️'
+                  )}
                 </span>
               </div>
 
@@ -853,8 +908,12 @@ export function SmartProfileImportModal({
                   paddingBottom: '0.75rem',
                   borderBottom: '1px solid var(--border-color)',
                 }}
+                className="layout-group"
               >
-                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                <div
+                  style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}
+                  className="layout-group"
+                >
                   {[
                     'ALL',
                     'PROFILE',
@@ -866,7 +925,7 @@ export function SmartProfileImportModal({
                     'PROJECT',
                     'LINK',
                   ].map((sec) => (
-                    <button
+                    <Button
                       key={sec}
                       type="button"
                       className={`btn ${activeSectionFilter === sec ? 'btn-primary' : 'btn-secondary'}`}
@@ -874,7 +933,7 @@ export function SmartProfileImportModal({
                       onClick={() => setActiveSectionFilter(sec)}
                     >
                       {sec}
-                    </button>
+                    </Button>
                   ))}
                 </div>
 
@@ -886,6 +945,7 @@ export function SmartProfileImportModal({
                     width: '100%',
                     margin: '0.4rem 0',
                   }}
+                  className="layout-group"
                 >
                   <span
                     style={{
@@ -907,7 +967,7 @@ export function SmartProfileImportModal({
                     'INCOMPLETE',
                     'LOW_CONFIDENCE',
                   ].map((cls) => (
-                    <button
+                    <Button
                       key={cls}
                       type="button"
                       className={`btn ${activeClassificationFilter === cls ? 'btn-primary' : 'btn-secondary'}`}
@@ -915,35 +975,35 @@ export function SmartProfileImportModal({
                       onClick={() => setActiveClassificationFilter(cls)}
                     >
                       {cls}
-                    </button>
+                    </Button>
                   ))}
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
+                <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+                  <Button
                     type="button"
                     className="btn btn-secondary"
                     style={{ padding: '0.3rem 0.65rem', fontSize: '0.8rem' }}
                     onClick={() => handleBulkAction('APPROVE_ALL_NEW')}
                   >
-                    ✓ Accept All New
-                  </button>
-                  <button
+                    <Icon name="check" size={20} /> Accept All New
+                  </Button>
+                  <Button
                     type="button"
                     className="btn btn-secondary"
                     style={{ padding: '0.3rem 0.65rem', fontSize: '0.8rem' }}
                     onClick={() => handleBulkAction('APPROVE_ALL')}
                   >
-                    ✓ Accept All
-                  </button>
-                  <button
+                    <Icon name="check" size={20} /> Accept All
+                  </Button>
+                  <Button
                     type="button"
                     className="btn btn-secondary"
                     style={{ padding: '0.3rem 0.65rem', fontSize: '0.8rem' }}
                     onClick={() => handleBulkAction('REJECT_ALL')}
                   >
-                    ✕ Reject All
-                  </button>
+                    <Icon name="close" size={20} /> Reject All
+                  </Button>
                 </div>
               </div>
 
@@ -955,7 +1015,10 @@ export function SmartProfileImportModal({
                   No items found in this section.
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                  className="layout-group"
+                >
                   {filteredItems.map((item) => (
                     <ReviewItemCard
                       key={item.id}
@@ -992,7 +1055,7 @@ export function SmartProfileImportModal({
 
               <div
                 style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                  backgroundColor: 'var(--m3-surface)',
                   border: '1px solid var(--border-color)',
                   borderRadius: '10px',
                   padding: '1.25rem',
@@ -1008,7 +1071,7 @@ export function SmartProfileImportModal({
                       cursor: 'pointer',
                     }}
                   >
-                    <input
+                    <Input
                       type="checkbox"
                       checked={verifyOnCommit}
                       onChange={(e) => {
@@ -1041,7 +1104,7 @@ export function SmartProfileImportModal({
                       cursor: 'pointer',
                     }}
                   >
-                    <input
+                    <Input
                       type="checkbox"
                       checked={allowAiOnCommit}
                       onChange={(e) => {
@@ -1069,22 +1132,25 @@ export function SmartProfileImportModal({
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-                <button
+              <div
+                style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}
+                className="layout-group"
+              >
+                <Button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setStep('REVIEW')}
                 >
                   ← Back to Review
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
                   className="btn btn-primary"
                   disabled={loading || approvedCount === 0}
                   onClick={handleCommit}
                 >
                   {loading ? 'Committing to Database...' : `Commit ${approvedCount} Items →`}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -1092,7 +1158,9 @@ export function SmartProfileImportModal({
           {/* STEP 5: SUCCESS */}
           {step === 'SUCCESS' && commitResult && (
             <div style={{ textAlign: 'center', padding: '1.5rem' }}>
-              <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🎉</div>
+              <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>
+                <Icon name="verified" size={20} />
+              </div>
               <h3 style={{ fontSize: '1.35rem', marginBottom: '0.5rem' }}>
                 Candidate Profile Enriched Successfully!
               </h3>
@@ -1109,8 +1177,8 @@ export function SmartProfileImportModal({
               {/* Completeness Card */}
               <div
                 style={{
-                  backgroundColor: 'rgba(59, 130, 246, 0.08)',
-                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  backgroundColor: 'var(--m3-secondary-container)',
+                  border: '1px solid var(--m3-outline-variant)',
                   borderRadius: '10px',
                   padding: '1.25rem',
                   marginBottom: '1.5rem',
@@ -1125,15 +1193,15 @@ export function SmartProfileImportModal({
                   }}
                 >
                   <span style={{ fontWeight: 600 }}>Profile Completeness</span>
-                  <span style={{ fontWeight: 700, color: 'var(--primary, #3b82f6)' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--primary, var(--m3-on-surface))' }}>
                     {commitResult.newProfileCompleteness.score}%
                   </span>
                 </div>
                 <div
                   style={{
                     height: '8px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    borderRadius: '4px',
+                    backgroundColor: 'var(--m3-surface)',
+                    borderRadius: '16px',
                     overflow: 'hidden',
                   }}
                 >
@@ -1141,7 +1209,7 @@ export function SmartProfileImportModal({
                     style={{
                       height: '100%',
                       width: `${commitResult.newProfileCompleteness.score}%`,
-                      backgroundColor: 'var(--primary, #3b82f6)',
+                      backgroundColor: 'var(--primary, var(--m3-secondary-container))',
                       transition: 'width 0.5s ease',
                     }}
                   />
@@ -1156,60 +1224,61 @@ export function SmartProfileImportModal({
                   gap: '0.75rem',
                   marginBottom: '1.5rem',
                 }}
+                className="layout-group"
               >
                 {commitResult.committedCounts.experiencesCreated > 0 && (
-                  <div className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+                  <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
                     <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
                       +{commitResult.committedCounts.experiencesCreated}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                       Experiences
                     </div>
-                  </div>
+                  </Card>
                 )}
                 {commitResult.committedCounts.skillsCreated > 0 && (
-                  <div className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+                  <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
                     <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
                       +{commitResult.committedCounts.skillsCreated}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Skills</div>
-                  </div>
+                  </Card>
                 )}
                 {commitResult.committedCounts.educationCreated > 0 && (
-                  <div className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+                  <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
                     <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
                       +{commitResult.committedCounts.educationCreated}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                       Education
                     </div>
-                  </div>
+                  </Card>
                 )}
                 {commitResult.committedCounts.certificationsCreated > 0 && (
-                  <div className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+                  <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
                     <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
                       +{commitResult.committedCounts.certificationsCreated}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                       Certifications
                     </div>
-                  </div>
+                  </Card>
                 )}
                 {commitResult.committedCounts.languagesCreated > 0 && (
-                  <div className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+                  <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
                     <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
                       +{commitResult.committedCounts.languagesCreated}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                       Languages
                     </div>
-                  </div>
+                  </Card>
                 )}
               </div>
 
-              <button type="button" className="btn btn-primary" onClick={onClose}>
+              <Button type="button" className="btn btn-primary" onClick={onClose}>
                 View Updated Candidate Profile
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -1229,23 +1298,23 @@ export function SmartProfileImportModal({
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               <strong>{approvedCount}</strong> items ready to commit
             </div>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setStep('UPLOAD')}>
+            <div style={{ display: 'flex', gap: '0.75rem' }} className="layout-group">
+              <Button type="button" className="btn btn-secondary" onClick={() => setStep('UPLOAD')}>
                 ← Back
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 className="btn btn-primary"
                 disabled={approvedCount === 0}
                 onClick={() => setStep('CONFIRM')}
               >
                 Proceed to Confirmation ({approvedCount}) →
-              </button>
+              </Button>
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </Card>
+    </ModalSurface>
   );
 }
 
@@ -1410,21 +1479,21 @@ export function ReviewItemCard({
   const classificationColor = (cls: ProfileImportClassification) => {
     switch (cls) {
       case 'NEW':
-        return '#10b981'; // Green
+        return 'var(--status-success)'; // Green
       case 'POTENTIAL_MATCH':
-        return '#06b6d4'; // Cyan
+        return 'var(--m3-on-surface)'; // Cyan
       case 'MATCHED':
-        return '#64748b'; // Slate
+        return 'var(--m3-on-surface)'; // Slate
       case 'DUPLICATE':
-        return '#f59e0b'; // Amber
+        return 'var(--status-warning)'; // Amber
       case 'CONFLICT':
-        return '#ef4444'; // Red
+        return 'var(--status-danger)'; // Red
       case 'INCOMPLETE':
-        return '#ea580c'; // Orange
+        return 'var(--status-warning)'; // Orange
       case 'LOW_CONFIDENCE':
-        return '#8b5cf6'; // Purple
+        return 'var(--m3-on-surface)'; // Purple
       default:
-        return '#64748b';
+        return 'var(--m3-on-surface)';
     }
   };
 
@@ -1621,23 +1690,23 @@ export function ReviewItemCard({
     <div
       style={{
         border: '1px solid var(--border-color)',
-        borderRadius: '8px',
+        borderRadius: '16px',
         padding: '0.85rem 1rem',
         backgroundColor:
           item.reviewStatus === 'APPROVED'
-            ? 'rgba(16, 185, 129, 0.05)'
+            ? 'var(--status-success-container)'
             : item.reviewStatus === 'EDITED'
-              ? 'rgba(59, 130, 246, 0.05)'
+              ? 'var(--m3-secondary-container)'
               : item.reviewStatus === 'REJECTED'
-                ? 'rgba(239, 68, 68, 0.03)'
-                : 'rgba(255, 255, 255, 0.02)',
+                ? 'var(--status-danger-container)'
+                : 'var(--m3-surface)',
         borderColor:
           item.reviewStatus === 'APPROVED'
-            ? 'rgba(16, 185, 129, 0.3)'
+            ? 'var(--status-success-border)'
             : item.reviewStatus === 'EDITED'
-              ? 'rgba(59, 130, 246, 0.3)'
+              ? 'var(--m3-outline-variant)'
               : item.reviewStatus === 'REJECTED'
-                ? 'rgba(239, 68, 68, 0.2)'
+                ? 'var(--status-danger-border)'
                 : 'var(--border-color)',
       }}
     >
@@ -1648,6 +1717,7 @@ export function ReviewItemCard({
           alignItems: 'flex-start',
           gap: '1rem',
         }}
+        className="layout-group"
       >
         <div style={{ flex: 1 }}>
           <div
@@ -1657,6 +1727,7 @@ export function ReviewItemCard({
               gap: '0.5rem',
               marginBottom: '0.35rem',
             }}
+            className="layout-group"
           >
             <span
               style={{
@@ -1664,8 +1735,8 @@ export function ReviewItemCard({
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 padding: '0.15rem 0.4rem',
-                borderRadius: '4px',
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                borderRadius: '16px',
+                backgroundColor: 'var(--m3-surface)',
                 color: 'var(--text-secondary)',
               }}
             >
@@ -1677,10 +1748,10 @@ export function ReviewItemCard({
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 padding: '0.15rem 0.4rem',
-                borderRadius: '4px',
-                backgroundColor: `${classificationColor(item.classification)}22`,
+                borderRadius: '16px',
+                backgroundColor: `color-mix(in srgb, ${classificationColor(item.classification)} 12%, var(--m3-surface))`,
                 color: classificationColor(item.classification),
-                border: `1px solid ${classificationColor(item.classification)}44`,
+                border: `1px solid color-mix(in srgb, ${classificationColor(item.classification)} 40%, var(--m3-outline-variant))`,
               }}
             >
               {item.classification}
@@ -1694,8 +1765,8 @@ export function ReviewItemCard({
                     item.reviewStatus === 'REJECTED'
                       ? 'var(--danger)'
                       : item.reviewStatus === 'EDITED'
-                        ? 'var(--info, #3b82f6)'
-                        : 'var(--success, #10b981)',
+                        ? 'var(--info, var(--m3-on-surface))'
+                        : 'var(--success, var(--status-success))',
                 }}
               >
                 ●{' '}
@@ -1746,7 +1817,7 @@ export function ReviewItemCard({
                 marginBottom: '0.35rem',
               }}
             >
-              📅 {String(payload.startDate || '')} —{' '}
+              <Icon name="interviews" /> {String(payload.startDate || '')} —{' '}
               {String(payload.endDate || (payload.isCurrent ? 'Present' : ''))}
             </div>
           )}
@@ -1759,7 +1830,7 @@ export function ReviewItemCard({
                 marginBottom: '0.25rem',
               }}
             >
-              📍 {String(payload.location)}
+              <Icon name="location" size={20} /> {String(payload.location)}
             </div>
           )}
 
@@ -1785,7 +1856,7 @@ export function ReviewItemCard({
                 marginBottom: '0.25rem',
               }}
             >
-              📚 Field of Study: {String(payload.fieldOfStudy)}
+              <Icon name="document" size={20} /> Field of Study: {String(payload.fieldOfStudy)}
             </div>
           )}
 
@@ -1799,7 +1870,7 @@ export function ReviewItemCard({
                 marginBottom: '0.25rem',
               }}
             >
-              📅 Issued: {String(payload.issueDate || 'N/A')}
+              <Icon name="interviews" /> Issued: {String(payload.issueDate || 'N/A')}
               {payload.expirationDate ? ` • Expires: ${String(payload.expirationDate)}` : ''}
             </div>
           )}
@@ -1853,7 +1924,7 @@ export function ReviewItemCard({
                 marginBottom: '0.25rem',
               }}
             >
-              🔗 {String(payload.url)}
+              <Icon name="link" /> {String(payload.url)}
             </div>
           )}
 
@@ -1864,45 +1935,46 @@ export function ReviewItemCard({
                 padding: '0.5rem 0.75rem',
                 backgroundColor:
                   item.classification === 'INCOMPLETE'
-                    ? 'rgba(245, 158, 11, 0.1)'
+                    ? 'var(--status-warning-container)'
                     : item.classification === 'LOW_CONFIDENCE'
-                      ? 'rgba(59, 130, 246, 0.1)'
+                      ? 'var(--m3-secondary-container)'
                       : item.classification === 'POTENTIAL_MATCH'
-                        ? 'rgba(6, 182, 212, 0.1)'
+                        ? 'var(--m3-secondary-container)'
                         : item.classification === 'DUPLICATE'
-                          ? 'rgba(100, 116, 139, 0.1)'
-                          : 'rgba(239, 68, 68, 0.1)',
+                          ? 'var(--m3-secondary-container)'
+                          : 'var(--status-danger-container)',
                 borderLeft: `3px solid ${
                   item.classification === 'INCOMPLETE'
-                    ? 'var(--warning, #f59e0b)'
+                    ? 'var(--warning, var(--status-warning-border))'
                     : item.classification === 'LOW_CONFIDENCE'
-                      ? 'var(--primary, #3b82f6)'
+                      ? 'var(--primary, var(--m3-outline-variant))'
                       : item.classification === 'POTENTIAL_MATCH'
-                        ? '#06b6d4'
+                        ? 'var(--m3-outline-variant)'
                         : item.classification === 'DUPLICATE'
-                          ? '#64748b'
-                          : 'var(--danger, #ef4444)'
+                          ? 'var(--m3-outline-variant)'
+                          : 'var(--danger, var(--status-danger-border))'
                 }`,
-                borderRadius: '4px',
+                borderRadius: '16px',
                 fontSize: '0.8rem',
                 color:
                   item.classification === 'INCOMPLETE'
-                    ? '#fcd34d'
+                    ? 'var(--status-warning)'
                     : item.classification === 'LOW_CONFIDENCE'
-                      ? '#93c5fd'
+                      ? 'var(--m3-on-surface)'
                       : item.classification === 'POTENTIAL_MATCH'
-                        ? '#67e8f9'
+                        ? 'var(--m3-on-surface)'
                         : item.classification === 'DUPLICATE'
-                          ? '#cbd5e1'
-                          : '#fca5a5',
+                          ? 'var(--m3-on-surface-variant)'
+                          : 'var(--status-danger)',
                 marginTop: '0.4rem',
                 marginBottom: '0.4rem',
               }}
             >
               {item.classification === 'INCOMPLETE' && (
                 <>
-                  ⚠️ <strong>Missing Information:</strong> {item.conflictDetails} (Click ✎ Edit to
-                  fill in before approval)
+                  <Icon name="warning" /> <strong>Missing Information:</strong>{' '}
+                  {item.conflictDetails} (Click <Icon name="edit" size={20} /> Edit to fill in
+                  before approval)
                 </>
               )}
               {item.classification === 'LOW_CONFIDENCE' && (
@@ -1912,18 +1984,21 @@ export function ReviewItemCard({
               )}
               {item.classification === 'POTENTIAL_MATCH' && (
                 <>
-                  🔍 <strong>Potential Match:</strong> {item.conflictDetails} (Click ✎ Edit to
-                  adjust or Accept to link with existing record)
+                  <Icon name="search" /> <strong>Potential Match:</strong> {item.conflictDetails}{' '}
+                  (Click <Icon name="edit" size={20} /> Edit to adjust or Accept to link with
+                  existing record)
                 </>
               )}
               {item.classification === 'CONFLICT' && (
                 <>
-                  ⚡ <strong>Conflict with existing record:</strong> {item.conflictDetails}
+                  <Icon name="ai" size={20} /> <strong>Conflict with existing record:</strong>{' '}
+                  {item.conflictDetails}
                 </>
               )}
               {item.classification === 'DUPLICATE' && (
                 <>
-                  📋 <strong>Existing Record Found:</strong> {item.conflictDetails}
+                  <Icon name="list" /> <strong>Existing Record Found:</strong>{' '}
+                  {item.conflictDetails}
                 </>
               )}
               {![
@@ -1943,20 +2018,20 @@ export function ReviewItemCard({
                 marginTop: '0.5rem',
                 marginBottom: '0.5rem',
                 padding: '0.65rem 0.75rem',
-                borderRadius: '6px',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                backgroundColor: 'rgba(239, 68, 68, 0.04)',
+                borderRadius: '16px',
+                border: '1px solid var(--status-danger-border)',
+                backgroundColor: 'var(--status-danger-container)',
               }}
             >
               <div
                 style={{
                   fontWeight: 600,
                   fontSize: '0.8rem',
-                  color: '#fca5a5',
+                  color: 'var(--status-danger)',
                   marginBottom: '0.4rem',
                 }}
               >
-                ⚡ Conflicting Details Comparison:
+                <Icon name="ai" size={20} /> Conflicting Details Comparison:
               </div>
               <div
                 style={{
@@ -1965,14 +2040,15 @@ export function ReviewItemCard({
                   gap: '0.5rem',
                   fontSize: '0.8rem',
                 }}
+                className="layout-group"
               >
                 {item.existingPayload && (
                   <div
                     style={{
                       padding: '0.45rem',
-                      borderRadius: '4px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '16px',
+                      backgroundColor: 'var(--m3-surface)',
+                      border: '1px solid var(--m3-outline-variant)',
                     }}
                   >
                     <div
@@ -1990,15 +2066,15 @@ export function ReviewItemCard({
                 <div
                   style={{
                     padding: '0.45rem',
-                    borderRadius: '4px',
-                    backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                    border: '1px solid rgba(59, 130, 246, 0.2)',
+                    borderRadius: '16px',
+                    backgroundColor: 'var(--m3-secondary-container)',
+                    border: '1px solid var(--m3-outline-variant)',
                   }}
                 >
                   <div
                     style={{
                       fontWeight: 600,
-                      color: 'var(--primary, #3b82f6)',
+                      color: 'var(--primary, var(--m3-on-surface))',
                       marginBottom: '0.2rem',
                     }}
                   >
@@ -2014,8 +2090,8 @@ export function ReviewItemCard({
                   marginTop: '0.5rem',
                   padding: '0.5rem 0.65rem',
                   borderRadius: '5px',
-                  backgroundColor: 'rgba(0, 0, 0, 0.2)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  backgroundColor: 'color-mix(in srgb,var(--m3-scrim) 48%,transparent)',
+                  border: '1px solid var(--m3-outline-variant)',
                   fontSize: '0.8rem',
                 }}
               >
@@ -2023,15 +2099,17 @@ export function ReviewItemCard({
                   style={{
                     fontWeight: 600,
                     fontSize: '0.78rem',
-                    color: '#93c5fd',
+                    color: 'var(--m3-on-surface)',
                     marginBottom: '0.25rem',
                   }}
                 >
-                  ⚡ Field-Level Impact on Replace Existing:
+                  <Icon name="ai" size={20} /> Field-Level Impact on Replace Existing:
                 </div>
                 {fieldDiffs.fieldsToChange.length > 0 ? (
                   <div style={{ marginBottom: '0.25rem' }}>
-                    <span style={{ color: '#fde047', fontWeight: 600 }}>Will update:</span>
+                    <span style={{ color: 'var(--status-warning)', fontWeight: 600 }}>
+                      Will update:
+                    </span>
                     <ul style={{ margin: '0.15rem 0 0.25rem 1.2rem', padding: 0 }}>
                       {fieldDiffs.fieldsToChange.map((diff) => (
                         <li key={diff.label}>
@@ -2039,7 +2117,7 @@ export function ReviewItemCard({
                           <span style={{ textDecoration: 'line-through', opacity: 0.7 }}>
                             {diff.from || '(empty)'}
                           </span>{' '}
-                          → <strong style={{ color: '#93c5fd' }}>{diff.to}</strong>
+                          → <strong style={{ color: 'var(--m3-on-surface)' }}>{diff.to}</strong>
                         </li>
                       ))}
                     </ul>
@@ -2050,8 +2128,9 @@ export function ReviewItemCard({
                   </div>
                 )}
                 {fieldDiffs.preservedFields.length > 0 && (
-                  <div style={{ color: '#86efac', fontSize: '0.78rem' }}>
-                    ✓ <strong>Preserved verified fields (missing in import):</strong>{' '}
+                  <div style={{ color: 'var(--status-success)', fontSize: '0.78rem' }}>
+                    <Icon name="check" size={20} />{' '}
+                    <strong>Preserved verified fields (missing in import):</strong>{' '}
                     {fieldDiffs.preservedFields.join(', ')}
                   </div>
                 )}
@@ -2075,10 +2154,13 @@ export function ReviewItemCard({
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div
+          style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}
+          className="layout-group"
+        >
           {!isEditing && (
             <>
-              <button
+              <Button
                 type="button"
                 className="btn btn-secondary"
                 style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
@@ -2087,9 +2169,9 @@ export function ReviewItemCard({
                   onStartEdit();
                 }}
               >
-                ✎ Edit
-              </button>
-              <button
+                <Icon name="edit" size={20} /> Edit
+              </Button>
+              <Button
                 type="button"
                 className="btn btn-secondary"
                 style={{
@@ -2099,12 +2181,12 @@ export function ReviewItemCard({
                 }}
                 onClick={onReject}
               >
-                ✕ Reject
-              </button>
+                <Icon name="close" size={20} /> Reject
+              </Button>
 
               {item.classification === 'CONFLICT' ? (
                 <>
-                  <button
+                  <Button
                     type="button"
                     className={`btn ${
                       item.reviewStatus === 'APPROVED' &&
@@ -2116,8 +2198,8 @@ export function ReviewItemCard({
                     onClick={() => onResolveConflict && onResolveConflict('KEEP_EXISTING')}
                   >
                     Keep Existing
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="button"
                     className={`btn ${
                       item.reviewStatus === 'APPROVED' &&
@@ -2129,9 +2211,9 @@ export function ReviewItemCard({
                     onClick={() => onResolveConflict && onResolveConflict('REPLACE_EXISTING')}
                   >
                     Replace Existing
-                  </button>
+                  </Button>
                   {item.section !== 'PROFILE' && (
-                    <button
+                    <Button
                       type="button"
                       className={`btn ${
                         item.reviewStatus === 'APPROVED' &&
@@ -2143,12 +2225,12 @@ export function ReviewItemCard({
                       onClick={() => onResolveConflict && onResolveConflict('ADD_AS_SEPARATE')}
                     >
                       Add as Separate
-                    </button>
+                    </Button>
                   )}
                 </>
               ) : item.classification === 'POTENTIAL_MATCH' ? (
                 <>
-                  <button
+                  <Button
                     type="button"
                     className={`btn ${
                       item.reviewStatus === 'APPROVED' &&
@@ -2160,9 +2242,9 @@ export function ReviewItemCard({
                     onClick={onApprove}
                   >
                     Confirm Match
-                  </button>
+                  </Button>
                   {item.section !== 'PROFILE' && (
-                    <button
+                    <Button
                       type="button"
                       className={`btn ${
                         item.reviewStatus === 'APPROVED' &&
@@ -2174,18 +2256,18 @@ export function ReviewItemCard({
                       onClick={() => onResolveConflict && onResolveConflict('ADD_AS_SEPARATE')}
                     >
                       Add as New
-                    </button>
+                    </Button>
                   )}
                 </>
               ) : (
-                <button
+                <Button
                   type="button"
                   className={`btn ${item.reviewStatus === 'APPROVED' ? 'btn-primary' : 'btn-secondary'}`}
                   style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem' }}
                   onClick={onApprove}
                 >
-                  ✓ Accept
-                </button>
+                  <Icon name="check" size={20} /> Accept
+                </Button>
               )}
             </>
           )}
@@ -2203,11 +2285,18 @@ export function ReviewItemCard({
             flexDirection: 'column',
             gap: '0.6rem',
           }}
+          className="layout-group"
         >
           {/* 1. PROFILE */}
           {item.section === 'PROFILE' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}
+              className="layout-group"
+            >
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -2220,7 +2309,7 @@ export function ReviewItemCard({
                   >
                     Full Name <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2241,7 +2330,7 @@ export function ReviewItemCard({
                   >
                     Headline (Optional)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2252,7 +2341,10 @@ export function ReviewItemCard({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -2265,7 +2357,7 @@ export function ReviewItemCard({
                   >
                     Email (Optional)
                   </label>
-                  <input
+                  <Input
                     type="email"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2286,7 +2378,7 @@ export function ReviewItemCard({
                   >
                     Phone (Optional)
                   </label>
-                  <input
+                  <Input
                     type="tel"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2307,7 +2399,7 @@ export function ReviewItemCard({
                   >
                     Location (Optional)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2335,7 +2427,7 @@ export function ReviewItemCard({
                 >
                   Professional Summary (Optional)
                 </label>
-                <textarea
+                <Textarea
                   className="input"
                   rows={3}
                   style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2349,8 +2441,14 @@ export function ReviewItemCard({
 
           {/* 2. EXPERIENCE */}
           {item.section === 'EXPERIENCE' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}
+              className="layout-group"
+            >
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -2363,7 +2461,7 @@ export function ReviewItemCard({
                   >
                     Position / Role <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2384,7 +2482,7 @@ export function ReviewItemCard({
                   >
                     Organization / Company <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2402,6 +2500,7 @@ export function ReviewItemCard({
                   gap: '0.5rem',
                   alignItems: 'flex-end',
                 }}
+                className="layout-group"
               >
                 <div>
                   <label
@@ -2415,7 +2514,7 @@ export function ReviewItemCard({
                   >
                     Start Date <span style={{ color: 'var(--danger)' }}>*</span> (YYYY-MM or YYYY)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2436,7 +2535,7 @@ export function ReviewItemCard({
                   >
                     End Date (Optional, YYYY-MM or YYYY)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2456,7 +2555,7 @@ export function ReviewItemCard({
                       cursor: 'pointer',
                     }}
                   >
-                    <input
+                    <Input
                       type="checkbox"
                       checked={Boolean(editFormData.isCurrent)}
                       onChange={(e) => {
@@ -2481,7 +2580,7 @@ export function ReviewItemCard({
                 >
                   Location (Optional)
                 </label>
-                <input
+                <Input
                   type="text"
                   className="input"
                   style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2503,7 +2602,7 @@ export function ReviewItemCard({
                 >
                   Description (Optional)
                 </label>
-                <textarea
+                <Textarea
                   className="input"
                   rows={2}
                   style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2525,7 +2624,7 @@ export function ReviewItemCard({
                 >
                   Achievements (Optional, one bullet per line)
                 </label>
-                <textarea
+                <Textarea
                   className="input"
                   rows={3}
                   style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2543,8 +2642,14 @@ export function ReviewItemCard({
 
           {/* 3. EDUCATION */}
           {item.section === 'EDUCATION' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}
+              className="layout-group"
+            >
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -2557,7 +2662,7 @@ export function ReviewItemCard({
                   >
                     Institution / University <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2578,7 +2683,7 @@ export function ReviewItemCard({
                   >
                     Degree (Optional)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2596,6 +2701,7 @@ export function ReviewItemCard({
                   gap: '0.5rem',
                   alignItems: 'flex-end',
                 }}
+                className="layout-group"
               >
                 <div>
                   <label
@@ -2609,7 +2715,7 @@ export function ReviewItemCard({
                   >
                     Field of Study (Optional)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2630,7 +2736,7 @@ export function ReviewItemCard({
                   >
                     Start Date (Optional, YYYY-MM or YYYY)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2651,7 +2757,7 @@ export function ReviewItemCard({
                   >
                     End Date (Optional, YYYY-MM or YYYY)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2663,7 +2769,10 @@ export function ReviewItemCard({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -2676,7 +2785,7 @@ export function ReviewItemCard({
                   >
                     Location (Optional)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2695,7 +2804,7 @@ export function ReviewItemCard({
                       cursor: 'pointer',
                     }}
                   >
-                    <input
+                    <Input
                       type="checkbox"
                       checked={Boolean(editFormData.isCurrent)}
                       onChange={(e) => {
@@ -2720,7 +2829,7 @@ export function ReviewItemCard({
                 >
                   Description (Optional)
                 </label>
-                <textarea
+                <Textarea
                   className="input"
                   rows={2}
                   style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2734,8 +2843,14 @@ export function ReviewItemCard({
 
           {/* 4. SKILL */}
           {item.section === 'SKILL' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}
+              className="layout-group"
+            >
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -2748,7 +2863,7 @@ export function ReviewItemCard({
                   >
                     Skill Name <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2769,7 +2884,7 @@ export function ReviewItemCard({
                   >
                     Category (Optional)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2780,7 +2895,10 @@ export function ReviewItemCard({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -2793,7 +2911,7 @@ export function ReviewItemCard({
                   >
                     Proficiency (Optional)
                   </label>
-                  <select
+                  <Select
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
                     value={editFormData.proficiency || ''}
@@ -2804,7 +2922,7 @@ export function ReviewItemCard({
                     <option value="Intermediate">Intermediate</option>
                     <option value="Advanced">Advanced</option>
                     <option value="Expert">Expert</option>
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <label
@@ -2818,7 +2936,7 @@ export function ReviewItemCard({
                   >
                     Years of Experience (Optional)
                   </label>
-                  <input
+                  <Input
                     type="number"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2836,8 +2954,14 @@ export function ReviewItemCard({
 
           {/* 5. CERTIFICATION */}
           {item.section === 'CERTIFICATION' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}
+              className="layout-group"
+            >
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -2850,7 +2974,7 @@ export function ReviewItemCard({
                   >
                     Certification Name <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2871,7 +2995,7 @@ export function ReviewItemCard({
                   >
                     Issuing Organization <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2882,7 +3006,10 @@ export function ReviewItemCard({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -2895,7 +3022,7 @@ export function ReviewItemCard({
                   >
                     Issue Date (Optional, YYYY-MM or YYYY)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2916,7 +3043,7 @@ export function ReviewItemCard({
                   >
                     Expiration Date (Optional, YYYY-MM or YYYY)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2927,7 +3054,10 @@ export function ReviewItemCard({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -2940,7 +3070,7 @@ export function ReviewItemCard({
                   >
                     Credential ID (Optional)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2961,7 +3091,7 @@ export function ReviewItemCard({
                   >
                     Credential URL (Optional)
                   </label>
-                  <input
+                  <Input
                     type="url"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -2976,8 +3106,14 @@ export function ReviewItemCard({
 
           {/* 6. LANGUAGE */}
           {item.section === 'LANGUAGE' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}
+              className="layout-group"
+            >
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -2990,7 +3126,7 @@ export function ReviewItemCard({
                   >
                     Language <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -3011,7 +3147,7 @@ export function ReviewItemCard({
                   >
                     Proficiency (Optional)
                   </label>
-                  <select
+                  <Select
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
                     value={editFormData.proficiency || ''}
@@ -3023,11 +3159,14 @@ export function ReviewItemCard({
                     <option value="Professional">Professional</option>
                     <option value="Fluent">Fluent</option>
                     <option value="Native">Native</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -3040,7 +3179,7 @@ export function ReviewItemCard({
                   >
                     CEFR Level (Optional)
                   </label>
-                  <select
+                  <Select
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
                     value={editFormData.cefrLevel || ''}
@@ -3053,7 +3192,7 @@ export function ReviewItemCard({
                     <option value="B2">B2 - Upper Intermediate</option>
                     <option value="C1">C1 - Advanced</option>
                     <option value="C2">C2 - Mastery / Native</option>
-                  </select>
+                  </Select>
                 </div>
                 <div>
                   <label
@@ -3067,7 +3206,7 @@ export function ReviewItemCard({
                   >
                     Notes (Optional)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -3082,8 +3221,14 @@ export function ReviewItemCard({
 
           {/* 7. PROJECT */}
           {item.section === 'PROJECT' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}
+              className="layout-group"
+            >
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -3096,7 +3241,7 @@ export function ReviewItemCard({
                   >
                     Project Name <span style={{ color: 'var(--danger)' }}>*</span>
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -3117,7 +3262,7 @@ export function ReviewItemCard({
                   >
                     Role (Optional)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -3128,7 +3273,10 @@ export function ReviewItemCard({
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label
                     style={{
@@ -3141,7 +3289,7 @@ export function ReviewItemCard({
                   >
                     Start Date (Optional, YYYY-MM)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -3162,7 +3310,7 @@ export function ReviewItemCard({
                   >
                     End Date (Optional, YYYY-MM)
                   </label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -3183,7 +3331,7 @@ export function ReviewItemCard({
                   >
                     Project URL (Optional)
                   </label>
-                  <input
+                  <Input
                     type="url"
                     className="input"
                     style={{ width: '100%', boxSizing: 'border-box' }}
@@ -3206,7 +3354,7 @@ export function ReviewItemCard({
                 >
                   Description (Optional)
                 </label>
-                <textarea
+                <Textarea
                   className="input"
                   rows={2}
                   style={{ width: '100%', boxSizing: 'border-box' }}
@@ -3228,7 +3376,7 @@ export function ReviewItemCard({
                 >
                   Highlights (Optional, one bullet per line)
                 </label>
-                <textarea
+                <Textarea
                   className="input"
                   rows={2}
                   style={{ width: '100%', boxSizing: 'border-box' }}
@@ -3246,7 +3394,10 @@ export function ReviewItemCard({
 
           {/* 8. LINK */}
           {item.section === 'LINK' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.5rem' }}>
+            <div
+              style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.5rem' }}
+              className="layout-group"
+            >
               <div>
                 <label
                   style={{
@@ -3259,7 +3410,7 @@ export function ReviewItemCard({
                 >
                   Label <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
-                <input
+                <Input
                   type="text"
                   className="input"
                   style={{ width: '100%', boxSizing: 'border-box' }}
@@ -3280,7 +3431,7 @@ export function ReviewItemCard({
                 >
                   URL <span style={{ color: 'var(--danger)' }}>*</span>
                 </label>
-                <input
+                <Input
                   type="url"
                   className="input"
                   style={{ width: '100%', boxSizing: 'border-box' }}
@@ -3296,16 +3447,16 @@ export function ReviewItemCard({
           {validationError && (
             <div
               style={{
-                color: 'var(--danger, #ef4444)',
+                color: 'var(--danger, var(--status-danger))',
                 fontSize: '0.8rem',
                 fontWeight: 600,
                 padding: '0.35rem 0.5rem',
-                backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                borderRadius: '4px',
+                backgroundColor: 'var(--status-danger-container)',
+                border: '1px solid var(--status-danger-border)',
+                borderRadius: '16px',
               }}
             >
-              ⚠️ {validationError}
+              <Icon name="warning" /> {validationError}
             </div>
           )}
 
@@ -3317,8 +3468,9 @@ export function ReviewItemCard({
               gap: '0.5rem',
               marginTop: '0.4rem',
             }}
+            className="layout-group"
           >
-            <button
+            <Button
               type="button"
               className="btn btn-secondary"
               style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
@@ -3327,16 +3479,16 @@ export function ReviewItemCard({
                 onCancelEdit();
               }}
             >
-              ✕ Cancel
-            </button>
-            <button
+              <Icon name="close" size={20} /> Cancel
+            </Button>
+            <Button
               type="button"
               className="btn btn-primary"
               style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem' }}
               onClick={handleValidateAndSave}
             >
-              💾 Save Changes
-            </button>
+              <Icon name="check" size={20} /> Save Changes
+            </Button>
           </div>
         </div>
       )}

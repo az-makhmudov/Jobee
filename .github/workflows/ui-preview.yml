@@ -1,0 +1,45 @@
+name: UI migration preview
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: jobee_ui
+          POSTGRES_PASSWORD: local_ci_only
+          POSTGRES_DB: jobee_ui_ci_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      UI_TEST_DATABASE_URL: postgresql://jobee_ui:local_ci_only@127.0.0.1:5432/jobee_ui_ci_test
+      DATABASE_URL: postgresql://jobee_ui:local_ci_only@127.0.0.1:5432/jobee_ui_ci_test
+      EMAIL_TOKEN_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      BETTER_AUTH_SECRET: jobee-ui-local-test-secret-0000000000000000
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build:packages
+      - run: npm run db:migrate
+      - run: npx playwright install --with-deps chromium
+      - run: node scripts/audit-ui-contracts.mjs
+      - run: npm run test:ui
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jobee-ui-preview
+          path: output/playwright
+          retention-days: 14

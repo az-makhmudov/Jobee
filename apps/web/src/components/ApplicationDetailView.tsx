@@ -1,3 +1,6 @@
+import { applicationStatusStyle, browserRunStyle } from '../ui/status.js';
+import { useFeedback } from '../ui/Feedback.js';
+import { Button, Card, Icon, Input, ModalSurface, Select, Textarea } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import { ApplicationCrmClient } from '../api/application-crm-client.js';
 import { formatStatusLabel } from './ApplicationsCrmView.js';
@@ -26,6 +29,7 @@ export function ApplicationDetailView({
   onOpenStudio,
   onNavigateToJob,
 }: Props) {
+  const { alert, confirm } = useFeedback();
   const [detail, setDetail] = useState<ApplicationDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -230,7 +234,7 @@ export function ApplicationDetailView({
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!confirm('Are you sure you want to delete this note?')) return;
+    if (!(await confirm('Are you sure you want to delete this note?'))) return;
     try {
       await ApplicationCrmClient.deleteNote(applicationId, noteId);
       await loadDetail();
@@ -267,7 +271,7 @@ export function ApplicationDetailView({
   };
 
   const handleDeleteContact = async (contactId: string) => {
-    if (!confirm('Are you sure you want to delete this contact?')) return;
+    if (!(await confirm('Are you sure you want to delete this contact?'))) return;
     try {
       await ApplicationCrmClient.deleteContact(applicationId, contactId);
       await loadDetail();
@@ -340,9 +344,9 @@ export function ApplicationDetailView({
 
   const handleArchive = async () => {
     if (
-      !confirm(
+      !(await confirm(
         'Archive this application? It will be hidden from the active pipeline board while preserving all history, timeline events, and submission provenance.',
-      )
+      ))
     )
       return;
     try {
@@ -362,43 +366,6 @@ export function ApplicationDetailView({
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'DISCOVERED':
-      case 'ANALYZED':
-        return '#64748b';
-      case 'MATCHED':
-        return '#6366f1';
-      case 'NEEDS_REVIEW':
-        return '#f97316';
-      case 'READY_TO_APPLY':
-        return '#3b82f6';
-      case 'APPLYING':
-        return '#06b6d4';
-      case 'APPLIED':
-        return '#10b981';
-      case 'CONFIRMATION_RECEIVED':
-        return '#0d9488';
-      case 'SCREENING':
-        return '#f59e0b';
-      case 'ASSESSMENT':
-        return '#d97706';
-      case 'INTERVIEW':
-      case 'FINAL_INTERVIEW':
-        return '#8b5cf6';
-      case 'OFFER':
-        return '#059669';
-      case 'REJECTED':
-        return '#ef4444';
-      case 'WITHDRAWN':
-      case 'EXPIRED':
-      case 'SKIPPED':
-        return '#6b7280';
-      default:
-        return 'var(--text-secondary)';
-    }
-  };
-
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '3rem' }}>
@@ -413,13 +380,13 @@ export function ApplicationDetailView({
   if (error || !detail) {
     return (
       <div>
-        <button
+        <Button
           className="btn btn-secondary btn-sm"
           onClick={onBack}
           style={{ marginBottom: '1rem' }}
         >
           ← Back to Applications
-        </button>
+        </Button>
         <div className="banner banner-error">{error || 'Application not found'}</div>
       </div>
     );
@@ -429,25 +396,28 @@ export function ApplicationDetailView({
   const isTerminal = ['REJECTED', 'WITHDRAWN', 'EXPIRED'].includes(application.status);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '3rem' }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '3rem' }}
+      className="layout-group"
+    >
       {/* Top Navigation & Actions */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button className="btn btn-secondary btn-sm" onClick={onBack}>
+        <Button className="btn btn-secondary btn-sm" onClick={onBack}>
           ← Back to Applications CRM
-        </button>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        </Button>
+        <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
           {currentPackage && onOpenStudio && (
-            <button
+            <Button
               className="btn btn-outline btn-sm"
               onClick={() => onOpenStudio(currentPackage.packageId)}
             >
-              🎨 Open in Application Studio
-            </button>
+              <Icon name="document" /> Open in Application Studio
+            </Button>
           )}
           {onNavigateToJob && (
-            <button className="btn btn-outline btn-sm" onClick={() => onNavigateToJob(job.id)}>
-              💼 View Job Listing
-            </button>
+            <Button className="btn btn-outline btn-sm" onClick={() => onNavigateToJob(job.id)}>
+              <Icon name="applications" /> View Job Listing
+            </Button>
           )}
         </div>
       </div>
@@ -462,6 +432,7 @@ export function ApplicationDetailView({
             flexWrap: 'wrap',
             gap: '1rem',
           }}
+          className="layout-group"
         >
           <div>
             <div
@@ -471,12 +442,12 @@ export function ApplicationDetailView({
                 gap: '0.75rem',
                 marginBottom: '0.5rem',
               }}
+              className="layout-group"
             >
               <h1 style={{ fontSize: '1.6rem', margin: 0 }}>{job.title}</h1>
               <span
                 style={{
-                  background: getStatusColor(application.status),
-                  color: '#fff',
+                  ...applicationStatusStyle(application.status),
                   padding: '0.2rem 0.6rem',
                   borderRadius: '12px',
                   fontSize: '0.8rem',
@@ -485,12 +456,20 @@ export function ApplicationDetailView({
               >
                 {formatStatusLabel(application.status)}
               </span>
-              {application.isArchived && <span className="badge badge-secondary">📦 Archived</span>}
+              {application.isArchived && (
+                <span className="badge badge-secondary">
+                  <Icon name="folder" size={20} /> Archived
+                </span>
+              )}
               {application.isFollowUpOverdue && (
-                <span className="badge badge-error">⚠️ Follow-up Overdue</span>
+                <span className="badge badge-error">
+                  <Icon name="warning" /> Follow-up Overdue
+                </span>
               )}
               {application.isFollowUpDue && !application.isFollowUpOverdue && (
-                <span className="badge badge-warning">⏰ Follow-up Due Today</span>
+                <span className="badge badge-warning">
+                  <Icon name="schedule" size={20} /> Follow-up Due Today
+                </span>
               )}
             </div>
 
@@ -502,7 +481,10 @@ export function ApplicationDetailView({
           </div>
 
           {/* Quick Metrics Badge */}
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <div
+            style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}
+            className="layout-group"
+          >
             {matchAnalysis && (
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -545,6 +527,7 @@ export function ApplicationDetailView({
             flexWrap: 'wrap',
             alignItems: 'center',
           }}
+          className="layout-group"
         >
           <span
             style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}
@@ -555,173 +538,173 @@ export function ApplicationDetailView({
           {/* Pre-Application Actions */}
           {application.status === 'DISCOVERED' && (
             <>
-              <button
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.ANALYZED)}
               >
-                🔍 Mark Analyzed
-              </button>
-              <button
+                <Icon name="search" /> Mark Analyzed
+              </Button>
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.MATCHED)}
               >
-                🎯 Mark Matched
-              </button>
-              <button
+                <Icon name="jobs" /> Mark Matched
+              </Button>
+              <Button
                 className="btn btn-primary btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
               >
-                ⚡ Ready to Apply
-              </button>
-              <button
+                <Icon name="ai" size={20} /> Ready to Apply
+              </Button>
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
               >
                 ⏭️ Skip
-              </button>
+              </Button>
             </>
           )}
 
           {application.status === 'ANALYZED' && (
             <>
-              <button
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.MATCHED)}
               >
-                🎯 Mark Matched
-              </button>
-              <button
+                <Icon name="jobs" /> Mark Matched
+              </Button>
+              <Button
                 className="btn btn-primary btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
               >
-                ⚡ Ready to Apply
-              </button>
-              <button
+                <Icon name="ai" size={20} /> Ready to Apply
+              </Button>
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
               >
                 ⏭️ Skip
-              </button>
+              </Button>
             </>
           )}
 
           {application.status === 'MATCHED' && (
             <>
-              <button
+              <Button
                 className="btn btn-primary btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
               >
-                ⚡ Ready to Apply
-              </button>
-              <button
+                <Icon name="ai" size={20} /> Ready to Apply
+              </Button>
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.NEEDS_REVIEW)}
               >
-                ⚠️ Needs Review
-              </button>
-              <button
+                <Icon name="warning" /> Needs Review
+              </Button>
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
               >
                 ⏭️ Skip
-              </button>
+              </Button>
             </>
           )}
 
           {application.status === 'NEEDS_REVIEW' && (
             <>
-              <button
+              <Button
                 className="btn btn-primary btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
               >
-                ⚡ Ready to Apply
-              </button>
-              <button
+                <Icon name="ai" size={20} /> Ready to Apply
+              </Button>
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
               >
                 ⏭️ Skip
-              </button>
+              </Button>
             </>
           )}
 
           {application.status === 'READY_TO_APPLY' && (
             <>
-              <button
+              <Button
                 className="btn btn-primary btn-sm"
                 onClick={() => setShowMarkAppliedModal(true)}
               >
-                🚀 Mark as Applied
-              </button>
-              <button
+                <Icon name="forward" /> Mark as Applied
+              </Button>
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.APPLYING)}
               >
-                ⏳ Move to Applying
-              </button>
-              <button
+                <Icon name="schedule" size={20} /> Move to Applying
+              </Button>
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
               >
                 ⏭️ Skip
-              </button>
+              </Button>
             </>
           )}
 
           {application.status === 'APPLYING' && (
             <>
-              <button
+              <Button
                 className="btn btn-primary btn-sm"
                 onClick={() => setShowMarkAppliedModal(true)}
               >
-                🚀 Complete Application (Mark Applied)
-              </button>
-              <button
+                <Icon name="forward" /> Complete Application (Mark Applied)
+              </Button>
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
               >
                 ↩️ Back to Ready
-              </button>
+              </Button>
             </>
           )}
 
           {application.status === 'SKIPPED' && (
             <>
-              <button
+              <Button
                 className="btn btn-primary btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
               >
-                ⚡ Reopen (Ready to Apply)
-              </button>
-              <button
+                <Icon name="ai" size={20} /> Reopen (Ready to Apply)
+              </Button>
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.MATCHED)}
               >
-                🎯 Move to Matched
-              </button>
+                <Icon name="jobs" /> Move to Matched
+              </Button>
             </>
           )}
 
           {application.status === 'APPLIED' && (
             <>
-              <button
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.CONFIRMATION_RECEIVED)}
               >
-                📩 Confirmation Received
-              </button>
-              <button
+                <Icon name="messages" size={20} /> Confirmation Received
+              </Button>
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.SCREENING)}
               >
-                📞 Move to Screening
-              </button>
-              <button
+                <Icon name="interviews" size={20} /> Move to Screening
+              </Button>
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.INTERVIEW)}
               >
-                🎙️ Move to Interview
-              </button>
+                <Icon name="interviews" size={20} /> Move to Interview
+              </Button>
             </>
           )}
 
@@ -729,91 +712,91 @@ export function ApplicationDetailView({
             application.status === 'SCREENING' ||
             application.status === 'ASSESSMENT') && (
             <>
-              <button
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.ASSESSMENT)}
               >
-                📝 Assessment Received
-              </button>
-              <button
+                <Icon name="edit" /> Assessment Received
+              </Button>
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.INTERVIEW)}
               >
-                🎙️ Move to Interview
-              </button>
-              <button
+                <Icon name="interviews" size={20} /> Move to Interview
+              </Button>
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.OFFER)}
               >
-                🎉 Offer Received
-              </button>
+                <Icon name="verified" size={20} /> Offer Received
+              </Button>
             </>
           )}
 
           {(application.status === 'INTERVIEW' || application.status === 'FINAL_INTERVIEW') && (
             <>
-              <button
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.FINAL_INTERVIEW)}
               >
-                🎯 Final Interview
-              </button>
-              <button
+                <Icon name="jobs" /> Final Interview
+              </Button>
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.OFFER)}
               >
-                🎉 Offer Received
-              </button>
+                <Icon name="verified" size={20} /> Offer Received
+              </Button>
             </>
           )}
 
           {/* Terminal Actions */}
           {!isTerminal && application.status !== 'SKIPPED' && (
             <>
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
-                style={{ color: '#ef4444' }}
+                style={{ color: 'var(--status-danger)' }}
                 onClick={() => openTransition(ApplicationLifecycleStatus.REJECTED)}
               >
-                ✕ Rejected
-              </button>
-              <button
+                <Icon name="close" size={20} /> Rejected
+              </Button>
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => openTransition(ApplicationLifecycleStatus.WITHDRAWN)}
               >
                 Withdraw
-              </button>
+              </Button>
             </>
           )}
 
           {/* Correction Reopen Action for Terminal States */}
           {isTerminal && (
-            <button
+            <Button
               className="btn btn-warning btn-sm"
               onClick={() => openTransition(ApplicationLifecycleStatus.INTERVIEW, true)}
             >
-              🔄 Reopen Process (Correction)
-            </button>
+              <Icon name="sync" /> Reopen Process (Correction)
+            </Button>
           )}
 
           {/* Archive / Unarchive Action */}
           <div style={{ marginLeft: 'auto' }}>
             {application.isArchived ? (
-              <button
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={handleUnarchive}
                 title="Restore application to active pipeline"
               >
-                📂 Unarchive
-              </button>
+                <Icon name="folder" /> Unarchive
+              </Button>
             ) : (
-              <button
+              <Button
                 className="btn btn-outline btn-sm"
                 onClick={handleArchive}
                 title="Soft-hide from active pipeline while preserving all history and provenance"
               >
-                📦 Archive Application
-              </button>
+                <Icon name="folder" size={20} /> Archive Application
+              </Button>
             )}
           </div>
         </div>
@@ -823,14 +806,18 @@ export function ApplicationDetailView({
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%,360px), 1fr))',
           gap: '1.5rem',
         }}
+        className="layout-group"
       >
         {/* Left Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+          className="layout-group"
+        >
           {/* Next Action & Follow-up Card */}
-          <div className="card" style={{ padding: '1.25rem' }}>
+          <Card className="card" style={{ padding: '1.25rem' }}>
             <div
               style={{
                 display: 'flex',
@@ -841,23 +828,23 @@ export function ApplicationDetailView({
             >
               <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Next Action & Follow-up</h3>
               {!isEditingNextAction ? (
-                <button
+                <Button
                   className="btn btn-secondary btn-sm"
                   onClick={() => setIsEditingNextAction(true)}
                 >
                   Edit
-                </button>
+                </Button>
               ) : (
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
+                <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+                  <Button
                     className="btn btn-secondary btn-sm"
                     onClick={() => setIsEditingNextAction(false)}
                   >
                     Cancel
-                  </button>
-                  <button className="btn btn-primary btn-sm" onClick={handleSaveNextAction}>
+                  </Button>
+                  <Button className="btn btn-primary btn-sm" onClick={handleSaveNextAction}>
                     Save
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -877,16 +864,22 @@ export function ApplicationDetailView({
                 )}
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <input
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                className="layout-group"
+              >
+                <Input
                   type="text"
                   className="input"
                   placeholder="e.g. Follow up with recruiter on phone screen"
                   value={nextActionText}
                   onChange={(e) => setNextActionText(e.target.value)}
                 />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                  <select
+                <div
+                  style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                  className="layout-group"
+                >
+                  <Select
                     className="input"
                     value={nextActionType}
                     onChange={(e) => setNextActionType(e.target.value)}
@@ -896,8 +889,8 @@ export function ApplicationDetailView({
                         {t}
                       </option>
                     ))}
-                  </select>
-                  <input
+                  </Select>
+                  <Input
                     type="datetime-local"
                     className="input"
                     value={followUpDate}
@@ -906,10 +899,10 @@ export function ApplicationDetailView({
                 </div>
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Submission Materials & Provenance Card */}
-          <div className="card" style={{ padding: '1.25rem' }}>
+          <Card className="card" style={{ padding: '1.25rem' }}>
             <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem' }}>
               Submission Provenance & Frozen Materials
             </h3>
@@ -922,6 +915,7 @@ export function ApplicationDetailView({
                   gap: '0.75rem',
                   fontSize: '0.85rem',
                 }}
+                className="layout-group"
               >
                 <div>
                   <span style={{ color: 'var(--text-secondary)' }}>
@@ -948,6 +942,7 @@ export function ApplicationDetailView({
                     flexDirection: 'column',
                     gap: '0.5rem',
                   }}
+                  className="layout-group"
                 >
                   {submittedPackage.cvArtifact && (
                     <div
@@ -957,11 +952,11 @@ export function ApplicationDetailView({
                         alignItems: 'center',
                         background: 'var(--bg-secondary)',
                         padding: '0.5rem 0.75rem',
-                        borderRadius: '6px',
+                        borderRadius: '16px',
                       }}
                     >
                       <span>
-                        📄 <strong>Tailored CV (DOCX)</strong>
+                        <Icon name="document" /> <strong>Tailored CV (DOCX)</strong>
                       </span>
                       <a
                         href={submittedPackage.cvArtifact.downloadUrl}
@@ -981,7 +976,7 @@ export function ApplicationDetailView({
                         alignItems: 'center',
                         background: 'var(--bg-secondary)',
                         padding: '0.5rem 0.75rem',
-                        borderRadius: '6px',
+                        borderRadius: '16px',
                       }}
                     >
                       <span>
@@ -1005,10 +1000,10 @@ export function ApplicationDetailView({
                   : 'Submitted externally without a frozen studio package.'}
               </p>
             )}
-          </div>
+          </Card>
 
           {/* Browser Application Automation & ATS Worker Card (JOB-P5-T01) */}
-          <div className="card" style={{ padding: '1.25rem' }}>
+          <Card className="card" style={{ padding: '1.25rem' }}>
             <div
               style={{
                 display: 'flex',
@@ -1026,7 +1021,10 @@ export function ApplicationDetailView({
                   gap: '0.5rem',
                 }}
               >
-                <span>🤖</span> Browser Application Worker & ATS Auto-Fill
+                <span>
+                  <Icon name="ai" size={20} />
+                </span>{' '}
+                Browser Application Worker & ATS Auto-Fill
               </h3>
               {browserRuns.length > 0 && (
                 <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>
@@ -1055,11 +1053,12 @@ export function ApplicationDetailView({
                 justifyContent: 'space-between',
                 background: 'var(--bg-secondary)',
                 padding: '0.6rem 0.85rem',
-                borderRadius: '6px',
+                borderRadius: '16px',
                 fontSize: '0.85rem',
                 marginBottom: '1rem',
                 gap: '0.5rem',
               }}
+              className="layout-group"
             >
               <span style={{ color: 'var(--text-secondary)' }}>Target Apply URL:</span>
               <span
@@ -1080,41 +1079,50 @@ export function ApplicationDetailView({
             {runError && (
               <div
                 style={{
-                  background: '#fee2e2',
-                  color: '#991b1b',
+                  background: 'var(--status-danger-container)',
+                  color: 'var(--status-danger)',
                   padding: '0.6rem 0.75rem',
-                  borderRadius: '6px',
+                  borderRadius: '16px',
                   fontSize: '0.85rem',
                   marginBottom: '1rem',
                 }}
               >
-                ⚠️ {runError}
+                <Icon name="warning" /> {runError}
               </div>
             )}
 
-            <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-              <button
+            <div
+              style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '1rem' }}
+              className="layout-group"
+            >
+              <Button
                 className="btn btn-primary btn-sm"
                 disabled={startingRun || !(application.applicationUrl || job.sourceUrl)}
                 onClick={() => handleTriggerRun(BrowserRunMode.DRY_RUN)}
                 title="Prefills and validates form fields without submitting"
               >
-                {startingRun ? 'Executing Run...' : '🧪 Run Safe Dry-Run'}
-              </button>
-              <button
+                {startingRun ? (
+                  'Executing Run...'
+                ) : (
+                  <>
+                    <Icon name="settings" size={20} /> Run Safe Dry-Run
+                  </>
+                )}
+              </Button>
+              <Button
                 className="btn btn-outline btn-sm"
                 disabled={startingRun || !(application.applicationUrl || job.sourceUrl)}
                 onClick={() => handleTriggerRun(BrowserRunMode.PREFILL_ONLY)}
                 title="Fills form and preserves active session for manual review"
               >
-                📝 Prefill in Browser
-              </button>
-              <button
+                <Icon name="edit" /> Prefill in Browser
+              </Button>
+              <Button
                 className="btn btn-warning btn-sm"
                 disabled={startingRun || !(application.applicationUrl || job.sourceUrl)}
-                onClick={() => {
+                onClick={async () => {
                   if (
-                    window.confirm(
+                    await confirm(
                       `Human Authorization Required:\n\nAuthorize automated submission to ${job.company || 'employer'}?\n\nThis will populate your verified candidate information, attach your selected CV, and submit the external application form.`,
                     )
                   ) {
@@ -1123,18 +1131,18 @@ export function ApplicationDetailView({
                 }}
                 title="Authorizes worker to fill and submit application to the external ATS"
               >
-                🚀 Submit via Browser Worker
-              </button>
+                <Icon name="forward" /> Submit via Browser Worker
+              </Button>
               {browserRuns.length > 0 && (
-                <button
+                <Button
                   className="btn btn-secondary btn-sm"
                   onClick={() => {
                     setSelectedRun(browserRuns[0]);
                     setShowRunModal(true);
                   }}
                 >
-                  🔍 View Latest Audit Trail
-                </button>
+                  <Icon name="search" /> View Latest Audit Trail
+                </Button>
               )}
             </div>
 
@@ -1150,9 +1158,12 @@ export function ApplicationDetailView({
                 >
                   Execution History
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}
+                  className="layout-group"
+                >
                   {browserRuns.slice(0, 3).map((run) => (
-                    <div
+                    <Button
                       key={run.id}
                       style={{
                         display: 'flex',
@@ -1160,15 +1171,19 @@ export function ApplicationDetailView({
                         alignItems: 'center',
                         background: 'var(--bg-secondary)',
                         padding: '0.4rem 0.6rem',
-                        borderRadius: '4px',
+                        borderRadius: '16px',
                         cursor: 'pointer',
                       }}
                       onClick={() => {
                         setSelectedRun(run);
                         setShowRunModal(true);
                       }}
+                      className="btn-ghost"
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        className="layout-group"
+                      >
                         <span
                           className={`badge ${
                             run.status === 'SUCCESS'
@@ -1181,12 +1196,16 @@ export function ApplicationDetailView({
                           }`}
                           style={{
                             fontSize: '0.75rem',
-                            backgroundColor:
-                              run.status === 'SUBMISSION_UNCERTAIN' ? '#b45309' : undefined,
-                            color: run.status === 'SUBMISSION_UNCERTAIN' ? '#fff' : undefined,
+                            ...browserRunStyle(run.status),
                           }}
                         >
-                          {run.status === 'SUBMISSION_UNCERTAIN' ? '⚠️ UNCERTAIN' : run.status}
+                          {run.status === 'SUBMISSION_UNCERTAIN' ? (
+                            <>
+                              <Icon name="warning" size={20} /> UNCERTAIN
+                            </>
+                          ) : (
+                            run.status
+                          )}
                         </span>
                         <span style={{ fontWeight: 500 }}>{run.atsProvider}</span>
                         <span style={{ color: 'var(--text-secondary)' }}>• {run.mode}</span>
@@ -1198,6 +1217,7 @@ export function ApplicationDetailView({
                           gap: '0.5rem',
                           color: 'var(--text-secondary)',
                         }}
+                        className="layout-group"
                       >
                         <span>
                           {run.fieldsFilledCount}/{run.fieldsDetectedCount} fields filled
@@ -1209,15 +1229,15 @@ export function ApplicationDetailView({
                           })}
                         </span>
                       </div>
-                    </div>
+                    </Button>
                   ))}
                 </div>
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Offer & Compensation Card */}
-          <div className="card" style={{ padding: '1.25rem' }}>
+          <Card className="card" style={{ padding: '1.25rem' }}>
             <div
               style={{
                 display: 'flex',
@@ -1227,9 +1247,9 @@ export function ApplicationDetailView({
               }}
             >
               <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Offer & Compensation</h3>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowOfferModal(true)}>
+              <Button className="btn btn-secondary btn-sm" onClick={() => setShowOfferModal(true)}>
                 {detail.offer ? 'Edit Offer' : '+ Record Offer'}
-              </button>
+              </Button>
             </div>
 
             {detail.offer ? (
@@ -1301,10 +1321,10 @@ export function ApplicationDetailView({
                 No offer recorded yet.
               </p>
             )}
-          </div>
+          </Card>
 
           {/* Recruiter Contacts Card */}
-          <div className="card" style={{ padding: '1.25rem' }}>
+          <Card className="card" style={{ padding: '1.25rem' }}>
             <div
               style={{
                 display: 'flex',
@@ -1316,12 +1336,12 @@ export function ApplicationDetailView({
               <h3 style={{ fontSize: '1.05rem', margin: 0 }}>
                 Recruiter & Contacts ({detail.contacts.length})
               </h3>
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowAddContactModal(true)}
               >
                 + Add Contact
-              </button>
+              </Button>
             </div>
 
             {detail.contacts.length === 0 ? (
@@ -1329,14 +1349,17 @@ export function ApplicationDetailView({
                 No recruiters or contacts linked.
               </p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                className="layout-group"
+              >
                 {detail.contacts.map((c) => (
                   <div
                     key={c.id}
                     style={{
                       background: 'var(--bg-secondary)',
                       padding: '0.75rem',
-                      borderRadius: '6px',
+                      borderRadius: '16px',
                       fontSize: '0.85rem',
                       display: 'flex',
                       justifyContent: 'space-between',
@@ -1358,24 +1381,28 @@ export function ApplicationDetailView({
                       )}
                       {c.phone && <div>{c.phone}</div>}
                     </div>
-                    <button
+                    <Button
                       className="btn btn-secondary btn-sm"
-                      style={{ color: '#ef4444' }}
+                      style={{ color: 'var(--status-danger)' }}
                       onClick={() => handleDeleteContact(c.id)}
+                      aria-label="Delete record"
                     >
-                      ✕
-                    </button>
+                      <Icon name="close" size={20} />
+                    </Button>
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </Card>
         </div>
 
         {/* Right Column: Timeline, Interviews, Assessments & Notes */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+          className="layout-group"
+        >
           {/* Interviews & Assessments Row */}
-          <div className="card" style={{ padding: '1.25rem' }}>
+          <Card className="card" style={{ padding: '1.25rem' }}>
             <div
               style={{
                 display: 'flex',
@@ -1385,19 +1412,19 @@ export function ApplicationDetailView({
               }}
             >
               <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Interviews & Assessments</h3>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
+              <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+                <Button
                   className="btn btn-secondary btn-sm"
                   onClick={() => setShowAddInterviewModal(true)}
                 >
                   + Interview
-                </button>
-                <button
+                </Button>
+                <Button
                   className="btn btn-secondary btn-sm"
                   onClick={() => setShowAddAssessmentModal(true)}
                 >
                   + Assessment
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -1414,14 +1441,17 @@ export function ApplicationDetailView({
                 >
                   INTERVIEWS
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+                  className="layout-group"
+                >
                   {detail.interviews.map((int) => (
                     <div
                       key={int.id}
                       style={{
                         background: 'var(--bg-secondary)',
                         padding: '0.75rem',
-                        borderRadius: '6px',
+                        borderRadius: '16px',
                         fontSize: '0.85rem',
                       }}
                     >
@@ -1432,7 +1462,9 @@ export function ApplicationDetailView({
                           fontWeight: 600,
                         }}
                       >
-                        <span>🎙️ {int.roundTitle}</span>
+                        <span>
+                          <Icon name="interviews" size={20} /> {int.roundTitle}
+                        </span>
                         <span>{new Date(int.scheduledAt).toLocaleString()}</span>
                       </div>
                       {int.interviewerName && (
@@ -1464,14 +1496,17 @@ export function ApplicationDetailView({
                 >
                   ASSESSMENTS & TESTS
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+                  className="layout-group"
+                >
                   {detail.assessments.map((a) => (
                     <div
                       key={a.id}
                       style={{
                         background: 'var(--bg-secondary)',
                         padding: '0.75rem',
-                        borderRadius: '6px',
+                        borderRadius: '16px',
                         fontSize: '0.85rem',
                       }}
                     >
@@ -1482,7 +1517,9 @@ export function ApplicationDetailView({
                           fontWeight: 600,
                         }}
                       >
-                        <span>📝 {a.title}</span>
+                        <span>
+                          <Icon name="edit" /> {a.title}
+                        </span>
                         <span className="badge badge-outline">{a.status}</span>
                       </div>
                       {a.dueAt && (
@@ -1508,10 +1545,10 @@ export function ApplicationDetailView({
                 No interview rounds or technical assessments recorded.
               </p>
             )}
-          </div>
+          </Card>
 
           {/* CRM User Notes */}
-          <div className="card" style={{ padding: '1.25rem' }}>
+          <Card className="card" style={{ padding: '1.25rem' }}>
             <div
               style={{
                 display: 'flex',
@@ -1523,12 +1560,12 @@ export function ApplicationDetailView({
               <h3 style={{ fontSize: '1.05rem', margin: 0 }}>
                 Candidate Notes ({detail.notes.length})
               </h3>
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowAddNoteModal(true)}
               >
                 + Add Note
-              </button>
+              </Button>
             </div>
 
             {detail.notes.length === 0 ? (
@@ -1536,14 +1573,17 @@ export function ApplicationDetailView({
                 No notes logged for this application yet.
               </p>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                className="layout-group"
+              >
                 {detail.notes.map((n) => (
                   <div
                     key={n.id}
                     style={{
                       background: 'var(--bg-secondary)',
                       padding: '0.75rem',
-                      borderRadius: '6px',
+                      borderRadius: '16px',
                       fontSize: '0.85rem',
                     }}
                   >
@@ -1557,33 +1597,36 @@ export function ApplicationDetailView({
                       }}
                     >
                       <span>{new Date(n.createdAt).toLocaleString()}</span>
-                      <button
+                      <Button
                         style={{
                           background: 'none',
                           border: 'none',
-                          color: '#ef4444',
+                          color: 'var(--status-danger)',
                           cursor: 'pointer',
                           padding: 0,
                         }}
                         onClick={() => handleDeleteNote(n.id)}
                       >
                         Delete
-                      </button>
+                      </Button>
                     </div>
                     <div style={{ whiteSpace: 'pre-wrap' }}>{n.content}</div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Append-only Lifecycle Event Timeline */}
-          <div className="card" style={{ padding: '1.25rem' }}>
+          <Card className="card" style={{ padding: '1.25rem' }}>
             <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem' }}>
               Audit Timeline ({events.length} events)
             </h3>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+              className="layout-group"
+            >
               {events.map((ev) => (
                 <div
                   key={ev.id}
@@ -1594,6 +1637,7 @@ export function ApplicationDetailView({
                     borderLeft: '2px solid var(--border-color)',
                     paddingLeft: '0.75rem',
                   }}
+                  className="layout-group"
                 >
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -1616,7 +1660,7 @@ export function ApplicationDetailView({
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
         </div>
       </div>
 
@@ -1624,16 +1668,17 @@ export function ApplicationDetailView({
 
       {/* Mark Applied Modal */}
       {showMarkAppliedModal && (
-        <div className="modal-backdrop">
+        <ModalSurface className="modal-backdrop">
           <div className="modal-container" style={{ maxWidth: '500px' }}>
             <header className="modal-header">
               <h2 className="modal-title">Mark Application as Applied</h2>
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowMarkAppliedModal(false)}
+                aria-label="Close"
               >
-                ✕
-              </button>
+                <Icon name="close" size={20} />
+              </Button>
             </header>
             <form
               onSubmit={handleMarkApplied}
@@ -1642,7 +1687,7 @@ export function ApplicationDetailView({
             >
               <div>
                 <label className="label">Submission Method / Platform</label>
-                <select
+                <Select
                   className="input"
                   value={markMethod}
                   onChange={(e) => setMarkMethod(e.target.value)}
@@ -1652,12 +1697,12 @@ export function ApplicationDetailView({
                       {m}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div>
                 <label className="label">External Confirmation / Reference ID</label>
-                <input
+                <Input
                   type="text"
                   className="input"
                   placeholder="e.g. APP-94819"
@@ -1668,7 +1713,7 @@ export function ApplicationDetailView({
 
               <div>
                 <label className="label">Application Portal URL</label>
-                <input
+                <Input
                   type="url"
                   className="input"
                   placeholder="https://..."
@@ -1679,7 +1724,7 @@ export function ApplicationDetailView({
 
               <div>
                 <label className="label">Submission Notes</label>
-                <textarea
+                <Textarea
                   className="input"
                   rows={2}
                   placeholder="e.g. Submitted through official careers form"
@@ -1692,25 +1737,25 @@ export function ApplicationDetailView({
                 className="modal-footer"
                 style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
               >
-                <button
+                <Button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowMarkAppliedModal(false)}
                 >
                   Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
+                </Button>
+                <Button type="submit" className="btn btn-primary">
                   Confirm Mark Applied
-                </button>
+                </Button>
               </footer>
             </form>
           </div>
-        </div>
+        </ModalSurface>
       )}
 
       {/* Transition Modal */}
       {showTransitionModal && (
-        <div className="modal-backdrop">
+        <ModalSurface className="modal-backdrop">
           <div className="modal-container" style={{ maxWidth: '500px' }}>
             <header className="modal-header">
               <h2 className="modal-title">
@@ -1718,12 +1763,13 @@ export function ApplicationDetailView({
                   ? 'Reopen Status (Correction Override)'
                   : `Transition Status to ${transitionTarget}`}
               </h2>
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowTransitionModal(false)}
+                aria-label="Close"
               >
-                ✕
-              </button>
+                <Icon name="close" size={20} />
+              </Button>
             </header>
             <form
               onSubmit={handleExecuteTransition}
@@ -1733,7 +1779,7 @@ export function ApplicationDetailView({
               {isCorrection && (
                 <div>
                   <label className="label">Correction Reason (Required)</label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     required
@@ -1746,7 +1792,7 @@ export function ApplicationDetailView({
 
               <div>
                 <label className="label">Event / Activity Note</label>
-                <textarea
+                <Textarea
                   className="input"
                   rows={3}
                   placeholder="Optional detail about this transition"
@@ -1759,34 +1805,35 @@ export function ApplicationDetailView({
                 className="modal-footer"
                 style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
               >
-                <button
+                <Button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowTransitionModal(false)}
                 >
                   Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
+                </Button>
+                <Button type="submit" className="btn btn-primary">
                   Confirm Transition
-                </button>
+                </Button>
               </footer>
             </form>
           </div>
-        </div>
+        </ModalSurface>
       )}
 
       {/* Add Note Modal */}
       {showAddNoteModal && (
-        <div className="modal-backdrop">
+        <ModalSurface className="modal-backdrop">
           <div className="modal-container" style={{ maxWidth: '500px' }}>
             <header className="modal-header">
               <h2 className="modal-title">Add Application Note</h2>
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowAddNoteModal(false)}
+                aria-label="Close"
               >
-                ✕
-              </button>
+                <Icon name="close" size={20} />
+              </Button>
             </header>
             <form
               onSubmit={handleAddNote}
@@ -1795,7 +1842,7 @@ export function ApplicationDetailView({
             >
               <div>
                 <label className="label">Note Content</label>
-                <textarea
+                <Textarea
                   className="input"
                   rows={4}
                   required
@@ -1808,34 +1855,35 @@ export function ApplicationDetailView({
                 className="modal-footer"
                 style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
               >
-                <button
+                <Button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowAddNoteModal(false)}
                 >
                   Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
+                </Button>
+                <Button type="submit" className="btn btn-primary">
                   Save Note
-                </button>
+                </Button>
               </footer>
             </form>
           </div>
-        </div>
+        </ModalSurface>
       )}
 
       {/* Add Contact Modal */}
       {showAddContactModal && (
-        <div className="modal-backdrop">
+        <ModalSurface className="modal-backdrop">
           <div className="modal-container" style={{ maxWidth: '500px' }}>
             <header className="modal-header">
               <h2 className="modal-title">Add Recruiter / Contact</h2>
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowAddContactModal(false)}
+                aria-label="Close"
               >
-                ✕
-              </button>
+                <Icon name="close" size={20} />
+              </Button>
             </header>
             <form
               onSubmit={handleAddContact}
@@ -1844,7 +1892,7 @@ export function ApplicationDetailView({
             >
               <div>
                 <label className="label">Name (Required)</label>
-                <input
+                <Input
                   type="text"
                   className="input"
                   required
@@ -1855,7 +1903,7 @@ export function ApplicationDetailView({
               </div>
               <div>
                 <label className="label">Title / Role</label>
-                <input
+                <Input
                   type="text"
                   className="input"
                   placeholder="e.g. Technical Recruiter"
@@ -1865,7 +1913,7 @@ export function ApplicationDetailView({
               </div>
               <div>
                 <label className="label">Email</label>
-                <input
+                <Input
                   type="email"
                   className="input"
                   placeholder="jane@company.com"
@@ -1875,7 +1923,7 @@ export function ApplicationDetailView({
               </div>
               <div>
                 <label className="label">Phone</label>
-                <input
+                <Input
                   type="tel"
                   className="input"
                   placeholder="+1 (555) 000-0000"
@@ -1890,8 +1938,9 @@ export function ApplicationDetailView({
                   gap: '0.5rem',
                   marginTop: '0.25rem',
                 }}
+                className="layout-group"
               >
-                <input
+                <Input
                   type="checkbox"
                   id="isPrimary"
                   checked={contactIsPrimary}
@@ -1905,34 +1954,35 @@ export function ApplicationDetailView({
                 className="modal-footer"
                 style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
               >
-                <button
+                <Button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowAddContactModal(false)}
                 >
                   Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
+                </Button>
+                <Button type="submit" className="btn btn-primary">
                   Save Contact
-                </button>
+                </Button>
               </footer>
             </form>
           </div>
-        </div>
+        </ModalSurface>
       )}
 
       {/* Add Assessment Modal */}
       {showAddAssessmentModal && (
-        <div className="modal-backdrop">
+        <ModalSurface className="modal-backdrop">
           <div className="modal-container" style={{ maxWidth: '500px' }}>
             <header className="modal-header">
               <h2 className="modal-title">Track Technical Assessment</h2>
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowAddAssessmentModal(false)}
+                aria-label="Close"
               >
-                ✕
-              </button>
+                <Icon name="close" size={20} />
+              </Button>
             </header>
             <form
               onSubmit={handleAddAssessment}
@@ -1941,7 +1991,7 @@ export function ApplicationDetailView({
             >
               <div>
                 <label className="label">Assessment Title</label>
-                <input
+                <Input
                   type="text"
                   className="input"
                   required
@@ -1952,7 +2002,7 @@ export function ApplicationDetailView({
               </div>
               <div>
                 <label className="label">Type</label>
-                <select
+                <Select
                   className="input"
                   value={assessType}
                   onChange={(e) => setAssessType(e.target.value)}
@@ -1962,11 +2012,11 @@ export function ApplicationDetailView({
                       {t}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="label">Platform / Provider</label>
-                <input
+                <Input
                   type="text"
                   className="input"
                   placeholder="e.g. HackerRank, CodeSignal"
@@ -1976,7 +2026,7 @@ export function ApplicationDetailView({
               </div>
               <div>
                 <label className="label">Due Date</label>
-                <input
+                <Input
                   type="datetime-local"
                   className="input"
                   value={assessDue}
@@ -1985,7 +2035,7 @@ export function ApplicationDetailView({
               </div>
               <div>
                 <label className="label">Assessment Link</label>
-                <input
+                <Input
                   type="url"
                   className="input"
                   placeholder="https://..."
@@ -1997,34 +2047,35 @@ export function ApplicationDetailView({
                 className="modal-footer"
                 style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
               >
-                <button
+                <Button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowAddAssessmentModal(false)}
                 >
                   Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
+                </Button>
+                <Button type="submit" className="btn btn-primary">
                   Save Assessment
-                </button>
+                </Button>
               </footer>
             </form>
           </div>
-        </div>
+        </ModalSurface>
       )}
 
       {/* Add Interview Modal */}
       {showAddInterviewModal && (
-        <div className="modal-backdrop">
+        <ModalSurface className="modal-backdrop">
           <div className="modal-container" style={{ maxWidth: '500px' }}>
             <header className="modal-header">
               <h2 className="modal-title">Schedule Interview Round</h2>
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => setShowAddInterviewModal(false)}
+                aria-label="Close"
               >
-                ✕
-              </button>
+                <Icon name="close" size={20} />
+              </Button>
             </header>
             <form
               onSubmit={handleAddInterview}
@@ -2033,7 +2084,7 @@ export function ApplicationDetailView({
             >
               <div>
                 <label className="label">Round Title</label>
-                <input
+                <Input
                   type="text"
                   className="input"
                   required
@@ -2044,7 +2095,7 @@ export function ApplicationDetailView({
               </div>
               <div>
                 <label className="label">Type</label>
-                <select
+                <Select
                   className="input"
                   value={interviewType}
                   onChange={(e) => setInterviewType(e.target.value)}
@@ -2054,11 +2105,11 @@ export function ApplicationDetailView({
                       {t}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="label">Date & Time (Required)</label>
-                <input
+                <Input
                   type="datetime-local"
                   className="input"
                   required
@@ -2068,7 +2119,7 @@ export function ApplicationDetailView({
               </div>
               <div>
                 <label className="label">Interviewer Name</label>
-                <input
+                <Input
                   type="text"
                   className="input"
                   placeholder="e.g. John Doe, VP Engineering"
@@ -2078,7 +2129,7 @@ export function ApplicationDetailView({
               </div>
               <div>
                 <label className="label">Location or Video Link</label>
-                <input
+                <Input
                   type="text"
                   className="input"
                   placeholder="Google Meet / Zoom URL"
@@ -2090,41 +2141,48 @@ export function ApplicationDetailView({
                 className="modal-footer"
                 style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
               >
-                <button
+                <Button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowAddInterviewModal(false)}
                 >
                   Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
+                </Button>
+                <Button type="submit" className="btn btn-primary">
                   Save Interview
-                </button>
+                </Button>
               </footer>
             </form>
           </div>
-        </div>
+        </ModalSurface>
       )}
 
       {/* Edit Offer Modal */}
       {showOfferModal && (
-        <div className="modal-backdrop">
+        <ModalSurface className="modal-backdrop">
           <div className="modal-container" style={{ maxWidth: '500px' }}>
             <header className="modal-header">
               <h2 className="modal-title">Record Offer Details</h2>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowOfferModal(false)}>
-                ✕
-              </button>
+              <Button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowOfferModal(false)}
+                aria-label="Close"
+              >
+                <Icon name="close" size={20} />
+              </Button>
             </header>
             <form
               onSubmit={handleSaveOffer}
               className="modal-body"
               style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
             >
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.5rem' }}>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <div>
                   <label className="label">Base Salary</label>
-                  <input
+                  <Input
                     type="number"
                     className="input"
                     placeholder="e.g. 175000"
@@ -2134,7 +2192,7 @@ export function ApplicationDetailView({
                 </div>
                 <div>
                   <label className="label">Currency</label>
-                  <input
+                  <Input
                     type="text"
                     className="input"
                     value={offerCurrency}
@@ -2144,7 +2202,7 @@ export function ApplicationDetailView({
               </div>
               <div>
                 <label className="label">Total Compensation (Annual)</label>
-                <input
+                <Input
                   type="number"
                   className="input"
                   placeholder="e.g. 210000"
@@ -2154,7 +2212,7 @@ export function ApplicationDetailView({
               </div>
               <div>
                 <label className="label">Offer Status</label>
-                <select
+                <Select
                   className="input"
                   value={offerStatus}
                   onChange={(e) => setOfferStatus(e.target.value)}
@@ -2164,11 +2222,11 @@ export function ApplicationDetailView({
                   <option value="DECLINED">DECLINED</option>
                   <option value="NEGOTIATING">NEGOTIATING</option>
                   <option value="RESCINDED">RESCINDED</option>
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="label">Decision Deadline</label>
-                <input
+                <Input
                   type="datetime-local"
                   className="input"
                   value={offerDeadline}
@@ -2177,7 +2235,7 @@ export function ApplicationDetailView({
               </div>
               <div>
                 <label className="label">Offer Notes & Terms</label>
-                <textarea
+                <Textarea
                   className="input"
                   rows={2}
                   placeholder="Sign-on bonus, equity terms, start date..."
@@ -2189,25 +2247,25 @@ export function ApplicationDetailView({
                 className="modal-footer"
                 style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}
               >
-                <button
+                <Button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => setShowOfferModal(false)}
                 >
                   Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
+                </Button>
+                <Button type="submit" className="btn btn-primary">
                   Save Offer
-                </button>
+                </Button>
               </footer>
             </form>
           </div>
-        </div>
+        </ModalSurface>
       )}
 
       {/* Browser Run Audit & Details Modal (JOB-P5-T01) */}
       {showRunModal && selectedRun && (
-        <div className="modal-backdrop" onClick={() => setShowRunModal(false)}>
+        <ModalSurface className="modal-backdrop" onClick={() => setShowRunModal(false)}>
           <div
             className="modal"
             style={{ maxWidth: '780px', width: '95%', maxHeight: '90vh', overflowY: 'auto' }}
@@ -2230,7 +2288,10 @@ export function ApplicationDetailView({
                   gap: '0.5rem',
                 }}
               >
-                <span>🤖</span> Browser Run Audit Trail
+                <span>
+                  <Icon name="ai" size={20} />
+                </span>{' '}
+                Browser Run Audit Trail
               </h2>
               <span
                 className={`badge ${
@@ -2243,14 +2304,16 @@ export function ApplicationDetailView({
                         : 'badge-error'
                 }`}
                 style={{
-                  backgroundColor:
-                    selectedRun.status === 'SUBMISSION_UNCERTAIN' ? '#b45309' : undefined,
-                  color: selectedRun.status === 'SUBMISSION_UNCERTAIN' ? '#fff' : undefined,
+                  ...browserRunStyle(selectedRun.status),
                 }}
               >
-                {selectedRun.status === 'SUBMISSION_UNCERTAIN'
-                  ? '⚠️ SUBMISSION UNCERTAIN'
-                  : selectedRun.status}
+                {selectedRun.status === 'SUBMISSION_UNCERTAIN' ? (
+                  <>
+                    <Icon name="warning" size={20} /> SUBMISSION UNCERTAIN
+                  </>
+                ) : (
+                  selectedRun.status
+                )}
               </span>
             </div>
 
@@ -2262,9 +2325,10 @@ export function ApplicationDetailView({
                 marginBottom: '1rem',
                 background: 'var(--bg-secondary)',
                 padding: '0.75rem',
-                borderRadius: '6px',
+                borderRadius: '16px',
                 fontSize: '0.85rem',
               }}
+              className="layout-group"
             >
               <div>
                 <span style={{ color: 'var(--text-secondary)' }}>Provider:</span>{' '}
@@ -2293,30 +2357,31 @@ export function ApplicationDetailView({
             {selectedRun.confirmationReference && (
               <div
                 style={{
-                  background: '#ecfdf5',
-                  color: '#065f46',
+                  background: 'var(--m3-surface-container-low)',
+                  color: 'var(--status-success)',
                   padding: '0.75rem',
-                  borderRadius: '6px',
+                  borderRadius: '16px',
                   fontSize: '0.85rem',
                   marginBottom: '1rem',
                 }}
               >
-                🎉 <strong>Submission Confirmed:</strong> {selectedRun.confirmationReference}
+                <Icon name="verified" size={20} /> <strong>Submission Confirmed:</strong>{' '}
+                {selectedRun.confirmationReference}
               </div>
             )}
 
             {selectedRun.errorMessage && (
               <div
                 style={{
-                  background: '#fee2e2',
-                  color: '#991b1b',
+                  background: 'var(--status-danger-container)',
+                  color: 'var(--status-danger)',
                   padding: '0.75rem',
-                  borderRadius: '6px',
+                  borderRadius: '16px',
                   fontSize: '0.85rem',
                   marginBottom: '1rem',
                 }}
               >
-                ⚠️ <strong>Halt Reason:</strong> {selectedRun.errorMessage}
+                <Icon name="warning" /> <strong>Halt Reason:</strong> {selectedRun.errorMessage}
               </div>
             )}
 
@@ -2324,15 +2389,15 @@ export function ApplicationDetailView({
               selectedRun.unmatchedRequiredFields.length > 0 && (
                 <div
                   style={{
-                    background: '#fffbeb',
-                    border: '1px solid #fef3c7',
+                    background: 'var(--m3-surface)',
+                    border: '1px solid var(--status-warning-border)',
                     padding: '0.75rem',
-                    borderRadius: '6px',
+                    borderRadius: '16px',
                     fontSize: '0.85rem',
                     marginBottom: '1rem',
                   }}
                 >
-                  <strong style={{ color: '#b45309' }}>
+                  <strong style={{ color: 'var(--status-warning)' }}>
                     Missing Verified Facts for Required Fields:
                   </strong>
                   <ul style={{ margin: '0.5rem 0 0 1.25rem', padding: 0 }}>
@@ -2357,6 +2422,7 @@ export function ApplicationDetailView({
                   maxHeight: '300px',
                   overflowY: 'auto',
                 }}
+                className="layout-group"
               >
                 {selectedRun.stepLogs.map((log, idx) => (
                   <div
@@ -2366,14 +2432,14 @@ export function ApplicationDetailView({
                       flexDirection: 'column',
                       background: 'var(--bg-secondary)',
                       padding: '0.5rem 0.75rem',
-                      borderRadius: '4px',
+                      borderRadius: '16px',
                       fontSize: '0.8rem',
                       borderLeft: `3px solid ${
                         log.status === 'OK'
-                          ? '#10b981'
+                          ? 'var(--status-success-border)'
                           : log.status === 'WARNING'
-                            ? '#f59e0b'
-                            : '#ef4444'
+                            ? 'var(--status-warning-border)'
+                            : 'var(--status-danger-border)'
                       }`,
                     }}
                   >
@@ -2412,12 +2478,12 @@ export function ApplicationDetailView({
             </div>
 
             <footer style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setShowRunModal(false)}>
+              <Button className="btn btn-secondary" onClick={() => setShowRunModal(false)}>
                 Close
-              </button>
+              </Button>
             </footer>
           </div>
-        </div>
+        </ModalSurface>
       )}
     </div>
   );

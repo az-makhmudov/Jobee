@@ -1,3 +1,14 @@
+import { useFeedback } from '../ui/Feedback.js';
+import {
+  Tabs,
+  Button,
+  Card,
+  Icon,
+  Input,
+  ModalSurface,
+  Select,
+  Textarea,
+} from '../ui/Primitives.js';
 import { useState, useEffect, useCallback } from 'react';
 import { calendarClient } from '../api/calendar-client.js';
 import type {
@@ -16,6 +27,7 @@ interface Props {
 }
 
 export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
+  const { confirm } = useFeedback();
   const [activeTab, setActiveTab] = useState<'interviews' | 'availability' | 'accounts'>(
     'interviews',
   );
@@ -156,7 +168,7 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
 
   const handleDisconnectAccount = async (accountId: string) => {
     if (
-      !window.confirm('Disconnect this calendar account? Linked event metadata will be unlinked.')
+      !(await confirm('Disconnect this calendar account? Linked event metadata will be unlinked.'))
     ) {
       return;
     }
@@ -207,7 +219,7 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
   };
 
   const handleDeleteCalendarEvent = async (item: ScheduledInterviewWorkspaceItemDto) => {
-    if (!window.confirm('Remove this interview from your connected calendar?')) return;
+    if (!(await confirm('Remove this interview from your connected calendar?'))) return;
     try {
       setError(null);
       await calendarClient.deleteCalendarEvent(item.application.id, item.interview.id);
@@ -391,26 +403,31 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
       >
         <div>
-          <h1 className="page-title">Interviews & Calendar Workspace</h1>
+          <h1 className="page-title">Interviews</h1>
           <p className="page-subtitle">
-            Ground interview preparation in verified candidate evidence, synchronize calendars, and
-            audit debriefs.
+            See what is next, prepare for the conversation and check your calendar.
           </p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary btn-sm" onClick={loadData} disabled={loading}>
-            {loading ? 'Refreshing...' : '↻ Refresh'}
-          </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+          <Button className="btn btn-secondary btn-sm" onClick={loadData} disabled={loading}>
+            {loading ? (
+              'Refreshing...'
+            ) : (
+              <>
+                <Icon name="sync" size={20} /> Refresh
+              </>
+            )}
+          </Button>
         </div>
       </header>
 
       {/* Global Alerts */}
       {error && (
-        <div
+        <Card
           className="card"
           style={{
             borderColor: 'var(--danger)',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            backgroundColor: 'var(--status-danger-container)',
             padding: '1rem',
             marginBottom: '1rem',
             display: 'flex',
@@ -418,19 +435,21 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
             alignItems: 'center',
           }}
         >
-          <span style={{ color: 'var(--danger)', fontSize: '0.9rem' }}>⚠️ {error}</span>
-          <button className="btn btn-secondary btn-sm" onClick={() => setError(null)}>
+          <span style={{ color: 'var(--danger)', fontSize: '0.9rem' }}>
+            <Icon name="warning" /> {error}
+          </span>
+          <Button className="btn btn-secondary btn-sm" onClick={() => setError(null)}>
             Dismiss
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       {success && (
-        <div
+        <Card
           className="card"
           style={{
             borderColor: 'var(--success)',
-            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            backgroundColor: 'var(--status-success-container)',
             padding: '1rem',
             marginBottom: '1rem',
             display: 'flex',
@@ -438,11 +457,13 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
             alignItems: 'center',
           }}
         >
-          <span style={{ color: '#34d399', fontSize: '0.9rem' }}>✓ {success}</span>
-          <button className="btn btn-secondary btn-sm" onClick={() => setSuccess(null)}>
+          <span style={{ color: 'var(--status-success)', fontSize: '0.9rem' }}>
+            <Icon name="check" size={20} /> {success}
+          </span>
+          <Button className="btn btn-secondary btn-sm" onClick={() => setSuccess(null)}>
             Dismiss
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       {/* Metrics Bar */}
@@ -462,7 +483,8 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
               style={{
                 fontSize: '1.4rem',
                 fontWeight: 700,
-                color: metrics.preparationNeeded > 0 ? '#fbbf24' : '#34d399',
+                color:
+                  metrics.preparationNeeded > 0 ? 'var(--status-warning)' : 'var(--status-success)',
               }}
             >
               {metrics.preparationNeeded}
@@ -488,7 +510,7 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
             <div className="status-item-label">Calendar Sync</div>
             <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>
               {metrics.calendarConnected ? (
-                <span style={{ color: '#34d399' }}>Connected</span>
+                <span style={{ color: 'var(--status-success)' }}>Connected</span>
               ) : (
                 <span style={{ color: 'var(--text-secondary)' }}>Offline</span>
               )}
@@ -498,1191 +520,1281 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
         </div>
       )}
 
-      {/* Navigation Tabs */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '0.5rem',
-          borderBottom: '1px solid var(--surface-border)',
-          marginBottom: '1.5rem',
-        }}
-      >
-        <button
-          className={`btn ${activeTab === 'interviews' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('interviews')}
-          style={{ borderRadius: '0.375rem 0.375rem 0 0', borderBottom: 'none' }}
-        >
-          Scheduled Interviews ({interviews.length})
-        </button>
-        <button
-          className={`btn ${activeTab === 'availability' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('availability')}
-          style={{ borderRadius: '0.375rem 0.375rem 0 0', borderBottom: 'none' }}
-        >
-          Availability & Conflicts
-        </button>
-        <button
-          className={`btn ${activeTab === 'accounts' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('accounts')}
-          style={{ borderRadius: '0.375rem 0.375rem 0 0', borderBottom: 'none' }}
-        >
-          Calendar Accounts ({accounts.length})
-        </button>
-      </div>
+      <Tabs
+        panelId="interviews-panel"
+        label="Interview workspace"
+        value={activeTab}
+        items={[
+          { id: 'interviews', label: `Schedule & preparation (${interviews.length})` },
+          { id: 'availability', label: 'Availability & conflicts' },
+          { id: 'accounts', label: `Calendar accounts (${accounts.length})` },
+        ]}
+        onChange={(id) => setActiveTab(id as typeof activeTab)}
+      />
 
-      {/* ─── TAB 1: SCHEDULED INTERVIEWS ────────────────────────────────────── */}
-      {activeTab === 'interviews' && (
-        <div>
-          {/* Filter Bar */}
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-            <button
-              className={`btn btn-sm ${filter === 'ALL' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilter('ALL')}
-            >
-              All ({interviews.length})
-            </button>
-            <button
-              className={`btn btn-sm ${filter === 'UPCOMING' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilter('UPCOMING')}
-            >
-              Upcoming (
-              {
-                interviews.filter(
-                  (i) => new Date(i.interview.scheduledAt).getTime() >= now.getTime(),
-                ).length
-              }
-              )
-            </button>
-            <button
-              className={`btn btn-sm ${filter === 'PAST' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilter('PAST')}
-            >
-              Past (
-              {
-                interviews.filter(
-                  (i) => new Date(i.interview.scheduledAt).getTime() < now.getTime(),
-                ).length
-              }
-              )
-            </button>
-            <button
-              className={`btn btn-sm ${filter === 'NEEDS_BRIEF' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilter('NEEDS_BRIEF')}
-            >
-              Needs Brief ({metrics?.preparationNeeded || 0})
-            </button>
-            <button
-              className={`btn btn-sm ${filter === 'NEEDS_DEBRIEF' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setFilter('NEEDS_DEBRIEF')}
-            >
-              Needs Debrief
-            </button>
-          </div>
-
-          {filteredInterviews.length === 0 ? (
-            <div className="card placeholder-view">
-              <h3>No Interviews Found</h3>
-              <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                {filter === 'ALL'
-                  ? 'No scheduled interviews found in Application CRM. Log an interview round from an active application to generate grounded briefs and calendar events.'
-                  : `No interviews match the "${filter}" filter.`}
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {filteredInterviews.map((item) => {
-                const isUpcoming = new Date(item.interview.scheduledAt).getTime() >= now.getTime();
-                const isSynced = Boolean(item.calendarLink);
-                const hasBrief = Boolean(item.preparationBrief);
-                const hasDebrief = Boolean(
-                  item.interview.debriefQuestionsAsked || item.interview.debriefObservations,
-                );
-
-                return (
-                  <div
-                    key={item.interview.id}
-                    className="card"
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '1rem',
-                      borderLeft: isUpcoming
-                        ? '4px solid var(--accent)'
-                        : '4px solid var(--surface-border)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        flexWrap: 'wrap',
-                        gap: '0.5rem',
-                      }}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontSize: '1.15rem', fontWeight: 600 }}>
-                            🎙️ {item.interview.roundTitle}
-                          </span>
-                          <span className="badge">{item.interview.interviewType}</span>
-                          <span
-                            className="badge"
-                            style={{
-                              backgroundColor: isUpcoming
-                                ? 'rgba(59, 130, 246, 0.2)'
-                                : 'rgba(255, 255, 255, 0.1)',
-                              color: isUpcoming ? '#93c5fd' : 'var(--text-secondary)',
-                            }}
-                          >
-                            {isUpcoming ? 'Upcoming' : 'Completed / Past'}
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            color: 'var(--text-secondary)',
-                            fontSize: '0.9rem',
-                            marginTop: '0.25rem',
-                          }}
-                        >
-                          🏢{' '}
-                          <strong style={{ color: 'var(--text-primary)' }}>
-                            {item.application.companyName}
-                          </strong>{' '}
-                          — {item.application.jobTitle}
-                          {onNavigateToApplication && (
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              style={{
-                                marginLeft: '0.75rem',
-                                padding: '0.1rem 0.5rem',
-                                fontSize: '0.75rem',
-                              }}
-                              onClick={() => onNavigateToApplication(item.application.id)}
-                            >
-                              View in CRM ↗
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                          📅{' '}
-                          {new Date(item.interview.scheduledAt).toLocaleString(undefined, {
-                            weekday: 'short',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </div>
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                          Duration: {item.interview.durationMinutes || 45} mins | TZ:{' '}
-                          {item.interview.timezone || 'UTC'}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Metadata & Meeting URL */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '1rem',
-                        fontSize: '0.85rem',
-                        color: 'var(--text-secondary)',
-                      }}
-                    >
-                      {item.interview.interviewerName && (
-                        <div>
-                          👤 Interviewer:{' '}
-                          <strong style={{ color: 'var(--text-primary)' }}>
-                            {item.interview.interviewerName}
-                          </strong>
-                        </div>
-                      )}
-                      {(item.interview.meetingUrl || item.interview.locationOrUrl) && (
-                        <div>
-                          🔗 Location:{' '}
-                          <a
-                            href={item.interview.meetingUrl || item.interview.locationOrUrl || '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: '#60a5fa', textDecoration: 'underline' }}
-                          >
-                            {item.interview.meetingUrl || item.interview.locationOrUrl}
-                          </a>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Status Pills */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        gap: '0.75rem',
-                        flexWrap: 'wrap',
-                        alignItems: 'center',
-                      }}
-                    >
-                      {/* Calendar Sync Status */}
-                      {isSynced ? (
-                        <span
-                          className="status-badge ok"
-                          title={`Event ID: ${item.calendarLink?.externalEventId}`}
-                        >
-                          ✓ Calendar Synced
-                        </span>
-                      ) : (
-                        <span className="status-badge disconnected">✕ Not Synced to Calendar</span>
-                      )}
-
-                      {/* Prep Brief Status */}
-                      {hasBrief ? (
-                        <span className="status-badge ok">
-                          ✓ Prep Brief ({item.preparationBrief?.checklistProgress.completed}/
-                          {item.preparationBrief?.checklistProgress.total} Tasks)
-                        </span>
-                      ) : (
-                        <span className="status-badge degraded">⚠️ No Brief Generated</span>
-                      )}
-
-                      {/* Debrief Status */}
-                      {hasDebrief ? (
-                        <span className="status-badge ok">✓ Debrief Recorded</span>
-                      ) : isUpcoming ? (
-                        <span className="status-badge ok" style={{ opacity: 0.7 }}>
-                          Debrief Pending Interview
-                        </span>
-                      ) : (
-                        <span className="status-badge degraded">⚠️ Debrief Needed</span>
-                      )}
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                        gap: '0.5rem',
-                        borderTop: '1px solid var(--surface-border)',
-                        paddingTop: '0.75rem',
-                        flexWrap: 'wrap',
-                      }}
-                    >
-                      {/* Calendar Action */}
-                      {isSynced ? (
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          style={{ color: '#f87171' }}
-                          onClick={() => handleDeleteCalendarEvent(item)}
-                        >
-                          Remove from Calendar
-                        </button>
-                      ) : (
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleOpenBookingModal(item)}
-                        >
-                          + Add to Calendar
-                        </button>
-                      )}
-
-                      {/* Brief Action */}
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => handleOpenBrief(item)}
-                      >
-                        {hasBrief ? '📖 View Preparation Brief' : '✨ Generate Preparation Brief'}
-                      </button>
-
-                      {/* Debrief Action */}
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleOpenDebrief(item)}
-                      >
-                        {hasDebrief ? '📝 Edit Debrief' : '📝 Record Debrief'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ─── TAB 2: AVAILABILITY & CONFLICTS ─────────────────────────────────── */}
-      {activeTab === 'availability' && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-            gap: '1.5rem',
-          }}
-        >
-          {/* Multi-Calendar Availability Inspector */}
-          <div className="card">
-            <h3 className="card-title">Multi-Calendar Availability Finder</h3>
-            <p
-              style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem' }}
-            >
-              Aggregate busy slots across all connected accounts to find open interview scheduling
-              windows.
-            </p>
-
-            <div className="form-grid" style={{ marginBottom: '1rem' }}>
-              <div className="form-group">
-                <label className="form-label">Window Start Date</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={availStart}
-                  onChange={(e) => setAvailStart(e.target.value)}
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Window End Date</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={availEnd}
-                  onChange={(e) => setAvailEnd(e.target.value)}
-                />
-              </div>
-            </div>
-
-            <button
-              className="btn btn-primary"
-              onClick={handleQueryAvailability}
-              disabled={availLoading}
-              style={{ width: '100%', marginBottom: '1rem' }}
-            >
-              {availLoading ? 'Querying Calendars...' : 'Query Combined Availability'}
-            </button>
-
-            {availResult && (
-              <div
-                style={{
-                  marginTop: '1rem',
-                  borderTop: '1px solid var(--surface-border)',
-                  paddingTop: '1rem',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: '0.5rem',
-                  }}
-                >
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Query Status:</span>
-                  <span
-                    className={`status-badge ${availResult.status === 'AVAILABLE' ? 'ok' : 'degraded'}`}
-                  >
-                    {availResult.status}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    fontSize: '0.85rem',
-                    color: 'var(--text-secondary)',
-                    marginBottom: '0.75rem',
-                  }}
-                >
-                  Queried {availResult.queriedCalendars.length} calendar(s) | Timezone:{' '}
-                  {availResult.timezone}
-                </div>
-
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                  Busy Slots ({availResult.busySlots.length}):
-                </div>
-                {availResult.busySlots.length === 0 ? (
-                  <p style={{ color: '#34d399', fontSize: '0.85rem' }}>
-                    ✓ No busy slots found in selected range. Entire window is free.
-                  </p>
-                ) : (
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.35rem',
-                      maxHeight: '200px',
-                      overflowY: 'auto',
-                    }}
-                  >
-                    {availResult.busySlots.map((slot, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          background: 'rgba(15, 23, 42, 0.6)',
-                          padding: '0.4rem 0.6rem',
-                          borderRadius: '4px',
-                          fontSize: '0.8rem',
-                          border: '1px solid var(--surface-border)',
-                        }}
-                      >
-                        ⛔ {new Date(slot.start).toLocaleString()} →{' '}
-                        {new Date(slot.end).toLocaleTimeString()}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Interactive Conflict Checker */}
-          <div className="card">
-            <h3 className="card-title">Interview Conflict Verifier</h3>
-            <p
-              style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1rem' }}
-            >
-              Test any proposed interview datetime against external calendars and existing scheduled
-              interviews.
-            </p>
-
-            <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <label className="form-label">Proposed Interview DateTime</label>
-              <input
-                type="datetime-local"
-                className="form-input"
-                value={conflictDateTime}
-                onChange={(e) => setConflictDateTime(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <label className="form-label">Duration (Minutes)</label>
-              <select
-                className="form-input"
-                value={conflictDuration}
-                onChange={(e) => setConflictDuration(Number(e.target.value))}
-              >
-                <option value={30}>30 minutes</option>
-                <option value={45}>45 minutes</option>
-                <option value={60}>60 minutes</option>
-                <option value={90}>90 minutes</option>
-              </select>
-            </div>
-
-            <button
-              className="btn btn-primary"
-              onClick={handleCheckConflict}
-              disabled={conflictLoading}
-              style={{ width: '100%', marginBottom: '1rem' }}
-            >
-              {conflictLoading ? 'Checking Conflicts...' : 'Verify Scheduling Conflict'}
-            </button>
-
-            {conflictResult && (
-              <div
-                style={{
-                  marginTop: '1rem',
-                  borderTop: '1px solid var(--surface-border)',
-                  paddingTop: '1rem',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: '0.5rem',
-                  }}
-                >
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Conflict Result:</span>
-                  <span className={`status-badge ${conflictResult.hasConflict ? 'error' : 'ok'}`}>
-                    {conflictResult.hasConflict ? 'CONFLICT DETECTED' : 'CLEAR (NO CONFLICT)'}
-                  </span>
-                </div>
-
-                {conflictResult.hasConflict ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {conflictResult.conflicts.map((c, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          background: 'rgba(239, 68, 68, 0.1)',
-                          border: '1px solid rgba(239, 68, 68, 0.3)',
-                          padding: '0.5rem',
-                          borderRadius: '4px',
-                          fontSize: '0.8rem',
-                        }}
-                      >
-                        <strong>
-                          ⚠️ {c.type}: {c.description}
-                        </strong>
-                        <div style={{ color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                          {new Date(c.conflictStart).toLocaleTimeString()} -{' '}
-                          {new Date(c.conflictEnd).toLocaleTimeString()}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p style={{ color: '#34d399', fontSize: '0.85rem' }}>
-                    ✓ Proposed slot is completely free. No overlapping interviews or external
-                    events.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ─── TAB 3: CALENDAR ACCOUNTS ────────────────────────────────────────── */}
-      {activeTab === 'accounts' && (
-        <div className="card">
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1.5rem',
-            }}
-          >
-            <div>
-              <h3 className="card-title">Connected Calendar Inboxes</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                Manage Google Calendar OAuth connections and offline Demo Fixture accounts.
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className="btn btn-primary btn-sm" onClick={handleConnectGoogle}>
-                + Connect Google Calendar (OAuth)
-              </button>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={handleConnectFixture}
-                title="Connect offline simulated calendar fixture for local testing without live Google credentials."
-              >
-                🧪 Offline Test Fixture
-              </button>
-            </div>
-          </div>
-
-          {accounts.length === 0 ? (
-            <div className="placeholder-view">
-              <h3>No Calendar Accounts Connected</h3>
-              <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                Connect your real calendar to sync interview meetings, check availability, and
-                prevent overlapping rounds.
-              </p>
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '0.75rem',
-                  justifyContent: 'center',
-                  marginTop: '1rem',
-                }}
-              >
-                <button className="btn btn-primary" onClick={handleConnectGoogle}>
-                  + Connect Google Calendar (OAuth)
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={handleConnectFixture}
-                  title="Local offline simulation for testing"
-                >
-                  🧪 Connect Offline Test Fixture
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {accounts.map((acc) => (
-                <div
-                  key={acc.id}
-                  style={{
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    border: '1px solid var(--surface-border)',
-                    borderRadius: '6px',
-                    padding: '1rem',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '1.1rem' }}>
-                        {acc.provider === 'GOOGLE' ? '🗓️' : '🧪'}
-                      </span>
-                      <strong style={{ fontSize: '1rem' }}>{acc.emailAddress}</strong>
-                      <span className="badge">
-                        {acc.provider === 'FIXTURE' ? 'OFFLINE FIXTURE (SIMULATED)' : acc.provider}
-                      </span>
-                      <span
-                        className={`status-badge ${acc.status === 'CONNECTED' ? 'ok' : 'error'}`}
-                      >
-                        {acc.status}
-                      </span>
-                    </div>
-                    <div
-                      style={{
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.8rem',
-                        marginTop: '0.25rem',
-                      }}
-                    >
-                      Scope: {acc.scopeLevel} | Calendars selected:{' '}
-                      {acc.selectedCalendarIds.length || 1}
-                    </div>
-                  </div>
-
-                  <div>
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      style={{ color: '#f87171' }}
-                      onClick={() => handleDisconnectAccount(acc.id)}
-                    >
-                      Disconnect
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ─── MODAL 1: PREPARATION BRIEF MODAL ────────────────────────────────── */}
-      {briefModalInterview && (
-        <div className="modal-backdrop" onClick={() => setBriefModalInterview(null)}>
-          <div
-            className="modal-dialog"
-            style={{ maxWidth: '800px', width: '95%' }}
-            onClick={(e) => e.stopPropagation()}
-          >
+      <section id="interviews-panel" role="tabpanel" aria-label={activeTab}>
+        {/* ─── TAB 1: SCHEDULED INTERVIEWS ────────────────────────────────────── */}
+        {activeTab === 'interviews' && (
+          <div>
+            {/* Filter Bar */}
             <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                borderBottom: '1px solid var(--surface-border)',
-                paddingBottom: '1rem',
-                marginBottom: '1.5rem',
-              }}
+              style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}
+              className="layout-group"
             >
-              <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                  Interview Preparation Brief: {briefModalInterview.interview.roundTitle}
-                </h2>
-                <div
-                  style={{
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.85rem',
-                    marginTop: '0.25rem',
-                  }}
-                >
-                  🏢 {briefModalInterview.application.companyName} —{' '}
-                  {briefModalInterview.application.jobTitle}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={handleRegenerateBrief}
-                  disabled={regeneratingBrief}
-                >
-                  {regeneratingBrief ? 'Regenerating...' : '↻ Regenerate Brief'}
-                </button>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setBriefModalInterview(null)}
-                >
-                  ✕
-                </button>
-              </div>
+              <Button
+                className={`btn btn-sm ${filter === 'ALL' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFilter('ALL')}
+              >
+                All ({interviews.length})
+              </Button>
+              <Button
+                className={`btn btn-sm ${filter === 'UPCOMING' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFilter('UPCOMING')}
+              >
+                Upcoming (
+                {
+                  interviews.filter(
+                    (i) => new Date(i.interview.scheduledAt).getTime() >= now.getTime(),
+                  ).length
+                }
+                )
+              </Button>
+              <Button
+                className={`btn btn-sm ${filter === 'PAST' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFilter('PAST')}
+              >
+                Past (
+                {
+                  interviews.filter(
+                    (i) => new Date(i.interview.scheduledAt).getTime() < now.getTime(),
+                  ).length
+                }
+                )
+              </Button>
+              <Button
+                className={`btn btn-sm ${filter === 'NEEDS_BRIEF' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFilter('NEEDS_BRIEF')}
+              >
+                Needs Brief ({metrics?.preparationNeeded || 0})
+              </Button>
+              <Button
+                className={`btn btn-sm ${filter === 'NEEDS_DEBRIEF' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setFilter('NEEDS_DEBRIEF')}
+              >
+                Needs Debrief
+              </Button>
             </div>
 
-            {briefLoading ? (
-              <div style={{ textAlign: 'center', padding: '3rem' }}>
-                <p style={{ color: 'var(--text-secondary)' }}>
-                  Synthesizing grounded interview preparation brief...
+            {filteredInterviews.length === 0 ? (
+              <Card className="card placeholder-view">
+                <h3>No Interviews Found</h3>
+                <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                  {filter === 'ALL'
+                    ? 'No scheduled interviews found in Application CRM. Log an interview round from an active application to generate grounded briefs and calendar events.'
+                    : `No interviews match the "${filter}" filter.`}
                 </p>
-              </div>
-            ) : briefData ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                {/* Role Summary & Company Context */}
-                <div
-                  style={{
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    padding: '1rem',
-                    borderRadius: '6px',
-                    border: '1px solid var(--surface-border)',
-                  }}
-                >
-                  <h4
-                    style={{
-                      fontSize: '0.95rem',
-                      fontWeight: 600,
-                      marginBottom: '0.5rem',
-                      color: '#60a5fa',
-                    }}
-                  >
-                    Role & Company Context
-                  </h4>
-                  <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>
-                    {briefData.roleSummary}
-                  </p>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    {briefData.companyContext}
-                  </p>
-                </div>
+              </Card>
+            ) : (
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+                className="layout-group"
+              >
+                {filteredInterviews.map((item) => {
+                  const isUpcoming =
+                    new Date(item.interview.scheduledAt).getTime() >= now.getTime();
+                  const isSynced = Boolean(item.calendarLink);
+                  const hasBrief = Boolean(item.preparationBrief);
+                  const hasDebrief = Boolean(
+                    item.interview.debriefQuestionsAsked || item.interview.debriefObservations,
+                  );
 
-                {/* Candidate Grounded Strengths */}
-                <div>
-                  <h4
-                    style={{
-                      fontSize: '0.95rem',
-                      fontWeight: 600,
-                      marginBottom: '0.5rem',
-                      color: '#34d399',
-                    }}
-                  >
-                    Verified Candidate Strengths (Zero Hallucination)
-                  </h4>
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-                      gap: '0.75rem',
-                    }}
-                  >
-                    {briefData.candidateStrengths.map((strength, idx) => (
+                  return (
+                    <Card
+                      key={item.interview.id}
+                      className="card"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '1rem',
+                        borderLeft: isUpcoming
+                          ? '4px solid var(--accent)'
+                          : '4px solid var(--surface-border)',
+                      }}
+                    >
                       <div
-                        key={idx}
                         style={{
-                          background: 'rgba(16, 185, 129, 0.05)',
-                          border: '1px solid rgba(16, 185, 129, 0.2)',
-                          padding: '0.75rem',
-                          borderRadius: '6px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                          flexWrap: 'wrap',
+                          gap: '0.5rem',
                         }}
+                        className="layout-group"
                       >
-                        <strong style={{ fontSize: '0.85rem', color: '#34d399' }}>
-                          {strength.evidenceTitle}
-                        </strong>
-                        <div
-                          style={{ fontSize: '0.75rem', color: '#93c5fd', marginTop: '0.15rem' }}
-                        >
-                          Type: {strength.evidenceType} | Target: {strength.relevantRequirement}
-                        </div>
-                        <p
-                          style={{
-                            fontSize: '0.8rem',
-                            color: 'var(--text-secondary)',
-                            marginTop: '0.25rem',
-                          }}
-                        >
-                          {strength.recommendation}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Anticipated Questions & STAR Frameworks */}
-                <div>
-                  <h4
-                    style={{
-                      fontSize: '0.95rem',
-                      fontWeight: 600,
-                      marginBottom: '0.5rem',
-                      color: '#fbbf24',
-                    }}
-                  >
-                    Anticipated Questions & Grounded STAR Frameworks
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {briefData.suggestedAnswerFrameworks.map((item, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          background: 'rgba(15, 23, 42, 0.6)',
-                          border: '1px solid var(--surface-border)',
-                          padding: '0.85rem',
-                          borderRadius: '6px',
-                        }}
-                      >
-                        <div
-                          style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.4rem' }}
-                        >
-                          Q: {item.question}
-                        </div>
-                        <div
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(2, 1fr)',
-                            gap: '0.5rem',
-                            fontSize: '0.8rem',
-                          }}
-                        >
-                          <div>
-                            <strong style={{ color: '#93c5fd' }}>Situation:</strong>{' '}
-                            {item.situation || 'To be framed live'}
+                        <div>
+                          <div
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                            className="layout-group"
+                          >
+                            <span style={{ fontSize: '1.15rem', fontWeight: 600 }}>
+                              <Icon name="interviews" size={20} /> {item.interview.roundTitle}
+                            </span>
+                            <span className="badge">{item.interview.interviewType}</span>
+                            <span
+                              className="badge"
+                              style={{
+                                backgroundColor: isUpcoming
+                                  ? 'var(--m3-secondary-container)'
+                                  : 'var(--m3-surface)',
+                                color: isUpcoming
+                                  ? 'var(--m3-on-surface)'
+                                  : 'var(--text-secondary)',
+                              }}
+                            >
+                              {isUpcoming ? 'Upcoming' : 'Completed / Past'}
+                            </span>
                           </div>
-                          <div>
-                            <strong style={{ color: '#93c5fd' }}>Task:</strong>{' '}
-                            {item.task || 'To be framed live'}
-                          </div>
-                          <div>
-                            <strong style={{ color: '#34d399' }}>Action:</strong>{' '}
-                            {item.action || 'To be framed live'}
-                          </div>
-                          <div>
-                            <strong style={{ color: '#34d399' }}>Result:</strong>{' '}
-                            {item.result || 'To be framed live'}
-                          </div>
-                        </div>
-                        {item.sourceEvidenceId && (
                           <div
                             style={{
-                              fontSize: '0.75rem',
                               color: 'var(--text-secondary)',
-                              marginTop: '0.4rem',
+                              fontSize: '0.9rem',
+                              marginTop: '0.25rem',
                             }}
                           >
-                            Grounded Evidence ID: {item.sourceEvidenceId}
+                            <Icon name="applications" size={20} />{' '}
+                            <strong style={{ color: 'var(--text-primary)' }}>
+                              {item.application.companyName}
+                            </strong>{' '}
+                            — {item.application.jobTitle}
+                            {onNavigateToApplication && (
+                              <Button
+                                className="btn btn-secondary btn-sm"
+                                style={{
+                                  marginLeft: '0.75rem',
+                                  padding: '0.1rem 0.5rem',
+                                  fontSize: '0.75rem',
+                                }}
+                                onClick={() => onNavigateToApplication(item.application.id)}
+                              >
+                                View in CRM ↗
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                            <Icon name="interviews" />{' '}
+                            {new Date(item.interview.scheduledAt).toLocaleString(undefined, {
+                              weekday: 'short',
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                            Duration: {item.interview.durationMinutes || 45} mins | TZ:{' '}
+                            {item.interview.timezone || 'UTC'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Metadata & Meeting URL */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '1rem',
+                          fontSize: '0.85rem',
+                          color: 'var(--text-secondary)',
+                        }}
+                        className="layout-group"
+                      >
+                        {item.interview.interviewerName && (
+                          <div>
+                            <Icon name="account" size={20} /> Interviewer:{' '}
+                            <strong style={{ color: 'var(--text-primary)' }}>
+                              {item.interview.interviewerName}
+                            </strong>
+                          </div>
+                        )}
+                        {(item.interview.meetingUrl || item.interview.locationOrUrl) && (
+                          <div>
+                            <Icon name="link" /> Location:{' '}
+                            <a
+                              href={
+                                item.interview.meetingUrl || item.interview.locationOrUrl || '#'
+                              }
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: 'var(--m3-on-surface)', textDecoration: 'underline' }}
+                            >
+                              {item.interview.meetingUrl || item.interview.locationOrUrl}
+                            </a>
                           </div>
                         )}
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Preparation Checklist */}
-                <div>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                    Preparation Checklist (
-                    {briefData.preparationChecklist.filter((c) => c.isCompleted).length} /{' '}
-                    {briefData.preparationChecklist.length})
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {briefData.preparationChecklist.map((item: ChecklistItem, idx: number) => (
-                      <label
-                        key={idx}
+                      {/* Status Pills */}
+                      <div
                         style={{
                           display: 'flex',
-                          alignItems: 'center',
                           gap: '0.75rem',
-                          background: 'rgba(15, 23, 42, 0.4)',
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          border: '1px solid var(--surface-border)',
+                          flexWrap: 'wrap',
+                          alignItems: 'center',
                         }}
+                        className="layout-group"
                       >
-                        <input
-                          type="checkbox"
-                          checked={item.isCompleted}
-                          onChange={() => handleToggleChecklist(idx)}
-                          style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                        />
-                        <span
+                        {/* Calendar Sync Status */}
+                        {isSynced ? (
+                          <span
+                            className="status-badge ok"
+                            title={`Event ID: ${item.calendarLink?.externalEventId}`}
+                          >
+                            <Icon name="check" size={20} /> Calendar Synced
+                          </span>
+                        ) : (
+                          <span className="status-badge disconnected">
+                            <Icon name="close" size={20} /> Not Synced to Calendar
+                          </span>
+                        )}
+
+                        {/* Prep Brief Status */}
+                        {hasBrief ? (
+                          <span className="status-badge ok">
+                            <Icon name="check" size={20} /> Prep Brief (
+                            {item.preparationBrief?.checklistProgress.completed}/
+                            {item.preparationBrief?.checklistProgress.total} Tasks)
+                          </span>
+                        ) : (
+                          <span className="status-badge degraded">
+                            <Icon name="warning" /> No Brief Generated
+                          </span>
+                        )}
+
+                        {/* Debrief Status */}
+                        {hasDebrief ? (
+                          <span className="status-badge ok">
+                            <Icon name="check" size={20} /> Debrief Recorded
+                          </span>
+                        ) : isUpcoming ? (
+                          <span className="status-badge ok" style={{ opacity: 0.7 }}>
+                            Debrief Pending Interview
+                          </span>
+                        ) : (
+                          <span className="status-badge degraded">
+                            <Icon name="warning" /> Debrief Needed
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'flex-end',
+                          gap: '0.5rem',
+                          borderTop: '1px solid var(--surface-border)',
+                          paddingTop: '0.75rem',
+                          flexWrap: 'wrap',
+                        }}
+                        className="layout-group"
+                      >
+                        {/* Calendar Action */}
+                        {isSynced ? (
+                          <Button
+                            className="btn btn-secondary btn-sm"
+                            style={{ color: 'var(--status-danger)' }}
+                            onClick={() => handleDeleteCalendarEvent(item)}
+                          >
+                            Remove from Calendar
+                          </Button>
+                        ) : (
+                          <Button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleOpenBookingModal(item)}
+                          >
+                            + Add to Calendar
+                          </Button>
+                        )}
+
+                        {/* Brief Action */}
+                        <Button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => handleOpenBrief(item)}
+                        >
+                          {hasBrief ? (
+                            <>
+                              <Icon name="document" size={20} /> View Preparation Brief
+                            </>
+                          ) : (
+                            <>
+                              <Icon name="ai" size={20} /> Generate Preparation Brief
+                            </>
+                          )}
+                        </Button>
+
+                        {/* Debrief Action */}
+                        <Button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleOpenDebrief(item)}
+                        >
+                          {hasDebrief ? (
+                            <>
+                              <Icon name="edit" size={20} /> Edit Debrief
+                            </>
+                          ) : (
+                            <>
+                              <Icon name="edit" size={20} /> Record Debrief
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── TAB 2: AVAILABILITY & CONFLICTS ─────────────────────────────────── */}
+        {activeTab === 'availability' && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+              gap: '1.5rem',
+            }}
+            className="layout-group"
+          >
+            {/* Multi-Calendar Availability Inspector */}
+            <Card className="card">
+              <h3 className="card-title">Multi-Calendar Availability Finder</h3>
+              <p
+                style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.85rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                Aggregate busy slots across all connected accounts to find open interview scheduling
+                windows.
+              </p>
+
+              <div className="form-grid" style={{ marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label">Window Start Date</label>
+                  <Input
+                    type="date"
+                    className="form-input"
+                    value={availStart}
+                    onChange={(e) => setAvailStart(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Window End Date</label>
+                  <Input
+                    type="date"
+                    className="form-input"
+                    value={availEnd}
+                    onChange={(e) => setAvailEnd(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <Button
+                className="btn btn-primary"
+                onClick={handleQueryAvailability}
+                disabled={availLoading}
+                style={{ width: '100%', marginBottom: '1rem' }}
+              >
+                {availLoading ? 'Querying Calendars...' : 'Query Combined Availability'}
+              </Button>
+
+              {availResult && (
+                <div
+                  style={{
+                    marginTop: '1rem',
+                    borderTop: '1px solid var(--surface-border)',
+                    paddingTop: '1rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Query Status:</span>
+                    <span
+                      className={`status-badge ${availResult.status === 'AVAILABLE' ? 'ok' : 'degraded'}`}
+                    >
+                      {availResult.status}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.85rem',
+                      color: 'var(--text-secondary)',
+                      marginBottom: '0.75rem',
+                    }}
+                  >
+                    Queried {availResult.queriedCalendars.length} calendar(s) | Timezone:{' '}
+                    {availResult.timezone}
+                  </div>
+
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                    Busy Slots ({availResult.busySlots.length}):
+                  </div>
+                  {availResult.busySlots.length === 0 ? (
+                    <p style={{ color: 'var(--status-success)', fontSize: '0.85rem' }}>
+                      <Icon name="check" size={20} /> No busy slots found in selected range. Entire
+                      window is free.
+                    </p>
+                  ) : (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.35rem',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                      }}
+                      className="layout-group"
+                    >
+                      {availResult.busySlots.map((slot, idx) => (
+                        <div
+                          key={idx}
                           style={{
-                            fontSize: '0.85rem',
-                            textDecoration: item.isCompleted ? 'line-through' : 'none',
-                            color: item.isCompleted
-                              ? 'var(--text-secondary)'
-                              : 'var(--text-primary)',
+                            background: 'var(--m3-surface-container-low)',
+                            padding: '0.4rem 0.6rem',
+                            borderRadius: '16px',
+                            fontSize: '0.8rem',
+                            border: '1px solid var(--surface-border)',
                           }}
                         >
-                          {item.label}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
+                          ⛔ {new Date(slot.start).toLocaleString()} →{' '}
+                          {new Date(slot.end).toLocaleTimeString()}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              )}
+            </Card>
 
-                {/* Personal Human Notes */}
-                <div>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                    Candidate Talking Points & Notes
-                  </h4>
-                  <textarea
-                    className="form-textarea"
-                    rows={4}
-                    value={humanNotes}
-                    onChange={(e) => setHumanNotes(e.target.value)}
-                    placeholder="Add your personal notes, questions to ask the interviewer, salary notes, etc."
-                    style={{ width: '100%', marginBottom: '0.5rem' }}
-                  />
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={handleSaveNotes}
-                      disabled={savingNotes}
-                    >
-                      {savingNotes ? 'Saving Notes...' : 'Save Notes'}
-                    </button>
+            {/* Interactive Conflict Checker */}
+            <Card className="card">
+              <h3 className="card-title">Interview Conflict Verifier</h3>
+              <p
+                style={{
+                  color: 'var(--text-secondary)',
+                  fontSize: '0.85rem',
+                  marginBottom: '1rem',
+                }}
+              >
+                Test any proposed interview datetime against external calendars and existing
+                scheduled interviews.
+              </p>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Proposed Interview DateTime</label>
+                <Input
+                  type="datetime-local"
+                  className="form-input"
+                  value={conflictDateTime}
+                  onChange={(e) => setConflictDateTime(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label">Duration (Minutes)</label>
+                <Select
+                  className="form-input"
+                  value={conflictDuration}
+                  onChange={(e) => setConflictDuration(Number(e.target.value))}
+                >
+                  <option value={30}>30 minutes</option>
+                  <option value={45}>45 minutes</option>
+                  <option value={60}>60 minutes</option>
+                  <option value={90}>90 minutes</option>
+                </Select>
+              </div>
+
+              <Button
+                className="btn btn-primary"
+                onClick={handleCheckConflict}
+                disabled={conflictLoading}
+                style={{ width: '100%', marginBottom: '1rem' }}
+              >
+                {conflictLoading ? 'Checking Conflicts...' : 'Verify Scheduling Conflict'}
+              </Button>
+
+              {conflictResult && (
+                <div
+                  style={{
+                    marginTop: '1rem',
+                    borderTop: '1px solid var(--surface-border)',
+                    paddingTop: '1rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Conflict Result:</span>
+                    <span className={`status-badge ${conflictResult.hasConflict ? 'error' : 'ok'}`}>
+                      {conflictResult.hasConflict ? 'CONFLICT DETECTED' : 'CLEAR (NO CONFLICT)'}
+                    </span>
                   </div>
+
+                  {conflictResult.hasConflict ? (
+                    <div
+                      style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+                      className="layout-group"
+                    >
+                      {conflictResult.conflicts.map((c, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            background: 'var(--status-danger-container)',
+                            border: '1px solid var(--status-danger-border)',
+                            padding: '0.5rem',
+                            borderRadius: '16px',
+                            fontSize: '0.8rem',
+                          }}
+                        >
+                          <strong>
+                            <Icon name="warning" /> {c.type}: {c.description}
+                          </strong>
+                          <div style={{ color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                            {new Date(c.conflictStart).toLocaleTimeString()} -{' '}
+                            {new Date(c.conflictEnd).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ color: 'var(--status-success)', fontSize: '0.85rem' }}>
+                      <Icon name="check" size={20} /> Proposed slot is completely free. No
+                      overlapping interviews or external events.
+                    </p>
+                  )}
+                </div>
+              )}
+            </Card>
+          </div>
+        )}
+
+        {/* ─── TAB 3: CALENDAR ACCOUNTS ────────────────────────────────────────── */}
+        {activeTab === 'accounts' && (
+          <Card className="card">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div>
+                <h3 className="card-title">Connected Calendar Inboxes</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                  Manage Google Calendar OAuth connections and offline Demo Fixture accounts.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+                <Button className="btn btn-primary btn-sm" onClick={handleConnectGoogle}>
+                  + Connect Google Calendar (OAuth)
+                </Button>
+                <Button
+                  className="btn btn-secondary btn-sm"
+                  onClick={handleConnectFixture}
+                  title="Connect offline simulated calendar fixture for local testing without live Google credentials."
+                >
+                  <Icon name="settings" size={20} /> Offline Test Fixture
+                </Button>
+              </div>
+            </div>
+
+            {accounts.length === 0 ? (
+              <div className="placeholder-view">
+                <h3>No Calendar Accounts Connected</h3>
+                <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                  Connect your real calendar to sync interview meetings, check availability, and
+                  prevent overlapping rounds.
+                </p>
+                <div
+                  style={{
+                    display: 'flex',
+                    gap: '0.75rem',
+                    justifyContent: 'center',
+                    marginTop: '1rem',
+                  }}
+                  className="layout-group"
+                >
+                  <Button className="btn btn-primary" onClick={handleConnectGoogle}>
+                    + Connect Google Calendar (OAuth)
+                  </Button>
+                  <Button
+                    className="btn btn-secondary"
+                    onClick={handleConnectFixture}
+                    title="Local offline simulation for testing"
+                  >
+                    <Icon name="settings" size={20} /> Connect Offline Test Fixture
+                  </Button>
                 </div>
               </div>
             ) : (
-              <p style={{ color: 'var(--text-secondary)' }}>No brief generated.</p>
-            )}
-          </div>
-        </div>
-      )}
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+                className="layout-group"
+              >
+                {accounts.map((acc) => (
+                  <div
+                    key={acc.id}
+                    style={{
+                      background: 'var(--m3-surface-container-low)',
+                      border: '1px solid var(--surface-border)',
+                      borderRadius: '16px',
+                      padding: '1rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        className="layout-group"
+                      >
+                        <span style={{ fontSize: '1.1rem' }}>
+                          {acc.provider === 'GOOGLE' ? (
+                            '🗓️'
+                          ) : (
+                            <>
+                              <Icon name="settings" size={20} />{' '}
+                            </>
+                          )}
+                        </span>
+                        <strong style={{ fontSize: '1rem' }}>{acc.emailAddress}</strong>
+                        <span className="badge">
+                          {acc.provider === 'FIXTURE'
+                            ? 'OFFLINE FIXTURE (SIMULATED)'
+                            : acc.provider}
+                        </span>
+                        <span
+                          className={`status-badge ${acc.status === 'CONNECTED' ? 'ok' : 'error'}`}
+                        >
+                          {acc.status}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.8rem',
+                          marginTop: '0.25rem',
+                        }}
+                      >
+                        Scope: {acc.scopeLevel} | Calendars selected:{' '}
+                        {acc.selectedCalendarIds.length || 1}
+                      </div>
+                    </div>
 
-      {/* ─── MODAL 2: DEBRIEF MODAL ─────────────────────────────────────────── */}
-      {debriefModalInterview && (
-        <div className="modal-backdrop" onClick={() => setDebriefModalInterview(null)}>
-          <div
-            className="modal-dialog"
-            style={{ maxWidth: '650px', width: '95%' }}
-            onClick={(e) => e.stopPropagation()}
-          >
+                    <div>
+                      <Button
+                        className="btn btn-secondary btn-sm"
+                        style={{ color: 'var(--status-danger)' }}
+                        onClick={() => handleDisconnectAccount(acc.id)}
+                      >
+                        Disconnect
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* ─── MODAL 1: PREPARATION BRIEF MODAL ────────────────────────────────── */}
+        {briefModalInterview && (
+          <ModalSurface className="modal-backdrop" onClick={() => setBriefModalInterview(null)}>
             <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                borderBottom: '1px solid var(--surface-border)',
-                paddingBottom: '1rem',
-                marginBottom: '1.5rem',
-              }}
+              className="modal-dialog"
+              style={{ maxWidth: '800px', width: '95%' }}
+              onClick={(e) => e.stopPropagation()}
             >
-              <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                  Post-Interview Debrief: {debriefModalInterview.interview.roundTitle}
-                </h2>
-                <div
-                  style={{
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.85rem',
-                    marginTop: '0.25rem',
-                  }}
-                >
-                  🏢 {debriefModalInterview.application.companyName}
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  borderBottom: '1px solid var(--surface-border)',
+                  paddingBottom: '1rem',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <div>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                    Interview Preparation Brief: {briefModalInterview.interview.roundTitle}
+                  </h2>
+                  <div
+                    style={{
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.85rem',
+                      marginTop: '0.25rem',
+                    }}
+                  >
+                    <Icon name="applications" size={20} />{' '}
+                    {briefModalInterview.application.companyName} —{' '}
+                    {briefModalInterview.application.jobTitle}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+                  <Button
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleRegenerateBrief}
+                    disabled={regeneratingBrief}
+                  >
+                    {regeneratingBrief ? (
+                      'Regenerating...'
+                    ) : (
+                      <>
+                        <Icon name="sync" size={20} /> Regenerate Brief
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setBriefModalInterview(null)}
+                    aria-label="Close"
+                  >
+                    <Icon name="close" size={20} />
+                  </Button>
                 </div>
               </div>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setDebriefModalInterview(null)}
-              >
-                ✕
-              </button>
+
+              {briefLoading ? (
+                <div style={{ textAlign: 'center', padding: '3rem' }}>
+                  <p style={{ color: 'var(--text-secondary)' }}>
+                    Synthesizing grounded interview preparation brief...
+                  </p>
+                </div>
+              ) : briefData ? (
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+                  className="layout-group"
+                >
+                  {/* Role Summary & Company Context */}
+                  <div
+                    style={{
+                      background: 'var(--m3-surface-container-low)',
+                      padding: '1rem',
+                      borderRadius: '16px',
+                      border: '1px solid var(--surface-border)',
+                    }}
+                  >
+                    <h4
+                      style={{
+                        fontSize: '0.95rem',
+                        fontWeight: 600,
+                        marginBottom: '0.5rem',
+                        color: 'var(--m3-on-surface)',
+                      }}
+                    >
+                      Role & Company Context
+                    </h4>
+                    <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>
+                      {briefData.roleSummary}
+                    </p>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      {briefData.companyContext}
+                    </p>
+                  </div>
+
+                  {/* Candidate Grounded Strengths */}
+                  <div>
+                    <h4
+                      style={{
+                        fontSize: '0.95rem',
+                        fontWeight: 600,
+                        marginBottom: '0.5rem',
+                        color: 'var(--status-success)',
+                      }}
+                    >
+                      Verified Candidate Strengths (Zero Hallucination)
+                    </h4>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                        gap: '0.75rem',
+                      }}
+                      className="layout-group"
+                    >
+                      {briefData.candidateStrengths.map((strength, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            background: 'var(--status-success-container)',
+                            border: '1px solid var(--status-success-border)',
+                            padding: '0.75rem',
+                            borderRadius: '16px',
+                          }}
+                        >
+                          <strong style={{ fontSize: '0.85rem', color: 'var(--status-success)' }}>
+                            {strength.evidenceTitle}
+                          </strong>
+                          <div
+                            style={{
+                              fontSize: '0.75rem',
+                              color: 'var(--m3-on-surface)',
+                              marginTop: '0.15rem',
+                            }}
+                          >
+                            Type: {strength.evidenceType} | Target: {strength.relevantRequirement}
+                          </div>
+                          <p
+                            style={{
+                              fontSize: '0.8rem',
+                              color: 'var(--text-secondary)',
+                              marginTop: '0.25rem',
+                            }}
+                          >
+                            {strength.recommendation}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Anticipated Questions & STAR Frameworks */}
+                  <div>
+                    <h4
+                      style={{
+                        fontSize: '0.95rem',
+                        fontWeight: 600,
+                        marginBottom: '0.5rem',
+                        color: 'var(--status-warning)',
+                      }}
+                    >
+                      Anticipated Questions & Grounded STAR Frameworks
+                    </h4>
+                    <div
+                      style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                      className="layout-group"
+                    >
+                      {briefData.suggestedAnswerFrameworks.map((item, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            background: 'var(--m3-surface-container-low)',
+                            border: '1px solid var(--surface-border)',
+                            padding: '0.85rem',
+                            borderRadius: '16px',
+                          }}
+                        >
+                          <div
+                            style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.4rem' }}
+                          >
+                            Q: {item.question}
+                          </div>
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(2, 1fr)',
+                              gap: '0.5rem',
+                              fontSize: '0.8rem',
+                            }}
+                            className="layout-group"
+                          >
+                            <div>
+                              <strong style={{ color: 'var(--m3-on-surface)' }}>Situation:</strong>{' '}
+                              {item.situation || 'To be framed live'}
+                            </div>
+                            <div>
+                              <strong style={{ color: 'var(--m3-on-surface)' }}>Task:</strong>{' '}
+                              {item.task || 'To be framed live'}
+                            </div>
+                            <div>
+                              <strong style={{ color: 'var(--status-success)' }}>Action:</strong>{' '}
+                              {item.action || 'To be framed live'}
+                            </div>
+                            <div>
+                              <strong style={{ color: 'var(--status-success)' }}>Result:</strong>{' '}
+                              {item.result || 'To be framed live'}
+                            </div>
+                          </div>
+                          {item.sourceEvidenceId && (
+                            <div
+                              style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--text-secondary)',
+                                marginTop: '0.4rem',
+                              }}
+                            >
+                              Grounded Evidence ID: {item.sourceEvidenceId}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Preparation Checklist */}
+                  <div>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                      Preparation Checklist (
+                      {briefData.preparationChecklist.filter((c) => c.isCompleted).length} /{' '}
+                      {briefData.preparationChecklist.length})
+                    </h4>
+                    <div
+                      style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+                      className="layout-group"
+                    >
+                      {briefData.preparationChecklist.map((item: ChecklistItem, idx: number) => (
+                        <label
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            background: 'var(--m3-surface-container-low)',
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: '16px',
+                            cursor: 'pointer',
+                            border: '1px solid var(--surface-border)',
+                          }}
+                        >
+                          <Input
+                            type="checkbox"
+                            checked={item.isCompleted}
+                            onChange={() => handleToggleChecklist(idx)}
+                            style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                          />
+                          <span
+                            style={{
+                              fontSize: '0.85rem',
+                              textDecoration: item.isCompleted ? 'line-through' : 'none',
+                              color: item.isCompleted
+                                ? 'var(--text-secondary)'
+                                : 'var(--text-primary)',
+                            }}
+                          >
+                            {item.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Personal Human Notes */}
+                  <div>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                      Candidate Talking Points & Notes
+                    </h4>
+                    <Textarea
+                      className="form-textarea"
+                      rows={4}
+                      value={humanNotes}
+                      onChange={(e) => setHumanNotes(e.target.value)}
+                      placeholder="Add your personal notes, questions to ask the interviewer, salary notes, etc."
+                      style={{ width: '100%', marginBottom: '0.5rem' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button
+                        className="btn btn-primary btn-sm"
+                        onClick={handleSaveNotes}
+                        disabled={savingNotes}
+                      >
+                        {savingNotes ? 'Saving Notes...' : 'Save Notes'}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ color: 'var(--text-secondary)' }}>No brief generated.</p>
+              )}
             </div>
+          </ModalSurface>
+        )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="form-group">
-                <label className="form-label">Questions Asked by Interviewer</label>
-                <textarea
-                  className="form-textarea"
-                  rows={3}
-                  value={debriefForm.questionsAsked}
-                  onChange={(e) =>
-                    setDebriefForm({ ...debriefForm, questionsAsked: e.target.value })
-                  }
-                  placeholder="What technical or behavioral questions did they ask?"
-                />
+        {/* ─── MODAL 2: DEBRIEF MODAL ─────────────────────────────────────────── */}
+        {debriefModalInterview && (
+          <ModalSurface className="modal-backdrop" onClick={() => setDebriefModalInterview(null)}>
+            <div
+              className="modal-dialog"
+              style={{ maxWidth: '650px', width: '95%' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  borderBottom: '1px solid var(--surface-border)',
+                  paddingBottom: '1rem',
+                  marginBottom: '1.5rem',
+                }}
+              >
+                <div>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                    Post-Interview Debrief: {debriefModalInterview.interview.roundTitle}
+                  </h2>
+                  <div
+                    style={{
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.85rem',
+                      marginTop: '0.25rem',
+                    }}
+                  >
+                    <Icon name="applications" size={20} />{' '}
+                    {debriefModalInterview.application.companyName}
+                  </div>
+                </div>
+                <Button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setDebriefModalInterview(null)}
+                  aria-label="Close"
+                >
+                  <Icon name="close" size={20} />
+                </Button>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Topics Discussed & Highlights</label>
-                <textarea
-                  className="form-textarea"
-                  rows={2}
-                  value={debriefForm.topicsDiscussed}
-                  onChange={(e) =>
-                    setDebriefForm({ ...debriefForm, topicsDiscussed: e.target.value })
-                  }
-                  placeholder="Key project discussions, architecture topics, team dynamics..."
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Candidate Impressions / Observations</label>
-                <textarea
-                  className="form-textarea"
-                  rows={2}
-                  value={debriefForm.candidateObservations}
-                  onChange={(e) =>
-                    setDebriefForm({ ...debriefForm, candidateObservations: e.target.value })
-                  }
-                  placeholder="How did you feel it went? Positive signals, rapport with interviewers..."
-                />
-              </div>
-
-              <div className="form-grid">
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+                className="layout-group"
+              >
                 <div className="form-group">
-                  <label className="form-label">Follow-Up Commitments</label>
-                  <input
+                  <label className="form-label">Questions Asked by Interviewer</label>
+                  <Textarea
+                    className="form-textarea"
+                    rows={3}
+                    value={debriefForm.questionsAsked}
+                    onChange={(e) =>
+                      setDebriefForm({ ...debriefForm, questionsAsked: e.target.value })
+                    }
+                    placeholder="What technical or behavioral questions did they ask?"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Topics Discussed & Highlights</label>
+                  <Textarea
+                    className="form-textarea"
+                    rows={2}
+                    value={debriefForm.topicsDiscussed}
+                    onChange={(e) =>
+                      setDebriefForm({ ...debriefForm, topicsDiscussed: e.target.value })
+                    }
+                    placeholder="Key project discussions, architecture topics, team dynamics..."
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Candidate Impressions / Observations</label>
+                  <Textarea
+                    className="form-textarea"
+                    rows={2}
+                    value={debriefForm.candidateObservations}
+                    onChange={(e) =>
+                      setDebriefForm({ ...debriefForm, candidateObservations: e.target.value })
+                    }
+                    placeholder="How did you feel it went? Positive signals, rapport with interviewers..."
+                  />
+                </div>
+
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label className="form-label">Follow-Up Commitments</label>
+                    <Input
+                      type="text"
+                      className="form-input"
+                      value={debriefForm.followUpCommitments}
+                      onChange={(e) =>
+                        setDebriefForm({ ...debriefForm, followUpCommitments: e.target.value })
+                      }
+                      placeholder="e.g. Send GitHub repository link, thank you note"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Expected Response Date</label>
+                    <Input
+                      type="date"
+                      className="form-input"
+                      value={debriefForm.expectedResponseDate || ''}
+                      onChange={(e) =>
+                        setDebriefForm({ ...debriefForm, expectedResponseDate: e.target.value })
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Concerns or Flagged Items</label>
+                  <Input
                     type="text"
                     className="form-input"
-                    value={debriefForm.followUpCommitments}
-                    onChange={(e) =>
-                      setDebriefForm({ ...debriefForm, followUpCommitments: e.target.value })
-                    }
-                    placeholder="e.g. Send GitHub repository link, thank you note"
+                    value={debriefForm.concerns}
+                    onChange={(e) => setDebriefForm({ ...debriefForm, concerns: e.target.value })}
+                    placeholder="Any hesitations, tricky questions, or red flags observed"
                   />
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Expected Response Date</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={debriefForm.expectedResponseDate || ''}
-                    onChange={(e) =>
-                      setDebriefForm({ ...debriefForm, expectedResponseDate: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
 
-              <div className="form-group">
-                <label className="form-label">Concerns or Flagged Items</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={debriefForm.concerns}
-                  onChange={(e) => setDebriefForm({ ...debriefForm, concerns: e.target.value })}
-                  placeholder="Any hesitations, tricky questions, or red flags observed"
-                />
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.5rem',
-                  marginTop: '1rem',
-                }}
-              >
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => setDebriefModalInterview(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleSaveDebrief}
-                  disabled={savingDebrief}
-                >
-                  {savingDebrief ? 'Saving Debrief...' : 'Save Debrief'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── MODAL 3: BOOK / SYNC CALENDAR EVENT MODAL ───────────────────────── */}
-      {bookingModalInterview && (
-        <div className="modal-backdrop" onClick={() => setBookingModalInterview(null)}>
-          <div
-            className="modal-dialog"
-            style={{ maxWidth: '550px' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                borderBottom: '1px solid var(--surface-border)',
-                paddingBottom: '1rem',
-                marginBottom: '1.5rem',
-              }}
-            >
-              <div>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Sync Interview to Calendar</h2>
                 <div
                   style={{
-                    color: 'var(--text-secondary)',
-                    fontSize: '0.85rem',
-                    marginTop: '0.25rem',
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: '0.5rem',
+                    marginTop: '1rem',
                   }}
+                  className="layout-group"
                 >
-                  {bookingModalInterview.interview.roundTitle} (
-                  {bookingModalInterview.application.companyName})
+                  <Button
+                    className="btn btn-secondary"
+                    onClick={() => setDebriefModalInterview(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="btn btn-primary"
+                    onClick={handleSaveDebrief}
+                    disabled={savingDebrief}
+                  >
+                    {savingDebrief ? 'Saving Debrief...' : 'Save Debrief'}
+                  </Button>
                 </div>
               </div>
-              <button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setBookingModalInterview(null)}
-              >
-                ✕
-              </button>
             </div>
+          </ModalSurface>
+        )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div className="form-group">
-                <label className="form-label">Target Calendar</label>
-                <select
-                  className="form-input"
-                  value={selectedCalendarId}
-                  onChange={(e) => setSelectedCalendarId(e.target.value)}
-                >
-                  <option value="primary">Primary Calendar (Default)</option>
-                  {accounts.flatMap((a) =>
-                    a.selectedCalendarIds.map((cid) => (
-                      <option key={cid} value={cid}>
-                        {a.emailAddress} - {cid}
-                      </option>
-                    )),
-                  )}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Timezone</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={bookingTimezone}
-                  onChange={(e) => setBookingTimezone(e.target.value)}
-                />
-              </div>
-
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  cursor: 'pointer',
-                  fontSize: '0.85rem',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={includePrepInEvent}
-                  onChange={(e) => setIncludePrepInEvent(e.target.checked)}
-                />
-                Include company context and preparation summary in calendar event description
-              </label>
-
+        {/* ─── MODAL 3: BOOK / SYNC CALENDAR EVENT MODAL ───────────────────────── */}
+        {bookingModalInterview && (
+          <ModalSurface className="modal-backdrop" onClick={() => setBookingModalInterview(null)}>
+            <div
+              className="modal-dialog"
+              style={{ maxWidth: '550px' }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <div
                 style={{
                   display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.5rem',
-                  marginTop: '1rem',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  borderBottom: '1px solid var(--surface-border)',
+                  paddingBottom: '1rem',
+                  marginBottom: '1.5rem',
                 }}
               >
-                <button
-                  className="btn btn-secondary"
+                <div>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
+                    Sync Interview to Calendar
+                  </h2>
+                  <div
+                    style={{
+                      color: 'var(--text-secondary)',
+                      fontSize: '0.85rem',
+                      marginTop: '0.25rem',
+                    }}
+                  >
+                    {bookingModalInterview.interview.roundTitle} (
+                    {bookingModalInterview.application.companyName})
+                  </div>
+                </div>
+                <Button
+                  className="btn btn-secondary btn-sm"
                   onClick={() => setBookingModalInterview(null)}
+                  aria-label="Close"
                 >
-                  Cancel
-                </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleConfirmCreateEvent}
-                  disabled={bookingLoading}
+                  <Icon name="close" size={20} />
+                </Button>
+              </div>
+
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+                className="layout-group"
+              >
+                <div className="form-group">
+                  <label className="form-label">Target Calendar</label>
+                  <Select
+                    className="form-input"
+                    value={selectedCalendarId}
+                    onChange={(e) => setSelectedCalendarId(e.target.value)}
+                  >
+                    <option value="primary">Primary Calendar (Default)</option>
+                    {accounts.flatMap((a) =>
+                      a.selectedCalendarIds.map((cid) => (
+                        <option key={cid} value={cid}>
+                          {a.emailAddress} - {cid}
+                        </option>
+                      )),
+                    )}
+                  </Select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Timezone</label>
+                  <Input
+                    type="text"
+                    className="form-input"
+                    value={bookingTimezone}
+                    onChange={(e) => setBookingTimezone(e.target.value)}
+                  />
+                </div>
+
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                  }}
                 >
-                  {bookingLoading ? 'Syncing...' : 'Sync to Calendar'}
-                </button>
+                  <Input
+                    type="checkbox"
+                    checked={includePrepInEvent}
+                    onChange={(e) => setIncludePrepInEvent(e.target.checked)}
+                  />
+                  Include company context and preparation summary in calendar event description
+                </label>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: '0.5rem',
+                    marginTop: '1rem',
+                  }}
+                  className="layout-group"
+                >
+                  <Button
+                    className="btn btn-secondary"
+                    onClick={() => setBookingModalInterview(null)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="btn btn-primary"
+                    onClick={handleConfirmCreateEvent}
+                    disabled={bookingLoading}
+                  >
+                    {bookingLoading ? 'Syncing...' : 'Sync to Calendar'}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </ModalSurface>
+        )}
+      </section>
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import { useFeedback } from '../ui/Feedback.js';
+import { Button, Icon, Input, ModalSurface, Select } from '../ui/Primitives.js';
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPilotInvite, listPilotInvites, revokePilotInvite } from '../api/auth-client.js';
 import type { PilotInvitationDto } from '@job-agent/shared';
@@ -11,6 +13,7 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { confirm } = useFeedback();
   const [invitations, setInvitations] = useState<PilotInvitationDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,9 +88,9 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
 
   const handleRevoke = async (id: string) => {
     if (
-      !window.confirm(
+      !(await confirm(
         'Are you sure you want to revoke this invitation? Once revoked, it cannot be used.',
-      )
+      ))
     ) {
       return;
     }
@@ -110,7 +113,7 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose} role="presentation">
+    <ModalSurface className="modal-backdrop" onClick={onClose} role="presentation">
       <div
         className="modal-dialog modal-dialog-large modal-dialog-clean"
         onClick={(e) => e.stopPropagation()}
@@ -122,7 +125,7 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
         <div className="modal-header">
           <div className="modal-header-content">
             <span className="modal-icon" aria-hidden="true">
-              🎟️
+              <Icon name="permissions" size={20} />
             </span>
             <div>
               <h3 id="pilot-invitations-title" className="modal-title">
@@ -133,28 +136,32 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
               </p>
             </div>
           </div>
-          <button
+          <Button
             type="button"
             onClick={onClose}
             className="modal-close-btn"
             aria-label="Close dialog"
           >
-            ✕
-          </button>
+            <Icon name="close" size={20} />
+          </Button>
         </div>
 
         {/* Modal Body */}
         <div className="modal-body">
           {error && (
             <div className="alert alert-error" role="alert">
-              <span>⚠️</span>
+              <span>
+                <Icon name="warning" />
+              </span>
               <span>{error}</span>
             </div>
           )}
 
           {success && (
             <div className="alert alert-success" role="status">
-              <span>✓</span>
+              <span>
+                <Icon name="check" size={20} />
+              </span>
               <span>{success}</span>
             </div>
           )}
@@ -175,13 +182,19 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
                   Share this code with the invited tester or send the registration link.
                 </div>
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={() => copyToClipboard(newlyCreatedCode)}
                 className="btn btn-primary btn-sm"
               >
-                {copiedCode === newlyCreatedCode ? '✓ Copied!' : 'Copy Code'}
-              </button>
+                {copiedCode === newlyCreatedCode ? (
+                  <>
+                    <Icon name="check" size={20} /> Copied!
+                  </>
+                ) : (
+                  'Copy Code'
+                )}
+              </Button>
             </div>
           )}
 
@@ -197,7 +210,7 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
                       (Optional)
                     </span>
                   </label>
-                  <input
+                  <Input
                     id="invite-email"
                     type="email"
                     value={invitedEmail}
@@ -211,7 +224,7 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
                   <label htmlFor="invite-role" className="form-label">
                     Role
                   </label>
-                  <select
+                  <Select
                     id="invite-role"
                     value={role}
                     onChange={(e) => setRole(e.target.value as 'user' | 'admin')}
@@ -219,14 +232,14 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
                   >
                     <option value="user">User (Tester)</option>
                     <option value="admin">Administrator</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div className="form-group">
                   <label htmlFor="invite-expiry" className="form-label">
                     Expires In
                   </label>
-                  <select
+                  <Select
                     id="invite-expiry"
                     value={expiresInDays}
                     onChange={(e) => setExpiresInDays(Number(e.target.value))}
@@ -236,14 +249,14 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
                     <option value={14}>14 Days</option>
                     <option value={30}>30 Days</option>
                     <option value={90}>90 Days</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                <button type="submit" disabled={generating} className="btn btn-primary">
+                <Button type="submit" disabled={generating} className="btn btn-primary">
                   {generating ? 'Generating...' : '+ Generate Invitation Code'}
-                </button>
+                </Button>
               </div>
             </form>
           </div>
@@ -261,14 +274,20 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
               <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                 Issued Invitations ({invitations.length})
               </div>
-              <button
+              <Button
                 type="button"
                 onClick={fetchInvitations}
                 disabled={loading}
                 className="btn btn-ghost btn-sm"
               >
-                {loading ? 'Refreshing...' : '↻ Refresh'}
-              </button>
+                {loading ? (
+                  'Refreshing...'
+                ) : (
+                  <>
+                    <Icon name="sync" size={20} /> Refresh
+                  </>
+                )}
+              </Button>
             </div>
 
             {loading && invitations.length === 0 ? (
@@ -287,7 +306,7 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
                 style={{
                   textAlign: 'center',
                   padding: '2rem',
-                  backgroundColor: 'rgba(15, 23, 42, 0.4)',
+                  backgroundColor: 'var(--m3-surface-container-low)',
                   borderRadius: '0.5rem',
                   color: 'var(--text-secondary)',
                   fontSize: '0.85rem',
@@ -311,7 +330,10 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
                   <tbody>
                     {invitations.map((inv) => (
                       <tr key={inv.id}>
-                        <td className="table-mono" style={{ fontWeight: 700, color: '#60a5fa' }}>
+                        <td
+                          className="table-mono"
+                          style={{ fontWeight: 700, color: 'var(--m3-on-surface)' }}
+                        >
                           {inv.code}
                         </td>
                         <td>
@@ -356,23 +378,29 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
                               justifyContent: 'flex-end',
                             }}
                           >
-                            <button
+                            <Button
                               type="button"
                               onClick={() => copyToClipboard(inv.code)}
                               className="btn btn-secondary btn-sm"
                               title="Copy invitation code"
                             >
-                              {copiedCode === inv.code ? '✓ Copied' : 'Copy'}
-                            </button>
+                              {copiedCode === inv.code ? (
+                                <>
+                                  <Icon name="check" size={20} /> Copied
+                                </>
+                              ) : (
+                                'Copy'
+                              )}
+                            </Button>
                             {inv.status === 'PENDING' && (
-                              <button
+                              <Button
                                 type="button"
                                 onClick={() => handleRevoke(inv.id)}
                                 className="btn btn-danger btn-sm"
                                 title="Revoke this invitation"
                               >
                                 Revoke
-                              </button>
+                              </Button>
                             )}
                           </div>
                         </td>
@@ -387,11 +415,11 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
 
         {/* Modal Footer */}
         <div className="modal-footer">
-          <button type="button" onClick={onClose} className="btn btn-secondary">
+          <Button type="button" onClick={onClose} className="btn btn-secondary">
             Close
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </ModalSurface>
   );
 };

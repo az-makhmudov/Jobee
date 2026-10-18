@@ -1,3 +1,4 @@
+import { Button, Card, Icon, Input, Select } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import { candidateApi } from '../api/candidate-client.js';
 import type { JobPreferencesDto, ApplicationPolicyDto } from '@job-agent/shared';
@@ -163,7 +164,7 @@ export function PreferencesView({ onUpdate }: Props) {
   return (
     <div>
       <header className="page-header">
-        <h1 className="page-title">Preferences & Safety Policy</h1>
+        <h2 className="page-title">Preferences</h2>
         <p className="page-subtitle">
           Define job targeting criteria and enforce strict application authorization guardrails
         </p>
@@ -175,7 +176,9 @@ export function PreferencesView({ onUpdate }: Props) {
           style={{
             borderColor: toast.type === 'error' ? 'var(--danger)' : 'var(--success)',
             backgroundColor:
-              toast.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+              toast.type === 'error'
+                ? 'var(--status-danger-container)'
+                : 'var(--status-success-container)',
           }}
         >
           <span>{toast.message}</span>
@@ -183,13 +186,13 @@ export function PreferencesView({ onUpdate }: Props) {
       )}
 
       {loading && !policy ? (
-        <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
+        <Card className="card" style={{ textAlign: 'center', padding: '2rem' }}>
           Loading preferences...
-        </div>
+        </Card>
       ) : null}
 
       {/* SECTION 1: APPLICATION SAFETY & POLICY */}
-      <div className="card" style={{ borderLeft: '4px solid var(--accent)' }}>
+      <Card className="card" style={{ borderLeft: '4px solid var(--accent)' }}>
         <div className="card-title">Application Safety & Policy Guardrails</div>
         <p
           style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.25rem' }}
@@ -201,10 +204,10 @@ export function PreferencesView({ onUpdate }: Props) {
         {autoApply && (
           <div
             style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.4)',
+              backgroundColor: 'var(--status-danger-container)',
+              border: '1px solid var(--status-danger-border)',
               padding: '1rem',
-              borderRadius: '6px',
+              borderRadius: '16px',
               marginBottom: '1.5rem',
             }}
           >
@@ -216,9 +219,9 @@ export function PreferencesView({ onUpdate }: Props) {
                 marginBottom: '0.25rem',
               }}
             >
-              ⚠ Warning: Automated Job Applications Enabled
+              <Icon name="warning" /> Warning: Automated Job Applications Enabled
             </div>
-            <p style={{ fontSize: '0.85rem', color: '#fca5a5' }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--status-danger)' }}>
               The system will be allowed to submit applications without prior human confirmation if
               the match score exceeds {autoScore}% and all policy gates pass. Keep this disabled if
               you prefer to review all submissions.
@@ -232,7 +235,7 @@ export function PreferencesView({ onUpdate }: Props) {
               <label
                 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
               >
-                <input
+                <Input
                   type="checkbox"
                   checked={autoApply}
                   onChange={(e) => setAutoApply(e.target.checked)}
@@ -254,7 +257,7 @@ export function PreferencesView({ onUpdate }: Props) {
               <label className="form-label">
                 Min Match Score for Human Review ({reviewScore}%)
               </label>
-              <input
+              <Input
                 type="range"
                 min="0"
                 max="100"
@@ -269,7 +272,7 @@ export function PreferencesView({ onUpdate }: Props) {
 
             <div className="form-group">
               <label className="form-label">Min Match Score to Auto-Apply ({autoScore}%)</label>
-              <input
+              <Input
                 type="range"
                 min="0"
                 max="100"
@@ -285,7 +288,7 @@ export function PreferencesView({ onUpdate }: Props) {
 
             <div className="form-group">
               <label className="form-label">Max Applications Per Day</label>
-              <input
+              <Input
                 type="number"
                 min="1"
                 max="100"
@@ -302,7 +305,10 @@ export function PreferencesView({ onUpdate }: Props) {
               <div style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>
                 Deterministic Safety Interlocks
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+                className="layout-group"
+              >
                 <label
                   style={{
                     display: 'flex',
@@ -311,7 +317,7 @@ export function PreferencesView({ onUpdate }: Props) {
                     cursor: 'pointer',
                   }}
                 >
-                  <input
+                  <Input
                     type="checkbox"
                     checked={blockReview}
                     onChange={(e) => setBlockReview(e.target.checked)}
@@ -328,7 +334,7 @@ export function PreferencesView({ onUpdate }: Props) {
                     cursor: 'pointer',
                   }}
                 >
-                  <input
+                  <Input
                     type="checkbox"
                     checked={blockManual}
                     onChange={(e) => setBlockManual(e.target.checked)}
@@ -345,7 +351,7 @@ export function PreferencesView({ onUpdate }: Props) {
                     cursor: 'pointer',
                   }}
                 >
-                  <input
+                  <Input
                     type="checkbox"
                     checked={blockSensitive}
                     onChange={(e) => setBlockSensitive(e.target.checked)}
@@ -359,15 +365,15 @@ export function PreferencesView({ onUpdate }: Props) {
           </div>
 
           <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="btn btn-primary">
+            <Button type="submit" className="btn btn-primary">
               Save Safety Policy
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
+      </Card>
 
       {/* SECTION 2: JOB SEARCH PREFERENCES */}
-      <div className="card">
+      <Card className="card">
         <div className="card-title">Job Search & Targeting Criteria</div>
         <p
           style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.25rem' }}
@@ -379,7 +385,7 @@ export function PreferencesView({ onUpdate }: Props) {
           <div className="form-grid">
             <div className="form-group" style={{ gridColumn: 'span 2' }}>
               <label className="form-label">Target Job Titles (comma-separated)</label>
-              <input
+              <Input
                 type="text"
                 className="form-input"
                 placeholder="Senior Full Stack Engineer, Staff Software Engineer, Platform Architect"
@@ -390,7 +396,7 @@ export function PreferencesView({ onUpdate }: Props) {
 
             <div className="form-group">
               <label className="form-label">Preferred Locations (comma-separated)</label>
-              <input
+              <Input
                 type="text"
                 className="form-input"
                 placeholder="Berlin, London, Remote EU, Remote Worldwide"
@@ -401,7 +407,10 @@ export function PreferencesView({ onUpdate }: Props) {
 
             <div className="form-group">
               <label className="form-label">Work Modes</label>
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '0.4rem' }}>
+              <div
+                style={{ display: 'flex', gap: '1rem', marginTop: '0.4rem' }}
+                className="layout-group"
+              >
                 {['REMOTE', 'HYBRID', 'ONSITE'].map((mode) => (
                   <label
                     key={mode}
@@ -412,7 +421,7 @@ export function PreferencesView({ onUpdate }: Props) {
                       cursor: 'pointer',
                     }}
                   >
-                    <input
+                    <Input
                       type="checkbox"
                       checked={workModes.includes(mode)}
                       onChange={() => toggleWorkMode(mode)}
@@ -425,7 +434,7 @@ export function PreferencesView({ onUpdate }: Props) {
 
             <div className="form-group">
               <label className="form-label">Minimum Base Salary</label>
-              <input
+              <Input
                 type="number"
                 className="form-input"
                 placeholder="e.g. 120000"
@@ -436,7 +445,7 @@ export function PreferencesView({ onUpdate }: Props) {
 
             <div className="form-group">
               <label className="form-label">Currency</label>
-              <select
+              <Select
                 className="form-input"
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
@@ -446,12 +455,12 @@ export function PreferencesView({ onUpdate }: Props) {
                 <option value="GBP">GBP (£)</option>
                 <option value="CHF">CHF (CHF)</option>
                 <option value="CAD">CAD ($)</option>
-              </select>
+              </Select>
             </div>
 
             <div className="form-group">
               <label className="form-label">Requires Visa Sponsorship</label>
-              <select
+              <Select
                 className="form-input"
                 value={sponsorship}
                 onChange={(e) => setSponsorship(e.target.value)}
@@ -459,12 +468,12 @@ export function PreferencesView({ onUpdate }: Props) {
                 <option value="unspecified">Not Specified</option>
                 <option value="yes">Yes (Requires Sponsorship)</option>
                 <option value="no">No (Already Authorized / Citizen)</option>
-              </select>
+              </Select>
             </div>
 
             <div className="form-group">
               <label className="form-label">Willing to Relocate</label>
-              <select
+              <Select
                 className="form-input"
                 value={relocate}
                 onChange={(e) => setRelocate(e.target.value)}
@@ -472,12 +481,12 @@ export function PreferencesView({ onUpdate }: Props) {
                 <option value="unspecified">Not Specified</option>
                 <option value="yes">Yes</option>
                 <option value="no">No</option>
-              </select>
+              </Select>
             </div>
 
             <div className="form-group" style={{ gridColumn: 'span 2' }}>
               <label className="form-label">Excluded Companies (Blacklist - comma-separated)</label>
-              <input
+              <Input
                 type="text"
                 className="form-input"
                 placeholder="Company A, Agency B"
@@ -490,7 +499,7 @@ export function PreferencesView({ onUpdate }: Props) {
               <label className="form-label">
                 Excluded Keywords (Ignore jobs containing - comma-separated)
               </label>
-              <input
+              <Input
                 type="text"
                 className="form-input"
                 placeholder="gambling, clearance required, unpaid"
@@ -501,12 +510,12 @@ export function PreferencesView({ onUpdate }: Props) {
           </div>
 
           <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="btn btn-primary">
+            <Button type="submit" className="btn btn-primary">
               Save Job Preferences
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
+      </Card>
     </div>
   );
 }

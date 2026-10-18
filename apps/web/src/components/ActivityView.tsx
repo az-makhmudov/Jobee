@@ -1,3 +1,5 @@
+import { useFeedback } from '../ui/Feedback.js';
+import { Button, Card, Icon, Select, ModalSurface } from '../ui/Primitives.js';
 import React, { useState, useEffect } from 'react';
 import type {
   CandidateAuditEventDto,
@@ -9,6 +11,7 @@ import { candidateApi } from '../api/candidate-client.js';
 import { OrchestratorClient } from '../api/orchestrator-client.js';
 
 export function ActivityView() {
+  const { alert } = useFeedback();
   const [activeTab, setActiveTab] = useState<'orchestrator' | 'audit'>('orchestrator');
 
   // Candidate Audit State
@@ -78,26 +81,26 @@ export function ActivityView() {
   return (
     <div>
       <header className="page-header" style={{ marginBottom: '1.25rem' }}>
-        <h1 className="page-title">System Activity & Autonomous Operations</h1>
+        <h2 className="page-title">System activity</h2>
         <p className="page-subtitle">
           Autonomous pipeline orchestrator status, background execution logs, and privacy-preserving
           audit trail.
         </p>
 
         {/* Tab Selector */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-          <button
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }} className="layout-group">
+          <Button
             className={`btn btn-sm ${activeTab === 'orchestrator' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('orchestrator')}
           >
-            ⚡ Autonomous Orchestrator & Live Queue
-          </button>
-          <button
+            <Icon name="ai" size={20} /> Autonomous Orchestrator & Live Queue
+          </Button>
+          <Button
             className={`btn btn-sm ${activeTab === 'audit' ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setActiveTab('audit')}
           >
-            🔒 Candidate Brain Audit Log
-          </button>
+            <Icon name="permissions" /> Candidate Brain Audit Log
+          </Button>
         </div>
       </header>
 
@@ -113,8 +116,9 @@ export function ActivityView() {
                 gap: '1rem',
                 marginBottom: '1.5rem',
               }}
+              className="layout-group"
             >
-              <div className="card" style={{ padding: '1rem' }}>
+              <Card className="card" style={{ padding: '1rem' }}>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   Auto-Apply Circuit Breaker
                 </div>
@@ -125,6 +129,7 @@ export function ActivityView() {
                     gap: '0.5rem',
                     marginTop: '0.4rem',
                   }}
+                  className="layout-group"
                 >
                   <span
                     className={`status-badge ${metrics.autoApplyEnabled ? 'ok' : 'degraded'}`}
@@ -144,9 +149,9 @@ export function ActivityView() {
                     ? 'Autonomous submissions authorized'
                     : 'Human review required'}
                 </div>
-              </div>
+              </Card>
 
-              <div className="card" style={{ padding: '1rem' }}>
+              <Card className="card" style={{ padding: '1rem' }}>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   Daily Submission Quota
                 </div>
@@ -162,9 +167,9 @@ export function ActivityView() {
                 >
                   {metrics.dailyQuotaRemaining} slot(s) remaining today
                 </div>
-              </div>
+              </Card>
 
-              <div className="card" style={{ padding: '1rem' }}>
+              <Card className="card" style={{ padding: '1rem' }}>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   Funnel Intelligence
                 </div>
@@ -180,9 +185,9 @@ export function ActivityView() {
                 >
                   {metrics.totalApplicationsSubmitted} total application(s) submitted
                 </div>
-              </div>
+              </Card>
 
-              <div className="card" style={{ padding: '1rem' }}>
+              <Card className="card" style={{ padding: '1rem' }}>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   System Readiness
                 </div>
@@ -193,6 +198,7 @@ export function ActivityView() {
                     gap: '0.5rem',
                     marginTop: '0.4rem',
                   }}
+                  className="layout-group"
                 >
                   <span
                     className={`status-badge ${systemHealth?.status === 'ready' || systemHealth?.status === 'ok' ? 'ok' : 'degraded'}`}
@@ -211,12 +217,12 @@ export function ActivityView() {
                   {metrics.pendingApprovalsCount} pending approval(s),{' '}
                   {metrics.unreadNotificationsCount} alert(s)
                 </div>
-              </div>
+              </Card>
             </div>
           )}
 
           {/* Trigger Control Bar */}
-          <div
+          <Card
             className="card"
             style={{
               display: 'flex',
@@ -237,8 +243,11 @@ export function ActivityView() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <select
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+              className="layout-group"
+            >
+              <Select
                 className="input-select"
                 style={{ padding: '0.4rem 0.75rem', fontSize: '0.85rem' }}
                 value={triggeringTask}
@@ -252,28 +261,34 @@ export function ActivityView() {
                 <option value="AUTO_APPLY">Controlled Auto-Apply Evaluation</option>
                 <option value="EMAIL_SYNC">Email Message Synchronization</option>
                 <option value="REMINDERS">Approval & Interview Reminders</option>
-              </select>
+              </Select>
 
-              <button
+              <Button
                 className="btn btn-primary btn-sm"
                 onClick={handleTriggerRun}
                 disabled={isTriggering}
               >
                 {isTriggering ? 'Triggering...' : '▶ Run Task Now'}
-              </button>
+              </Button>
 
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={loadOrchestratorData}
                 disabled={loadingOrchestrator}
               >
-                {loadingOrchestrator ? 'Refreshing...' : '🔄 Refresh'}
-              </button>
+                {loadingOrchestrator ? (
+                  'Refreshing...'
+                ) : (
+                  <>
+                    <Icon name="sync" size={20} /> Refresh
+                  </>
+                )}
+              </Button>
             </div>
-          </div>
+          </Card>
 
           {/* Orchestration Runs Table */}
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <Card className="card" style={{ padding: 0, overflow: 'hidden' }}>
             <div
               style={{
                 padding: '1rem 1.25rem',
@@ -301,7 +316,7 @@ export function ActivityView() {
                 <thead>
                   <tr
                     style={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                      backgroundColor: 'var(--m3-surface-container-low)',
                       borderBottom: '1px solid var(--surface-border)',
                     }}
                   >
@@ -315,7 +330,7 @@ export function ActivityView() {
                 </thead>
                 <tbody>
                   {runs.map((r) => (
-                    <tr key={r.id} style={{ borderBottom: '1px solid rgba(51, 65, 85, 0.4)' }}>
+                    <tr key={r.id} style={{ borderBottom: '1px solid var(--m3-outline-variant)' }}>
                       <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{r.taskType}</td>
                       <td style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>
                         {r.trigger}
@@ -345,20 +360,20 @@ export function ActivityView() {
                           : new Date(r.createdAt).toLocaleTimeString()}
                       </td>
                       <td style={{ padding: '0.75rem 1rem', textAlign: 'right' }}>
-                        <button
+                        <Button
                           className="btn btn-secondary btn-sm"
                           style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
                           onClick={() => setSelectedRun(r)}
                         >
                           Inspect Trace ({r.stepLogs?.length || 0})
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
-          </div>
+          </Card>
         </div>
       )}
 
@@ -366,25 +381,25 @@ export function ActivityView() {
       {activeTab === 'audit' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-            <button
+            <Button
               className="btn btn-secondary btn-sm"
               onClick={loadAuditEvents}
               disabled={loadingAudit}
             >
               {loadingAudit ? 'Refreshing...' : 'Refresh Log'}
-            </button>
+            </Button>
           </div>
 
           {events.length === 0 ? (
-            <div className="card placeholder-view">
+            <Card className="card placeholder-view">
               <h3>No Audit Events Yet</h3>
               <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                 Actions performed on the Candidate Brain will be recorded here with changed field
                 names and safe operational metadata.
               </p>
-            </div>
+            </Card>
           ) : (
-            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            <Card className="card" style={{ padding: 0, overflow: 'hidden' }}>
               <table
                 style={{
                   width: '100%',
@@ -396,7 +411,7 @@ export function ActivityView() {
                 <thead>
                   <tr
                     style={{
-                      backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                      backgroundColor: 'var(--m3-surface-container-low)',
                       borderBottom: '1px solid var(--surface-border)',
                     }}
                   >
@@ -415,7 +430,7 @@ export function ActivityView() {
                     const hasMetadata = ev.metadata && Object.keys(ev.metadata).length > 0;
                     return (
                       <React.Fragment key={ev.id}>
-                        <tr style={{ borderBottom: '1px solid rgba(51, 65, 85, 0.4)' }}>
+                        <tr style={{ borderBottom: '1px solid var(--m3-outline-variant)' }}>
                           <td style={{ padding: '0.85rem 1rem' }}>
                             <span
                               className={`status-badge ${
@@ -445,13 +460,16 @@ export function ActivityView() {
                           </td>
                           <td style={{ padding: '0.85rem 1rem' }}>
                             {ev.changedFields && ev.changedFields.length > 0 ? (
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                              <div
+                                style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}
+                                className="layout-group"
+                              >
                                 {ev.changedFields.map((field) => (
                                   <span
                                     key={field}
                                     style={{
-                                      backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                                      color: '#93c5fd',
+                                      backgroundColor: 'var(--m3-secondary-container)',
+                                      color: 'var(--m3-on-surface)',
                                       padding: '0.1rem 0.4rem',
                                       borderRadius: '3px',
                                       fontSize: '0.75rem',
@@ -479,7 +497,7 @@ export function ActivityView() {
                           </td>
                           <td style={{ padding: '0.85rem 1rem', textAlign: 'right' }}>
                             {hasMetadata ? (
-                              <button
+                              <Button
                                 className="btn btn-secondary btn-sm"
                                 style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
                                 onClick={() =>
@@ -487,7 +505,7 @@ export function ActivityView() {
                                 }
                               >
                                 {expandedAuditId === ev.id ? 'Hide' : 'Inspect'}
-                              </button>
+                              </Button>
                             ) : (
                               <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
                                 None
@@ -497,7 +515,7 @@ export function ActivityView() {
                         </tr>
 
                         {expandedAuditId === ev.id && hasMetadata && (
-                          <tr style={{ backgroundColor: 'rgba(15, 23, 42, 0.6)' }}>
+                          <tr style={{ backgroundColor: 'var(--m3-surface-container-low)' }}>
                             <td colSpan={6} style={{ padding: '1rem' }}>
                               <div style={{ fontSize: '0.8rem' }}>
                                 <div
@@ -511,9 +529,9 @@ export function ActivityView() {
                                 </div>
                                 <pre
                                   style={{
-                                    backgroundColor: '#090d16',
+                                    backgroundColor: 'var(--m3-surface-container-low)',
                                     padding: '0.75rem',
-                                    borderRadius: '4px',
+                                    borderRadius: '16px',
                                     overflowX: 'auto',
                                     margin: 0,
                                   }}
@@ -529,18 +547,18 @@ export function ActivityView() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </Card>
           )}
         </div>
       )}
 
       {/* STEP LOGS AUDIT TRAIL MODAL */}
       {selectedRun && (
-        <div
+        <ModalSurface
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backgroundColor: 'color-mix(in srgb,var(--m3-scrim) 48%,transparent)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -548,8 +566,9 @@ export function ActivityView() {
             padding: '1.5rem',
           }}
           onClick={() => setSelectedRun(null)}
+          className="modal-backdrop"
         >
-          <div
+          <Card
             className="card"
             style={{
               width: '100%',
@@ -585,29 +604,32 @@ export function ActivityView() {
                   Run ID: {selectedRun.id} • Status: {selectedRun.status}
                 </div>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => setSelectedRun(null)}>
-                ✕ Close
-              </button>
+              <Button className="btn btn-secondary btn-sm" onClick={() => setSelectedRun(null)}>
+                <Icon name="close" size={20} /> Close
+              </Button>
             </div>
 
             <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: 1 }}>
               {selectedRun.stepLogs && selectedRun.stepLogs.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                  className="layout-group"
+                >
                   {selectedRun.stepLogs.map((log, idx) => (
                     <div
                       key={idx}
                       style={{
                         padding: '0.75rem 1rem',
-                        backgroundColor: 'rgba(15, 23, 42, 0.6)',
-                        borderRadius: '6px',
+                        backgroundColor: 'var(--m3-surface-container-low)',
+                        borderRadius: '16px',
                         borderLeft: `3px solid ${
                           log.stage === 'FINISH'
-                            ? '#10b981'
+                            ? 'var(--status-success-border)'
                             : log.stage === 'FATAL'
-                              ? '#ef4444'
+                              ? 'var(--status-danger-border)'
                               : log.stage === 'AUTO_APPLY'
-                                ? '#f59e0b'
-                                : '#3b82f6'
+                                ? 'var(--status-warning-border)'
+                                : 'var(--m3-outline-variant)'
                         }`,
                         fontSize: '0.85rem',
                       }}
@@ -619,7 +641,9 @@ export function ActivityView() {
                           marginBottom: '0.25rem',
                         }}
                       >
-                        <span style={{ fontWeight: 600, color: '#93c5fd' }}>[{log.stage}]</span>
+                        <span style={{ fontWeight: 600, color: 'var(--m3-on-surface)' }}>
+                          [{log.stage}]
+                        </span>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                           {new Date(log.timestamp).toLocaleTimeString()}
                         </span>
@@ -629,9 +653,9 @@ export function ActivityView() {
                         <pre
                           style={{
                             marginTop: '0.5rem',
-                            backgroundColor: '#090d16',
+                            backgroundColor: 'var(--m3-surface-container-low)',
                             padding: '0.5rem',
-                            borderRadius: '4px',
+                            borderRadius: '16px',
                             fontSize: '0.75rem',
                             overflowX: 'auto',
                             margin: 0,
@@ -651,8 +675,8 @@ export function ActivityView() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </Card>
+        </ModalSurface>
       )}
     </div>
   );

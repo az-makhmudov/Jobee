@@ -1,3 +1,5 @@
+import { Icon } from '../ui/Primitives.js';
+import { Button, Card, Input, ModalSurface } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import type { SystemNotificationDto, NotificationPreferencesDto } from '@job-agent/shared';
 import { NotificationClient } from '../api/notification-client.js';
@@ -105,11 +107,11 @@ export function NotificationCenterModal({
   };
 
   return (
-    <div
+    <ModalSurface
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        backgroundColor: 'color-mix(in srgb,var(--m3-scrim) 48%,transparent)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -117,8 +119,9 @@ export function NotificationCenterModal({
         padding: '1.5rem',
       }}
       onClick={onClose}
+      className="modal-backdrop"
     >
-      <div
+      <Card
         className="card"
         style={{
           width: '100%',
@@ -142,16 +145,16 @@ export function NotificationCenterModal({
           }}
         >
           <div>
-            <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Notification Center & Alerts</h3>
+            <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Notifications</h3>
             <div
               style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}
             >
               Real-time approval reminders, bot challenge alerts, and autonomous status updates
             </div>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={onClose}>
-            ✕ Close
-          </button>
+          <Button className="btn btn-secondary btn-sm" onClick={onClose}>
+            <Icon name="close" size={20} /> Close
+          </Button>
         </div>
 
         {/* Tab & Filter Bar */}
@@ -162,26 +165,29 @@ export function NotificationCenterModal({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            backgroundColor: 'rgba(15, 23, 42, 0.4)',
+            backgroundColor: 'var(--m3-surface-container-low)',
           }}
         >
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button
+          <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+            <Button
               className={`btn btn-sm ${activeTab === 'notifications' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setActiveTab('notifications')}
             >
               Alerts ({notifications.filter((n) => n.status === 'UNREAD').length} unread)
-            </button>
-            <button
+            </Button>
+            <Button
               className={`btn btn-sm ${activeTab === 'preferences' ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setActiveTab('preferences')}
             >
-              ⚙ Preferences
-            </button>
+              <Icon name="settings" size={20} /> Preferences
+            </Button>
           </div>
 
           {activeTab === 'notifications' && (
-            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <div
+              style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}
+              className="layout-group"
+            >
               <label
                 style={{
                   fontSize: '0.8rem',
@@ -191,16 +197,16 @@ export function NotificationCenterModal({
                   cursor: 'pointer',
                 }}
               >
-                <input
+                <Input
                   type="checkbox"
                   checked={filterUnreadOnly}
                   onChange={(e) => setFilterUnreadOnly(e.target.checked)}
                 />
                 Unread only
               </label>
-              <button className="btn btn-secondary btn-sm" onClick={handleMarkAllRead}>
+              <Button className="btn btn-secondary btn-sm" onClick={handleMarkAllRead}>
                 Mark all read
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -228,23 +234,29 @@ export function NotificationCenterModal({
                 </p>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                className="layout-group"
+              >
                 {notifications.map((n) => (
                   <div
                     key={n.id}
                     style={{
                       padding: '1rem',
-                      borderRadius: '6px',
+                      borderRadius: '16px',
                       backgroundColor:
-                        n.status === 'UNREAD' ? 'rgba(30, 41, 59, 0.7)' : 'rgba(15, 23, 42, 0.4)',
+                        n.status === 'UNREAD'
+                          ? 'var(--m3-secondary-container)'
+                          : 'var(--m3-surface-container-low)',
                       border:
                         n.status === 'UNREAD'
-                          ? '1px solid rgba(59, 130, 246, 0.4)'
+                          ? '1px solid var(--m3-outline-variant)'
                           : '1px solid var(--surface-border)',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '0.5rem',
                     }}
+                    className="layout-group"
                   >
                     <div
                       style={{
@@ -253,7 +265,10 @@ export function NotificationCenterModal({
                         alignItems: 'flex-start',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        className="layout-group"
+                      >
                         <span
                           className={`status-badge ${
                             n.severity === 'CRITICAL'
@@ -290,39 +305,43 @@ export function NotificationCenterModal({
                         gap: '0.5rem',
                         marginTop: '0.25rem',
                       }}
+                      className="layout-group"
                     >
                       {n.actionUrl && (
-                        <button
+                        <Button
                           className="btn btn-primary btn-sm"
                           style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }}
                           onClick={() => handleActionClick(n)}
                         >
                           Take Action →
-                        </button>
+                        </Button>
                       )}
                       {n.status === 'UNREAD' && (
-                        <button
+                        <Button
                           className="btn btn-secondary btn-sm"
                           style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
                           onClick={() => handleMarkAsRead(n.id)}
                         >
                           Mark as read
-                        </button>
+                        </Button>
                       )}
-                      <button
+                      <Button
                         className="btn btn-secondary btn-sm"
                         style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
                         onClick={() => handleDismiss(n.id)}
                       >
                         Dismiss
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 ))}
               </div>
             )
           ) : preferences ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+              className="layout-group"
+            >
               <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
                 Notification Dispatch Settings
               </div>
@@ -330,7 +349,7 @@ export function NotificationCenterModal({
               <label
                 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
               >
-                <input
+                <Input
                   type="checkbox"
                   checked={preferences.notifyOnApprovalRequests}
                   onChange={(e) =>
@@ -350,7 +369,7 @@ export function NotificationCenterModal({
               <label
                 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
               >
-                <input
+                <Input
                   type="checkbox"
                   checked={preferences.notifyOnCaptchaHalt}
                   onChange={(e) => handleUpdatePreference('notifyOnCaptchaHalt', e.target.checked)}
@@ -369,7 +388,7 @@ export function NotificationCenterModal({
               <label
                 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
               >
-                <input
+                <Input
                   type="checkbox"
                   checked={preferences.notifyOnAutoApply}
                   onChange={(e) => handleUpdatePreference('notifyOnAutoApply', e.target.checked)}
@@ -387,7 +406,7 @@ export function NotificationCenterModal({
               <label
                 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
               >
-                <input
+                <Input
                   type="checkbox"
                   checked={preferences.notifyOnInterviewReminders}
                   onChange={(e) =>
@@ -408,7 +427,7 @@ export function NotificationCenterModal({
               <label
                 style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
               >
-                <input
+                <Input
                   type="checkbox"
                   checked={preferences.dailyDigestEnabled}
                   onChange={(e) => handleUpdatePreference('dailyDigestEnabled', e.target.checked)}
@@ -425,7 +444,7 @@ export function NotificationCenterModal({
             <div>Loading preferences...</div>
           )}
         </div>
-      </div>
-    </div>
+      </Card>
+    </ModalSurface>
   );
 }

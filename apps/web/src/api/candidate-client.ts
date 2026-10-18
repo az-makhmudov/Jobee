@@ -229,6 +229,22 @@ export const candidateApi = {
     request<{ deleted: boolean }>(`/candidate/documents/${id}`, {
       method: 'DELETE',
     }),
+  getDocumentBlob: async (id: string, signal?: AbortSignal): Promise<Blob> => {
+    const response = await fetch(
+      `${API_BASE}/candidate/documents/${encodeURIComponent(id)}/download`,
+      { credentials: 'include', signal },
+    );
+    if (!response.ok)
+      throw new Error(
+        response.status === 401
+          ? 'Please sign in again to view this document.'
+          : response.status === 403 || response.status === 404
+            ? 'This document is unavailable or you do not have access.'
+            : 'Could not load the document. Please retry.',
+      );
+    return response.blob();
+  },
+
   getDocumentDownloadUrl: (id: string) => `${API_BASE}/candidate/documents/${id}/download`,
 
   // Answer Library

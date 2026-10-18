@@ -1,8 +1,12 @@
 # Jobee — Autonomous Execution State
 
+> Active authorized work: **JOB-UI-MIGRATION-01**, led by Codex at the owner’s explicit request. Isolated branch `codex/jobee-design-system-migration`. **Preview complete; production release pending review and explicit authorization.** Verified 586 unit/integration tests, 25 browser checks and all quality gates. See `docs/UI_MIGRATION.md`. Prior release history below is retained.
+
 **Document Status:** Canonical Durable Execution State  
-**Updated At:** 2026-10-18 07:39:00 UTC  
-**Active Lead Engineer:** Antigravity (Goal-Driven Autonomous Delivery Mode)  
+**Updated At:** 2026-10-18 14:04:24 UTC
+
+**Active Lead Engineer:** Codex (JOB-UI-MIGRATION-01, explicit owner assignment)
+
 **Governing Directive:** `docs/PRODUCT_COMPLETION_DIRECTIVE.md`  
 **Active Backlog:** `docs/IMPLEMENTATION_BACKLOG.md`  
 **External Actions:** `docs/OWNER_ACTIONS_REQUIRED.md`  

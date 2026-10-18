@@ -1,3 +1,5 @@
+import { Icon } from '../ui/Primitives.js';
+import { Button, Card, ModalSurface } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import { ApplicationCrmClient } from '../api/application-crm-client.js';
 import type { ApplicationCrmAnalyticsDto } from '@job-agent/shared';
@@ -30,7 +32,7 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-backdrop" style={{ zIndex: 1100 }}>
+    <ModalSurface className="modal-backdrop" style={{ zIndex: 1100 }}>
       <div className="modal-container" style={{ maxWidth: '850px', width: '90%' }}>
         <header className="modal-header">
           <div>
@@ -39,9 +41,9 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
               Funnel conversions, response times, and source attribution metrics
             </p>
           </div>
-          <button className="btn btn-secondary btn-sm" onClick={onClose}>
-            ✕
-          </button>
+          <Button className="btn btn-secondary btn-sm" onClick={onClose} aria-label="Close">
+            <Icon name="close" size={20} />
+          </Button>
         </header>
 
         <div className="modal-body">
@@ -57,9 +59,12 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
           {error && <div className="banner banner-error">{error}</div>}
 
           {analytics && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+              className="layout-group"
+            >
               {/* Funnel Section */}
-              <div className="card" style={{ padding: '1.25rem' }}>
+              <Card className="card" style={{ padding: '1.25rem' }}>
                 <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>
                   Pipeline Conversion Funnel
                 </h3>
@@ -71,12 +76,13 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                     textAlign: 'center',
                     marginBottom: '1.5rem',
                   }}
+                  className="layout-group"
                 >
                   <div
                     style={{
                       background: 'var(--bg-secondary)',
                       padding: '0.75rem',
-                      borderRadius: '8px',
+                      borderRadius: '16px',
                     }}
                   >
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -90,7 +96,7 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                     style={{
                       background: 'var(--bg-secondary)',
                       padding: '0.75rem',
-                      borderRadius: '8px',
+                      borderRadius: '16px',
                     }}
                   >
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -106,13 +112,19 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                     style={{
                       background: 'var(--bg-secondary)',
                       padding: '0.75rem',
-                      borderRadius: '8px',
+                      borderRadius: '16px',
                     }}
                   >
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                       Screening / Tests
                     </div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 600, color: '#f59e0b' }}>
+                    <div
+                      style={{
+                        fontSize: '1.4rem',
+                        fontWeight: 600,
+                        color: 'var(--status-warning)',
+                      }}
+                    >
                       {analytics.funnel.screening}
                     </div>
                   </div>
@@ -120,13 +132,15 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                     style={{
                       background: 'var(--bg-secondary)',
                       padding: '0.75rem',
-                      borderRadius: '8px',
+                      borderRadius: '16px',
                     }}
                   >
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                       Interviews
                     </div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 600, color: '#8b5cf6' }}>
+                    <div
+                      style={{ fontSize: '1.4rem', fontWeight: 600, color: 'var(--m3-on-surface)' }}
+                    >
                       {analytics.funnel.interview}
                     </div>
                   </div>
@@ -134,11 +148,17 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                     style={{
                       background: 'var(--bg-secondary)',
                       padding: '0.75rem',
-                      borderRadius: '8px',
+                      borderRadius: '16px',
                     }}
                   >
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Offers</div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 600, color: '#10b981' }}>
+                    <div
+                      style={{
+                        fontSize: '1.4rem',
+                        fontWeight: 600,
+                        color: 'var(--status-success)',
+                      }}
+                    >
                       {analytics.funnel.offer}
                     </div>
                   </div>
@@ -154,7 +174,10 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                 >
                   Stage Conversion Rates
                 </h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                  className="layout-group"
+                >
                   <div>
                     <div
                       style={{
@@ -182,7 +205,7 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                         style={{
                           height: '100%',
                           width: `${analytics.funnel.conversions.appliedToScreening.rate || 0}%`,
-                          background: '#f59e0b',
+                          background: 'var(--status-warning-container)',
                           borderRadius: '3px',
                         }}
                       />
@@ -216,7 +239,7 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                         style={{
                           height: '100%',
                           width: `${analytics.funnel.conversions.appliedToInterview.rate || 0}%`,
-                          background: '#8b5cf6',
+                          background: 'var(--m3-secondary-container)',
                           borderRadius: '3px',
                         }}
                       />
@@ -250,7 +273,7 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                         style={{
                           height: '100%',
                           width: `${analytics.funnel.conversions.appliedToOffer.rate || 0}%`,
-                          background: '#10b981',
+                          background: 'var(--status-success-container)',
                           borderRadius: '3px',
                         }}
                       />
@@ -284,17 +307,17 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                         style={{
                           height: '100%',
                           width: `${analytics.funnel.conversions.interviewToOffer.rate || 0}%`,
-                          background: '#10b981',
+                          background: 'var(--status-success-container)',
                           borderRadius: '3px',
                         }}
                       />
                     </div>
                   </div>
                 </div>
-              </div>
+              </Card>
 
               {/* Time Analytics */}
-              <div className="card" style={{ padding: '1.25rem' }}>
+              <Card className="card" style={{ padding: '1.25rem' }}>
                 <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>
                   Time to Stage & Application Velocity
                 </h3>
@@ -304,12 +327,13 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                     gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
                     gap: '1rem',
                   }}
+                  className="layout-group"
                 >
                   <div
                     style={{
                       background: 'var(--bg-secondary)',
                       padding: '1rem',
-                      borderRadius: '8px',
+                      borderRadius: '16px',
                     }}
                   >
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -329,7 +353,7 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                     style={{
                       background: 'var(--bg-secondary)',
                       padding: '1rem',
-                      borderRadius: '8px',
+                      borderRadius: '16px',
                     }}
                   >
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -349,7 +373,7 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                     style={{
                       background: 'var(--bg-secondary)',
                       padding: '1rem',
-                      borderRadius: '8px',
+                      borderRadius: '16px',
                     }}
                   >
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -369,7 +393,7 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                     style={{
                       background: 'var(--bg-secondary)',
                       padding: '1rem',
-                      borderRadius: '8px',
+                      borderRadius: '16px',
                     }}
                   >
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -385,10 +409,10 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                     </div>
                   </div>
                 </div>
-              </div>
+              </Card>
 
               {/* Source Distribution */}
-              <div className="card" style={{ padding: '1.25rem' }}>
+              <Card className="card" style={{ padding: '1.25rem' }}>
                 <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>
                   Submission Source Distribution
                 </h3>
@@ -418,7 +442,7 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
                     </tbody>
                   </table>
                 )}
-              </div>
+              </Card>
             </div>
           )}
         </div>
@@ -427,11 +451,11 @@ export function ApplicationAnalyticsModal({ isOpen, onClose }: Props) {
           className="modal-footer"
           style={{ display: 'flex', justifyContent: 'flex-end', padding: '1rem' }}
         >
-          <button className="btn btn-secondary" onClick={onClose}>
+          <Button className="btn btn-secondary" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </footer>
       </div>
-    </div>
+    </ModalSurface>
   );
 }

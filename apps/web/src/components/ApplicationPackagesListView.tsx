@@ -1,3 +1,4 @@
+import { Button, Card, Icon } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import { applicationPackageClient } from '../api/application-package-client.js';
 import type { ApplicationPackageDto } from '@job-agent/shared';
@@ -38,7 +39,10 @@ export function ApplicationPackagesListView({
   }, [statusFilter]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div
+      style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+      className="layout-group"
+    >
       <header className="page-header" style={{ marginBottom: 0 }}>
         <div
           style={{
@@ -48,58 +52,65 @@ export function ApplicationPackagesListView({
             flexWrap: 'wrap',
             gap: '1rem',
           }}
+          className="layout-group"
         >
           <div>
-            <h1 className="page-title">Application Studio Packages</h1>
+            <h1 className="page-title">Prepared materials</h1>
             <p className="page-subtitle">
               Versioned, grounded application materials, tailored CVs, cover letters, and approval
               states.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <div
+            style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
+            className="layout-group"
+          >
             {onNavigateToCrm && (
-              <button className="btn btn-secondary" onClick={onNavigateToCrm}>
-                📋 Switch to Application CRM Board
-              </button>
+              <Button className="btn btn-secondary" onClick={onNavigateToCrm}>
+                <Icon name="list" /> Switch to Application CRM Board
+              </Button>
             )}
-            <button className="btn btn-primary" onClick={onNavigateToJobs}>
+            <Button className="btn btn-primary" onClick={onNavigateToJobs}>
               + Prepare from Job Inbox
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Filter Pills */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+        <div
+          style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}
+          className="layout-group"
+        >
           {['ALL', 'READY', 'NEEDS_REVIEW', 'DRAFT', 'SUBMITTED', 'ARCHIVED'].map((st) => (
-            <button
+            <Button
               key={st}
               className={`btn btn-sm ${statusFilter === st ? 'btn-primary' : 'btn-secondary'}`}
               onClick={() => setStatusFilter(st)}
             >
               {st}
-            </button>
+            </Button>
           ))}
         </div>
       </header>
 
       {loading ? (
-        <div className="card" style={{ padding: '3rem', textAlign: 'center' }}>
+        <Card className="card" style={{ padding: '3rem', textAlign: 'center' }}>
           <p style={{ color: 'var(--text-secondary)' }}>Loading application packages...</p>
-        </div>
+        </Card>
       ) : error ? (
-        <div className="card" style={{ borderColor: 'var(--danger)' }}>
+        <Card className="card" style={{ borderColor: 'var(--danger)' }}>
           <h3 style={{ color: 'var(--danger)' }}>Error Loading Packages</h3>
           <p style={{ marginTop: '0.5rem' }}>{error}</p>
-          <button
+          <Button
             className="btn btn-secondary btn-sm"
             style={{ marginTop: '1rem' }}
             onClick={loadPackages}
           >
             Retry
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : packages.length === 0 ? (
-        <div className="card placeholder-view">
+        <Card className="card placeholder-view">
           <h3>No Application Packages Found</h3>
           <p
             style={{
@@ -113,14 +124,17 @@ export function ApplicationPackagesListView({
               ? 'You have not prepared any job applications yet. Go to the Job Inbox, choose an analyzed job, and select "Prepare Application".'
               : `No application packages matching status "${statusFilter}".`}
           </p>
-          <button className="btn btn-primary" onClick={onNavigateToJobs}>
+          <Button className="btn btn-primary" onClick={onNavigateToJobs}>
             Explore Job Inbox →
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+          className="layout-group"
+        >
           {packages.map((pkg) => (
-            <div key={pkg.id} className="card" style={{ padding: '1.25rem' }}>
+            <Card key={pkg.id} className="card" style={{ padding: '1.25rem' }}>
               <div
                 style={{
                   display: 'flex',
@@ -129,6 +143,7 @@ export function ApplicationPackagesListView({
                   flexWrap: 'wrap',
                   gap: '1rem',
                 }}
+                className="layout-group"
               >
                 <div>
                   <div
@@ -139,6 +154,7 @@ export function ApplicationPackagesListView({
                       marginBottom: '0.35rem',
                       flexWrap: 'wrap',
                     }}
+                    className="layout-group"
                   >
                     <span
                       className={`status-badge ${
@@ -181,10 +197,13 @@ export function ApplicationPackagesListView({
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <button className="btn btn-primary" onClick={() => onOpenPackage(pkg.id)}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+                  className="layout-group"
+                >
+                  <Button className="btn btn-primary" onClick={() => onOpenPackage(pkg.id)}>
                     Open Application Studio ↗
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -201,6 +220,7 @@ export function ApplicationPackagesListView({
                   flexWrap: 'wrap',
                   gap: '0.5rem',
                 }}
+                className="layout-group"
               >
                 <div>
                   Created: {new Date(pkg.createdAt).toLocaleDateString()} • Updated:{' '}
@@ -210,7 +230,7 @@ export function ApplicationPackagesListView({
                   Package ID: <code>{pkg.id.slice(0, 8)}</code>
                 </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}

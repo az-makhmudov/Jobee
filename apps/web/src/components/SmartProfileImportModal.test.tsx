@@ -145,7 +145,7 @@ describe('SmartProfileImportModal — Review Approval Safety', () => {
     expect(screen.getByText(/0 approved/i)).toBeDefined();
 
     // 2. Click "✎ Edit" on Experience card
-    const editButtons = screen.getAllByRole('button', { name: /✎ Edit/i });
+    const editButtons = screen.getAllByRole('button', { name: /^Edit$/i });
     fireEvent.click(editButtons[0]!);
 
     // 3. Edit form is visible: input for Position
@@ -156,7 +156,7 @@ describe('SmartProfileImportModal — Review Approval Safety', () => {
     fireEvent.change(positionInput, { target: { value: 'Lead Backend Engineer' } });
 
     // 5. Click "💾 Save Changes"
-    const saveButton = screen.getByRole('button', { name: /💾 Save Changes/i });
+    const saveButton = screen.getByRole('button', { name: /^Save Changes$/i });
     fireEvent.click(saveButton);
 
     // 6. Verify candidateImportApi.updateItem called with 'EDITED' and modified payload
@@ -185,7 +185,7 @@ describe('SmartProfileImportModal — Review Approval Safety', () => {
     expect(screen.getByText(/EDITED \(NEEDS APPROVAL\)/i)).toBeDefined();
 
     // 10. The Accept button is NOT styled as active/primary
-    const acceptButtons = screen.getAllByRole('button', { name: /✓ Accept/i });
+    const acceptButtons = screen.getAllByRole('button', { name: /Accept/i });
     // The card's Accept button (index 2, since 0 and 1 are bulk Accept All New and Accept All)
     const cardAcceptBtn = acceptButtons[2]!;
     expect(cardAcceptBtn.className).toContain('btn-secondary');
@@ -225,7 +225,7 @@ describe('SmartProfileImportModal — Review Approval Safety', () => {
     expect(screen.getByText(/EDITED \(NEEDS APPROVAL\)/i)).toBeDefined();
 
     // Click "✓ Accept" on the edited item
-    const acceptButtons = screen.getAllByRole('button', { name: /✓ Accept/i });
+    const acceptButtons = screen.getAllByRole('button', { name: /Accept/i });
     const cardAcceptBtn = acceptButtons[2]!;
     fireEvent.click(cardAcceptBtn);
 
@@ -266,9 +266,9 @@ describe('SmartProfileImportModal — Review Approval Safety', () => {
       />,
     );
 
-    const rejectButtons = screen.getAllByRole('button', { name: /✕ Reject/i });
-    // Card reject button (index 1, since index 0 is bulk Reject All)
-    fireEvent.click(rejectButtons[1]!);
+    const rejectButtons = screen.getAllByRole('button', { name: /^Reject$/i });
+    // Exact label excludes the bulk Reject All control. First card is the experience.
+    fireEvent.click(rejectButtons[0]!);
 
     await waitFor(() => {
       expect(candidateImportApi.updateItem).toHaveBeenCalledWith(
@@ -315,14 +315,14 @@ describe('SmartProfileImportModal — Review Approval Safety', () => {
     expect(screen.getByText(/1 approved/i)).toBeDefined();
 
     // Click "✎ Edit"
-    const editBtn = screen.getByRole('button', { name: /✎ Edit/i });
+    const editBtn = screen.getByRole('button', { name: /^Edit$/i });
     fireEvent.click(editBtn);
 
     const positionInput = screen.getByDisplayValue('Software Developer');
     fireEvent.change(positionInput, { target: { value: 'Staff Engineer' } });
 
     // Click "💾 Save Changes"
-    const saveBtn = screen.getByRole('button', { name: /💾 Save Changes/i });
+    const saveBtn = screen.getByRole('button', { name: /^Save Changes$/i });
     fireEvent.click(saveBtn);
 
     // After re-editing, approved count drops back from 1 to 0!
@@ -759,14 +759,14 @@ describe('SmartProfileImportModal — Multi-Source Conflict Resolution & Side-by
     expect(screen.getAllByText(/May 2023/i).length).toBeGreaterThan(0);
 
     // Verify NO generic item Accept button
-    expect(screen.queryByRole('button', { name: /^✓ Accept$/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Accept$/i })).toBeNull();
 
     // Verify explicit conflict resolution buttons exist
     expect(screen.getByRole('button', { name: /Keep Existing/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /Replace Existing/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /Add as Separate/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /✎ Edit/i })).toBeDefined();
-    expect(screen.getByRole('button', { name: /^✕ Reject$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^Edit$/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^Reject$/i })).toBeDefined();
   });
 
   it('clicking "Keep Existing" approves the item with KEEP_EXISTING resolution and updates UI badge', async () => {

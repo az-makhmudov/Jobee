@@ -9,6 +9,8 @@ export default tseslint.config(
       '**/dist/**',
       '**/node_modules/**',
       '**/coverage/**',
+      'output/**',
+      'apps/web/public/assets/pdfjs/**',
       '**/.drizzle/**',
       '**/drizzle/**',
       '**/*.config.js',

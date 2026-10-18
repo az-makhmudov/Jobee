@@ -5,3 +5,6 @@ coverage/
 package-lock.json
 packages/database/drizzle/
 .drizzle/
+
+apps/web/public/assets/pdfjs/
+output/

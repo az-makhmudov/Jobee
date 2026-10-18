@@ -158,8 +158,8 @@ describe('CareerIntelligenceView — Verification & AI Authorization Controls', 
     expect(screen.getByText('Agile & Scrum')).toBeDefined();
 
     // Invariant check in badges
-    expect(screen.getByText(/🤖 In AI Context/i)).toBeDefined();
-    expect(screen.getAllByText(/🔒 Excluded from AI/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/In AI Context/i)).toBeDefined();
+    expect(screen.getAllByText(/Excluded from AI/i).length).toBeGreaterThan(0);
   });
 
   it('allows separate explicit verification without silently authorizing AI use', async () => {
@@ -175,7 +175,7 @@ describe('CareerIntelligenceView — Verification & AI Authorization Controls', 
     });
 
     // Find the "Verify" button for Agile & Scrum
-    const verifyButtons = screen.getAllByRole('button', { name: /✓ Verify/i });
+    const verifyButtons = screen.getAllByRole('button', { name: /^Verify$/i });
     expect(verifyButtons.length).toBeGreaterThan(0);
 
     fireEvent.click(verifyButtons[0]!);
@@ -201,9 +201,9 @@ describe('CareerIntelligenceView — Verification & AI Authorization Controls', 
       expect(screen.getByText('Bachelor in Management')).toBeDefined();
     });
 
-    // edu-01 is verified, so button is "🤖 Allow AI"
+    // edu-01 is verified, so button is "Allow AI"
     const allowAiButton = screen.getByRole('button', {
-      name: /🤖 Allow AI/i,
+      name: /^Allow AI$/i,
     });
     expect(allowAiButton).toBeDefined();
 
@@ -242,8 +242,8 @@ describe('CareerIntelligenceView — Verification & AI Authorization Controls', 
       expect(screen.getByText(/Selected: 1 record/i)).toBeDefined();
     });
 
-    // Click "✓ Verify Selected"
-    const batchVerifyBtn = screen.getByRole('button', { name: /✓ Verify Selected/i });
+    // Click "Verify Selected"
+    const batchVerifyBtn = screen.getByRole('button', { name: /Verify Selected/i });
     fireEvent.click(batchVerifyBtn);
 
     await waitFor(() => {
@@ -261,10 +261,10 @@ describe('CareerIntelligenceView — Verification & AI Authorization Controls', 
     render(<CareerIntelligenceView />);
 
     await waitFor(() => {
-      expect(screen.getByText('Career Intelligence 2.0')).toBeDefined();
+      expect(screen.getByText('Review & suggestions')).toBeDefined();
     });
 
-    const enrichButton = screen.getByRole('button', { name: /✨ Run AI Enrichment/i });
+    const enrichButton = screen.getByRole('button', { name: /Run AI Enrichment/i });
     fireEvent.click(enrichButton);
 
     await waitFor(() => {
@@ -285,10 +285,10 @@ describe('CareerIntelligenceView — Verification & AI Authorization Controls', 
     render(<CareerIntelligenceView />);
 
     await waitFor(() => {
-      expect(screen.getByText('Career Intelligence 2.0')).toBeDefined();
+      expect(screen.getByText('Review & suggestions')).toBeDefined();
     });
 
-    const enrichButton = screen.getByRole('button', { name: /✨ Run AI Enrichment/i });
+    const enrichButton = screen.getByRole('button', { name: /Run AI Enrichment/i });
     fireEvent.click(enrichButton);
 
     await waitFor(() => {
@@ -305,9 +305,9 @@ describe('CareerIntelligenceView — Verification & AI Authorization Controls', 
     render(<CareerIntelligenceView />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Failed to load Career Intelligence/i)).toBeDefined();
+      expect(screen.getByText(/Failed to load your profile review/i)).toBeDefined();
       expect(screen.getByText(/Failed to connect to Career Intelligence API/i)).toBeDefined();
-      expect(screen.getByRole('button', { name: /🔄 Retry/i })).toBeDefined();
+      expect(screen.getByRole('button', { name: /^Retry$/i })).toBeDefined();
     });
   });
 });

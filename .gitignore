@@ -72,3 +72,9 @@ cv/
 resumes/
 applications-data/
 
+
+# Local migration browser reports and screenshots
+output/playwright/
+playwright-report/
+
+apps/web/public/assets/pdfjs/

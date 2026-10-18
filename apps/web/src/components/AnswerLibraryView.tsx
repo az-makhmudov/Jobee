@@ -1,3 +1,5 @@
+import { useFeedback } from '../ui/Feedback.js';
+import { Button, Card, Icon, Input, ModalSurface, Select, Textarea } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import { candidateApi } from '../api/candidate-client.js';
 import type { AnswerLibraryEntryDto, AutomationLevel } from '@job-agent/shared';
@@ -7,6 +9,7 @@ interface Props {
 }
 
 export function AnswerLibraryView({ onUpdate }: Props) {
+  const { confirm } = useFeedback();
   const [answers, setAnswers] = useState<AnswerLibraryEntryDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState<{ type: 'ok' | 'error'; message: string } | null>(null);
@@ -42,7 +45,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this answer?')) return;
+    if (!(await confirm('Are you sure you want to delete this answer?'))) return;
     try {
       await candidateApi.deleteAnswer(id);
       showToast('ok', 'Answer removed');
@@ -81,7 +84,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
   return (
     <div>
       <header className="page-header">
-        <h1 className="page-title">Reusable Answer Library</h1>
+        <h2 className="page-title">Saved Answers</h2>
         <p className="page-subtitle">
           Curated, verified answers for application screening questions with deterministic
           automation rules
@@ -94,7 +97,9 @@ export function AnswerLibraryView({ onUpdate }: Props) {
           style={{
             borderColor: toast.type === 'error' ? 'var(--danger)' : 'var(--success)',
             backgroundColor:
-              toast.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+              toast.type === 'error'
+                ? 'var(--status-danger-container)'
+                : 'var(--status-success-container)',
           }}
         >
           <span>{toast.message}</span>
@@ -102,7 +107,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
       )}
 
       {/* Filter and Action Bar */}
-      <div className="card" style={{ padding: '1rem', marginBottom: '1.5rem' }}>
+      <Card className="card" style={{ padding: '1rem', marginBottom: '1.5rem' }}>
         <div
           style={{
             display: 'flex',
@@ -111,20 +116,26 @@ export function AnswerLibraryView({ onUpdate }: Props) {
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
+          className="layout-group"
         >
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
-            <input
+          <div
+            style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}
+            className="layout-group"
+          >
+            <Input
               type="text"
               className="form-input"
+              aria-label="Search saved answers"
               placeholder="Search questions or answers..."
               style={{ width: '240px' }}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
 
-            <select
+            <Select
               className="form-input"
               style={{ width: '180px' }}
+              aria-label="Answer category"
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
             >
@@ -133,11 +144,12 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                   {c === 'ALL' ? 'All Categories' : c.replace('_', ' ')}
                 </option>
               ))}
-            </select>
+            </Select>
 
-            <select
+            <Select
               className="form-input"
               style={{ width: '160px' }}
+              aria-label="Automation level filter"
               value={levelFilter}
               onChange={(e) => setLevelFilter(e.target.value)}
             >
@@ -145,10 +157,10 @@ export function AnswerLibraryView({ onUpdate }: Props) {
               <option value="AUTO">AUTO (Pre-authorized)</option>
               <option value="REVIEW">REVIEW (Pre-fill & Verify)</option>
               <option value="MANUAL">MANUAL (Candidate Prompt)</option>
-            </select>
+            </Select>
           </div>
 
-          <button
+          <Button
             className="btn btn-primary btn-sm"
             onClick={() => {
               setActiveItem(null);
@@ -156,16 +168,16 @@ export function AnswerLibraryView({ onUpdate }: Props) {
             }}
           >
             + Add Answer
-          </button>
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {loading && answers.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
+        <Card className="card" style={{ textAlign: 'center', padding: '2rem' }}>
           Loading answers...
-        </div>
+        </Card>
       ) : filteredAnswers.length === 0 ? (
-        <div className="card placeholder-view">
+        <Card className="card placeholder-view">
           <h3>No Matching Answers Found</h3>
           <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
             {answers.length === 0
@@ -173,7 +185,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
               : 'Try clearing your search filters to see all stored answers.'}
           </p>
           {answers.length === 0 && (
-            <button
+            <Button
               className="btn btn-primary"
               style={{ marginTop: '1rem' }}
               onClick={() => {
@@ -182,11 +194,14 @@ export function AnswerLibraryView({ onUpdate }: Props) {
               }}
             >
               Add First Answer
-            </button>
+            </Button>
           )}
-        </div>
+        </Card>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+          className="layout-group"
+        >
           {filteredAnswers.map((ans) => {
             const levelBadge =
               ans.automationLevel === 'AUTO'
@@ -196,7 +211,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                   : { label: 'MANUAL', cls: 'unconfigured' };
 
             return (
-              <div key={ans.id} className="card" style={{ marginBottom: 0 }}>
+              <Card key={ans.id} className="card" style={{ marginBottom: 0 }}>
                 <div
                   style={{
                     display: 'flex',
@@ -213,6 +228,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                         marginBottom: '0.4rem',
                         flexWrap: 'wrap',
                       }}
+                      className="layout-group"
                     >
                       <span className="nav-tag">{ans.category}</span>
                       <span
@@ -226,7 +242,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                           className="status-badge error"
                           style={{ fontSize: '0.75rem', padding: '0.1rem 0.5rem' }}
                         >
-                          ⚠ Sensitive
+                          <Icon name="warning" /> Sensitive
                         </span>
                       )}
                     </div>
@@ -237,8 +253,8 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                     </h3>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '0.4rem' }}>
-                    <button
+                  <div style={{ display: 'flex', gap: '0.4rem' }} className="layout-group">
+                    <Button
                       className="btn btn-secondary btn-sm"
                       onClick={() => {
                         setActiveItem(ans);
@@ -246,18 +262,18 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                       }}
                     >
                       Edit
-                    </button>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(ans.id)}>
+                    </Button>
+                    <Button className="btn btn-danger btn-sm" onClick={() => handleDelete(ans.id)}>
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 </div>
 
                 <div
                   style={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+                    backgroundColor: 'var(--m3-surface-container-low)',
                     padding: '0.85rem 1rem',
-                    borderRadius: '4px',
+                    borderRadius: '16px',
                     border: '1px solid var(--surface-border)',
                     marginTop: '0.75rem',
                     fontSize: '0.9rem',
@@ -278,7 +294,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                     <em>Notes: {ans.notes}</em>
                   </p>
                 )}
-              </div>
+              </Card>
             );
           })}
         </div>
@@ -286,7 +302,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
 
       {/* Add / Edit Modal */}
       {modalMode && (
-        <div className="modal-backdrop">
+        <ModalSurface className="modal-backdrop">
           <div className="modal-dialog">
             <div
               style={{
@@ -299,15 +315,16 @@ export function AnswerLibraryView({ onUpdate }: Props) {
               <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>
                 {modalMode === 'create' ? 'Add Reusable Answer' : 'Edit Reusable Answer'}
               </h3>
-              <button
+              <Button
                 className="btn btn-secondary btn-sm"
                 onClick={() => {
                   setModalMode(null);
                   setActiveItem(null);
                 }}
+                aria-label="Close"
               >
-                ✕
-              </button>
+                <Icon name="close" size={20} />
+              </Button>
             </div>
 
             <form
@@ -342,7 +359,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
               <div className="form-grid">
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
                   <label className="form-label">Question / Application Prompt</label>
-                  <input
+                  <Input
                     name="question"
                     defaultValue={activeItem?.question || ''}
                     placeholder="e.g. Are you legally authorized to work in the United States?"
@@ -353,7 +370,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
 
                 <div className="form-group">
                   <label className="form-label">Category</label>
-                  <select
+                  <Select
                     name="category"
                     defaultValue={activeItem?.category || 'GENERAL'}
                     className="form-input"
@@ -367,12 +384,12 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                     <option value="NOTICE_PERIOD">NOTICE_PERIOD</option>
                     <option value="DIVERSITY">DIVERSITY</option>
                     <option value="OTHER">OTHER</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div className="form-group">
                   <label className="form-label">Automation Level</label>
-                  <select
+                  <Select
                     name="automationLevel"
                     defaultValue={activeItem?.automationLevel || 'REVIEW'}
                     className="form-input"
@@ -380,12 +397,12 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                     <option value="REVIEW">REVIEW (Pre-fill, human confirms)</option>
                     <option value="AUTO">AUTO (Safe for automatic submit)</option>
                     <option value="MANUAL">MANUAL (Prompt candidate each time)</option>
-                  </select>
+                  </Select>
                 </div>
 
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
                   <label className="form-label">Approved Answer Text</label>
-                  <textarea
+                  <Textarea
                     name="answer"
                     defaultValue={activeItem?.answer || ''}
                     placeholder="Exact response to submit..."
@@ -404,7 +421,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                       cursor: 'pointer',
                     }}
                   >
-                    <input
+                    <Input
                       type="checkbox"
                       name="isSensitive"
                       defaultChecked={activeItem?.isSensitive || false}
@@ -427,7 +444,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
 
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
                   <label className="form-label">Internal Notes / Context</label>
-                  <input
+                  <Input
                     name="notes"
                     defaultValue={activeItem?.notes || ''}
                     placeholder="Optional notes regarding when to use this answer..."
@@ -443,8 +460,9 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                   justifyContent: 'flex-end',
                   gap: '0.5rem',
                 }}
+                className="layout-group"
               >
-                <button
+                <Button
                   type="button"
                   className="btn btn-secondary"
                   onClick={() => {
@@ -453,14 +471,14 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                   }}
                 >
                   Cancel
-                </button>
-                <button type="submit" className="btn btn-primary">
+                </Button>
+                <Button type="submit" className="btn btn-primary">
                   Save Answer
-                </button>
+                </Button>
               </div>
             </form>
           </div>
-        </div>
+        </ModalSurface>
       )}
     </div>
   );
