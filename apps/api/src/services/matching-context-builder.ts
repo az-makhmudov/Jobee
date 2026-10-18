@@ -72,8 +72,10 @@ export class MatchingContextBuilder {
     const preferences = prefRows[0] ?? null;
     const policy = policyRows[0] ?? null;
 
-    // Filter verified facts for AI and authoritative evidence
-    const verifiedFacts = factRows.filter(
+    // Filter verified facts for deterministic evidence resolution
+    const verifiedFacts = factRows.filter((f) => f.verificationStatus === 'VERIFIED');
+    // Strict Invariant: Only verified facts with allowAiUse === true may enter generative AI contexts
+    const verifiedAiFacts = factRows.filter(
       (f) => f.verificationStatus === 'VERIFIED' && f.allowAiUse === true,
     );
 
@@ -202,7 +204,7 @@ export class MatchingContextBuilder {
         name: c.name,
         issuingOrganization: c.issuingOrganization,
       })),
-      verifiedFacts: verifiedFacts.map((f) => ({
+      verifiedFacts: verifiedAiFacts.map((f) => ({
         id: `candidate_fact:${f.id}`,
         category: f.category,
         statement: f.statement,
@@ -258,14 +260,22 @@ export class MatchingContextBuilder {
     hash.update(profile?.updatedAt?.toISOString() ?? 'none');
     hash.update(preferences?.updatedAt?.toISOString() ?? 'none');
     hash.update(policy?.updatedAt?.toISOString() ?? 'none');
-    for (const e of expRows) hash.update(`${e.id}:${e.updatedAt?.toISOString()}`);
-    for (const s of skillRows) hash.update(`${s.id}:${s.updatedAt?.toISOString()}`);
-    for (const ed of eduRows) hash.update(`${ed.id}:${ed.updatedAt?.toISOString()}`);
-    for (const l of langRows) hash.update(`${l.id}:${l.updatedAt?.toISOString()}`);
-    for (const c of certRows) hash.update(`${c.id}:${c.updatedAt?.toISOString()}`);
-    for (const p of projectRows) hash.update(`${p.id}:${p.updatedAt?.toISOString()}`);
+    for (const e of expRows)
+      hash.update(`${e.id}:${e.updatedAt?.toISOString()}:${e.verificationStatus}:${e.allowAiUse}`);
+    for (const s of skillRows)
+      hash.update(`${s.id}:${s.updatedAt?.toISOString()}:${s.verificationStatus}:${s.allowAiUse}`);
+    for (const ed of eduRows)
+      hash.update(
+        `${ed.id}:${ed.updatedAt?.toISOString()}:${ed.verificationStatus}:${ed.allowAiUse}`,
+      );
+    for (const l of langRows)
+      hash.update(`${l.id}:${l.updatedAt?.toISOString()}:${l.verificationStatus}:${l.allowAiUse}`);
+    for (const c of certRows)
+      hash.update(`${c.id}:${c.updatedAt?.toISOString()}:${c.verificationStatus}:${c.allowAiUse}`);
+    for (const p of projectRows)
+      hash.update(`${p.id}:${p.updatedAt?.toISOString()}:${p.verificationStatus}:${p.allowAiUse}`);
     for (const f of factRows)
-      hash.update(`${f.id}:${f.updatedAt?.toISOString()}:${f.verificationStatus}`);
+      hash.update(`${f.id}:${f.updatedAt?.toISOString()}:${f.verificationStatus}:${f.allowAiUse}`);
     const candidateStateHash = hash.digest('hex');
 
     return {

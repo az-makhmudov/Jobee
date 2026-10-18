@@ -524,6 +524,174 @@ describe('Matching Intelligence Unit Tests (JOB-P2-T02)', () => {
       expect(result.contributesToBlocker).toBe(true);
       expect(result.reason).toContain('verification required');
     });
+
+    it('experience duration inflation: candidate with 1 verified year + 3 unverified years against a 3-year requirement receives status: PARTIAL and contributesToBlocker: true', () => {
+      const candidate = createMockCandidateContext({
+        experiences: [
+          {
+            id: 'exp-verified-1',
+            userId: 'user-test-1',
+            position: 'Software Engineer',
+            organization: 'Verified Corp',
+            startDate: '2023-01',
+            endDate: '2024-01', // 12 months verified
+            verificationStatus: 'VERIFIED',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } as any,
+          {
+            id: 'exp-unverified-2',
+            userId: 'user-test-1',
+            position: 'Junior Developer',
+            organization: 'Unverified Startup',
+            startDate: '2020-01',
+            endDate: '2023-01', // 36 months unverified
+            verificationStatus: 'UNVERIFIED',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          } as any,
+        ],
+      });
+
+      const req3Years = createMockRequirement({
+        rawText: 'Requires at least 3 years of software engineering experience',
+        normalizedText: '3 years experience',
+        category: 'EXPERIENCE',
+        requirementStrength: 'MANDATORY',
+      });
+
+      const result = resolver.evaluateRequirement(req3Years, candidate);
+      expect(result.status).toBe('PARTIAL');
+      expect(result.contributesToBlocker).toBe(true);
+      expect(result.confidence).toBe(50);
+      expect(result.reason).toContain('verification required');
+      expect(result.reason).toContain('1 years of verified experience');
+    });
+
+    it('evaluates education verification states: VERIFIED (MET), UNVERIFIED (PARTIAL + blocker), REJECTED (NOT_MET + blocker)', () => {
+      const candidateVerified = createMockCandidateContext({
+        education: [
+          {
+            id: 'edu-v',
+            userId: 'user-test-1',
+            institution: 'Berlin Tech',
+            degree: 'Bachelor of Science',
+            fieldOfStudy: 'Computer Science',
+            startDate: '2018-09',
+            endDate: '2022-06',
+            verificationStatus: 'VERIFIED',
+          } as any,
+        ],
+      });
+
+      const candidateUnverified = createMockCandidateContext({
+        education: [
+          {
+            id: 'edu-uv',
+            userId: 'user-test-1',
+            institution: 'Berlin Tech',
+            degree: 'Bachelor of Science',
+            fieldOfStudy: 'Computer Science',
+            startDate: '2018-09',
+            endDate: '2022-06',
+            verificationStatus: 'UNVERIFIED',
+          } as any,
+        ],
+      });
+
+      const candidateRejected = createMockCandidateContext({
+        education: [
+          {
+            id: 'edu-rej',
+            userId: 'user-test-1',
+            institution: 'Berlin Tech',
+            degree: 'Bachelor of Science',
+            fieldOfStudy: 'Computer Science',
+            startDate: '2018-09',
+            endDate: '2022-06',
+            verificationStatus: 'REJECTED',
+          } as any,
+        ],
+      });
+
+      const reqDegree = createMockRequirement({
+        rawText: 'Bachelor degree in Computer Science or related field required',
+        normalizedText: 'Bachelor degree Computer Science',
+        category: 'EDUCATION',
+        requirementStrength: 'MANDATORY',
+      });
+
+      const resV = resolver.evaluateRequirement(reqDegree, candidateVerified);
+      expect(resV.status).toBe('MET');
+      expect(resV.contributesToBlocker).toBe(false);
+
+      const resUV = resolver.evaluateRequirement(reqDegree, candidateUnverified);
+      expect(resUV.status).toBe('PARTIAL');
+      expect(resUV.contributesToBlocker).toBe(true);
+      expect(resUV.reason).toContain('verification required');
+
+      const resRej = resolver.evaluateRequirement(reqDegree, candidateRejected);
+      expect(resRej.status).toBe('NOT_MET');
+      expect(resRej.contributesToBlocker).toBe(true);
+    });
+
+    it('evaluates certification verification states: VERIFIED (MET), UNVERIFIED (PARTIAL + blocker), REJECTED (NOT_MET + blocker)', () => {
+      const candidateVerified = createMockCandidateContext({
+        certifications: [
+          {
+            id: 'cert-v',
+            userId: 'user-test-1',
+            name: 'AWS Solutions Architect',
+            issuingOrganization: 'Amazon Web Services',
+            verificationStatus: 'VERIFIED',
+          } as any,
+        ],
+      });
+
+      const candidateUnverified = createMockCandidateContext({
+        certifications: [
+          {
+            id: 'cert-uv',
+            userId: 'user-test-1',
+            name: 'AWS Solutions Architect',
+            issuingOrganization: 'Amazon Web Services',
+            verificationStatus: 'UNVERIFIED',
+          } as any,
+        ],
+      });
+
+      const candidateRejected = createMockCandidateContext({
+        certifications: [
+          {
+            id: 'cert-rej',
+            userId: 'user-test-1',
+            name: 'AWS Solutions Architect',
+            issuingOrganization: 'Amazon Web Services',
+            verificationStatus: 'REJECTED',
+          } as any,
+        ],
+      });
+
+      const reqCert = createMockRequirement({
+        rawText: 'AWS Solutions Architect certification required',
+        normalizedText: 'AWS Solutions Architect',
+        category: 'CERTIFICATION',
+        requirementStrength: 'MANDATORY',
+      });
+
+      const resV = resolver.evaluateRequirement(reqCert, candidateVerified);
+      expect(resV.status).toBe('MET');
+      expect(resV.contributesToBlocker).toBe(false);
+
+      const resUV = resolver.evaluateRequirement(reqCert, candidateUnverified);
+      expect(resUV.status).toBe('PARTIAL');
+      expect(resUV.contributesToBlocker).toBe(true);
+      expect(resUV.reason).toContain('verification required');
+
+      const resRej = resolver.evaluateRequirement(reqCert, candidateRejected);
+      expect(resRej.status).toBe('NOT_MET');
+      expect(resRej.contributesToBlocker).toBe(true);
+    });
   });
 
   describe('HardPolicyEngine', () => {
@@ -787,6 +955,84 @@ describe('Matching Intelligence Unit Tests (JOB-P2-T02)', () => {
       // Sparse job has lower confidence score
       expect(result.confidenceScore).toBeLessThan(75);
     });
+
+    it('blocks autoApplyEligible and prevents STRONG_MATCH / GOOD_MATCH when mandatory requirements have unverified evidence', () => {
+      const candidate = createMockCandidateContext({
+        policy: {
+          id: 'pol-1',
+          userId: 'user-test-1',
+          autoApplyEnabled: true,
+          autoApplyMinScore: 80,
+          minScoreForReview: 60,
+          blockOnUnknownSensitive: true,
+          allowedLocations: ['Berlin, Germany'],
+          allowedCompanyTiers: ['STARTUP', 'MID', 'ENTERPRISE'],
+          allowedCurrencies: ['EUR'],
+          maxMonthlyApplications: 50,
+          maxDailyApplications: 10,
+          requireSalaryMatch: false,
+          requireRoleAlignment: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as any,
+      });
+
+      const job = createMockJob({
+        title: 'Senior TypeScript Engineer',
+        minSalary: 85000,
+        maxSalary: 110000,
+      });
+
+      const hardPolicyResult = {
+        hasBlockers: false,
+        blockers: [],
+        warnings: [],
+        missingInformation: [],
+        reasonCodes: [],
+        missingSensitiveInfo: false,
+      };
+
+      // Candidate has a strong verified match on req-1, but req-2 is an unverified mandatory requirement
+      const evaluations: DeterministicEvaluationResult[] = [
+        {
+          requirementId: 'req-1',
+          status: 'MET',
+          evidenceIds: ['candidate_skill:ts'],
+          evidenceItems: [{ id: 'candidate_skill:ts', type: 'skill', label: 'TypeScript' }],
+          reason: 'Direct match for TypeScript skill',
+          confidence: 95,
+          contributesToBlocker: false,
+        },
+        {
+          requirementId: 'req-mandatory-unverified',
+          status: 'PARTIAL',
+          evidenceIds: ['candidate_skill:unverified-k8s'],
+          evidenceItems: [
+            {
+              id: 'candidate_skill:unverified-k8s',
+              type: 'skill',
+              label: 'Kubernetes (Unverified)',
+            },
+          ],
+          reason: 'Unverified skill claim (verification required)',
+          confidence: 50,
+          contributesToBlocker: true,
+        },
+      ];
+
+      const result = scoringEngine.calculate(job, candidate, hardPolicyResult, evaluations, null);
+
+      // Auto-apply must be strictly false
+      expect(result.autoApplyEligible).toBe(false);
+      // Decision must be REVIEW
+      expect(result.decision).toBe('REVIEW');
+      // Career fit category must NOT be STRONG_MATCH or GOOD_MATCH
+      expect(result.careerFitCategory).not.toBe('STRONG_MATCH');
+      expect(result.careerFitCategory).not.toBe('GOOD_MATCH');
+      expect(result.careerFitCategory).toBe('GROWTH_OPPORTUNITY');
+      // Reason codes must include UNMET_MANDATORY_REQUIREMENTS
+      expect(result.reasonCodes).toContain('UNMET_MANDATORY_REQUIREMENTS');
+    });
   });
 
   describe('AI Provider Abstraction and Grounded Validation', () => {
@@ -987,6 +1233,78 @@ describe('Matching Intelligence Unit Tests (JOB-P2-T02)', () => {
       expect(ev?.evidenceIds).toEqual(['candidate_skill:ts']);
       // Status remains MET because candidate_skill:ts is valid in candidate context
       expect(ev?.status).toBe('MET');
+    });
+  });
+
+  describe('Decoupling Factual Verification from AI Consent', () => {
+    it('verified record with allowAiUse: false is valid for deterministic matching but excluded from aiContext', () => {
+      // Create candidate where skill A is verified with allowAiUse: false
+      // and skill B is verified with allowAiUse: true
+      const verifiedSkillNoAi = {
+        id: 'candidate_skill:sql',
+        userId: 'user-test-1',
+        name: 'PostgreSQL',
+        category: 'Database',
+        proficiency: 'ADVANCED',
+        isActive: true,
+        verificationStatus: 'VERIFIED',
+        allowAiUse: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const verifiedSkillAiConsent = {
+        id: 'candidate_skill:ts',
+        userId: 'user-test-1',
+        name: 'TypeScript',
+        category: 'Language',
+        proficiency: 'ADVANCED',
+        isActive: true,
+        verificationStatus: 'VERIFIED',
+        allowAiUse: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const resolver = new CandidateEvidenceResolver();
+
+      // Deterministic evaluation uses the candidate context skills
+      const candidateContext = createMockCandidateContext({
+        skills: [verifiedSkillNoAi as any, verifiedSkillAiConsent as any],
+        evidenceMap: new Map([
+          [
+            'candidate_skill:sql',
+            { id: 'candidate_skill:sql', type: 'skill', label: 'PostgreSQL' },
+          ],
+          ['candidate_skill:ts', { id: 'candidate_skill:ts', type: 'skill', label: 'TypeScript' }],
+        ]),
+        aiContext: {
+          targetRoles: ['Senior Full Stack Engineer'],
+          experiences: [],
+          // Only skills with allowAiUse: true are in aiContext
+          skills: [{ id: 'candidate_skill:ts', name: 'TypeScript', proficiency: 'ADVANCED' }],
+          education: [],
+          languages: [],
+          certifications: [],
+          verifiedFacts: [],
+        },
+      });
+
+      // Deterministic resolver resolves PostgreSQL as MET because it is factually VERIFIED
+      const reqSql = createMockRequirement({
+        rawText: 'Deep PostgreSQL knowledge required',
+        normalizedText: 'PostgreSQL database',
+        category: 'SKILL',
+        requirementStrength: 'MANDATORY',
+      });
+
+      const resSql = resolver.evaluateRequirement(reqSql, candidateContext);
+      expect(resSql.status).toBe('MET');
+      expect(resSql.contributesToBlocker).toBe(false);
+
+      // But aiContext strictly excludes PostgreSQL because allowAiUse is false
+      expect(candidateContext.aiContext.skills.some((s) => s.name === 'PostgreSQL')).toBe(false);
+      expect(candidateContext.aiContext.skills.some((s) => s.name === 'TypeScript')).toBe(true);
     });
   });
 });

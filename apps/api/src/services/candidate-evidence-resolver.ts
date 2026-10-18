@@ -114,7 +114,7 @@ export class CandidateEvidenceResolver {
         matchedEvidenceIds.push(id);
         const item = context.evidenceMap.get(id);
         if (item) matchedEvidenceItems.push(item);
-        if (skill.verificationStatus !== 'UNVERIFIED' && skill.verificationStatus !== 'REJECTED') {
+        if (skill.verificationStatus === 'VERIFIED') {
           hasVerifiedMatch = true;
         }
       }
@@ -132,10 +132,7 @@ export class CandidateEvidenceResolver {
               matchedEvidenceIds.push(id);
               const item = context.evidenceMap.get(id);
               if (item) matchedEvidenceItems.push(item);
-              if (
-                project.verificationStatus !== 'UNVERIFIED' &&
-                project.verificationStatus !== 'REJECTED'
-              ) {
+              if (project.verificationStatus === 'VERIFIED') {
                 hasVerifiedMatch = true;
               }
             }
@@ -313,8 +310,7 @@ export class CandidateEvidenceResolver {
 
         const details = [lang.proficiency, lang.cefrLevel].filter(Boolean).join(', ');
         const detailsSuffix = details ? ` (${details})` : '';
-        const isVerified =
-          lang.verificationStatus !== 'UNVERIFIED' && lang.verificationStatus !== 'REJECTED';
+        const isVerified = lang.verificationStatus === 'VERIFIED';
         return {
           requirementId: req.id,
           status: isVerified ? 'MET' : 'PARTIAL',
@@ -368,8 +364,7 @@ export class CandidateEvidenceResolver {
     const validEdus = context.education.filter((ed) => ed.verificationStatus !== 'REJECTED');
     if (validEdus.length > 0 && validEdus[0]) {
       const edu = validEdus[0];
-      const isVerified =
-        edu.verificationStatus !== 'UNVERIFIED' && edu.verificationStatus !== 'REJECTED';
+      const isVerified = edu.verificationStatus === 'VERIFIED';
       const id = `candidate_education:${edu.id}`;
       const item = context.evidenceMap.get(id);
 
@@ -410,8 +405,7 @@ export class CandidateEvidenceResolver {
       if (rawNorm.includes(certNorm) || certNorm.includes(rawNorm)) {
         const id = `candidate_certification:${cert.id}`;
         const item = context.evidenceMap.get(id);
-        const isVerified =
-          cert.verificationStatus !== 'UNVERIFIED' && cert.verificationStatus !== 'REJECTED';
+        const isVerified = cert.verificationStatus === 'VERIFIED';
         return {
           requirementId: req.id,
           status: isVerified ? 'MET' : 'PARTIAL',
@@ -460,12 +454,12 @@ export class CandidateEvidenceResolver {
       };
     }
 
-    const verifiedExps = nonRejectedExps.filter(
-      (e) => e.verificationStatus !== 'UNVERIFIED' && e.verificationStatus !== 'REJECTED',
-    );
+    const verifiedExps = nonRejectedExps.filter((e) => e.verificationStatus === 'VERIFIED');
     const isUnverifiedOnly = nonRejectedExps.length > 0 && verifiedExps.length === 0;
 
     // Calculate approximate non-overlapping years from experiences
+    const verifiedMonths = this.calculateExperienceMonths(verifiedExps);
+    const verifiedYears = Math.floor(verifiedMonths / 12);
     const totalMonths = this.calculateExperienceMonths(nonRejectedExps);
     const totalYears = Math.floor(totalMonths / 12);
 
@@ -477,17 +471,25 @@ export class CandidateEvidenceResolver {
       .filter((i): i is CandidateEvidenceItemDto => Boolean(i));
 
     if (requiredYears !== null) {
-      if (totalYears >= requiredYears) {
+      if (verifiedYears >= requiredYears) {
         return {
           requirementId: req.id,
-          status: isUnverifiedOnly ? 'PARTIAL' : 'MET',
+          status: 'MET',
           evidenceIds: relevantExps,
           evidenceItems,
-          reason: isUnverifiedOnly
-            ? `Candidate has ~${totalYears} years of unverified cumulative experience (verification required)`
-            : `Candidate has ~${totalYears} years of cumulative experience (exceeds ${requiredYears} years required)`,
-          confidence: isUnverifiedOnly ? 50 : 80,
-          contributesToBlocker: isUnverifiedOnly ? isMandatory : false,
+          reason: `Candidate has ~${verifiedYears} years of verified cumulative experience (exceeds ${requiredYears} years required)`,
+          confidence: 85,
+          contributesToBlocker: false,
+        };
+      } else if (totalYears >= requiredYears) {
+        return {
+          requirementId: req.id,
+          status: 'PARTIAL',
+          evidenceIds: relevantExps,
+          evidenceItems,
+          reason: `Candidate has ~${verifiedYears} years of verified experience (less than ${requiredYears} years required; ~${totalYears} years total including unverified experience - verification required)`,
+          confidence: 50,
+          contributesToBlocker: isMandatory,
         };
       } else {
         return {
@@ -497,7 +499,7 @@ export class CandidateEvidenceResolver {
           evidenceItems,
           reason: `Candidate has ~${totalYears} years of experience (less than ${requiredYears} years requested)`,
           confidence: isUnverifiedOnly ? 50 : 75,
-          contributesToBlocker: isMandatory && totalYears === 0,
+          contributesToBlocker: isMandatory && verifiedYears === 0,
         };
       }
     }
@@ -666,7 +668,7 @@ export class CandidateEvidenceResolver {
       evidenceItems: [],
       reason: 'Candidate work authorization / sponsorship status is unconfigured',
       confidence: 50,
-      contributesToBlocker: false,
+      contributesToBlocker: _isMandatory,
     };
   }
 
@@ -710,26 +712,42 @@ export class CandidateEvidenceResolver {
     const rawNorm = normalizeToken(req.rawText);
     const matchedEvidenceIds: string[] = [];
     const matchedEvidenceItems: CandidateEvidenceItemDto[] = [];
+    let hasVerifiedMatch = false;
 
     for (const skill of context.skills) {
+      if (skill.verificationStatus === 'REJECTED') continue;
       const sNorm = normalizeToken(skill.name);
       if (sNorm.length >= 3 && rawNorm.includes(sNorm)) {
         const id = `candidate_skill:${skill.id}`;
         matchedEvidenceIds.push(id);
         const item = context.evidenceMap.get(id);
         if (item) matchedEvidenceItems.push(item);
+        if (skill.verificationStatus === 'VERIFIED') {
+          hasVerifiedMatch = true;
+        }
       }
     }
 
     if (matchedEvidenceIds.length > 0) {
+      if (hasVerifiedMatch) {
+        return {
+          requirementId: req.id,
+          status: 'MET',
+          evidenceIds: matchedEvidenceIds,
+          evidenceItems: matchedEvidenceItems,
+          reason: `Matched candidate skills: ${matchedEvidenceItems.map((i) => i.label).join(', ')}`,
+          confidence: 70,
+          contributesToBlocker: false,
+        };
+      }
       return {
         requirementId: req.id,
-        status: 'MET',
+        status: 'PARTIAL',
         evidenceIds: matchedEvidenceIds,
         evidenceItems: matchedEvidenceItems,
-        reason: `Matched candidate skills: ${matchedEvidenceItems.map((i) => i.label).join(', ')}`,
-        confidence: 70,
-        contributesToBlocker: false,
+        reason: `Matched unverified candidate skills (verification required): ${matchedEvidenceItems.map((i) => i.label).join(', ')}`,
+        confidence: 50,
+        contributesToBlocker: req.requirementStrength === 'MANDATORY',
       };
     }
 

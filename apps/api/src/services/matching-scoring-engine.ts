@@ -128,9 +128,7 @@ export class MatchingScoringEngine {
     }
 
     // Evaluate mandatory requirements penalty
-    const unmetMandatory = evaluations.filter(
-      (e) => e.contributesToBlocker && (e.status === 'NOT_MET' || e.status === 'UNKNOWN'),
-    );
+    const unmetMandatory = evaluations.filter((e) => e.contributesToBlocker && e.status !== 'MET');
     if (unmetMandatory.length > 0) {
       reasonCodes.push(DecisionReasonCodes.UNMET_MANDATORY_REQUIREMENTS);
       gaps.push(`${unmetMandatory.length} mandatory requirement(s) are unmet or unconfirmed`);
@@ -298,10 +296,17 @@ export class MatchingScoringEngine {
 
     // Determine CareerFitCategory
     let careerFitCategory: CareerFitCategory;
-    if (hardPolicy.hasBlockers) {
+    if (hardPolicy.hasBlockers || unmetMandatory.some((e) => e.status === 'NOT_MET')) {
       careerFitCategory = 'NOT_CURRENTLY_ELIGIBLE';
-    } else if (hardPolicy.missingSensitiveInfo || confidenceScore < 50) {
+    } else if (
+      hardPolicy.missingSensitiveInfo ||
+      confidenceScore < 50 ||
+      unmetMandatory.some((e) => e.status === 'UNKNOWN')
+    ) {
       careerFitCategory = 'INSUFFICIENT_INFORMATION';
+    } else if (unmetMandatory.length > 0) {
+      // Mandatory requirements are partially met or require verification
+      careerFitCategory = 'GROWTH_OPPORTUNITY';
     } else if (overallScore >= 80 && (roleFit.score ?? 50) >= 70) {
       careerFitCategory = 'STRONG_MATCH';
     } else if (overallScore >= 68 && (roleFit.score ?? 50) >= 50) {
@@ -466,14 +471,25 @@ export class MatchingScoringEngine {
         e.status === 'MET' && e.evidenceIds.some((id) => id.startsWith('candidate_experience:')),
     );
 
-    const baseScore = expEvals.length > 0 ? 85 : 65;
+    const nonRejectedExps = context.experiences.filter((e) => e.verificationStatus !== 'REJECTED');
+    const verifiedExps = nonRejectedExps.filter((e) => e.verificationStatus === 'VERIFIED');
+    const isUnverifiedOnly = nonRejectedExps.length > 0 && verifiedExps.length === 0;
+
+    let baseScore = 65;
+    if (expEvals.length > 0) {
+      baseScore = 85;
+    } else if (isUnverifiedOnly) {
+      baseScore = 50;
+    }
 
     return {
       dimension: 'EXPERIENCE_FIT',
       score: baseScore,
       weight: DIMENSION_DEFAULT_WEIGHTS.EXPERIENCE_FIT,
       status: 'SCORED',
-      reason: `Evaluated across ${context.experiences.length} career positions and matching role requirements`,
+      reason: isUnverifiedOnly
+        ? `Evaluated across ${context.experiences.length} unverified career positions (verification required)`
+        : `Evaluated across ${context.experiences.length} career positions and matching role requirements`,
     };
   }
 
@@ -495,13 +511,17 @@ export class MatchingScoringEngine {
       };
     }
 
-    if (context.education.length > 0 && context.education[0]) {
+    const nonRejectedEdus = context.education.filter((e) => e.verificationStatus !== 'REJECTED');
+    if (nonRejectedEdus.length > 0 && nonRejectedEdus[0]) {
+      const isVerified = nonRejectedEdus[0].verificationStatus === 'VERIFIED';
       return {
         dimension: 'EDUCATION_FIT',
-        score: 90,
+        score: isVerified ? 90 : 60,
         weight: DIMENSION_DEFAULT_WEIGHTS.EDUCATION_FIT,
         status: 'SCORED',
-        reason: `Candidate holds formal credentials from ${context.education[0].institution}`,
+        reason: isVerified
+          ? `Candidate holds formal credentials from ${nonRejectedEdus[0].institution}`
+          : `Candidate lists unverified credentials from ${nonRejectedEdus[0].institution} (verification required)`,
       };
     }
 
@@ -592,13 +612,19 @@ export class MatchingScoringEngine {
     }
 
     if (context.languages.length > 0) {
-      return {
-        dimension: 'LANGUAGE_FIT',
-        score: 100,
-        weight: DIMENSION_DEFAULT_WEIGHTS.LANGUAGE_FIT,
-        status: 'SCORED',
-        reason: 'Standard language competencies confirmed in Candidate Brain',
-      };
+      const nonRejectedLangs = context.languages.filter((l) => l.verificationStatus !== 'REJECTED');
+      const hasVerified = nonRejectedLangs.some((l) => l.verificationStatus === 'VERIFIED');
+      if (nonRejectedLangs.length > 0) {
+        return {
+          dimension: 'LANGUAGE_FIT',
+          score: hasVerified ? 100 : 70,
+          weight: DIMENSION_DEFAULT_WEIGHTS.LANGUAGE_FIT,
+          status: 'SCORED',
+          reason: hasVerified
+            ? 'Standard language competencies confirmed in Candidate Brain'
+            : 'Language proficiencies listed in Candidate Brain (verification required)',
+        };
+      }
     }
 
     return {
@@ -658,6 +684,17 @@ export class MatchingScoringEngine {
         weight: DIMENSION_DEFAULT_WEIGHTS.WORK_AUTHORIZATION_FIT,
         status: 'SCORED',
         reason: authEval.reason,
+      };
+    }
+
+    const authPartial = evaluations.find((e) => e.contributesToBlocker && e.status === 'PARTIAL');
+    if (authPartial) {
+      return {
+        dimension: 'WORK_AUTHORIZATION_FIT',
+        score: 50,
+        weight: DIMENSION_DEFAULT_WEIGHTS.WORK_AUTHORIZATION_FIT,
+        status: 'SCORED',
+        reason: authPartial.reason,
       };
     }
 

@@ -478,6 +478,7 @@ French (Conversational)
               language: 'English',
               proficiency: null,
               cefrLevel: null,
+              verificationStatus: 'VERIFIED',
             },
           ],
           evidenceMap: new Map([
