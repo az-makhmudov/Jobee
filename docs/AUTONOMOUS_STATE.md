@@ -17,7 +17,7 @@
 - **Milestone Status:** SECURE & VERIFIED (Rotated exposed Neon production database credential via authenticated control plane REST API; synchronized replacement credential to Railway `jobee-api`, `jobee-worker`, and environment default via secure stdin streaming; confirmed old credential 100% revoked with `28P01 password authentication failed`; verified new deployments `jobee-api` [854a0210] and `jobee-worker` [a489c0ab] ONLINE; live health `/api/health` 200, `/api/ready` 200 [DB connected, 21ms; Gemini 3.8 Flash configured; Gmail & Calendar active]; post-rotation read-only audit confirmed 100% data integrity preservation matching baseline across all 13 entity tables; strict safety invariants active: `autoApplyEnabled: false`, 0 automatic submissions).
 - **Previous Completed Milestone:** `JOBEE-CONTROLLED-PRODUCTION-RELEASE`
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 DELIVERED & HARDENED + MACRO PHASES 1, 2 & 3 COMPLETED & VERIFIED + RELEASE BLOCKERS RESOLVED + PRODUCTION RELEASED & LIVE VERIFIED + PRODUCTION SECURITY REMEDIATION COMPLETED & VERIFIED**
-- **Active Git Checkpoint:** `dd10fb5` (origin/main, working tree clean)
+- **Active Git Checkpoint:** `4c028f2` (origin/main ahead by 2 doc commits, working tree clean)
 
 ---
 
