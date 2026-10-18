@@ -224,3 +224,18 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
 
 - **Status**: COMPLETED
 - **Scope**: Authorized production security remediation. Invalidate exposed Neon PostgreSQL database credential, safely rotate production password via Neon control plane REST API, synchronize replacement credential across Railway services (`jobee-api`, `jobee-worker`, and environment default) via secure authenticated stdin interfaces, confirm old credential rejection (`28P01 password authentication failed`), verify zero-downtime redeployments (`854a0210` and `a489c0ab`), confirm live endpoint health (`/api/health`, `/api/ready`), and perform read-only production audit confirming 100% data integrity preservation.
+
+### `JOBEE-POST-DEPLOY-ACCEPTANCE-01 — Security Remediation Closeout, Real-User Acceptance & Production Validation`
+
+- **Status**: COMPLETED
+- **Scope**: Production post-deployment validation and acceptance testing. Pushed sanitized documentation commits (`ada47c6..db8de74`) cleanly to `origin/main`; verified GitHub Actions CI Run `39102103583` completed green; validated live production API and Worker deployment health on Railway; executed comprehensive automated and Playwright Chromium real-browser acceptance test suite across 27 operational scenarios:
+  - Authentication guardrails & Google OAuth initiation (HTTP 401 on private routes, valid PKCE challenge).
+  - Candidate Brain factual truthfulness (Asadbek Makhmudov, Project Manager, Warsaw; Vistula University in-progress degree; Asia alliance bank Operations Assistant; 12 verified skills; 16 verified facts; 2 CV documents).
+  - Real job discovery (24 authentic production vacancies indexed; 15 Project Management / Operations roles identified).
+  - Intelligent matching & anti-inflation invariants (92% top score at Revolut; unverified claims cannot satisfy mandatory requirements).
+  - Application Studio & anti-hallucination safeguards (21 packages; tailored CV/cover letter dynamically grounded in actual profile).
+  - Application CRM & Revolut APPLIED provenance trace (20 applications; Revolut application manually marked as applied by candidate with 0 automated bot runs).
+  - Communication intelligence (Gmail connected and live verified; Calendar unconfigured and pending owner action).
+  - Autonomous operations & circuit breakers (`auto_apply_enabled: false` verified; 5 worker orchestration runs completed cleanly).
+  - Playwright Chromium real-browser UI/UX validation on desktop (1280x800) and mobile (390x844 iPhone 14) viewports with 0 horizontal overflow blowout.
+- **Verdict**: 27/27 scenarios PASSED (0 failed, 0 blocked). Ready for controlled real-world candidate use.

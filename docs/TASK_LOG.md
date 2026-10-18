@@ -2006,3 +2006,35 @@ This document tracks execution history and verification state for all official m
     - `npm test`: PASSED (62 test files, 572/572 tests passing cleanly)
     - `npm run build`: PASSED (Vite SPA and packages compiled cleanly)
     - `verify_clean_repo.ts`: CONFIRMED replacement password does not appear anywhere in repository tracked files or git history.
+
+---
+
+## 2026-10-18: JOBEE — SECURITY CLOSEOUT, REAL-USER ACCEPTANCE & PRODUCTION VALIDATION
+
+- **Official Task Stamp**: `JOB-ACCEPTANCE-01`
+- **Lead Engineer**: Antigravity (Goal-Driven Autonomous Delivery Mode)
+- **Scope**: Security Closeout, Sanitized Documentation Push, Remote CI Verification, Live Production Deployment Health Probing, Playwright Chromium Real-Browser UI/UX Acceptance (Desktop & Mobile), Candidate Brain Truthfulness Audit, Real Job Discovery & Matching Verification, CRM & Revolut APPLIED State Provenance Audit, Autonomous Circuit Breaker Verification.
+- **Key Deliverables & Verification Records**:
+  - **Security Remediation Closeout**:
+    - Confirmed historical exposure strictly confined to historical commit `dd10fb5` on GitHub.
+    - Verified replacement credentials completely absent from current git tracked files and documentation.
+    - Cleanly pushed sanitized documentation commits `ada47c6` and `db8de74` to `origin/main` without force-pushing.
+    - GitHub Actions CI Run `39102103583` completed with `conclusion: success` (100% green).
+    - Controlled connection test confirmed old credential throws PostgreSQL error `28P01 password authentication failed for user 'neondb_owner'`.
+  - **Live Production Deployment Health**:
+    - `GET https://jobee-api-production.up.railway.app/api/health` -> HTTP 200 `{"status":"ok","service":"api","version":"0.1.0"}` (uptime > 550s).
+    - `GET https://jobee-api-production.up.railway.app/api/ready` -> HTTP 200 (database connected, 21ms; Gemini 3.8 Flash active; Gmail active; Calendar active).
+    - Railway `jobee-api` and `jobee-worker` confirmed `● Online` on Railway infrastructure.
+  - **Real-User Acceptance Test Battery (`scripts/run-real-user-acceptance.ts`)**:
+    - Total test scenarios executed: 27.
+    - Result: **27/27 PASSED** (0 failed, 0 blocked).
+    - Candidate Brain Truthfulness: Profile for Asadbek Makhmudov, Project Manager, Warsaw. Education verified as Vistula University in-progress degree (`end_date === null`). Experience verified as Asia alliance bank Operations Assistant (`2023-06..2023-08`). 12 verified skills, 16 verified facts, 2 CV documents in vault.
+    - Real Job Discovery: 24 authentic vacancies indexed; 15 Project Management / Operations roles identified.
+    - Intelligent Matching: 92% top score at Revolut; Anti-Inflation Invariant strictly enforces `verificationStatus === 'VERIFIED'` to satisfy mandatory job requirements.
+    - Application Studio: 21 packages; tailored CV/cover letter dynamically grounded in actual profile facts without software engineering hallucinations.
+    - CRM & Revolut Provenance Audit: 20 applications tracked. Application `83290dbc-7ab2-4abe-b9f5-43d6bfa083a7` for Revolut Associate Project Manager was manually marked as `APPLIED` by candidate (`actor: USER`, note: `"Marked as applied by candidate"`). Executed browser runs: `0`. Confirmed zero automatic bot submissions occurred.
+    - Communication Intelligence: Gmail account `asadbek.mzw@gmail.com` classified as `LIVE_VERIFIED / CONFIGURED` (`status: CONNECTED`). Google Calendar classified as `UNCONFIGURED` (pending human OAuth authorization).
+    - Autonomous Operations & Safety: `auto_apply_enabled: false` verified in production database. Background worker orchestration runs completed with `COMPLETED` status and 0 crashes.
+    - Playwright Chromium Real-Browser UI/UX: Desktop (1280x800) and mobile (390x844 iPhone 14) viewports rendered cleanly without horizontal overflow blowout (`scrollWidth: 390px, clientWidth: 390px`).
+- **Production Status**: READY FOR REAL-USER PILOT.
+

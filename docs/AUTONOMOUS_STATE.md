@@ -12,12 +12,12 @@
 
 ## 1. Roadmap Snapshot
 
-- **Current Official Mode:** Production Security Remediation Completed & Live Verified
-- **Active Backlog Item:** `JOBEE-SECURITY-REMEDIATION-01: COMPLETED` (Authorized Production Security Remediation: Neon Credential Rotation & Railway Synchronization)
-- **Milestone Status:** SECURE & VERIFIED (Rotated exposed Neon production database credential via authenticated control plane REST API; synchronized replacement credential to Railway `jobee-api`, `jobee-worker`, and environment default via secure stdin streaming; confirmed old credential 100% revoked with `28P01 password authentication failed`; verified new deployments `jobee-api` [854a0210] and `jobee-worker` [a489c0ab] ONLINE; live health `/api/health` 200, `/api/ready` 200 [DB connected, 21ms; Gemini 3.8 Flash configured; Gmail & Calendar active]; post-rotation read-only audit confirmed 100% data integrity preservation matching baseline across all 13 entity tables; strict safety invariants active: `autoApplyEnabled: false`, 0 automatic submissions).
-- **Previous Completed Milestone:** `JOBEE-CONTROLLED-PRODUCTION-RELEASE`
-- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 DELIVERED & HARDENED + MACRO PHASES 1, 2 & 3 COMPLETED & VERIFIED + RELEASE BLOCKERS RESOLVED + PRODUCTION RELEASED & LIVE VERIFIED + PRODUCTION SECURITY REMEDIATION COMPLETED & VERIFIED**
-- **Active Git Checkpoint:** `4c028f2` (origin/main ahead by 2 doc commits, working tree clean)
+- **Current Official Mode:** Post-Deployment Acceptance Testing Completed & Production Ready
+- **Active Backlog Item:** `JOBEE-POST-DEPLOY-ACCEPTANCE-01: COMPLETED` (Production Post-Deployment Validation, Real-User Acceptance & UI/UX Verification)
+- **Milestone Status:** PRODUCTION READY (Sanitized documentation commits pushed to origin/main; remote CI passed green; live Railway services online; 27/27 real-user acceptance scenarios passed cleanly covering authentication guardrails, Candidate Brain truthfulness, 24 authentic vacancies, 92% match intelligence, Application Studio tailoring, CRM & Revolut APPLIED manual provenance verification, Gmail connection, auto-apply circuit breakers, and Playwright Chromium headless browser UI/UX rendering across desktop and mobile viewports with 0 horizontal overflow).
+- **Previous Completed Milestone:** `JOB-SEC-REMEDIATION-01`
+- **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 DELIVERED & HARDENED + MACRO PHASES 1, 2 & 3 COMPLETED & VERIFIED + RELEASE BLOCKERS RESOLVED + PRODUCTION RELEASED & LIVE VERIFIED + PRODUCTION SECURITY REMEDIATION COMPLETED & VERIFIED + REAL-USER ACCEPTANCE VALIDATED**
+- **Active Git Checkpoint:** `db8de74` (origin/main up to date, working tree clean)
 
 ---
 
@@ -68,7 +68,8 @@
 | `JOBEE-MACRO-PHASE-3`                 | Final Product Completion, Production Release & Acceptance Valid.    | COMPLETED     | `d762625` & `f2ca67e` (62/62 files, 567 tests clean) |
 | `JOBEE-RELEASE-BLOCKER-RESOLUTION`    | Release Blocker Resolution & Candidate Brain Reconciliation         | COMPLETED     | Verified (62/62 test files, 572 tests, E2E clean)    |
 | `JOBEE-CONTROLLED-PRODUCTION-RELEASE` | Controlled Production Release, CI, Railway Deploy & Live Validation | COMPLETED     | Pushed `afe5a04` to `origin/main`; CI green; Live    |
-| `JOB-SEC-REMEDIATION-01`              | Production Security Remediation: Neon Rotation & Railway Sync       | **COMPLETED** | Live verified, old credential revoked, zero leaks    |
+| `JOB-SEC-REMEDIATION-01`              | Production Security Remediation: Neon Rotation & Railway Sync       | COMPLETED     | Live verified, old credential revoked, zero leaks    |
+| `JOB-ACCEPTANCE-01`                   | Production Post-Deploy Acceptance, Real-User & UI/UX Validation     | **COMPLETED** | 27/27 scenarios passed, Playwright browser verified  |
 
 ---
 
