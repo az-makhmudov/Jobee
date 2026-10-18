@@ -17,7 +17,7 @@
 - **Milestone Status:** RELEASE BLOCKERS RESOLVED & VERIFIED (62/62 test files, 572/572 tests passing; Candidate Brain reconciled with authentic records in `ai_job_agent_dev`: Asadbek Makhmudov, Asia Alliance Bank Operations Assistant May–Aug 2023, Vistula University Bachelor in Management / Project Management Oct 2023–Present, 14 skills, 2 certifications, 3 languages, 6 facts, records unverified with allowAiUse=false; isolated test DB enforced with zero pollution; CandidateEvidenceResolver and MatchingScoringEngine hardened against score inflation; decoupled factual verification from AI authorization; all E2E integration verification scripts passing cleanly)
 - **Previous Completed Milestone:** `JOBEE-MACRO-PHASE-3`
 - **Macro Roadmap Status:** **ALL ROADMAP MILESTONES COMPLETED + PRODUCTION DATA POPULATED + GEMINI AI RESTORED + E2E WORKFLOW STABILIZED + CANDIDATE BRAIN & AI CAREER INTELLIGENCE 2.0 DELIVERED & HARDENED + MACRO PHASES 1, 2 & 3 COMPLETED & VERIFIED + RELEASE BLOCKERS RESOLVED**
-- **Active Git Checkpoint:** Local commit pending (ahead of `eea6821` by 5 unpublished commits)
+- **Active Git Checkpoint:** `db6dbbc` (ahead of `origin/main` by 6 unpublished commits)
 
 ---
 
