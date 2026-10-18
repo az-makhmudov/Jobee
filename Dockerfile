@@ -34,6 +34,7 @@ COPY package.json package-lock.json ./
 COPY packages/ ./packages/
 COPY apps/ ./apps/
 COPY tsconfig.json tsconfig.base.json ./
+COPY scripts/sync-preview-assets.mjs ./scripts/sync-preview-assets.mjs
 
 # Install all dependencies including devDependencies for compilation
 RUN npm ci

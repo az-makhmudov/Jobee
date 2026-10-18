@@ -1,8 +1,8 @@
 # JOB-UI-MIGRATION-01 — Jobee design system migration
 
-Status: **PREVIEW COMPLETE / RELEASE PENDING**. Lead implementation: Codex, explicitly assigned by the product owner. Production release remains pending preview review and authorization.
+Status: **RELEASE AUTHORIZED / DEPLOYMENT IN PROGRESS**. Lead implementation: Codex, explicitly assigned by the product owner. The owner approved applying the migration to the main checkout and deploying live on 18 October 2026.
 
-Implementation checkpoint: `675ec5c06b5e6a572ea5b8ae23803516a7dc904e` (local only).
+Implementation checkpoint: `675ec5c06b5e6a572ea5b8ae23803516a7dc904e`; main checkout fast-forwarded through `27627be`.
 
 Baseline: `9c1b206debf25be97cb16b832daf09e287a32803`. Isolated branch: `codex/jobee-design-system-migration`.
 
@@ -33,7 +33,7 @@ To reproduce after installing dependencies:
 3. Install Chromium with `npx playwright install chromium`, then run `npm run test:ui`. The harness starts the local API/web servers and seeds synthetic records. Existing local servers are reused outside CI; ensure they belong to this isolated preview.
 4. Run `node scripts/generate-ui-review.mjs` after the complete render inventory. Open `output/playwright/design-review.html` for Light/Dark screenshots. Cached Figma references are included in the current local review artifacts; a fresh checkout can open the linked Figma sources directly.
 
-The preview CI job provisions disposable PostgreSQL, builds shared packages, applies existing migrations, runs the browser suite and uploads the report. It does not deploy anything.
+The preview CI job runs on main pushes and pull requests. It provisions disposable PostgreSQL, builds shared packages and the deployment container builder, applies existing migrations, runs the browser suite and uploads the report. Railway retains its existing main-branch deployment process.
 
 ## Verification
 
@@ -62,6 +62,6 @@ Screenshots use synthetic API data. Counts, dates, readiness and document conten
 
 Live ATS submission, real recruiter email, calendar mutations and paid AI providers are excluded from preview testing. Their existing authorization and fixture-provider integration tests remain in the suite. The dependency audit still reports the same nine baseline advisories (five moderate, four critical), with no advisories attributed to the newly added PDF.js or docx-preview packages. This UI milestone does not change the affected existing dependencies; dependency remediation remains a separate release consideration.
 
-Chromium is the automated browser target; CI execution and production infrastructure checks occur only after the branch is shared and release is authorized.
+Chromium is the automated browser target. The authorized release adds the document-preview resource setup script to the Docker builder context; no production configuration or database schema changes are required.
 
-No push, production release or database migration for this UI work has been performed. The existing release remains the rollback target. Review the complete preview before authorizing production migration.
+The migration is applied to the main local checkout. Deployment and live verification are in progress. Retained rollback deployments at baseline `9c1b206`: API `93b7ca5f-e9de-402e-96b7-0c5814aff0bd`, worker `0c576a10-ee9c-4c37-8d63-ab7b5ab067d6`. No production database migration or external provider action is part of this UI release.

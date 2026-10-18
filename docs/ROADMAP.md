@@ -256,4 +256,4 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
 
 ## JOB-UI-MIGRATION-01 — Desktop design system migration
 
-Status: **PREVIEW COMPLETE / RELEASE PENDING**. Codex completed the visual migration, eight-destination navigation and inline document preview. All 25 mapped components and 18 closure groups have implementation evidence. Quality gates passed: 586 tests, 25 browser checks, typecheck/build/lint/format and isolated database checks. Preview review and explicit release authorization remain. See `docs/UI_MIGRATION.md`.
+Status: **RELEASE AUTHORIZED / DEPLOYMENT IN PROGRESS**. Codex completed the visual migration, eight-destination navigation and inline document preview. All 25 mapped components and 18 closure groups have implementation evidence. Quality gates passed: 586 tests, 25 browser checks, typecheck/build/lint/format and isolated database checks. Owner approved applying locally and deploying live. Main checkout is integrated; deployment packaging and CI container validation are included. See `docs/UI_MIGRATION.md`.

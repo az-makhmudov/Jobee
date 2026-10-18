@@ -1,5 +1,7 @@
 name: UI migration preview
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 jobs:
@@ -35,6 +37,7 @@ jobs:
       - run: npm run build:packages
       - run: npm run db:migrate
       - run: npx playwright install --with-deps chromium
+      - run: docker build --target builder -t jobee-ui-container-check .
       - run: node scripts/audit-ui-contracts.mjs
       - run: npm run test:ui
       - uses: actions/upload-artifact@v4
