@@ -1920,7 +1920,7 @@ This document tracks execution history and verification state for all official m
     - `jobee-worker`: Initial deployment `58faba06-0a03-4c55-98aa-19e2837d02e1` -> Redeployed as `5610b5a8-0199-4aa1-8ce5-2c8c1a9c5c0a` -> **SUCCESS / ONLINE**.
   - **Production Worker Configuration Synchronization**:
     - Detected stale password override in `jobee-worker` service variable for `DATABASE_URL`.
-    - Updated `DATABASE_URL` via Railway CLI to match active Neon production database credentials: `postgresql://neondb_owner:npg_tXoAZ0Onl6KM@ep-shiny-salad-b480qwkd-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require`.
+    - Updated `DATABASE_URL` via Railway CLI to match active Neon production database credentials: `postgresql://neondb_owner:[REDACTED_DURING_SECURITY_ROTATION]@ep-shiny-salad-b480qwkd-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require`.
     - Verified worker logs: `Database connectivity check: connected` (latency: 246ms), `Worker service started successfully. Running in standby mode.`
     - Orchestrator executed scheduled pipeline cycle: matched live Arbeitnow opportunity, strictly enforced circuit breaker `[Orchestrator][AUTO_APPLY] Auto-apply circuit breaker is OFF (auto_apply_enabled=false). Human authorization required for submissions.`, zero automatic submissions.
   - **Production Neon Read-Only Data Integrity Audit**:
@@ -1938,4 +1938,71 @@ This document tracks execution history and verification state for all official m
     - `POST https://jobee-api-production.up.railway.app/api/auth/sign-in/social` -> HTTP 200 (Google OAuth URL returned).
     - `GET https://jobee-api-production.up.railway.app/api/jobs` -> HTTP 401 UNAUTHORIZED (Route protection verified).
 
+---
 
+## 2026-10-18: JOBEE — AUTHORIZED PRODUCTION SECURITY REMEDIATION: NEON CREDENTIAL ROTATION & RAILWAY SYNCHRONIZATION
+
+- **Official Task Stamp**: `JOB-SEC-REMEDIATION-01`
+- **Lead Engineer**: Antigravity (Goal-Driven Autonomous Delivery Mode)
+- **Scope**: Authorized Production Security Remediation, Exposure Assessment, Zero-Leakage Credential Rotation, Railway Secret Synchronization, Revocation Invalidation, and Post-Rotation Production Integrity Verification.
+- **Key Deliverables & Verification Records**:
+  - **Exposure Scope Assessment**:
+    - Git tracked files (excluding docs/TASK_LOG.md): `NOT_FOUND`
+    - Documentation: `EXPOSED` (found in historical log line in `docs/TASK_LOG.md`; sanitized and redacted)
+    - Git history: `EXPOSED` (1 commit: `dd10fb5` on origin/main; preserved per non-destructive authorization boundary)
+    - Local environment files: `NOT_FOUND`
+    - Antigravity execution transcripts: `EXPOSED` (14 log files across conversation histories)
+    - Shell history: `NOT_FOUND`
+    - Backup scripts & scripts directory: `NOT_FOUND`
+    - CI logs: `NOT_FOUND` (GitHub Actions uses ephemeral Docker container `postgres:16-alpine` with mock CI secrets)
+    - Railway deployment logs: `NOT_FOUND`
+    - Railway service configuration: `EXPOSED` (both `jobee-api` and `jobee-worker` were configured with the compromised credential)
+  - **Safe Credential Rotation**:
+    - Triggered programmatic password reset on role `neondb_owner` via authenticated Neon control plane REST API (`POST /projects/fancy-bread-83539204/branches/br-calm-glade-b4xeb2uz/roles/neondb_owner/reset_password`).
+    - Monitored Neon background configuration operations to clean completion (`status: finished`).
+    - Replacement credential generated entirely in runtime memory with zero plain-text leaks to command-line arguments, environment files, or disk logs.
+    - Verified new credential connectivity directly against Neon PostgreSQL: `Connected cleanly as neondb_owner on database neondb`.
+  - **Railway Service Synchronization**:
+    - Synchronized replacement `DATABASE_URL` via authenticated Railway CLI using direct stdin streaming:
+      - `railway variable set DATABASE_URL --stdin --service jobee-api --skip-deploys`
+      - `railway variable set DATABASE_URL --stdin --service jobee-worker --skip-deploys`
+      - `railway variable set DATABASE_URL --stdin --skip-deploys` (environment default)
+    - Triggered zero-downtime redeployments for both services:
+      - `jobee-api`: Deployment `854a0210-b64b-4d66-b35f-b27b202dba9a` -> **SUCCESS / ONLINE**
+      - `jobee-worker`: Deployment `a489c0ab-fedc-4f1a-bdce-1a60ba43067d` -> **SUCCESS / ONLINE**
+    - Retired legacy deployments (`1df66daa` and `71ed43b8`).
+  - **Old Credential Revocation Verification**:
+    - Controlled direct connection attempt using the compromised credential string was rejected immediately:
+      `OLD CREDENTIAL: REVOKED` (`28P01 password authentication failed for user 'neondb_owner'`).
+    - Controlled direct connection attempt using the replacement credential succeeded immediately:
+      `NEW CREDENTIAL: ACTIVE` (connected as `neondb_owner` on `neondb`).
+  - **Live Production Endpoint & Worker Verification**:
+    - `GET https://jobee-api-production.up.railway.app/api/health` -> HTTP 200 `{"status":"ok","service":"api","version":"0.1.0"}`.
+    - `GET https://jobee-api-production.up.railway.app/api/ready` -> HTTP 200 (database connected, 21ms latency; Gemini 3.8 Flash configured; Gmail & Calendar configured).
+    - `GET https://jobee-api-production.up.railway.app/` -> HTTP 200 (Vite React SPA bundle served).
+    - `POST https://jobee-api-production.up.railway.app/api/auth/sign-in/social` -> HTTP 200 (Google OAuth init with secure redirect).
+    - `GET https://jobee-api-production.up.railway.app/api/jobs` -> HTTP 401 UNAUTHORIZED (Route protection verified).
+    - Worker startup logs verified: `Database connectivity check: connected` (latency: 158ms), `Worker service started successfully. Running in standby mode.`
+    - Worker scheduled cycle executed cleanly: `[Orchestrator][AUTO_APPLY] Auto-apply circuit breaker is OFF (auto_apply_enabled=false). Human authorization required for submissions.`
+  - **Production Data Integrity Audit**:
+    - Read-only database audit compared pre-rotation baseline with post-rotation live database:
+      - Users: 1 (matches baseline)
+      - Profiles: 1 (Asadbek Makhmudov, Project Manager; matches baseline)
+      - Experiences: 1 (matches baseline)
+      - Education: 1 (matches baseline)
+      - Skills: 12 (all allow_ai_use: true; matches baseline)
+      - Certifications: 2 (matches baseline)
+      - Languages: 3 (matches baseline)
+      - Facts: 16 (matches baseline)
+      - Documents: 2 (matches baseline)
+      - Jobs: 24 (matches baseline)
+      - Applications: 21 (matches baseline)
+      - Audit events: 1607 (matches baseline)
+      - Drizzle migrations: 22 (0000..0021 up to date)
+      - Candidate Brain & safety policies: 100% preserved (`autoApplyEnabled: false`, 0 automatic submissions).
+  - **Quality Gates & Leak Verification**:
+    - `npm run lint`: PASSED (0 errors)
+    - `npm run typecheck`: PASSED (0 errors across all 6 workspaces)
+    - `npm test`: PASSED (62 test files, 572/572 tests passing cleanly)
+    - `npm run build`: PASSED (Vite SPA and packages compiled cleanly)
+    - `verify_clean_repo.ts`: CONFIRMED replacement password does not appear anywhere in repository tracked files or git history.
