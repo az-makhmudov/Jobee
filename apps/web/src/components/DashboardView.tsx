@@ -17,9 +17,10 @@ import type {
 
 interface Props {
   onNavigate: (section: string, tab?: string) => void;
+  onOpenAuth?: () => void;
 }
 
-export function DashboardView({ onNavigate }: Props) {
+export function DashboardView({ onNavigate, onOpenAuth }: Props) {
   const [overview, setOverview] = useState<CandidateOverviewDto | null>(null);
   const [jobMetrics, setJobMetrics] = useState<JobDashboardMetricsDto | null>(null);
   const [packageMetrics, setPackageMetrics] = useState<ApplicationStudioMetricsDto | null>(null);
@@ -86,6 +87,59 @@ export function DashboardView({ onNavigate }: Props) {
   }
 
   if (error || !overview) {
+    const isUnauthenticated =
+      error &&
+      (error.toLowerCase().includes('authentication required') ||
+        error.toLowerCase().includes('unauthorized') ||
+        error.includes('401'));
+
+    if (isUnauthenticated) {
+      return (
+        <div
+          className="card"
+          style={{
+            textAlign: 'center',
+            padding: '3.5rem 1.5rem',
+            border: '1px dashed var(--surface-border)',
+            maxWidth: '640px',
+            margin: '2rem auto',
+          }}
+        >
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🐝</div>
+          <h2
+            style={{
+              fontSize: '1.5rem',
+              fontWeight: 700,
+              marginBottom: '0.75rem',
+              color: 'var(--text-primary)',
+            }}
+          >
+            Welcome to Jobee
+          </h2>
+          <p
+            style={{
+              color: 'var(--text-secondary)',
+              maxWidth: '520px',
+              margin: '0 auto 1.5rem auto',
+              lineHeight: 1.6,
+            }}
+          >
+            Your autonomous, truthful AI job search partner. Sign in or enter your private pilot
+            invitation code to access your Candidate Brain, discover matched opportunities, and
+            manage applications.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => (onOpenAuth ? onOpenAuth() : onNavigate('settings'))}
+            style={{ padding: '0.6rem 1.4rem', fontSize: '0.95rem' }}
+          >
+            Sign In / Join Private Pilot
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="card" style={{ borderColor: 'var(--danger)' }}>
         <div className="card-title" style={{ color: 'var(--danger)' }}>

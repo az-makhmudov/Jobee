@@ -837,6 +837,220 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       expect(unblocked.status).toBe('READY');
     });
 
+    it('blocks READY if any approval request is REJECTED', () => {
+      const rejectedApproval: ApprovalRequest = {
+        id: 'appr-rej',
+        packageId: 'pkg-1',
+        versionId: 'ver-1',
+        userId: 'usr-1',
+        questionId: 'q-1',
+        approvalType: 'CUSTOM_QUESTION',
+        status: 'REJECTED',
+        subject: 'Salary Expectation',
+        proposedValue: '100000',
+        userEditedValue: null,
+        reason: 'Too high',
+        riskLevel: 'STANDARD',
+        evidenceReferences: [],
+        resolvedAt: new Date(),
+        resolvedBy: 'USER',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const readiness = PackageReadinessEngine.evaluateReadiness({
+        pkg: dummyPkg,
+        version: dummyVer,
+        artifacts: [validArtifact],
+        questions: [],
+        approvals: [rejectedApproval],
+      });
+
+      expect(readiness.isReady).toBe(false);
+      expect(readiness.status).toBe('NEEDS_REVIEW');
+      expect(
+        readiness.blockingIssues.some((i) =>
+          i.includes('were rejected by candidate and require resolution'),
+        ),
+      ).toBe(true);
+      expect(readiness.pendingApprovalsCount).toBe(1);
+    });
+
+    it('blocks READY in mixed approval state: APPROVED + REJECTED', () => {
+      const approvedApproval: ApprovalRequest = {
+        id: 'appr-app',
+        packageId: 'pkg-1',
+        versionId: 'ver-1',
+        userId: 'usr-1',
+        questionId: 'q-1',
+        approvalType: 'CUSTOM_QUESTION',
+        status: 'APPROVED',
+        subject: 'Work Auth',
+        proposedValue: 'Yes',
+        userEditedValue: null,
+        reason: 'Authorized',
+        riskLevel: 'STANDARD',
+        evidenceReferences: [],
+        resolvedAt: new Date(),
+        resolvedBy: 'USER',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const rejectedApproval: ApprovalRequest = {
+        id: 'appr-rej',
+        packageId: 'pkg-1',
+        versionId: 'ver-1',
+        userId: 'usr-1',
+        questionId: 'q-2',
+        approvalType: 'CUSTOM_QUESTION',
+        status: 'REJECTED',
+        subject: 'Salary Expectation',
+        proposedValue: '100000',
+        userEditedValue: null,
+        reason: 'Too high',
+        riskLevel: 'STANDARD',
+        evidenceReferences: [],
+        resolvedAt: new Date(),
+        resolvedBy: 'USER',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const readiness = PackageReadinessEngine.evaluateReadiness({
+        pkg: dummyPkg,
+        version: dummyVer,
+        artifacts: [validArtifact],
+        questions: [],
+        approvals: [approvedApproval, rejectedApproval],
+      });
+
+      expect(readiness.isReady).toBe(false);
+      expect(readiness.status).toBe('NEEDS_REVIEW');
+      expect(
+        readiness.blockingIssues.some((i) =>
+          i.includes('were rejected by candidate and require resolution'),
+        ),
+      ).toBe(true);
+      expect(readiness.reasons.some((r) => r.includes('All 2 approval request(s)'))).toBe(false);
+      expect(readiness.pendingApprovalsCount).toBe(1);
+    });
+
+    it('blocks READY in mixed approval state: PENDING + REJECTED', () => {
+      const pendingApproval: ApprovalRequest = {
+        id: 'appr-pend',
+        packageId: 'pkg-1',
+        versionId: 'ver-1',
+        userId: 'usr-1',
+        questionId: 'q-1',
+        approvalType: 'CUSTOM_QUESTION',
+        status: 'PENDING',
+        subject: 'Background Consent',
+        proposedValue: 'Yes',
+        userEditedValue: null,
+        reason: 'Pending user sign-off',
+        riskLevel: 'STANDARD',
+        evidenceReferences: [],
+        resolvedAt: null,
+        resolvedBy: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const rejectedApproval: ApprovalRequest = {
+        id: 'appr-rej',
+        packageId: 'pkg-1',
+        versionId: 'ver-1',
+        userId: 'usr-1',
+        questionId: 'q-2',
+        approvalType: 'CUSTOM_QUESTION',
+        status: 'REJECTED',
+        subject: 'Salary Expectation',
+        proposedValue: '100000',
+        userEditedValue: null,
+        reason: 'Too high',
+        riskLevel: 'STANDARD',
+        evidenceReferences: [],
+        resolvedAt: new Date(),
+        resolvedBy: 'USER',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const readiness = PackageReadinessEngine.evaluateReadiness({
+        pkg: dummyPkg,
+        version: dummyVer,
+        artifacts: [validArtifact],
+        questions: [],
+        approvals: [pendingApproval, rejectedApproval],
+      });
+
+      expect(readiness.isReady).toBe(false);
+      expect(readiness.status).toBe('NEEDS_REVIEW');
+      expect(readiness.blockingIssues.some((i) => i.includes('were rejected by candidate'))).toBe(
+        true,
+      );
+      expect(readiness.blockingIssues.some((i) => i.includes('require human review'))).toBe(true);
+      expect(readiness.pendingApprovalsCount).toBe(2);
+    });
+
+    it('blocks READY in mixed approval state: RECONFIRMATION + REJECTED', () => {
+      const reconfirmApproval: ApprovalRequest = {
+        id: 'appr-reconf',
+        packageId: 'pkg-1',
+        versionId: 'ver-1',
+        userId: 'usr-1',
+        questionId: 'q-1',
+        approvalType: 'CUSTOM_QUESTION',
+        status: 'NEEDS_USER_RECONFIRMATION',
+        subject: 'Visa Status',
+        proposedValue: 'Yes',
+        userEditedValue: null,
+        reason: 'Input data changed',
+        riskLevel: 'HIGH',
+        evidenceReferences: [],
+        resolvedAt: null,
+        resolvedBy: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const rejectedApproval: ApprovalRequest = {
+        id: 'appr-rej',
+        packageId: 'pkg-1',
+        versionId: 'ver-1',
+        userId: 'usr-1',
+        questionId: 'q-2',
+        approvalType: 'CUSTOM_QUESTION',
+        status: 'REJECTED',
+        subject: 'Salary Expectation',
+        proposedValue: '100000',
+        userEditedValue: null,
+        reason: 'Too high',
+        riskLevel: 'STANDARD',
+        evidenceReferences: [],
+        resolvedAt: new Date(),
+        resolvedBy: 'USER',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const readiness = PackageReadinessEngine.evaluateReadiness({
+        pkg: dummyPkg,
+        version: dummyVer,
+        artifacts: [validArtifact],
+        questions: [],
+        approvals: [reconfirmApproval, rejectedApproval],
+      });
+
+      expect(readiness.isReady).toBe(false);
+      expect(readiness.status).toBe('NEEDS_REVIEW');
+      expect(readiness.blockingIssues.some((i) => i.includes('were rejected by candidate'))).toBe(
+        true,
+      );
+      expect(
+        readiness.blockingIssues.some((i) => i.includes('require explicit user reconfirmation')),
+      ).toBe(true);
+      expect(readiness.pendingApprovalsCount).toBe(2);
+    });
+
     it('returns READY when all artifacts, questions, and approvals are valid and resolved', () => {
       const approvedQ: ApplicationQuestion = {
         id: 'q-1',

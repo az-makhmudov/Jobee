@@ -381,7 +381,9 @@ export default function App() {
 
       {/* Main Content Area */}
       <main className="main-content">
-        {currentSection === 'dashboard' && <DashboardView onNavigate={handleNavigate} />}
+        {currentSection === 'dashboard' && (
+          <DashboardView onNavigate={handleNavigate} onOpenAuth={() => setIsAuthModalOpen(true)} />
+        )}
 
         {currentSection === 'profile' && (
           <ProfileView initialTab={profileTab} onUpdate={() => setRefreshKey((k) => k + 1)} />

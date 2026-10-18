@@ -238,4 +238,16 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
   - Communication intelligence (Gmail connected and live verified; Calendar unconfigured and pending owner action).
   - Autonomous operations & circuit breakers (`auto_apply_enabled: false` verified; 5 worker orchestration runs completed cleanly).
   - Playwright Chromium real-browser UI/UX validation on desktop (1280x800) and mobile (390x844 iPhone 14) viewports with 0 horizontal overflow blowout.
-- **Verdict**: 27/27 scenarios PASSED (0 failed, 0 blocked). Ready for controlled real-world candidate use.
+- **Verdict**: 27/27 initial scenarios PASSED (0 failed, 0 blocked). Identified two critical defects (`STUDIO-02` package readiness bypass on rejected approvals and `UI-02` unauthenticated dashboard error banner) for controlled remediation.
+
+### `JOB-ACCEPTANCE-01 (Continuation) — Authorized Acceptance Fix Release & Controlled Production Validation`
+
+- **Status**: COMPLETED
+- **Scope**: Product Owner authorized defect finalization, regression testing, GitHub release, Railway deployment, and production verification:
+  - **STUDIO-02 Remediation**: Enforced that `REJECTED` approval requests deterministically prevent application packages from transitioning to `READY` status in `PackageReadinessEngine`. Decoupled automation-resolved checks and added comprehensive regression coverage for mixed approval states (`APPROVED + REJECTED`, `PENDING + REJECTED`, `RECONFIRMATION + REJECTED`).
+  - **UI-02 Remediation**: Transformed unauthenticated dashboard experience in `DashboardView.tsx` from raw red error banner (`Error Loading Candidate Data: Authentication required`) into a welcoming guest landing hero with direct "Sign In / Join Private Pilot" action connecting to `AuthModal`.
+  - **Acceptance Harness Security**: Removed all production session extraction, cookie injection, and reconstructed credentials in `scripts/run-real-user-acceptance.ts`. Enforced strict TLS validation (`rejectUnauthorized: true`) and wrapped all database queries in `try ... finally` blocks.
+  - **Candidate Identity Reconciliation**: Verified genuine candidate identity (`81d5cb73-3c7f-48ec-88b9-52ce39ed0fbf`), confirming that references to `00000000-0000-0000-0000-000000000001` were artifacts of historical local development environments, not production anomalies.
+  - **Work Authorization Audit**: Clarified distinction between candidate residence status (Warsaw, Poland), student status at Vistula University, generic jurisdiction answer library entry ('yes'), and unconfirmed work permits for foreign jurisdictions (e.g. Optics11 in Netherlands explicitly rejected by candidate).
+  - **Quality Gates**: All local gates passed: `npm run format` (clean), `npm run lint` (0 errors), `npm run typecheck` (0 errors), `npm test` (63/63 test files, 579/579 tests passed), and `npm run build` (clean Vite SPA compilation).
+

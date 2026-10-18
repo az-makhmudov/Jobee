@@ -28,6 +28,7 @@ lerna-debug.log*
 # Test coverage & reports
 coverage/
 .nyc_output/
+test-results/
 
 # Editor & OS files
 .DS_Store
