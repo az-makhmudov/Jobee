@@ -2045,5 +2045,38 @@ This document tracks execution history and verification state for all official m
     - `npm test`: PASSED (63 test files, 579/579 tests passed cleanly, +6 new regression tests)
     - `npm run build`: PASSED (Vite production bundle compiled cleanly)
     - `npm run db:check`: PASSED (Neon PostgreSQL connected, 20ms latency)
-- **Production Status**: AUTHORIZED ACCEPTANCE FIX RELEASE — DEPLOYED AND LIVE VERIFIED.
-
+  - **Authorized GitHub Release & CI**:
+    - Committed as `d35f408`: `fix(studio): enforce rejected approval blocker and enhance guest experience (JOB-ACCEPTANCE-01)`.
+    - Pushed cleanly to `origin/main` (`1581063..d35f408`).
+    - GitHub Actions CI Run `39107123893` completed with `conclusion: success` (All steps passed: Checkout, Setup, Dependencies, Build, Lint, Typecheck, DB Check, Migrations, Test, Build).
+  - **Railway Cloud Production Deployments**:
+    - `jobee-api`: Deployment `263bdba1-8307-42eb-91a3-f1c273480699` -> **SUCCESS / ONLINE** (Commit `d35f408`).
+    - `jobee-worker`: Deployment `6ec4d793-2fd4-418b-9f4b-dbbadb53023f` -> **SUCCESS / ONLINE** (Commit `d35f408`).
+    - Live Endpoints Verified:
+      - `GET https://jobee-api-production.up.railway.app/api/health` -> HTTP 200 (uptime: 325s, service: api, version: 0.1.0)
+      - `GET https://jobee-api-production.up.railway.app/api/ready` -> HTTP 200 (database: connected, 20ms; gemini-3.8-flash; Gmail: true; Calendar: true)
+      - `GET https://jobee-api-production.up.railway.app/` -> HTTP 200 (serving fresh SPA bundle `index-DB3LM29o.js`)
+      - `GET https://jobee-api-production.up.railway.app/api/jobs` -> HTTP 401 UNAUTHORIZED (Route protection verified)
+  - **Production Database Reconciliation**:
+    - Audited all 21 production packages against the authoritative `PackageReadinessEngine`.
+    - Reconciled 3 historical packages whose pre-fix database rows were out of sync:
+      - Package `f4ad8b34-34af-48cb-b317-47cc564e9714` (Caspar Health): transitioned from `READY` to `NEEDS_REVIEW` due to candidate-rejected salary approval.
+      - Packages `72e90f18-31b2-4109-812d-bbf115c13619` and `d3ca7301-7f6e-441a-9b15-fb9d0e5a4923`: transitioned from `READY` to `NEEDS_REVIEW` because approvals were automated and require candidate confirmation.
+  - **Live Production Acceptance Verification Suite (`scripts/run-real-user-acceptance.ts`)**:
+    - Total Scenarios: 30
+    - **Passed**: 27
+    - **Failed (Defects)**: 0
+    - **Requires Human Interaction**: 2 (`AUTH-03` Google OAuth login, `INT-02` Google Calendar consent)
+    - **Excluded by Safety Policy**: 1 (`AUTO-03` Autonomous employer submissions disabled by Prime Directive)
+    - 7-Tier Breakdown:
+      - `PRODUCTION_API_VERIFIED`: 7/7 PASSED
+      - `PRODUCTION_DATABASE_VERIFIED`: 15/15 PASSED
+      - `PRODUCTION_BROWSER_VERIFIED`: 4/4 PASSED
+      - `FIXTURE_VERIFIED`: 1/1 PASSED
+      - `REQUIRES_HUMAN_INTERACTION`: 2
+      - `NOT_TESTED`: 1
+      - `FAILED`: 0
+    - **Defect Remediation Confirmed**:
+      - `STUDIO-02`: PASS. Zero packages in READY status with rejected approvals.
+      - `UI-02`: PASS. Guest view verified in real Chromium browser; "Welcome to Jobee" hero and "Sign In / Join Private Pilot" button cleanly displayed with zero red 401 error cards. Mobile viewport (390x844) verified with 0 horizontal overflow.
+- **Production Status**: AUTHORIZED ACCEPTANCE FIX RELEASE — DEPLOYED AND LIVE VERIFIED (0 OPEN DEFECTS).
