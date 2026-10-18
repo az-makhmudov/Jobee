@@ -1779,3 +1779,51 @@ This document tracks execution history and verification state for all official m
   - `scripts/verify-e2e-workflow.ts`: PASSED (Phases A through K complete with 0 failures on `jobee_test_isolated`)
   - `scripts/verify-multi-user-e2e.ts`: PASSED (Admin -> Invitation -> Onboarding -> Isolation -> AI switching -> Teardown)
   - Database Hygiene Check: PASSED (Zero test contamination in `ai_job_agent_dev`; primary user Asadbek Makhmudov 100% intact)
+
+---
+
+## 2026-10-18: JOBEE — MACRO PHASE 2: COMMUNICATION INTELLIGENCE & AUTONOMOUS OPERATIONS + MACRO PHASE 1 RELEASE CLOSURE
+
+- **Official Task Stamps**: `JOB-P2-T01`, `JOB-P2-T02`, `JOB-P4-T01`, `JOB-P4-T02`, `JOB-P5-T01`, `JOB-P5-T02`, `JOB-E2E-WORKFLOW`, `BL-10`
+- **Lead Engineer**: Antigravity (Goal-Driven Autonomous Delivery Mode)
+- **Scope**: Large-scope autonomous engineering, integration, repair, testing, and validation covering:
+  - Phase 1 release closure and safety reconciliation audit of development database `ai_job_agent_dev`.
+  - Global test database safety hardening across all verification suites and runtime boundaries.
+  - Live job discovery evaluation and acceptance dataset generation across 24 authentic vacancies.
+  - Gmail and communication intelligence verification (`JOB-P4-T01`).
+  - Google Calendar integration and interview workspace verification (`JOB-P4-T02`).
+  - Browser worker, ATS adapters, and CAPTCHA halt safety verification (`JOB-P5-T01`).
+  - Autonomous orchestrator, rate limits, backoff, and circuit breaker verification (`JOB-P5-T02`).
+  - CRM 17-state lifecycle machine and sub-entity tracking (`JOB-P3-T02`).
+  - Full-stack end-to-end integration suite execution across Phases A–K (`JOB-E2E-WORKFLOW`).
+- **Safety, Truthfulness & Test Isolation Deliverables**:
+  - **Phase 1 Release Closure & Safety Audit**:
+    - Conducted comprehensive read-only audit of `ai_job_agent_dev`: 1 user, 1 profile, 1 Master CV (`Resume - Asadbek M.pdf`), 1 experience (`Universal Mobile Systems`), 1 education (`Vistula University`), 14 skills, 2 certifications, 3 languages, 6 candidate facts, 17 jobs, 14 applications.
+    - Verified that candidate claims remain safely unverified and unpermitted for AI use until verified by human.
+    - Confirmed zero data loss, zero synthetic test pollution, and pristine integrity of primary candidate Asadbek Makhmudov.
+  - **Global Test Database Safety Hardening (`packages/database/src/safety.ts`)**:
+    - Added `assertSafeTestUser(userId)`: explicitly forbids any test fixture or script from operating as the sentinel primary user `00000000-0000-0000-0000-000000000001`.
+    - Added `assertScopedCleanup(scope)`: forbids unscoped DELETE operations and validates targeted ID arrays.
+    - Added `assertDatabaseHasNoPrimaryCandidateData(db)`: verifies that mutation-capable scripts cannot execute against databases containing genuine candidate CV documents.
+    - Hardened verification scripts (`verify-job-p4-t01.ts`, `verify-job-p4-t02.ts`, `verify-job-p5-t01.ts`, `verify-job-p5-t02.ts`, `verify-crm-lifecycle.ts`, `verify-e2e-workflow.ts`) to use `jobee_test_isolated`, generate disposable users, authenticate with Better Auth sessions, and perform strictly scoped teardowns.
+    - Added 12 unit tests in `packages/database/src/safety.test.ts` (all 12 passing).
+  - **Live Job Discovery Acceptance (`scripts/evaluate-real-job-discovery.ts`)**:
+    - Ingested and analyzed 24 authentic live vacancies from Arbeitnow (12) and Greenhouse boards (Canonical: 12) without synthetic placeholders.
+    - Evaluated 8 dimensions, Career Fit categories, missing info, and hard blockers for verified candidate vs unverified clone.
+    - Verified the Anti-Inflation Invariant: unverified candidate claims produced `unverifiedScore <= verifiedScore` across 100% of evaluated vacancies.
+    - Produced canonical acceptance record: `docs/REAL_JOB_DISCOVERY_ACCEPTANCE.md`.
+  - **Subsystem & Integration Verifications**:
+    - `scripts/verify-job-p4-t01.ts`: PASSED (Token encryption `v1:primary:`, 11 email archetypes, entity resolution, status sync, review queue).
+    - `scripts/verify-job-p4-t02.ts`: PASSED (Calendar encryption, availability, conflict detection, interview booking, grounded STAR brief, checklist, debrief).
+    - `scripts/verify-job-p5-t01.ts`: PASSED (Greenhouse/Lever/Ashby detection, bot challenge/CAPTCHA halt, missing facts halt, DRY_RUN validation, Fastify API routes).
+    - `scripts/verify-job-p5-t02.ts`: PASSED (Autonomous orchestrator, scheduling, backoff calculation, daily quota check, circuit breaker protection, reminders).
+    - `scripts/verify-crm-lifecycle.ts`: PASSED (17-state lifecycle machine, legal transitions, correction overrides, notes, contacts, analytics).
+    - `scripts/verify-e2e-workflow.ts`: PASSED (Phases A through K complete with 0 failures on `jobee_test_isolated`).
+- **Quality Gates & Operational Status**:
+  - `npm run format`: PASSED (All files formatted cleanly)
+  - `npm run lint`: PASSED (0 errors across codebase)
+  - `npm run typecheck`: PASSED (0 errors across monorepo)
+  - `npm test`: PASSED (62 test files, 562 tests passing cleanly)
+  - `npm run build`: PASSED (All packages and web bundle compiled cleanly)
+  - `npm run db:check`: PASSED (Database connected, 16ms latency)
+

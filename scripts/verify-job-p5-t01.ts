@@ -1,6 +1,8 @@
 import crypto from 'node:crypto';
-import { getDb, closeDbPool, users } from '@job-agent/database';
 import {
+  getDb,
+  closeDbPool,
+  users,
   jobs,
   applications,
   candidateProfiles,
@@ -8,6 +10,10 @@ import {
   candidateDocuments,
   answerLibrary,
   browserApplicationRuns,
+  sessions,
+  assertSafeTestDatabase,
+  assertSafeTestUser,
+  assertScopedCleanup,
 } from '@job-agent/database';
 import { inArray, eq } from 'drizzle-orm';
 import {
@@ -31,7 +37,13 @@ async function main() {
   console.log('===============================================================\n');
 
   const config = getConfig();
-  const db = getDb(config.DATABASE_URL);
+  const testDbUrl =
+    process.env.TEST_DATABASE_URL ||
+    (config.DATABASE_URL
+      ? config.DATABASE_URL.replace(/\/[^/]+$/, '/jobee_test_isolated')
+      : 'postgresql://bek@localhost:5432/jobee_test_isolated');
+  assertSafeTestDatabase(testDbUrl);
+  let db = getDb(testDbUrl);
   const tag = `live-p5t01-${Date.now()}`;
 
   // Isolation Guard: ALWAYS create a dedicated disposable test user
@@ -48,6 +60,7 @@ async function main() {
     })
     .returning();
   const userId = testUser.id;
+  assertSafeTestUser(userId);
 
   const createdJobIds: string[] = [];
   const createdAppIds: string[] = [];
@@ -374,24 +387,39 @@ async function main() {
     );
 
     // Verify WorkerService standby heartbeat
-    const worker = new WorkerService(config);
+    const worker = new WorkerService({ ...config, DATABASE_URL: testDbUrl });
     await worker.start();
     const workerStatus = worker.getStatus();
     if (!workerStatus.isRunning) throw new Error('Expected worker service to be running');
     await worker.stop();
     console.log('✓ Background WorkerService lifecycle verified (standby start & graceful stop)');
 
+    // Re-acquire db connection pool after worker shutdown
+    db = getDb(testDbUrl);
+
     // -------------------------------------------------------------------------
     // SECTION 10: Fastify API Endpoints Verification
     // -------------------------------------------------------------------------
     console.log('\n--- SECTION 10: Fastify REST API Routes Verification ---');
-    fastifyApp = buildApp({ config });
+    fastifyApp = buildApp({ config, db });
     await fastifyApp.ready();
+
+    const testSessionToken = `p5t01-sess-${Date.now()}`;
+    await db.insert(sessions).values({
+      id: `sess-${Date.now()}`,
+      userId,
+      token: testSessionToken,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+    const sessionHeaders = {
+      cookie: `better-auth.session_token=${testSessionToken}`,
+    };
 
     // 10A. POST /api/applications/:id/browser-runs
     const postRes = await fastifyApp.inject({
       method: 'POST',
       url: `/api/applications/${testApp.id}/browser-runs`,
+      headers: sessionHeaders,
       payload: { mode: BrowserRunMode.DRY_RUN },
     });
     if (postRes.statusCode !== 201) {
@@ -408,6 +436,7 @@ async function main() {
     const listRes = await fastifyApp.inject({
       method: 'GET',
       url: `/api/applications/${testApp.id}/browser-runs`,
+      headers: sessionHeaders,
     });
     if (listRes.statusCode !== 200) {
       throw new Error(`Expected 200, got ${listRes.statusCode}: ${listRes.body}`);
@@ -422,6 +451,7 @@ async function main() {
     const getRes = await fastifyApp.inject({
       method: 'GET',
       url: `/api/browser-runs/${apiRunId}`,
+      headers: sessionHeaders,
     });
     if (getRes.statusCode !== 200) {
       throw new Error(`Expected 200, got ${getRes.statusCode}: ${getRes.body}`);
@@ -443,39 +473,38 @@ async function main() {
     if (fastifyApp) {
       await fastifyApp.close();
     }
-    const cleanupDb = getDb(config.DATABASE_URL);
+    assertScopedCleanup({ userId, ids: createdJobIds.concat(createdAppIds, createdRunIds) });
     if (createdRunIds.length > 0) {
-      await cleanupDb
+      await db
         .delete(browserApplicationRuns)
         .where(inArray(browserApplicationRuns.id, createdRunIds));
       console.log(`• Cleaned up ${createdRunIds.length} browser run records`);
     }
     if (createdAppIds.length > 0) {
-      await cleanupDb.delete(applications).where(inArray(applications.id, createdAppIds));
+      await db.delete(applications).where(inArray(applications.id, createdAppIds));
       console.log(`• Cleaned up ${createdAppIds.length} application records`);
     }
     if (createdJobIds.length > 0) {
-      await cleanupDb.delete(jobs).where(inArray(jobs.id, createdJobIds));
+      await db.delete(jobs).where(inArray(jobs.id, createdJobIds));
       console.log(`• Cleaned up ${createdJobIds.length} job records`);
     }
     if (createdAnsIds.length > 0) {
-      await cleanupDb.delete(answerLibrary).where(inArray(answerLibrary.id, createdAnsIds));
+      await db.delete(answerLibrary).where(inArray(answerLibrary.id, createdAnsIds));
       console.log(`• Cleaned up ${createdAnsIds.length} answer library records`);
     }
     if (createdDocIds.length > 0) {
-      await cleanupDb
-        .delete(candidateDocuments)
-        .where(inArray(candidateDocuments.id, createdDocIds));
+      await db.delete(candidateDocuments).where(inArray(candidateDocuments.id, createdDocIds));
       console.log(`• Cleaned up ${createdDocIds.length} document vault records`);
     }
     if (createdLinkIds.length > 0) {
-      await cleanupDb.delete(candidateLinks).where(inArray(candidateLinks.id, createdLinkIds));
+      await db.delete(candidateLinks).where(inArray(candidateLinks.id, createdLinkIds));
       console.log(`• Cleaned up ${createdLinkIds.length} candidate link records`);
     }
     if (userId) {
-      await cleanupDb.delete(candidateProfiles).where(eq(candidateProfiles.userId, userId));
-      await cleanupDb.delete(users).where(eq(users.id, userId));
-      console.log('• Cleaned up isolated test user and test profile');
+      await db.delete(sessions).where(eq(sessions.userId, userId));
+      await db.delete(candidateProfiles).where(eq(candidateProfiles.userId, userId));
+      await db.delete(users).where(eq(users.id, userId));
+      console.log('• Cleaned up isolated test user, session, and test profile');
     }
     await closeDbPool();
     console.log('• Database pool closed successfully.');

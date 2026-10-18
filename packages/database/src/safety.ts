@@ -141,3 +141,64 @@ export function assertSafeTestDatabase(databaseUrl?: string): void {
     throw new Error(`SAFETY VIOLATION: ${result.reason}`);
   }
 }
+
+export const SENTINEL_PRIMARY_USER_ID = '00000000-0000-0000-0000-000000000001';
+
+/**
+ * Asserts that a given user ID is not the genuine sentinel primary candidate user.
+ * Tests and verification scripts must use disposable mock user IDs.
+ */
+export function assertSafeTestUser(userId: string): void {
+  if (userId === SENTINEL_PRIMARY_USER_ID) {
+    throw new Error(
+      `SAFETY VIOLATION: Attempted to run test or mutation against sentinel primary candidate user (${SENTINEL_PRIMARY_USER_ID}). Tests must exclusively target disposable mock user IDs.`,
+    );
+  }
+}
+
+/**
+ * Asserts that a cleanup operation is strictly scoped to specific IDs or user.
+ * Prevents dangerous unscoped DELETE operations.
+ */
+export function assertScopedCleanup(scope: {
+  userId?: string;
+  ids?: string[];
+  runId?: string;
+  tag?: string;
+}): void {
+  if (!scope.userId && (!scope.ids || scope.ids.length === 0) && !scope.runId && !scope.tag) {
+    throw new Error(
+      'SAFETY VIOLATION: Attempted to perform unscoped or empty cleanup. Every database deletion must specify a dedicated test userId, non-empty ids array, or unique test runId/tag.',
+    );
+  }
+  if (scope.userId) {
+    assertSafeTestUser(scope.userId);
+  }
+}
+
+/**
+ * Verifies that a database does not contain genuine primary candidate documents.
+ * Protects genuine candidate data from destructive scripts.
+ */
+export async function assertDatabaseHasNoPrimaryCandidateData(db: any): Promise<void> {
+  try {
+    const { candidateDocuments } = await import('./schema/candidate-documents.js');
+    const { eq } = await import('drizzle-orm');
+
+    const userDocs = await db
+      .select()
+      .from(candidateDocuments)
+      .where(eq(candidateDocuments.userId, SENTINEL_PRIMARY_USER_ID))
+      .limit(1);
+
+    if (userDocs && userDocs.length > 0) {
+      throw new Error(
+        `SAFETY VIOLATION: Database contains genuine Master CV documents for primary candidate (${SENTINEL_PRIMARY_USER_ID}). Refusing to execute destructive test script against a database with genuine user data.`,
+      );
+    }
+  } catch (err: any) {
+    if (err.message && err.message.startsWith('SAFETY VIOLATION:')) {
+      throw err;
+    }
+  }
+}

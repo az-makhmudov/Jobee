@@ -19,7 +19,7 @@
 import {
   getDb,
   closeDbPool,
-  getOrCreatePrimaryUser,
+  users,
   candidateProfiles,
   candidateExperiences,
   candidateSkills,
@@ -121,12 +121,49 @@ async function main() {
   console.log('======================================================================\n');
 
   const config = getConfig();
-  const { assertSafeTestDatabase } = await import('@job-agent/database');
-  assertSafeTestDatabase(config.DATABASE_URL);
+  const testDbUrl =
+    process.env.TEST_DATABASE_URL ||
+    (config.DATABASE_URL
+      ? config.DATABASE_URL.replace(/\/[^/]+$/, '/jobee_test_isolated')
+      : 'postgresql://bek@localhost:5432/jobee_test_isolated');
+  const {
+    assertSafeTestDatabase,
+    assertSafeTestUser,
+    assertDatabaseHasNoPrimaryCandidateData,
+    assertScopedCleanup,
+  } = await import('@job-agent/database');
+  assertSafeTestDatabase(testDbUrl);
 
-  const db = getDb(config.DATABASE_URL);
-  const user = await getOrCreatePrimaryUser(db);
-  const userId = user.id;
+  const db = getDb(testDbUrl);
+  await assertDatabaseHasNoPrimaryCandidateData(db);
+
+  const testUserId = crypto.randomUUID();
+  const [testUser] = await db
+    .insert(users)
+    .values({
+      id: testUserId,
+      systemKey: `test_e2e_${Date.now()}`,
+      name: 'Disposable E2E Tester',
+      email: `test-e2e-${Date.now()}@example.com`,
+      emailVerified: true,
+      role: 'user',
+    })
+    .returning();
+  const userId = testUser.id;
+  assertSafeTestUser(userId);
+
+  // Seed baseline candidate profile for the disposable user
+  await db.insert(candidateProfiles).values({
+    userId,
+    fullName: 'Disposable E2E Candidate',
+    headline: 'Technical Project Manager',
+    email: testUser.email,
+    phone: '+48 000 000 000',
+    city: 'Warsaw',
+    country: 'Poland',
+    summary: 'Experienced Technical Project Manager with verified expertise in Agile delivery.',
+  });
+
   const tag = `e2e-${Date.now()}`;
 
   const ctx: TestContext = {
@@ -151,7 +188,8 @@ async function main() {
   };
 
   // Build Fastify in-memory app instance for UX route testing
-  const fastifyApp = await buildApp({ config, db });
+  const fastifyConfig = { ...config, DATABASE_URL: testDbUrl };
+  const fastifyApp = await buildApp({ config: fastifyConfig, db });
   const testSessionToken = `e2e-sess-${Date.now()}`;
   await db.insert(sessions).values({
     id: `sess-${Date.now()}`,
@@ -1130,8 +1168,15 @@ async function main() {
       await db.delete(candidateFacts).where(inArray(candidateFacts.id, ctx.createdFactIds));
     }
 
+    // Clean test candidate profile
+    await db.delete(candidateProfiles).where(eq(candidateProfiles.userId, userId));
+
     // Clean test session
     await db.delete(sessions).where(eq(sessions.token, testSessionToken));
+
+    // Clean disposable test user
+    assertScopedCleanup({ table: 'users', ids: [userId] });
+    await db.delete(users).where(eq(users.id, userId));
 
     await fastifyApp.close();
     console.log('✓ In-memory Fastify instance closed cleanly.');

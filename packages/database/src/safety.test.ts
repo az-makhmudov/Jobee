@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { evaluateTestDatabaseSafety, assertSafeTestDatabase } from './safety.js';
+import {
+  evaluateTestDatabaseSafety,
+  assertSafeTestDatabase,
+  assertSafeTestUser,
+  assertScopedCleanup,
+} from './safety.js';
 
 describe('Test Database Safety Guard (JOB-CAREER-INTEL-2.0)', () => {
   const originalEnv = { ...process.env };
@@ -121,5 +126,27 @@ describe('Test Database Safety Guard (JOB-CAREER-INTEL-2.0)', () => {
     expect(() =>
       assertSafeTestDatabase('postgresql://user:pass@localhost:5432/jobee_test'),
     ).not.toThrow();
+  });
+
+  it('assertSafeTestUser rejects sentinel primary user ID', () => {
+    expect(() => assertSafeTestUser('00000000-0000-0000-0000-000000000001')).toThrow(
+      /Attempted to run test or mutation against sentinel primary candidate user/,
+    );
+    expect(() => assertSafeTestUser('11111111-2222-3333-4444-555555555555')).not.toThrow();
+  });
+
+  it('assertScopedCleanup enforces non-empty scoped targets and rejects primary user', () => {
+    expect(() => assertScopedCleanup({})).toThrow(/Attempted to perform unscoped or empty cleanup/);
+    expect(() => assertScopedCleanup({ ids: [] })).toThrow(
+      /Attempted to perform unscoped or empty cleanup/,
+    );
+    expect(() => assertScopedCleanup({ userId: '00000000-0000-0000-0000-000000000001' })).toThrow(
+      /sentinel primary candidate user/,
+    );
+    expect(() =>
+      assertScopedCleanup({ userId: '11111111-2222-3333-4444-555555555555' }),
+    ).not.toThrow();
+    expect(() => assertScopedCleanup({ ids: ['some-id'] })).not.toThrow();
+    expect(() => assertScopedCleanup({ runId: 'run-123' })).not.toThrow();
   });
 });

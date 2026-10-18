@@ -1,7 +1,16 @@
 import crypto from 'node:crypto';
-import { getDb, closeDbPool, getOrCreatePrimaryUser } from '@job-agent/database';
-import { jobs, applicationPackages } from '@job-agent/database';
-import { inArray } from 'drizzle-orm';
+import {
+  getDb,
+  closeDbPool,
+  users,
+  jobs,
+  applicationPackages,
+  assertSafeTestDatabase,
+  assertSafeTestUser,
+  assertScopedCleanup,
+} from '@job-agent/database';
+import { inArray, eq } from 'drizzle-orm';
+import { getConfig } from '@job-agent/config';
 import {
   ApplicationLifecycleStatus,
   SubmissionMethod,
@@ -20,11 +29,29 @@ async function main() {
   console.log('Canonical Lifecycle & Audit Finalization');
   console.log('===============================================================\n');
 
+  const config = getConfig();
   const connectionString =
-    process.env.DATABASE_URL || 'postgresql://bek@localhost:5432/ai_job_agent_dev';
+    process.env.TEST_DATABASE_URL ||
+    (config.DATABASE_URL
+      ? config.DATABASE_URL.replace(/\/[^/]+$/, '/jobee_test_isolated')
+      : 'postgresql://bek@localhost:5432/jobee_test_isolated');
+  assertSafeTestDatabase(connectionString);
   const db = getDb(connectionString);
-  const user = await getOrCreatePrimaryUser(db);
-  const userId = user.id;
+
+  const testUserId = crypto.randomUUID();
+  const [testUser] = await db
+    .insert(users)
+    .values({
+      id: testUserId,
+      systemKey: `test_crm_${Date.now()}`,
+      name: 'Disposable CRM Tester',
+      email: `test-crm-${Date.now()}@example.com`,
+      emailVerified: true,
+      role: 'user',
+    })
+    .returning();
+  const userId = testUser.id;
+  assertSafeTestUser(userId);
   const runId = `live-crm-${Date.now()}`;
 
   const createdJobIds: string[] = [];
@@ -485,6 +512,7 @@ async function main() {
     // 9. 100% CLEAN TEARDOWN
     // =========================================================================
     console.log('--- Step 9: Clean Teardown of Temporary Test Data ---');
+    assertScopedCleanup({ userId, ids: createdJobIds.concat(createdAppIds, createdPackageIds) });
     if (createdAppIds.length > 0) {
       for (const appId of createdAppIds) {
         await ApplicationCrmService.purgeApplication(userId, appId);
@@ -504,6 +532,7 @@ async function main() {
       console.log(`[CLEANUP] Deleted ${createdJobIds.length} test jobs.`);
     }
 
+    await db.delete(users).where(eq(users.id, userId));
     await closeDbPool();
     console.log('[CLEANUP] Database pool closed cleanly.');
   }

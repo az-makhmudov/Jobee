@@ -1,6 +1,8 @@
 import crypto from 'node:crypto';
-import { getDb, closeDbPool, getOrCreatePrimaryUser } from '@job-agent/database';
 import {
+  getDb,
+  closeDbPool,
+  users,
   jobs,
   applications,
   candidateExperiences,
@@ -10,6 +12,9 @@ import {
   interviewPreparationBriefs,
   calendarAccounts,
   applicationLifecycleEvents,
+  assertSafeTestDatabase,
+  assertSafeTestUser,
+  assertScopedCleanup,
 } from '@job-agent/database';
 import { inArray, eq } from 'drizzle-orm';
 import {
@@ -31,9 +36,28 @@ async function main() {
   console.log('===============================================================\n');
 
   const config = getConfig();
-  const db = getDb(config.DATABASE_URL);
-  const user = await getOrCreatePrimaryUser(db);
-  const userId = user.id;
+  const testDbUrl =
+    process.env.TEST_DATABASE_URL ||
+    (config.DATABASE_URL
+      ? config.DATABASE_URL.replace(/\/[^/]+$/, '/jobee_test_isolated')
+      : 'postgresql://bek@localhost:5432/jobee_test_isolated');
+  assertSafeTestDatabase(testDbUrl);
+  const db = getDb(testDbUrl);
+
+  const testUserId = crypto.randomUUID();
+  const [testUser] = await db
+    .insert(users)
+    .values({
+      id: testUserId,
+      systemKey: `test_p4t02_${Date.now()}`,
+      name: 'Disposable Calendar Tester',
+      email: `test-calendar-${Date.now()}@example.com`,
+      emailVerified: true,
+      role: 'user',
+    })
+    .returning();
+  const userId = testUser.id;
+  assertSafeTestUser(userId);
   const runId = `live-cal-${Date.now()}`;
 
   const createdJobIds: string[] = [];
@@ -393,6 +417,7 @@ async function main() {
   } finally {
     // Teardown test artifacts
     console.log('\n--- Clean Teardown of Test Data ---');
+    assertScopedCleanup({ userId, ids: createdInterviewIds.concat(createdAppIds, createdJobIds) });
     if (createdInterviewIds.length > 0) {
       await db
         .delete(interviewPreparationBriefs)
@@ -424,6 +449,7 @@ async function main() {
         await db.delete(calendarAccounts).where(eq(calendarAccounts.id, accId));
       }
     }
+    await db.delete(users).where(eq(users.id, userId));
     await closeDbPool();
     console.log('✓ Teardown complete. PostgreSQL database is pristine.\n');
   }

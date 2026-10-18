@@ -1,6 +1,17 @@
 import crypto from 'node:crypto';
-import { getDb, closeDbPool, getOrCreatePrimaryUser } from '@job-agent/database';
-import { jobs, applications, emailAccounts, emailMessages, oauthStates } from '@job-agent/database';
+import {
+  getDb,
+  closeDbPool,
+  users,
+  jobs,
+  applications,
+  emailAccounts,
+  emailMessages,
+  oauthStates,
+  assertSafeTestDatabase,
+  assertSafeTestUser,
+  assertScopedCleanup,
+} from '@job-agent/database';
 import { inArray, eq } from 'drizzle-orm';
 import { EmailReviewStatus, ApplicationLifecycleStatus } from '@job-agent/shared';
 import { getConfig } from '@job-agent/config';
@@ -21,9 +32,28 @@ async function main() {
   console.log('===============================================================\n');
 
   const config = getConfig();
-  const db = getDb(config.DATABASE_URL);
-  const user = await getOrCreatePrimaryUser(db);
-  const userId = user.id;
+  const testDbUrl =
+    process.env.TEST_DATABASE_URL ||
+    (config.DATABASE_URL
+      ? config.DATABASE_URL.replace(/\/[^/]+$/, '/jobee_test_isolated')
+      : 'postgresql://bek@localhost:5432/jobee_test_isolated');
+  assertSafeTestDatabase(testDbUrl);
+  const db = getDb(testDbUrl);
+
+  const testUserId = crypto.randomUUID();
+  const [testUser] = await db
+    .insert(users)
+    .values({
+      id: testUserId,
+      systemKey: `test_p4t01_${Date.now()}`,
+      name: 'Disposable Email Tester',
+      email: `test-email-${Date.now()}@example.com`,
+      emailVerified: true,
+      role: 'user',
+    })
+    .returning();
+  const userId = testUser.id;
+  assertSafeTestUser(userId);
   const runId = `live-email-${Date.now()}`;
 
   const createdJobIds: string[] = [];
@@ -464,6 +494,7 @@ On Thu, Oct 8, 2026 at 10:00 AM Bek wrote:
     // SECTION 9: Safe Teardown & Database Hygiene
     // -------------------------------------------------------------------------
     console.log('Cleaning up temporary live verification records...');
+    assertScopedCleanup({ userId, ids: createdAccountIds.concat(createdAppIds, createdJobIds) });
     if (createdAccountIds.length > 0) {
       await db.delete(emailAccounts).where(inArray(emailAccounts.id, createdAccountIds));
     }
@@ -475,6 +506,7 @@ On Thu, Oct 8, 2026 at 10:00 AM Bek wrote:
     }
     // Clean up temporary oauth states for the test user
     await db.delete(oauthStates).where(eq(oauthStates.userId, userId));
+    await db.delete(users).where(eq(users.id, userId));
     await closeDbPool();
     console.log('✓ Temporary records cleaned up safely. Database pristine.\n');
   }

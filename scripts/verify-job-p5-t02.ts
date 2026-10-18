@@ -1,6 +1,8 @@
 import crypto from 'node:crypto';
-import { getDb, closeDbPool, getOrCreatePrimaryUser } from '@job-agent/database';
 import {
+  getDb,
+  closeDbPool,
+  users,
   jobs,
   applications,
   applicationPackages,
@@ -11,8 +13,12 @@ import {
   systemNotifications,
   notificationPreferences,
   applicationPolicy,
+  sessions,
+  assertSafeTestDatabase,
+  assertSafeTestUser,
+  assertScopedCleanup,
 } from '@job-agent/database';
-import { inArray } from 'drizzle-orm';
+import { inArray, eq } from 'drizzle-orm';
 import { getConfig } from '@job-agent/config';
 import { AutonomousOrchestrator } from '../apps/worker/src/engine/autonomous-orchestrator.js';
 import { NotificationDispatcher } from '../apps/worker/src/services/notification-dispatcher.js';
@@ -26,9 +32,28 @@ async function main() {
   console.log('======================================================================\n');
 
   const config = getConfig();
-  const db = getDb(config.DATABASE_URL);
-  const user = await getOrCreatePrimaryUser(db);
-  const userId = user.id;
+  const testDbUrl =
+    process.env.TEST_DATABASE_URL ||
+    (config.DATABASE_URL
+      ? config.DATABASE_URL.replace(/\/[^/]+$/, '/jobee_test_isolated')
+      : 'postgresql://bek@localhost:5432/jobee_test_isolated');
+  assertSafeTestDatabase(testDbUrl);
+  const db = getDb(testDbUrl);
+
+  const testUserId = crypto.randomUUID();
+  const [testUser] = await db
+    .insert(users)
+    .values({
+      id: testUserId,
+      systemKey: `test_p5t02_${Date.now()}`,
+      name: 'Disposable Orchestrator Tester',
+      email: `test-orchestrator-${Date.now()}@example.com`,
+      emailVerified: true,
+      role: 'user',
+    })
+    .returning();
+  const userId = testUser.id;
+  assertSafeTestUser(userId);
   const tag = `live-p5t02-${Date.now()}`;
 
   const createdJobIds: string[] = [];
@@ -220,27 +245,43 @@ async function main() {
     // SECTION 8: Reminders & Alerts Subsystem
     // -------------------------------------------------------------------------
     console.log('\n--- SECTION 8: Reminders & Alerts Subsystem ---');
-    // Seed package and version for approval request
-    const [testPkg] = await db
-      .insert(applicationPackages)
-      .values({
-        userId,
-        jobId: testJob.id,
-        targetRoleTitle: testJob.title,
-        targetCompany: testJob.company,
-      })
-      .returning();
+    // Find or seed package and version for approval request
+    let testPkg = await db.query.applicationPackages.findFirst({
+      where: (p, { eq, and }) => and(eq(p.userId, userId), eq(p.jobId, testJob.id)),
+    });
 
-    createdPackageIds.push(testPkg!.id);
+    if (!testPkg) {
+      const [inserted] = await db
+        .insert(applicationPackages)
+        .values({
+          userId,
+          jobId: testJob.id,
+          targetRoleTitle: testJob.title,
+          targetCompany: testJob.company,
+        })
+        .returning();
+      testPkg = inserted;
+    }
 
-    const [testVer] = await db
-      .insert(applicationPackageVersions)
-      .values({
-        packageId: testPkg!.id,
-        versionNumber: 1,
-        inputFingerprint: crypto.createHash('sha256').update(`${tag}-ver-fp`).digest('hex'),
-      })
-      .returning();
+    if (testPkg && !createdPackageIds.includes(testPkg.id)) {
+      createdPackageIds.push(testPkg.id);
+    }
+
+    let testVer = await db.query.applicationPackageVersions.findFirst({
+      where: (v, { eq }) => eq(v.packageId, testPkg!.id),
+    });
+
+    if (!testVer) {
+      const [insertedVer] = await db
+        .insert(applicationPackageVersions)
+        .values({
+          packageId: testPkg!.id,
+          versionNumber: 1,
+          inputFingerprint: crypto.createHash('sha256').update(`${tag}-ver-fp`).digest('hex'),
+        })
+        .returning();
+      testVer = insertedVer;
+    }
 
     // Seed pending approval request
     const [testApproval] = await db
@@ -307,8 +348,19 @@ async function main() {
     // SECTION 9: Fastify API Observability Endpoints
     // -------------------------------------------------------------------------
     console.log('\n--- SECTION 9: Fastify API Observability Endpoints ---');
-    fastifyApp = buildApp({ config, db });
+    fastifyApp = buildApp({ config: { ...config, DATABASE_URL: testDbUrl }, db });
     await fastifyApp.ready();
+
+    const testSessionToken = `p5t02-sess-${Date.now()}`;
+    await db.insert(sessions).values({
+      id: `sess-${Date.now()}`,
+      userId,
+      token: testSessionToken,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+    const sessionHeaders = {
+      cookie: `better-auth.session_token=${testSessionToken}`,
+    };
 
     // 1. /health/live
     const liveRes = await fastifyApp.inject({ method: 'GET', url: '/health/live' });
@@ -325,7 +377,11 @@ async function main() {
     if (readyRes.statusCode !== 200) throw new Error('/health/ready check failed');
 
     // 3. /api/orchestrator/metrics
-    const metricsRes = await fastifyApp.inject({ method: 'GET', url: '/api/orchestrator/metrics' });
+    const metricsRes = await fastifyApp.inject({
+      method: 'GET',
+      url: '/api/orchestrator/metrics',
+      headers: sessionHeaders,
+    });
     const metricsBody = JSON.parse(metricsRes.body);
     console.log(
       `✓ GET /api/orchestrator/metrics: Status ${metricsRes.statusCode}, Discovered=${metricsBody.data.totalJobsDiscovered}, RemainingQuota=${metricsBody.data.dailyQuotaRemaining}`,
@@ -333,7 +389,11 @@ async function main() {
     if (metricsRes.statusCode !== 200) throw new Error('/api/orchestrator/metrics failed');
 
     // 4. /api/orchestrator/status
-    const statusRes = await fastifyApp.inject({ method: 'GET', url: '/api/orchestrator/status' });
+    const statusRes = await fastifyApp.inject({
+      method: 'GET',
+      url: '/api/orchestrator/status',
+      headers: sessionHeaders,
+    });
     const statusBody = JSON.parse(statusRes.body);
     console.log(
       `✓ GET /api/orchestrator/status: OrchestratorEnabled=${statusBody.data.orchestratorEnabled}, PollInterval=${statusBody.data.pollIntervalMs}ms`,
@@ -341,7 +401,11 @@ async function main() {
     if (statusRes.statusCode !== 200) throw new Error('/api/orchestrator/status failed');
 
     // 5. /api/orchestrator/runs
-    const runsRes = await fastifyApp.inject({ method: 'GET', url: '/api/orchestrator/runs' });
+    const runsRes = await fastifyApp.inject({
+      method: 'GET',
+      url: '/api/orchestrator/runs',
+      headers: sessionHeaders,
+    });
     const runsBody = JSON.parse(runsRes.body);
     console.log(
       `✓ GET /api/orchestrator/runs: Retrieved ${runsBody.data.runs.length} orchestration run trace(s)`,
@@ -389,9 +453,12 @@ async function main() {
     }
 
     console.log(`✓ Teardown: Removing ${createdJobIds.length} test job(s)...`);
+    assertScopedCleanup({ userId, ids: createdJobIds.concat(createdAppIds, createdPackageIds) });
     if (createdJobIds.length > 0) {
       await db.delete(jobs).where(inArray(jobs.id, createdJobIds));
     }
+    await db.delete(sessions).where(eq(sessions.userId, userId));
+    await db.delete(users).where(eq(users.id, userId));
 
     console.log(
       '✓ Teardown completed with 100% test record removal. Zero real user data modified.',
