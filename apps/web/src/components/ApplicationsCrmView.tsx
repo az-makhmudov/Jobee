@@ -1,4 +1,5 @@
 import { applicationStatusStyle } from '../ui/status.js';
+import { initialApplicationView } from '../ui/student-experience.js';
 import { useFeedback } from '../ui/Feedback.js';
 import { Button, Card, Icon, Input, ModalSurface, Select, Textarea } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
@@ -66,7 +67,14 @@ export function ApplicationsCrmView({
   onNavigateToStudioList,
 }: Props) {
   const { alert } = useFeedback();
-  const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
+  const [viewMode, setViewMode] = useState<'board' | 'list'>(initialApplicationView);
+  useEffect(() => {
+    try {
+      localStorage.setItem('jobee.applications.view', viewMode);
+    } catch {
+      // The view still works when browser storage is unavailable.
+    }
+  }, [viewMode]);
   const [applications, setApplications] = useState<ApplicationSummaryDto[]>([]);
   const [metrics, setMetrics] = useState<ApplicationCrmMetricsDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -184,23 +192,22 @@ export function ApplicationsCrmView({
   const boardColumns = [
     {
       id: 'pre_apply',
-      title: 'Pre-Application',
+      title: 'Preparing',
       color: 'var(--m3-on-surface)',
       filter: (app: ApplicationSummaryDto) =>
         app.status === 'DISCOVERED' ||
         app.status === 'ANALYZED' ||
         app.status === 'MATCHED' ||
         app.status === 'NEEDS_REVIEW' ||
-        app.status === 'READY_TO_APPLY',
+        app.status === 'READY_TO_APPLY' ||
+        app.status === 'APPLYING',
     },
     {
       id: 'applied',
       title: 'Applied',
       color: 'var(--status-success)',
       filter: (app: ApplicationSummaryDto) =>
-        app.status === 'APPLYING' ||
-        app.status === 'APPLIED' ||
-        app.status === 'CONFIRMATION_RECEIVED',
+        app.status === 'APPLIED' || app.status === 'CONFIRMATION_RECEIVED',
     },
     {
       id: 'screening',
@@ -449,6 +456,7 @@ export function ApplicationsCrmView({
           <Button
             className={`btn btn-sm ${viewMode === 'board' ? 'btn-primary' : 'btn-ghost'}`}
             style={{ padding: '0.25rem 0.6rem' }}
+            aria-pressed={viewMode === 'board'}
             onClick={() => setViewMode('board')}
           >
             <Icon name="board" /> Board
@@ -456,6 +464,7 @@ export function ApplicationsCrmView({
           <Button
             className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-ghost'}`}
             style={{ padding: '0.25rem 0.6rem' }}
+            aria-pressed={viewMode === 'list'}
             onClick={() => setViewMode('list')}
           >
             <Icon name="list" size={20} /> List

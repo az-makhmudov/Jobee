@@ -139,12 +139,27 @@ describe('CareerIntelligenceView — Verification & AI Authorization Controls', 
     vi.mocked(careerIntelligenceApi.getRecords).mockResolvedValue(mockRecords as any);
   });
 
+  it('puts pending suggestions first and hides completed-record controls until All is chosen', async () => {
+    render(<CareerIntelligenceView />);
+    await screen.findByText('Agile & Scrum');
+    expect(screen.queryByRole('button', { name: 'Unverify' })).toBeNull();
+    const suggestion = screen.getByText('Add Language: Polish');
+    const records = screen.getByText(/Candidate Records: Verification/);
+    expect(
+      suggestion.compareDocumentPosition(records) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^All \(/ }));
+    expect(screen.getAllByRole('button', { name: 'Unverify' }).length).toBe(2);
+  });
+
   it('renders Section 3 with verification badges and AI-use authorization controls', async () => {
     render(<CareerIntelligenceView />);
 
     await waitFor(() => {
       expect(screen.getByText(/Candidate Records: Verification & AI Authorization/i)).toBeDefined();
     });
+
+    fireEvent.click(screen.getByRole('button', { name: /^All \(/i }));
 
     // Check statistics badges
     expect(screen.getByText(/Total: 3/i)).toBeDefined();
@@ -198,8 +213,10 @@ describe('CareerIntelligenceView — Verification & AI Authorization Controls', 
     render(<CareerIntelligenceView />);
 
     await waitFor(() => {
-      expect(screen.getByText('Bachelor in Management')).toBeDefined();
+      expect(screen.getByText('Agile & Scrum')).toBeDefined();
     });
+
+    fireEvent.click(screen.getByRole('button', { name: /^All \(/i }));
 
     // edu-01 is verified, so button is "Allow AI"
     const allowAiButton = screen.getByRole('button', {
@@ -264,7 +281,7 @@ describe('CareerIntelligenceView — Verification & AI Authorization Controls', 
       expect(screen.getByText('Review & suggestions')).toBeDefined();
     });
 
-    const enrichButton = screen.getByRole('button', { name: /Run AI Enrichment/i });
+    const enrichButton = screen.getByRole('button', { name: /Find profile suggestions/i });
     fireEvent.click(enrichButton);
 
     await waitFor(() => {
@@ -288,7 +305,7 @@ describe('CareerIntelligenceView — Verification & AI Authorization Controls', 
       expect(screen.getByText('Review & suggestions')).toBeDefined();
     });
 
-    const enrichButton = screen.getByRole('button', { name: /Run AI Enrichment/i });
+    const enrichButton = screen.getByRole('button', { name: /Find profile suggestions/i });
     fireEvent.click(enrichButton);
 
     await waitFor(() => {

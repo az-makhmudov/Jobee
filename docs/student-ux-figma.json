@@ -1,0 +1,520 @@
+{
+  "fileKey": "WistInjosE5NSGLCAnpznU",
+  "pageId": "265:2",
+  "reviewIndex": "277:1270",
+  "sidebarId": "265:3",
+  "actionRowId": "269:32",
+  "frames": [
+    {
+      "id": "269:34",
+      "name": "Student UX / Home",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:1"
+      },
+      "nodeTypes": {
+        "INSTANCE": 25,
+        "FRAME": 15,
+        "TEXT": 30,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 9
+    },
+    {
+      "id": "269:117",
+      "name": "Student UX / Find jobs",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:1"
+      },
+      "nodeTypes": {
+        "INSTANCE": 25,
+        "FRAME": 15,
+        "TEXT": 30,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 6
+    },
+    {
+      "id": "269:203",
+      "name": "Student UX / Application questions",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:1"
+      },
+      "nodeTypes": {
+        "INSTANCE": 25,
+        "FRAME": 16,
+        "TEXT": 32,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 6
+    },
+    {
+      "id": "270:205",
+      "name": "Student UX / My applications",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:1"
+      },
+      "nodeTypes": {
+        "INSTANCE": 28,
+        "FRAME": 16,
+        "TEXT": 32,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 10
+    },
+    {
+      "id": "270:299",
+      "name": "Student UX / My profile",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:1"
+      },
+      "nodeTypes": {
+        "INSTANCE": 26,
+        "FRAME": 16,
+        "TEXT": 30,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 5
+    },
+    {
+      "id": "270:390",
+      "name": "Student UX / Settings",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:1"
+      },
+      "nodeTypes": {
+        "INSTANCE": 26,
+        "FRAME": 15,
+        "TEXT": 29,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 4
+    },
+    {
+      "id": "270:479",
+      "name": "Student UX / Job details",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:1"
+      },
+      "nodeTypes": {
+        "INSTANCE": 22,
+        "FRAME": 14,
+        "TEXT": 23,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 6
+    },
+    {
+      "id": "271:432",
+      "name": "Student UX / Final review",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:1"
+      },
+      "nodeTypes": {
+        "INSTANCE": 24,
+        "FRAME": 15,
+        "TEXT": 28,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 8
+    },
+    {
+      "id": "271:517",
+      "name": "Student UX / Messages",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:1"
+      },
+      "nodeTypes": {
+        "INSTANCE": 27,
+        "FRAME": 16,
+        "TEXT": 30,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 9
+    },
+    {
+      "id": "271:608",
+      "name": "Student UX / Interviews",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:1"
+      },
+      "nodeTypes": {
+        "INSTANCE": 25,
+        "FRAME": 15,
+        "TEXT": 27,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 9
+    },
+    {
+      "id": "271:691",
+      "name": "Student UX / Application documents",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:1"
+      },
+      "nodeTypes": {
+        "INSTANCE": 24,
+        "FRAME": 16,
+        "TEXT": 28,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 7
+    },
+    {
+      "id": "273:649",
+      "name": "Student UX / Home \u00b7 Dark",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:2"
+      },
+      "nodeTypes": {
+        "INSTANCE": 25,
+        "FRAME": 15,
+        "TEXT": 30,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 9
+    },
+    {
+      "id": "273:668",
+      "name": "Student UX / Find jobs \u00b7 Dark",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:2"
+      },
+      "nodeTypes": {
+        "INSTANCE": 25,
+        "FRAME": 15,
+        "TEXT": 30,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 6
+    },
+    {
+      "id": "273:690",
+      "name": "Student UX / Application questions \u00b7 Dark",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:2"
+      },
+      "nodeTypes": {
+        "INSTANCE": 25,
+        "FRAME": 16,
+        "TEXT": 32,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 6
+    },
+    {
+      "id": "273:715",
+      "name": "Student UX / My applications \u00b7 Dark",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:2"
+      },
+      "nodeTypes": {
+        "INSTANCE": 28,
+        "FRAME": 16,
+        "TEXT": 32,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 10
+    },
+    {
+      "id": "273:740",
+      "name": "Student UX / My profile \u00b7 Dark",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:2"
+      },
+      "nodeTypes": {
+        "INSTANCE": 26,
+        "FRAME": 16,
+        "TEXT": 30,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 5
+    },
+    {
+      "id": "273:763",
+      "name": "Student UX / Settings \u00b7 Dark",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:2"
+      },
+      "nodeTypes": {
+        "INSTANCE": 26,
+        "FRAME": 15,
+        "TEXT": 29,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 4
+    },
+    {
+      "id": "274:1002",
+      "name": "Student UX / Job details \u00b7 Dark",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:2"
+      },
+      "nodeTypes": {
+        "INSTANCE": 22,
+        "FRAME": 14,
+        "TEXT": 23,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 6
+    },
+    {
+      "id": "274:1026",
+      "name": "Student UX / Final review \u00b7 Dark",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:2"
+      },
+      "nodeTypes": {
+        "INSTANCE": 24,
+        "FRAME": 15,
+        "TEXT": 28,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 8
+    },
+    {
+      "id": "274:1049",
+      "name": "Student UX / Messages \u00b7 Dark",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:2"
+      },
+      "nodeTypes": {
+        "INSTANCE": 27,
+        "FRAME": 16,
+        "TEXT": 30,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 9
+    },
+    {
+      "id": "274:1075",
+      "name": "Student UX / Interviews \u00b7 Dark",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:2"
+      },
+      "nodeTypes": {
+        "INSTANCE": 25,
+        "FRAME": 15,
+        "TEXT": 27,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 9
+    },
+    {
+      "id": "274:1100",
+      "name": "Student UX / Application documents \u00b7 Dark",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:2"
+      },
+      "nodeTypes": {
+        "INSTANCE": 24,
+        "FRAME": 16,
+        "TEXT": 28,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 7
+    },
+    {
+      "id": "278:1276",
+      "name": "Student UX / Getting started",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:1"
+      },
+      "nodeTypes": {
+        "INSTANCE": 23,
+        "FRAME": 14,
+        "TEXT": 26,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 7
+    },
+    {
+      "id": "278:1363",
+      "name": "Student UX / Getting started \u00b7 Dark",
+      "w": 1440,
+      "h": 1080,
+      "mode": {
+        "VariableCollectionId:4:23": "4:2"
+      },
+      "nodeTypes": {
+        "INSTANCE": 23,
+        "FRAME": 14,
+        "TEXT": 26,
+        "ELLIPSE": 1,
+        "VECTOR": 6,
+        "RECTANGLE": 1
+      },
+      "images": [],
+      "fonts": ["Google Sans Flex"],
+      "overflow": [],
+      "links": 7
+    }
+  ],
+  "validation": {
+    "editable": true,
+    "images": 0,
+    "fonts": ["Google Sans Flex"],
+    "frameOverflow": 0,
+    "prototype": "Navigation links; unresolved approvals disabled. Later final review is a separate example, not an approval bypass."
+  }
+}

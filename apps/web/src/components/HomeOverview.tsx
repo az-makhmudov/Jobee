@@ -4,14 +4,17 @@ import type {
   CandidateOverviewDto,
   JobDashboardMetricsDto,
   ApplicationStudioMetricsDto,
+  InterviewDashboardMetrics,
 } from '@job-agent/shared';
 import { ApplicationCrmClient } from '../api/application-crm-client.js';
+import { careerIntelligenceApi } from '../api/career-intelligence-client.js';
 import { Button, Card } from '../ui/Primitives.js';
 
 export function HomeOverview({
   overview,
   jobs,
   materials,
+  interviews,
   onNavigate,
   onImport,
   onProgress,
@@ -19,14 +22,20 @@ export function HomeOverview({
   overview: CandidateOverviewDto;
   jobs: JobDashboardMetricsDto | null;
   materials: ApplicationStudioMetricsDto | null;
+  interviews: InterviewDashboardMetrics | null;
   onNavigate: (section: string, id?: string) => void;
   onImport: () => void;
   onProgress: () => void;
 }) {
   const [applications, setApplications] = useState<ApplicationSummaryDto[]>([]),
     [failed, setFailed] = useState(false);
+  const [suggestionsCount, setSuggestionsCount] = useState<number | null>(null);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let active = true;
+    setFailed(false);
+    setSuggestionsLoading(true);
     ApplicationCrmClient.listApplications({ limit: 3, isArchived: false })
       .then((data) => {
         if (active) setApplications(data.items);
@@ -34,11 +43,68 @@ export function HomeOverview({
       .catch(() => {
         if (active) setFailed(true);
       });
+    careerIntelligenceApi
+      .listSuggestions('PENDING')
+      .then((data) => {
+        if (active) setSuggestionsCount(data.suggestions.length);
+      })
+      .catch(() => {
+        if (active) setSuggestionsCount(null);
+      })
+      .finally(() => {
+        if (active) setSuggestionsLoading(false);
+      });
     return () => {
       active = false;
     };
-  }, []);
+  }, [attempt]);
   const firstName = overview.profile?.fullName?.trim().split(/\s+/)[0];
+  const setupItems = overview.completeness.categories.filter(
+    (item) => !item.completed && ['profile', 'master_cv', 'preferences'].includes(item.category),
+  );
+  const tasks: { title: string; description: string; action: string; section: string }[] = [];
+  if (materials && materials.pendingApprovals > 0)
+    tasks.push({
+      title: `${materials.pendingApprovals} application item${materials.pendingApprovals === 1 ? '' : 's'} to review`,
+      description: 'Check the documents, answers or decisions waiting for your review.',
+      action: 'Review approvals',
+      section: 'approvals',
+    });
+  if (interviews && interviews.preparationNeeded > 0)
+    tasks.push({
+      title: `Prepare for ${interviews.preparationNeeded === 1 ? 'your interview' : `${interviews.preparationNeeded} interviews`}`,
+      description: 'Open your upcoming conversations and preparation notes.',
+      action: 'Prepare',
+      section: 'interviews',
+    });
+  else if (
+    interviews &&
+    (interviews.schedulingConflicts > 0 || interviews.pendingConfirmations > 0)
+  )
+    tasks.push({
+      title: 'Check your interview schedule',
+      description: 'An interview has a conflict or needs confirmation.',
+      action: 'View interviews',
+      section: 'interviews',
+    });
+  if (suggestionsCount && suggestionsCount > 0)
+    tasks.push({
+      title: `${suggestionsCount} profile suggestion${suggestionsCount === 1 ? '' : 's'} to review`,
+      description:
+        'Choose what to add. Suggestions do not change your profile until you accept them.',
+      action: 'Review suggestions',
+      section: 'career-intelligence',
+    });
+  if (overview.factCount > overview.verifiedFactCount)
+    tasks.push({
+      title: 'Confirm your saved details',
+      description:
+        'Some facts still need your accuracy check. AI-use permission is a separate choice.',
+      action: 'Review details',
+      section: 'career-intelligence',
+    });
+  const incompleteChecks =
+    !materials || !interviews || (!suggestionsLoading && suggestionsCount === null);
   return (
     <section aria-label="Home overview">
       <header className="section-toolbar">
@@ -56,64 +122,85 @@ export function HomeOverview({
       </header>
       <div className="home-grid">
         <Card>
-          <h2 className="card-title">Needs your attention</h2>
-          <div className="action-row">
-            <div>
-              <strong>
-                {materials
-                  ? materials.pendingApprovals + ' approvals are waiting'
-                  : 'Review application approvals'}
-              </strong>
-              <p>Review proposed answers before your materials can become ready.</p>
+          <h2 className="card-title">Your next steps</h2>
+          {tasks.slice(0, 3).map((task, index) => (
+            <div className="action-row" key={task.title}>
+              <div>
+                <strong>{task.title}</strong>
+                <p>{task.description}</p>
+              </div>
+              <Button
+                className={index === 0 ? 'btn-primary' : 'btn-outline'}
+                onClick={() => onNavigate(task.section)}
+              >
+                {task.action}
+              </Button>
             </div>
-            <Button className="btn-primary" onClick={() => onNavigate('approvals')}>
-              Review approvals
-            </Button>
-          </div>
-          <div className="action-row">
-            <div>
-              <strong>Prepare for your next interview</strong>
-              <p>Find your upcoming conversations and preparation briefs.</p>
-            </div>
-            <Button className="btn-outline" onClick={() => onNavigate('interviews')}>
-              Prepare
-            </Button>
-          </div>
-          <div className="action-row">
-            <div>
-              <strong>Review your profile details</strong>
-              <p>Confirm saved information and choose whether AI may use it.</p>
-            </div>
-            <Button className="btn-outline" onClick={() => onNavigate('career-intelligence')}>
-              Review details
-            </Button>
-          </div>
+          ))}
+          {tasks.length === 0 && (
+            <>
+              <p>
+                {suggestionsLoading
+                  ? 'Checking your next steps…'
+                  : incompleteChecks
+                    ? 'Some next steps could not be checked.'
+                    : 'No pending application reviews, profile suggestions or interview preparation found.'}
+              </p>
+              <Button className="btn-primary" onClick={() => onNavigate('jobs')}>
+                Find jobs
+              </Button>
+            </>
+          )}
+          {incompleteChecks && (
+            <p className="page-subtitle">
+              Some next steps could not be confirmed. Open the relevant workspace to check.
+              {!suggestionsLoading && suggestionsCount === null && (
+                <Button className="btn-ghost" onClick={() => setAttempt((value) => value + 1)}>
+                  Retry profile suggestions
+                </Button>
+              )}
+            </p>
+          )}
         </Card>
         <Card>
           <h2 className="card-title">Your profile</h2>
-          <div style={{ fontSize: 32, lineHeight: '40px', marginBottom: 16 }}>
-            {overview.completeness.score}%{' '}
-            <small style={{ fontSize: 14, color: 'var(--text-secondary)' }}>Profile complete</small>
-          </div>
-          <label htmlFor="home-profile-progress">
-            Profile completion · {overview.completeness.score}%
-          </label>
-          <progress
-            id="home-profile-progress"
-            value={overview.completeness.score}
-            max={100}
-            style={{ width: '100%', height: 12, accentColor: 'var(--m3-primary)' }}
-          />
+          <p>
+            {setupItems.length
+              ? 'Add a few details to personalize your search.'
+              : 'Your basic details, CV and job preferences are saved.'}
+          </p>
+          {setupItems.length > 0 && (
+            <ul>
+              {setupItems.map((item) => (
+                <li key={item.category}>{item.label}</li>
+              ))}
+            </ul>
+          )}
           <p className="page-subtitle">
-            Education, projects and skills help explain what you can do. You can add experience
-            whenever it is useful.
+            Your studies, projects and skills help explain what you can do. Work experience is
+            optional. Each application may need additional details and your explicit review.
           </p>
           <div className="account-actions">
-            <Button onClick={() => onNavigate('profile')}>Continue setup</Button>
-            <Button className="btn-outline" onClick={onImport}>
-              Import CV
+            <Button onClick={() => onNavigate('profile')}>
+              {setupItems.length ? 'Continue setup' : 'View profile'}
             </Button>
+            {overview.hasActiveMasterCv ? (
+              <Button className="btn-outline" onClick={() => onNavigate('documents')}>
+                View CV
+              </Button>
+            ) : (
+              <Button className="btn-outline" onClick={onImport}>
+                Add CV
+              </Button>
+            )}
           </div>
+          <details>
+            <summary>Profile completeness details</summary>
+            <p>
+              {overview.completeness.score}% of profile details added. This is not an accuracy
+              check, permission for AI use or approval to submit.
+            </p>
+          </details>
         </Card>
       </div>
       <Card style={{ marginTop: 24 }}>

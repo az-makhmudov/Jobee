@@ -12,7 +12,7 @@ import type {
 export function EmailIntelligenceView() {
   const { confirm } = useFeedback();
   const [activeTab, setActiveTab] = useState<'queue' | 'messages' | 'accounts' | 'settings'>(
-    'queue',
+    'messages',
   );
   const [stats, setStats] = useState<EmailSyncStatsDto | null>(null);
   const [accounts, setAccounts] = useState<EmailAccountDto[]>([]);

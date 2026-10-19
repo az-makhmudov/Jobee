@@ -78,3 +78,6 @@ output/playwright/
 playwright-report/
 
 apps/web/public/assets/pdfjs/
+
+# Local student UX review renders and browser reports
+output/student-ux/

@@ -345,7 +345,9 @@ export function ApplicationStudioView({
               </span>
             </div>
             <p className="page-subtitle" style={{ margin: 0 }}>
-              Prepare application • Version {pkg.currentVersionNumber}
+              {version
+                ? `Application documents · Version ${version.versionNumber}`
+                : 'Application documents · Not created yet'}
               {version?.baseSelectionReason && (
                 <span style={{ marginLeft: '0.5rem', color: 'var(--text-secondary)' }}>
                   ({version.baseSelectionReason})
@@ -410,7 +412,10 @@ export function ApplicationStudioView({
               onClick={handleRegenerate}
               disabled={actionLoading}
             >
-              <Icon name="sync" /> Regenerate (v{pkg.currentVersionNumber + 1})
+              <Icon name="sync" />{' '}
+              {version
+                ? `Regenerate documents (v${pkg.currentVersionNumber + 1})`
+                : 'Create application documents'}
             </Button>
 
             {/* CRM Lifecycle Action Button */}
@@ -420,7 +425,7 @@ export function ApplicationStudioView({
                 onClick={() => onNavigateToApplication?.(crmApp.id)}
                 title="View application lifecycle, timeline and follow-ups in CRM"
               >
-                <Icon name="list" /> View in CRM ({crmApp.status}) →
+                <Icon name="list" /> View application →
               </Button>
             ) : (
               <div style={{ display: 'flex', gap: '0.4rem' }} className="layout-group">
@@ -429,7 +434,7 @@ export function ApplicationStudioView({
                   onClick={handleTrackInCrm}
                   disabled={actionLoading}
                 >
-                  Track in CRM
+                  Add to my applications
                 </Button>
                 {readiness.status === 'READY' && (
                   <Button
@@ -510,7 +515,7 @@ export function ApplicationStudioView({
         value={activeTab}
         items={[
           { id: 'overview', label: 'Overview' },
-          { id: 'cv', label: `CV (${tailoredCv?.experiences.length || 0} experiences)` },
+          { id: 'cv', label: 'CV' },
           { id: 'coverLetter', label: 'Cover letter' },
           { id: 'questions', label: `Questions (${data.questions.length})` },
           {

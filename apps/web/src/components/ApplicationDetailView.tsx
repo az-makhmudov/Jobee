@@ -1,4 +1,5 @@
 import { applicationStatusStyle, browserRunStyle } from '../ui/status.js';
+import { submissionSummary } from '../ui/student-experience.js';
 import { useFeedback } from '../ui/Feedback.js';
 import { Button, Card, Icon, Input, ModalSurface, Select, Textarea } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
@@ -995,9 +996,11 @@ export function ApplicationDetailView({
               </div>
             ) : (
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                {application.status === 'READY_TO_APPLY'
-                  ? 'Application is ready to submit. Click "Mark as Applied" when sent.'
-                  : 'Submitted externally without a frozen studio package.'}
+                {submissionSummary(
+                  application.status,
+                  application.appliedAt,
+                  browserRuns[0]?.status,
+                )}
               </p>
             )}
           </Card>

@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+const webOrigin = `http://127.0.0.1:${process.env.UI_TEST_WEB_PORT || '5179'}`;
+
 test.beforeEach(async ({ page }) => {
   await page.route('**/*', (route) => {
     const url = new URL(route.request().url());
@@ -9,7 +11,7 @@ test.beforeEach(async ({ page }) => {
       : route.abort('blockedbyclient');
   });
   const response = await page.request.post('/api/auth/sign-in/email', {
-    headers: { Origin: 'http://127.0.0.1:5179' },
+    headers: { Origin: webOrigin },
     data: { email: 'alex.morgan@example.test', password: 'JobeePreview123!' },
   });
   expect(response.ok()).toBeTruthy();
@@ -78,6 +80,7 @@ test('Jobs and CRM load real records in both themes without root overflow', asyn
   await page.getByRole('button', { name: 'Applications', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
   await expect(page.getByText('Software Engineering Intern', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Board', exact: true }).click();
   await page.screenshot({ path: 'output/playwright/applications-board-light.png', fullPage: true });
   await page.evaluate(() => {
     localStorage.setItem('jobee.theme', 'dark');
@@ -87,6 +90,7 @@ test('Jobs and CRM load real records in both themes without root overflow', asyn
   await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
   await expect(page.getByText('Software Engineering Intern', { exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Board', exact: true }).click();
   await page.screenshot({ path: 'output/playwright/applications-board-dark.png', fullPage: true });
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
@@ -306,7 +310,7 @@ test('Studio tabs retain editing, readiness blockers and job navigation', async 
   ).toBeVisible();
   await expect(page.getByText(/required application question\(s\) are unresolved/)).toBeVisible();
   for (const name of [
-    /^CV \(/,
+    /^CV$/,
     /^Cover letter$/,
     /^Questions \(/,
     /^Approvals \(/,
@@ -374,7 +378,7 @@ test('signed out state opens an accessible sign-in dialog and invitation deep li
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.goto('/?invite=invalid-local-preview-invite');
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page).toHaveURL('http://127.0.0.1:5179/');
+  await expect(page).toHaveURL(`${webOrigin}/`);
 });
 
 test('analytics, invitations, notifications and Smart Import dialogs retain their controls in both themes', async ({
@@ -590,6 +594,7 @@ test('complete desktop render inventory in Light and Dark', async ({ page }) => 
     await page.getByRole('button', { name: 'Applications', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
     await expect(page.getByText('Frontend Developer Intern', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Board', exact: true }).click();
     await shot('applications-board', theme);
     await page.getByRole('button', { name: 'List', exact: true }).click();
     await expect(page.locator('table')).toBeVisible();
@@ -688,9 +693,9 @@ test('a second local user cannot retrieve another user’s document or access ad
 }) => {
   const docs = await (await page.request.get('/api/candidate/documents')).json();
   const target = docs.data[0].id;
-  const isolated = await playwright.request.newContext({ baseURL: 'http://127.0.0.1:5179' });
+  const isolated = await playwright.request.newContext({ baseURL: webOrigin });
   const signup = await isolated.post('/api/auth/sign-up/email', {
-    headers: { Origin: 'http://127.0.0.1:5179' },
+    headers: { Origin: webOrigin },
     data: {
       name: 'Jordan Preview',
       email: `jordan-${Date.now()}@example.test`,
@@ -716,6 +721,9 @@ test('Home visual regression reference in both themes', async ({ page }) => {
         .getByRole('region', { name: 'Home overview' })
         .getByRole('button', { name: 'Open', exact: true }),
     ).toHaveCount(3);
+    await expect(page.getByRole('button', { name: 'Retry profile suggestions' })).toHaveCount(0);
+    await expect(page.getByText('Checking your next steps…')).toHaveCount(0);
+    await expect(page.getByText('3 application items to review', { exact: true })).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     await expect(page).toHaveScreenshot('home-' + theme + '.png', {
       fullPage: true,
@@ -723,4 +731,31 @@ test('Home visual regression reference in both themes', async ({ page }) => {
       maxDiffPixelRatio: 0.01,
     });
   }
+});
+
+test('student defaults reduce empty work without changing review permissions', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Applications', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'List', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('button', { name: 'Board', exact: true }).click();
+  await page.getByRole('button', { name: 'Home', exact: true }).click();
+  await page.getByRole('button', { name: 'Applications', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Board', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('button', { name: 'Messages', exact: true }).click();
+  await expect(page.getByRole('tab', { name: /^Messages \(/ })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await page.getByRole('button', { name: 'My Profile', exact: true }).click();
+  await page.getByRole('tab', { name: 'Review & suggestions', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Needs verification', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Unverify', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: /^All \(/ }).click();
+  await expect(page.getByRole('button', { name: 'Unverify', exact: true }).first()).toBeVisible();
 });

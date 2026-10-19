@@ -27,6 +27,7 @@ export const CareerIntelligenceView: React.FC = () => {
 
   // Candidate Records filter tab & selection
   const [recordTab, setRecordTab] = useState<
+    | 'needsReview'
     | 'all'
     | 'experiences'
     | 'education'
@@ -35,7 +36,7 @@ export const CareerIntelligenceView: React.FC = () => {
     | 'languages'
     | 'projects'
     | 'facts'
-  >('all');
+  >('needsReview');
   const [selectedRecordKeys, setSelectedRecordKeys] = useState<Set<string>>(new Set());
   const [recordSubmittingId, setRecordSubmittingId] = useState<string | null>(null);
 
@@ -335,103 +336,313 @@ export const CareerIntelligenceView: React.FC = () => {
               </>
             ) : (
               <>
-                <Icon name="ai" size={20} /> Run AI Enrichment
+                <Icon name="ai" size={20} /> Find profile suggestions
               </>
             )}
           </Button>
         </div>
       </div>
 
-      {/* State & Context Integrity Banner */}
-      <Card
-        className="card"
-        style={{
-          backgroundColor: 'var(--m3-secondary-container)',
-          border: '1px solid var(--surface-border)',
-          padding: '1rem 1.25rem',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-        }}
-      >
+      {/* Section 4: Verified vs. AI-Suggested (Human-in-the-Loop Approval Gating) */}
+      <Card className="card" style={{ marginBottom: '1.5rem' }}>
         <div
-          style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1rem',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+          }}
           className="layout-group"
         >
           <div>
-            <div
-              style={{
-                fontSize: '0.72rem',
-                color: 'var(--text-secondary)',
-                textTransform: 'uppercase',
-              }}
-            >
-              Candidate State Hash
-            </div>
-            <code
-              style={{
-                fontFamily: 'monospace',
-                fontSize: '0.8rem',
-                color: 'var(--m3-on-surface)',
-                backgroundColor: 'var(--m3-surface-container-low)',
-                padding: '0.2rem 0.5rem',
-                borderRadius: '0.25rem',
-              }}
-              title={data?.candidateStateHash}
-            >
-              {data?.candidateStateHash ? `${data.candidateStateHash.substring(0, 16)}...` : '—'}
-            </code>
+            <h3 className="card-title" style={{ marginBottom: '0.25rem' }}>
+              <Icon name="ai" /> AI Profile Suggestions & Discovered Capabilities
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              AI analyzes uploaded CVs and documents to propose transferable capabilities, career
+              paths, and missing details. Suggestions require explicit approval before entering your
+              Candidate Brain.
+            </p>
           </div>
-          <div>
-            <div
-              style={{
-                fontSize: '0.72rem',
-                color: 'var(--text-secondary)',
-                textTransform: 'uppercase',
-              }}
-            >
-              Context Version
-            </div>
-            <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>v{data?.contextVersion ?? 1}</div>
-          </div>
-          <div>
-            <div
-              style={{
-                fontSize: '0.72rem',
-                color: 'var(--text-secondary)',
-                textTransform: 'uppercase',
-              }}
-            >
-              Verified Claims
-            </div>
-            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--status-success)' }}>
-              {summary?.verifiedCount ?? 0} verified
-            </div>
-          </div>
-          <div>
-            <div
-              style={{
-                fontSize: '0.72rem',
-                color: 'var(--text-secondary)',
-                textTransform: 'uppercase',
-              }}
-            >
-              AI Suggestions
-            </div>
-            <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--status-warning)' }}>
-              {summary?.aiSuggestedCount ?? 0} pending review
-            </div>
+
+          {/* Filter Tabs */}
+          <div style={{ display: 'flex', gap: '0.35rem' }} className="layout-group">
+            {(['PENDING', 'APPROVED', 'DISMISSED', 'ALL'] as const).map((tab) => (
+              <Button
+                key={tab}
+                type="button"
+                className={`btn btn-sm ${suggestionTab === tab ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setSuggestionTab(tab)}
+              >
+                {tab === 'PENDING'
+                  ? `Pending (${suggestions.filter((s) => s.status === 'PENDING').length})`
+                  : tab === 'APPROVED'
+                    ? 'Approved'
+                    : tab}
+              </Button>
+            ))}
           </div>
         </div>
 
-        <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-          <Icon name="permissions" /> Privacy Minimized • AI context strictly gated on verified &
-          authorized records
-        </div>
+        {filteredSuggestions.length === 0 ? (
+          <div
+            style={{
+              padding: '2.5rem',
+              textAlign: 'center',
+              backgroundColor: 'var(--m3-surface-container-low)',
+              borderRadius: '16px',
+            }}
+          >
+            <div style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>
+              No {suggestionTab.toLowerCase()} suggestions
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+              Click{' '}
+              <strong>
+                <Icon name="ai" /> Find profile suggestions
+              </strong>{' '}
+              above to analyze your documents and discover transferable capabilities.
+            </p>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+              gap: '1rem',
+            }}
+            className="layout-group"
+          >
+            {filteredSuggestions.map((sug) => {
+              const isPending = sug.status === 'PENDING';
+              const isApproved = sug.status === 'APPROVED';
+
+              return (
+                <div
+                  key={sug.id}
+                  style={{
+                    backgroundColor: 'var(--m3-surface-container-low)',
+                    border: `1px solid ${isApproved ? 'var(--status-success-border)' : 'var(--surface-border)'}`,
+                    borderRadius: '16px',
+                    padding: '1.1rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      <span
+                        className="nav-tag"
+                        style={{
+                          backgroundColor:
+                            sug.suggestionType === 'TRANSFERABLE_SKILL'
+                              ? 'var(--m3-secondary-container)'
+                              : sug.suggestionType === 'CAREER_PATH'
+                                ? 'var(--m3-secondary-container)'
+                                : 'var(--status-warning-container)',
+                          color:
+                            sug.suggestionType === 'TRANSFERABLE_SKILL'
+                              ? 'var(--m3-on-surface)'
+                              : sug.suggestionType === 'CAREER_PATH'
+                                ? 'var(--m3-on-surface)'
+                                : 'var(--status-warning)',
+                        }}
+                      >
+                        {sug.suggestionType.replace('_', ' ')}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Confidence: {sug.confidence}%
+                      </span>
+                    </div>
+
+                    <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.35rem' }}>
+                      {sug.title}
+                    </div>
+                    <p
+                      style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.85rem',
+                        marginBottom: '0.85rem',
+                      }}
+                    >
+                      {sug.description}
+                    </p>
+
+                    {sug.evidence && (
+                      <div
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--m3-on-surface)',
+                          backgroundColor: 'var(--m3-surface)',
+                          padding: '0.3rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          marginBottom: '0.85rem',
+                        }}
+                      >
+                        Evidence: {sug.evidence}
+                      </div>
+                    )}
+                  </div>
+
+                  {isPending && (
+                    <div
+                      style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}
+                      className="layout-group"
+                    >
+                      <Button
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        style={{ flex: 1 }}
+                        onClick={() => handleApplySuggestion(sug.id)}
+                      >
+                        <Icon name="check" size={20} /> Approve
+                      </Button>
+                      <Button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => handleDismissSuggestion(sug.id)}
+                      >
+                        <Icon name="close" size={20} /> Dismiss
+                      </Button>
+                    </div>
+                  )}
+
+                  {isApproved && (
+                    <div
+                      style={{
+                        color: 'var(--status-success)',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        marginTop: '0.5rem',
+                      }}
+                    >
+                      <Icon name="check" size={20} /> Approved & Applied to Brain
+                    </div>
+                  )}
+
+                  {sug.status === 'DISMISSED' && (
+                    <div
+                      style={{
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.8rem',
+                        marginTop: '0.5rem',
+                      }}
+                    >
+                      Dismissed by user
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
+
+      <details className="profile-processing-details">
+        <summary>Profile processing details</summary>
+        {/* State & Context Integrity Banner */}
+        <Card
+          className="card"
+          style={{
+            backgroundColor: 'var(--m3-secondary-container)',
+            border: '1px solid var(--surface-border)',
+            padding: '1rem 1.25rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem',
+          }}
+        >
+          <div
+            style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}
+            className="layout-group"
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: '0.72rem',
+                  color: 'var(--text-secondary)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Candidate State Hash
+              </div>
+              <code
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '0.8rem',
+                  color: 'var(--m3-on-surface)',
+                  backgroundColor: 'var(--m3-surface-container-low)',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '0.25rem',
+                }}
+                title={data?.candidateStateHash}
+              >
+                {data?.candidateStateHash ? `${data.candidateStateHash.substring(0, 16)}...` : '—'}
+              </code>
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: '0.72rem',
+                  color: 'var(--text-secondary)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Context Version
+              </div>
+              <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>
+                v{data?.contextVersion ?? 1}
+              </div>
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: '0.72rem',
+                  color: 'var(--text-secondary)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                Verified Claims
+              </div>
+              <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--status-success)' }}>
+                {summary?.verifiedCount ?? 0} verified
+              </div>
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: '0.72rem',
+                  color: 'var(--text-secondary)',
+                  textTransform: 'uppercase',
+                }}
+              >
+                AI Suggestions
+              </div>
+              <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--status-warning)' }}>
+                {summary?.aiSuggestedCount ?? 0} pending review
+              </div>
+            </div>
+          </div>
+
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+            <Icon name="permissions" /> Privacy Minimized • AI context strictly gated on verified &
+            authorized records
+          </div>
+        </Card>
+      </details>
 
       {error && (
         <Card
@@ -975,6 +1186,7 @@ export const CareerIntelligenceView: React.FC = () => {
           className="layout-group"
         >
           {[
+            { key: 'needsReview', label: 'Needs verification' },
             { key: 'all', label: `All (${recordsData?.counts.total ?? 0})` },
             {
               key: 'experiences',
@@ -1083,7 +1295,7 @@ export const CareerIntelligenceView: React.FC = () => {
         {(() => {
           let list: CandidateRecordItemDto[] = [];
           if (!recordsData) list = [];
-          else if (recordTab === 'all') {
+          else if (recordTab === 'all' || recordTab === 'needsReview') {
             list = [
               ...recordsData.records.experiences,
               ...recordsData.records.education,
@@ -1097,10 +1309,15 @@ export const CareerIntelligenceView: React.FC = () => {
             list = recordsData.records[recordTab] || [];
           }
 
+          if (recordTab === 'needsReview')
+            list = list.filter((item) => item.verificationStatus !== 'VERIFIED');
+
           if (list.length === 0) {
             return (
               <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                No records in this category.
+                {recordTab === 'needsReview'
+                  ? 'No details need verification. Choose All to manage saved details and AI permissions.'
+                  : 'No records in this category.'}
               </div>
             );
           }
@@ -1379,211 +1596,6 @@ export const CareerIntelligenceView: React.FC = () => {
             </div>
           );
         })()}
-      </Card>
-
-      {/* Section 4: Verified vs. AI-Suggested (Human-in-the-Loop Approval Gating) */}
-      <Card className="card" style={{ marginBottom: '1.5rem' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '1rem',
-            flexWrap: 'wrap',
-            gap: '0.75rem',
-          }}
-          className="layout-group"
-        >
-          <div>
-            <h3 className="card-title" style={{ marginBottom: '0.25rem' }}>
-              <Icon name="ai" /> AI Profile Suggestions & Discovered Capabilities
-            </h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              AI analyzes uploaded CVs and documents to propose transferable capabilities, career
-              paths, and missing details. Suggestions require explicit approval before entering your
-              Candidate Brain.
-            </p>
-          </div>
-
-          {/* Filter Tabs */}
-          <div style={{ display: 'flex', gap: '0.35rem' }} className="layout-group">
-            {(['PENDING', 'APPROVED', 'DISMISSED', 'ALL'] as const).map((tab) => (
-              <Button
-                key={tab}
-                type="button"
-                className={`btn btn-sm ${suggestionTab === tab ? 'btn-primary' : 'btn-secondary'}`}
-                onClick={() => setSuggestionTab(tab)}
-              >
-                {tab === 'PENDING'
-                  ? `Pending (${suggestions.filter((s) => s.status === 'PENDING').length})`
-                  : tab === 'APPROVED'
-                    ? 'Approved'
-                    : tab}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {filteredSuggestions.length === 0 ? (
-          <div
-            style={{
-              padding: '2.5rem',
-              textAlign: 'center',
-              backgroundColor: 'var(--m3-surface-container-low)',
-              borderRadius: '16px',
-            }}
-          >
-            <div style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>
-              No {suggestionTab.toLowerCase()} suggestions
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Click{' '}
-              <strong>
-                <Icon name="ai" /> Run AI Enrichment
-              </strong>{' '}
-              above to analyze your documents and discover transferable capabilities.
-            </p>
-          </div>
-        ) : (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: '1rem',
-            }}
-            className="layout-group"
-          >
-            {filteredSuggestions.map((sug) => {
-              const isPending = sug.status === 'PENDING';
-              const isApproved = sug.status === 'APPROVED';
-
-              return (
-                <div
-                  key={sug.id}
-                  style={{
-                    backgroundColor: 'var(--m3-surface-container-low)',
-                    border: `1px solid ${isApproved ? 'var(--status-success-border)' : 'var(--surface-border)'}`,
-                    borderRadius: '16px',
-                    padding: '1.1rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '0.5rem',
-                      }}
-                    >
-                      <span
-                        className="nav-tag"
-                        style={{
-                          backgroundColor:
-                            sug.suggestionType === 'TRANSFERABLE_SKILL'
-                              ? 'var(--m3-secondary-container)'
-                              : sug.suggestionType === 'CAREER_PATH'
-                                ? 'var(--m3-secondary-container)'
-                                : 'var(--status-warning-container)',
-                          color:
-                            sug.suggestionType === 'TRANSFERABLE_SKILL'
-                              ? 'var(--m3-on-surface)'
-                              : sug.suggestionType === 'CAREER_PATH'
-                                ? 'var(--m3-on-surface)'
-                                : 'var(--status-warning)',
-                        }}
-                      >
-                        {sug.suggestionType.replace('_', ' ')}
-                      </span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Confidence: {sug.confidence}%
-                      </span>
-                    </div>
-
-                    <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.35rem' }}>
-                      {sug.title}
-                    </div>
-                    <p
-                      style={{
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.85rem',
-                        marginBottom: '0.85rem',
-                      }}
-                    >
-                      {sug.description}
-                    </p>
-
-                    {sug.evidence && (
-                      <div
-                        style={{
-                          fontSize: '0.75rem',
-                          color: 'var(--m3-on-surface)',
-                          backgroundColor: 'var(--m3-surface)',
-                          padding: '0.3rem 0.5rem',
-                          borderRadius: '0.25rem',
-                          marginBottom: '0.85rem',
-                        }}
-                      >
-                        Evidence: {sug.evidence}
-                      </div>
-                    )}
-                  </div>
-
-                  {isPending && (
-                    <div
-                      style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem' }}
-                      className="layout-group"
-                    >
-                      <Button
-                        type="button"
-                        className="btn btn-primary btn-sm"
-                        style={{ flex: 1 }}
-                        onClick={() => handleApplySuggestion(sug.id)}
-                      >
-                        <Icon name="check" size={20} /> Approve
-                      </Button>
-                      <Button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleDismissSuggestion(sug.id)}
-                      >
-                        <Icon name="close" size={20} /> Dismiss
-                      </Button>
-                    </div>
-                  )}
-
-                  {isApproved && (
-                    <div
-                      style={{
-                        color: 'var(--status-success)',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        marginTop: '0.5rem',
-                      }}
-                    >
-                      <Icon name="check" size={20} /> Approved & Applied to Brain
-                    </div>
-                  )}
-
-                  {sug.status === 'DISMISSED' && (
-                    <div
-                      style={{
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.8rem',
-                        marginTop: '0.5rem',
-                      }}
-                    >
-                      Dismissed by user
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
       </Card>
 
       {/* Section 4: Learned Career Preferences (Transparent & Reset-able) */}

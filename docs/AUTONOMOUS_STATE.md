@@ -1,11 +1,13 @@
 # Jobee — Autonomous Execution State
 
-> Active authorized work: **JOB-UI-MIGRATION-01**, led by Codex at the owner’s explicit request. Main checkout now includes `codex/jobee-design-system-migration`. **Owner authorized local integration and live deployment; deployed and live verified.** Verified 586 unit/integration tests, 25 browser checks and all quality gates. See `docs/UI_MIGRATION.md`. Prior release history below is retained.
+> Active authorized continuation: **JOB-UI-MIGRATION-01 — Student UX simplification**, 19 October 2026. Immediate presentation fixes are implemented in isolated branch `codex/jobee-student-ux`; a 24-frame Light/Dark Figma proposal and review protocol are ready. The larger navigation/workspace migration remains **IN PROGRESS**, pending the approved student-review and scope boundary. No changes from this continuation have been merged, pushed or deployed. See `docs/STUDENT_UX.md`.
 
-**UI implementation checkpoint:** `675ec5c06b5e6a572ea5b8ae23803516a7dc904e` (integrated into main; production application release `7b6b85d`, both Railway services successful).
+**Current source baseline:** `a98ac9f073f4d2ed5247b28faa97d13d71477500`. **Local checkpoint:** verified implementation commit pending recording below; 600 unit/integration tests and 26 browser checks passed. **Next action:** review the prototype with target students, finalize the feature-access map and structural scope, then implement the grouped navigation/workspace. Linux Home visual references require refresh/review before merge/release.
+
+**Previous deployed design-system checkpoint:** `675ec5c06b5e6a572ea5b8ae23803516a7dc904e`; production application release `7b6b85d`, both Railway services successful. Historical release records below refer to that completed work, not this new continuation.
 
 **Document Status:** Canonical Durable Execution State  
-**Updated At:** 2026-10-18 15:19:00 UTC
+**Updated At:** 2026-10-19 (student UX continuation)
 
 **Active Lead Engineer:** Codex (JOB-UI-MIGRATION-01, explicit owner assignment)
 
@@ -16,7 +18,9 @@
 
 ---
 
-## 1. Roadmap Snapshot
+## 1. Current continuation and historical roadmap snapshot
+
+Current work is the student UX continuation described above. The following acceptance-release snapshot is retained as historical evidence; its active/backlog labels and counts do not describe this continuation.
 
 - **Current Official Mode:** Authorized Acceptance Fix Release & Controlled Production Validation
 - **Active Backlog Item:** `JOBEE-POST-DEPLOY-ACCEPTANCE-01: CONTINUATION VERIFIED` (Acceptance Harness Security Hardening, Strict TLS, Zero Session Extraction, STUDIO-02 Rejection Blocker Fix, UI-02 Guest Landing View, 579/579 Tests Passing)
