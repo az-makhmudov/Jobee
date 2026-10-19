@@ -67,6 +67,31 @@ describe('Student Home next steps', () => {
     fireEvent.click(screen.getByRole('button', { name: 'View profile' }));
     expect(onNavigate).toHaveBeenCalledWith('profile');
   });
+  it('allows a student to start without a CV while retaining an explicit optional upload path', async () => {
+    show({
+      overview: {
+        ...overview,
+        hasActiveMasterCv: false,
+        completeness: {
+          ...overview.completeness,
+          categories: overview.completeness.categories.map((item) =>
+            item.category === 'master_cv' ? { ...item, completed: false } : item,
+          ),
+        },
+      },
+    });
+    await screen.findByText(
+      'No pending application reviews, profile suggestions or interview preparation found.',
+    );
+    expect(screen.queryByRole('button', { name: 'Continue setup' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'View profile' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Add CV' })).toBeTruthy();
+    expect(
+      screen.getByText(
+        'Your basic details and job preferences are saved. Adding a CV is optional.',
+      ),
+    ).toBeTruthy();
+  });
   it('keeps absent work experience optional without changing the completeness score', async () => {
     show({
       overview: {

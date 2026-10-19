@@ -1,520 +1,257 @@
 {
   "fileKey": "WistInjosE5NSGLCAnpznU",
-  "pageId": "265:2",
-  "reviewIndex": "277:1270",
-  "sidebarId": "265:3",
-  "actionRowId": "269:32",
-  "frames": [
+  "approvedFlow": "303:24509",
+  "screenIndex": "304:36",
+  "sourceDefaults": [
     {
-      "id": "269:34",
-      "name": "Student UX / Home",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:1"
-      },
-      "nodeTypes": {
-        "INSTANCE": 25,
-        "FRAME": 15,
-        "TEXT": 30,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 9
+      "id": "294:959",
+      "name": "Desktop / Home / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "home"
     },
     {
-      "id": "269:117",
-      "name": "Student UX / Find jobs",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:1"
-      },
-      "nodeTypes": {
-        "INSTANCE": 25,
-        "FRAME": 15,
-        "TEXT": 30,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 6
+      "id": "294:1061",
+      "name": "Desktop / Home / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "home"
     },
     {
-      "id": "269:203",
-      "name": "Student UX / Application questions",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:1"
-      },
-      "nodeTypes": {
-        "INSTANCE": 25,
-        "FRAME": 16,
-        "TEXT": 32,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 6
+      "id": "294:1737",
+      "name": "Desktop / Find jobs / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "jobs"
     },
     {
-      "id": "270:205",
-      "name": "Student UX / My applications",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:1"
-      },
-      "nodeTypes": {
-        "INSTANCE": 28,
-        "FRAME": 16,
-        "TEXT": 32,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 10
+      "id": "294:1817",
+      "name": "Desktop / Find jobs / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "jobs"
     },
     {
-      "id": "270:299",
-      "name": "Student UX / My profile",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:1"
-      },
-      "nodeTypes": {
-        "INSTANCE": 26,
-        "FRAME": 16,
-        "TEXT": 30,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 5
+      "id": "294:3267",
+      "name": "Desktop / Find jobs / Job details / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "jobDetail"
     },
     {
-      "id": "270:390",
-      "name": "Student UX / Settings",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:1"
-      },
-      "nodeTypes": {
-        "INSTANCE": 26,
-        "FRAME": 15,
-        "TEXT": 29,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 4
+      "id": "294:3336",
+      "name": "Desktop / Find jobs / Job details / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "jobDetail"
     },
     {
-      "id": "270:479",
-      "name": "Student UX / Job details",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:1"
-      },
-      "nodeTypes": {
-        "INSTANCE": 22,
-        "FRAME": 14,
-        "TEXT": 23,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 6
+      "id": "294:3515",
+      "name": "Desktop / My applications / List / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "applications"
     },
     {
-      "id": "271:432",
-      "name": "Student UX / Final review",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:1"
-      },
-      "nodeTypes": {
-        "INSTANCE": 24,
-        "FRAME": 15,
-        "TEXT": 28,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 8
+      "id": "294:3601",
+      "name": "Desktop / My applications / List / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "applications"
     },
     {
-      "id": "271:517",
-      "name": "Student UX / Messages",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:1"
-      },
-      "nodeTypes": {
-        "INSTANCE": 27,
-        "FRAME": 16,
-        "TEXT": 30,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 9
+      "id": "294:5346",
+      "name": "Desktop / My applications / Documents / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "documents"
     },
     {
-      "id": "271:608",
-      "name": "Student UX / Interviews",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:1"
-      },
-      "nodeTypes": {
-        "INSTANCE": 25,
-        "FRAME": 15,
-        "TEXT": 27,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 9
+      "id": "294:5434",
+      "name": "Desktop / My applications / Documents / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "documents"
     },
     {
-      "id": "271:691",
-      "name": "Student UX / Application documents",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:1"
-      },
-      "nodeTypes": {
-        "INSTANCE": 24,
-        "FRAME": 16,
-        "TEXT": 28,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 7
+      "id": "294:5522",
+      "name": "Desktop / My applications / Questions / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "questions"
     },
     {
-      "id": "273:649",
-      "name": "Student UX / Home \u00b7 Dark",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:2"
-      },
-      "nodeTypes": {
-        "INSTANCE": 25,
-        "FRAME": 15,
-        "TEXT": 30,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 9
+      "id": "294:5615",
+      "name": "Desktop / My applications / Questions / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "questions"
     },
     {
-      "id": "273:668",
-      "name": "Student UX / Find jobs \u00b7 Dark",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:2"
-      },
-      "nodeTypes": {
-        "INSTANCE": 25,
-        "FRAME": 15,
-        "TEXT": 30,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 6
+      "id": "294:5708",
+      "name": "Desktop / My applications / Final review / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "final"
     },
     {
-      "id": "273:690",
-      "name": "Student UX / Application questions \u00b7 Dark",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:2"
-      },
-      "nodeTypes": {
-        "INSTANCE": 25,
-        "FRAME": 16,
-        "TEXT": 32,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 6
+      "id": "294:5794",
+      "name": "Desktop / My applications / Final review / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "final"
     },
     {
-      "id": "273:715",
-      "name": "Student UX / My applications \u00b7 Dark",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:2"
-      },
-      "nodeTypes": {
-        "INSTANCE": 28,
-        "FRAME": 16,
-        "TEXT": 32,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 10
+      "id": "294:9277",
+      "name": "Desktop / My applications / Progress / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "progress"
     },
     {
-      "id": "273:740",
-      "name": "Student UX / My profile \u00b7 Dark",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:2"
-      },
-      "nodeTypes": {
-        "INSTANCE": 26,
-        "FRAME": 16,
-        "TEXT": 30,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 5
+      "id": "294:9365",
+      "name": "Desktop / My applications / Progress / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "progress"
     },
     {
-      "id": "273:763",
-      "name": "Student UX / Settings \u00b7 Dark",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:2"
-      },
-      "nodeTypes": {
-        "INSTANCE": 26,
-        "FRAME": 15,
-        "TEXT": 29,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 4
+      "id": "294:9692",
+      "name": "Desktop / My applications / Needs review / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "review"
     },
     {
-      "id": "274:1002",
-      "name": "Student UX / Job details \u00b7 Dark",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:2"
-      },
-      "nodeTypes": {
-        "INSTANCE": 22,
-        "FRAME": 14,
-        "TEXT": 23,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 6
+      "id": "294:9780",
+      "name": "Desktop / My applications / Needs review / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "review"
     },
     {
-      "id": "274:1026",
-      "name": "Student UX / Final review \u00b7 Dark",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:2"
-      },
-      "nodeTypes": {
-        "INSTANCE": 24,
-        "FRAME": 15,
-        "TEXT": 28,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 8
+      "id": "294:14462",
+      "name": "Desktop / My profile / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "profile"
     },
     {
-      "id": "274:1049",
-      "name": "Student UX / Messages \u00b7 Dark",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:2"
-      },
-      "nodeTypes": {
-        "INSTANCE": 27,
-        "FRAME": 16,
-        "TEXT": 30,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 9
+      "id": "294:14544",
+      "name": "Desktop / My profile / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "profile"
     },
     {
-      "id": "274:1075",
-      "name": "Student UX / Interviews \u00b7 Dark",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:2"
-      },
-      "nodeTypes": {
-        "INSTANCE": 25,
-        "FRAME": 15,
-        "TEXT": 27,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 9
+      "id": "294:14626",
+      "name": "Desktop / My profile / Getting started / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "setup"
     },
     {
-      "id": "274:1100",
-      "name": "Student UX / Application documents \u00b7 Dark",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:2"
-      },
-      "nodeTypes": {
-        "INSTANCE": 24,
-        "FRAME": 16,
-        "TEXT": 28,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 7
+      "id": "294:14699",
+      "name": "Desktop / My profile / Getting started / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "setup"
     },
     {
-      "id": "278:1276",
-      "name": "Student UX / Getting started",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:1"
-      },
-      "nodeTypes": {
-        "INSTANCE": 23,
-        "FRAME": 14,
-        "TEXT": 26,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 7
+      "id": "294:15632",
+      "name": "Desktop / My applications / Messages / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "messages"
     },
     {
-      "id": "278:1363",
-      "name": "Student UX / Getting started \u00b7 Dark",
-      "w": 1440,
-      "h": 1080,
-      "mode": {
-        "VariableCollectionId:4:23": "4:2"
-      },
-      "nodeTypes": {
-        "INSTANCE": 23,
-        "FRAME": 14,
-        "TEXT": 26,
-        "ELLIPSE": 1,
-        "VECTOR": 6,
-        "RECTANGLE": 1
-      },
-      "images": [],
-      "fonts": ["Google Sans Flex"],
-      "overflow": [],
-      "links": 7
+      "id": "294:15715",
+      "name": "Desktop / My applications / Messages / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "messages"
+    },
+    {
+      "id": "294:17452",
+      "name": "Desktop / My applications / Interviews / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "interviews"
+    },
+    {
+      "id": "294:17529",
+      "name": "Desktop / My applications / Interviews / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "interviews"
+    },
+    {
+      "id": "294:18882",
+      "name": "Desktop / Settings / Account basics / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "settings"
+    },
+    {
+      "id": "294:18962",
+      "name": "Desktop / Settings / Account basics / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "settings"
+    },
+    {
+      "id": "298:2781",
+      "name": "Desktop / My profile / Add document / Default \u00b7 Light",
+      "theme": "Light",
+      "key": "documentIntent"
+    },
+    {
+      "id": "298:2876",
+      "name": "Desktop / My profile / Add document / Default \u00b7 Dark",
+      "theme": "Dark",
+      "key": "documentIntent"
     }
   ],
-  "validation": {
-    "editable": true,
-    "images": 0,
-    "fonts": ["Google Sans Flex"],
-    "frameOverflow": 0,
-    "prototype": "Navigation links; unresolved approvals disabled. Later final review is a separate example, not an approval bypass."
-  }
+  "supportPairs": [
+    {
+      "pageId": "87:353",
+      "key": "board",
+      "light": "87:354",
+      "dark": "297:987"
+    },
+    {
+      "pageId": "87:373",
+      "key": "materials",
+      "light": "87:374",
+      "dark": "297:50689"
+    },
+    {
+      "pageId": "87:361",
+      "key": "uploadedDocuments",
+      "light": "88:2052",
+      "dark": "297:50829"
+    },
+    {
+      "pageId": "87:365",
+      "key": "answers",
+      "light": "88:1865",
+      "dark": "297:50989"
+    },
+    {
+      "pageId": "87:367",
+      "key": "preferences",
+      "light": "87:368",
+      "dark": "297:51141"
+    },
+    {
+      "pageId": "87:349",
+      "key": "activity",
+      "light": "87:350",
+      "dark": "297:51340"
+    },
+    {
+      "pageId": "87:375",
+      "key": "auth",
+      "light": "87:376",
+      "dark": "297:51524"
+    },
+    {
+      "pageId": "89:3500",
+      "key": "addJob",
+      "light": "89:3501",
+      "dark": "297:51565"
+    },
+    {
+      "pageId": "87:355",
+      "key": "suggestions",
+      "light": "168:1675",
+      "dark": "297:51771"
+    },
+    {
+      "pageId": "87:355",
+      "key": "profileReview",
+      "light": "166:1073",
+      "dark": "297:51884"
+    },
+    {
+      "pageId": "87:357",
+      "key": "advanced",
+      "light": "87:358",
+      "dark": "297:52027"
+    }
+  ],
+  "status": "Owner-approved design implemented and verified locally; release pending",
+  "date": "2026-10-19"
 }

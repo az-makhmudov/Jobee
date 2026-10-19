@@ -9,11 +9,10 @@ import type {
   EmailSyncStatsDto,
 } from '@job-agent/shared';
 
-export function EmailIntelligenceView() {
+type MessageTab = 'queue' | 'messages' | 'accounts' | 'settings';
+export function EmailIntelligenceView({ initialTab = 'messages' }: { initialTab?: MessageTab }) {
   const { confirm } = useFeedback();
-  const [activeTab, setActiveTab] = useState<'queue' | 'messages' | 'accounts' | 'settings'>(
-    'messages',
-  );
+  const [activeTab, setActiveTab] = useState<MessageTab>(initialTab);
   const [stats, setStats] = useState<EmailSyncStatsDto | null>(null);
   const [accounts, setAccounts] = useState<EmailAccountDto[]>([]);
   const [messages, setMessages] = useState<EmailMessageDto[]>([]);
@@ -138,8 +137,7 @@ export function EmailIntelligenceView() {
         <div>
           <h1 className="page-title">Messages</h1>
           <p className="page-subtitle">
-            Autonomous recruitment email parsing, entity resolution, and deterministic CRM state
-            synchronization.
+            Read recruiter updates and review suggested changes to your applications.
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }} className="layout-group">
@@ -199,192 +197,205 @@ export function EmailIntelligenceView() {
         </div>
       )}
 
-      {/* KPI Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '1rem',
-          marginBottom: '1.5rem',
-        }}
-        className="layout-group"
-      >
-        <Card className="card" style={{ padding: '1rem' }}>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Connected Inboxes
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', marginTop: '0.25rem' }}>
-            {stats?.connectedAccountsCount ?? accounts.length}
-          </div>
-        </Card>
-
-        <Card className="card" style={{ padding: '1rem' }}>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Ingested Messages
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 'bold', marginTop: '0.25rem' }}>
-            {stats?.totalMessagesIngested ?? messages.length}
-          </div>
-        </Card>
-
-        <Card className="card" style={{ padding: '1rem' }}>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Auto-Synced Updates
-          </div>
-          <div
-            style={{
-              fontSize: '1.75rem',
-              fontWeight: 'bold',
-              marginTop: '0.25rem',
-              color: 'var(--success)',
-            }}
-          >
-            {stats?.autoSyncedUpdatesCount ?? 0}
-          </div>
-        </Card>
-
-        <Card className="card" style={{ padding: '1rem' }}>
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Discovered Jobs</div>
-          <div
-            style={{
-              fontSize: '1.75rem',
-              fontWeight: 'bold',
-              marginTop: '0.25rem',
-              color: 'var(--accent)',
-            }}
-          >
-            {stats?.jobsDiscoveredCount ?? 0}
-          </div>
-        </Card>
-
-        <Card
-          className="card"
-          style={{
-            padding: '1rem',
-            borderLeft: reviewItems.length > 0 ? '4px solid var(--warning)' : undefined,
-          }}
-        >
-          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            Human Review Queue
-          </div>
-          <div
-            style={{
-              fontSize: '1.75rem',
-              fontWeight: 'bold',
-              marginTop: '0.25rem',
-              color: reviewItems.length > 0 ? 'var(--warning)' : 'inherit',
-            }}
-          >
-            {stats?.pendingReviewCount ?? reviewItems.length}
-          </div>
-        </Card>
-      </div>
-
-      {/* Account Connection Bar */}
-      <Card className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+      <details className="student-tools" style={{ marginBottom: 24 }}>
+        <summary>Message activity</summary>
+        {/* KPI Cards */}
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
             gap: '1rem',
+            marginBottom: '1.5rem',
           }}
           className="layout-group"
         >
-          <div>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>Connected Accounts</h3>
-            {accounts.length === 0 ? (
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                No email accounts connected yet. Connect an account to monitor recruiter responses
-                and job alerts.
-              </p>
-            ) : (
-              <div
-                style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.5rem' }}
-                className="layout-group"
-              >
-                {accounts.map((acc) => (
-                  <div
-                    key={acc.id}
-                    style={{
-                      background: 'var(--m3-surface)',
-                      padding: '0.5rem 0.75rem',
-                      borderRadius: '16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.75rem',
-                      border: '1px solid var(--surface-border)',
-                    }}
-                    className="layout-group"
-                  >
-                    <span
-                      style={{
-                        fontSize: '0.8rem',
-                        padding: '0.2rem 0.5rem',
-                        borderRadius: '16px',
-                        background:
-                          acc.provider === 'GMAIL'
-                            ? 'var(--status-danger-container)'
-                            : 'var(--m3-secondary-container)',
-                        color: 'var(--m3-on-surface)',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {acc.provider === 'FIXTURE' ? 'OFFLINE FIXTURE (SIMULATED)' : acc.provider}
-                    </span>
-                    <span style={{ fontWeight: 500 }}>{acc.emailAddress}</span>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      Last sync:{' '}
-                      {acc.lastSyncAt ? new Date(acc.lastSyncAt).toLocaleTimeString() : 'Never'}
-                    </span>
-                    <Button
-                      className="btn btn-sm btn-outline-danger"
-                      style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
-                      onClick={() => handleDisconnect(acc.id)}
-                    >
-                      Disconnect
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <Card className="card" style={{ padding: '1rem' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Connected Inboxes
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 'bold', marginTop: '0.25rem' }}>
+              {stats?.connectedAccountsCount ?? accounts.length}
+            </div>
+          </Card>
+
+          <Card className="card" style={{ padding: '1rem' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Ingested Messages
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 'bold', marginTop: '0.25rem' }}>
+              {stats?.totalMessagesIngested ?? messages.length}
+            </div>
+          </Card>
+
+          <Card className="card" style={{ padding: '1rem' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Auto-Synced Updates
+            </div>
+            <div
+              style={{
+                fontSize: '1.75rem',
+                fontWeight: 'bold',
+                marginTop: '0.25rem',
+                color: 'var(--success)',
+              }}
+            >
+              {stats?.autoSyncedUpdatesCount ?? 0}
+            </div>
+          </Card>
+
+          <Card className="card" style={{ padding: '1rem' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Discovered Jobs
+            </div>
+            <div
+              style={{
+                fontSize: '1.75rem',
+                fontWeight: 'bold',
+                marginTop: '0.25rem',
+                color: 'var(--accent)',
+              }}
+            >
+              {stats?.jobsDiscoveredCount ?? 0}
+            </div>
+          </Card>
+
+          <Card
+            className="card"
+            style={{
+              padding: '1rem',
+              borderLeft: reviewItems.length > 0 ? '4px solid var(--warning)' : undefined,
+            }}
+          >
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Human Review Queue
+            </div>
+            <div
+              style={{
+                fontSize: '1.75rem',
+                fontWeight: 'bold',
+                marginTop: '0.25rem',
+                color: reviewItems.length > 0 ? 'var(--warning)' : 'inherit',
+              }}
+            >
+              {stats?.pendingReviewCount ?? reviewItems.length}
+            </div>
+          </Card>
+        </div>
+
+        {/* Account Connection Bar */}
+      </details>
+      <Button
+        className="btn-outline"
+        onClick={() => setActiveTab(activeTab === 'accounts' ? 'messages' : 'accounts')}
+      >
+        {activeTab === 'accounts' ? 'Back to messages' : 'Manage email connection'}
+      </Button>
+      {activeTab === 'accounts' && (
+        <Card className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'flex-end',
-              gap: '0.4rem',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '1rem',
             }}
             className="layout-group"
           >
-            <div style={{ display: 'flex', gap: '0.75rem' }} className="layout-group">
-              <Button className="btn btn-primary" onClick={handleConnectGmail}>
-                + Connect Gmail (OAuth)
-              </Button>
-              <Button
-                className="btn btn-outline"
-                onClick={handleConnectFixture}
-                title="Connect offline simulated email fixture for local testing without live Google credentials."
-              >
-                <Icon name="settings" size={20} /> Offline Test Fixture
-              </Button>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '0.25rem' }}>Connected Accounts</h3>
+              {accounts.length === 0 ? (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                  No email accounts connected yet. Connect an account to monitor recruiter responses
+                  and job alerts.
+                </p>
+              ) : (
+                <div
+                  style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginTop: '0.5rem' }}
+                  className="layout-group"
+                >
+                  {accounts.map((acc) => (
+                    <div
+                      key={acc.id}
+                      style={{
+                        background: 'var(--m3-surface)',
+                        padding: '0.5rem 0.75rem',
+                        borderRadius: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        border: '1px solid var(--surface-border)',
+                      }}
+                      className="layout-group"
+                    >
+                      <span
+                        style={{
+                          fontSize: '0.8rem',
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '16px',
+                          background:
+                            acc.provider === 'GMAIL'
+                              ? 'var(--status-danger-container)'
+                              : 'var(--m3-secondary-container)',
+                          color: 'var(--m3-on-surface)',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {acc.provider === 'FIXTURE' ? 'OFFLINE FIXTURE (SIMULATED)' : acc.provider}
+                      </span>
+                      <span style={{ fontWeight: 500 }}>{acc.emailAddress}</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        Last sync:{' '}
+                        {acc.lastSyncAt ? new Date(acc.lastSyncAt).toLocaleTimeString() : 'Never'}
+                      </span>
+                      <Button
+                        className="btn btn-sm btn-outline-danger"
+                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                        onClick={() => handleDisconnect(acc.id)}
+                      >
+                        Disconnect
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              Live sync requires Google OAuth credentials. Test fixture runs locally offline.
-            </span>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                gap: '0.4rem',
+              }}
+              className="layout-group"
+            >
+              <div style={{ display: 'flex', gap: '0.75rem' }} className="layout-group">
+                <Button className="btn btn-primary" onClick={handleConnectGmail}>
+                  + Connect Gmail (OAuth)
+                </Button>
+                <Button
+                  className="btn btn-outline"
+                  onClick={handleConnectFixture}
+                  title="Connect offline simulated email fixture for local testing without live Google credentials."
+                >
+                  <Icon name="settings" size={20} /> Offline Test Fixture
+                </Button>
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                Live sync requires Google OAuth credentials. Test fixture runs locally offline.
+              </span>
+            </div>
           </div>
-        </div>
-      </Card>
-
+        </Card>
+      )}
       <Tabs
         panelId="messages-panel"
         label="Messages workspace"
         value={activeTab}
         items={[
-          { id: 'queue', label: `Review queue (${reviewItems.length})` },
           { id: 'messages', label: `Messages (${messages.length})` },
+          { id: 'queue', label: `Needs review (${reviewItems.length})` },
+          { id: 'accounts', label: 'Email connection' },
           { id: 'settings', label: 'Security & policies' },
         ]}
         onChange={(id) => setActiveTab(id as typeof activeTab)}
@@ -554,7 +565,7 @@ export function EmailIntelligenceView() {
         {/* Tab 2: Message Log */}
         {activeTab === 'messages' && (
           <Card className="card" style={{ padding: '1rem' }}>
-            <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>Ingested Email Messages</h3>
+            <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>Your messages</h3>
             {messages.length === 0 ? (
               <p style={{ color: 'var(--text-secondary)' }}>
                 No messages ingested yet. Run sync above.

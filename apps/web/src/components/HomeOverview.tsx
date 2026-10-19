@@ -60,7 +60,7 @@ export function HomeOverview({
   }, [attempt]);
   const firstName = overview.profile?.fullName?.trim().split(/\s+/)[0];
   const setupItems = overview.completeness.categories.filter(
-    (item) => !item.completed && ['profile', 'master_cv', 'preferences'].includes(item.category),
+    (item) => !item.completed && ['profile', 'preferences'].includes(item.category),
   );
   const tasks: { title: string; description: string; action: string; section: string }[] = [];
   if (materials && materials.pendingApprovals > 0)
@@ -106,23 +106,22 @@ export function HomeOverview({
   const incompleteChecks =
     !materials || !interviews || (!suggestionsLoading && suggestionsCount === null);
   return (
-    <section aria-label="Home overview">
+    <section className="student-stack" aria-label="Home overview">
       <header className="section-toolbar">
         <div>
           <h1 className="page-title">
             {firstName ? 'Welcome back, ' + firstName : 'Welcome to your workspace'}
           </h1>
-          <p className="page-subtitle">
-            Your next steps, applications and opportunities — in one place.
-          </p>
+          <p className="page-subtitle">A clear next step for your job search.</p>
         </div>
         <Button className="btn-outline" onClick={onProgress}>
           Progress & activity
         </Button>
       </header>
-      <div className="home-grid">
+      <div className="student-stack">
         <Card>
           <h2 className="card-title">Your next steps</h2>
+          <p className="page-subtitle">Only work that needs your attention appears here.</p>
           {tasks.slice(0, 3).map((task, index) => (
             <div className="action-row" key={task.title}>
               <div>
@@ -163,11 +162,39 @@ export function HomeOverview({
           )}
         </Card>
         <Card>
+          <div className="section-toolbar">
+            <h2 className="card-title">Jobs to explore</h2>
+            <Button className="btn-ghost" onClick={() => onNavigate('jobs')}>
+              All jobs{jobs ? ' · ' + jobs.totalJobs : ''}
+            </Button>
+          </div>
+          {jobs?.recentJobs?.length ? (
+            jobs.recentJobs.slice(0, 2).map((job) => (
+              <div className="action-row" key={job.id}>
+                <div>
+                  <strong>{job.title}</strong>
+                  <p>
+                    {job.company} · {job.locationText || 'Location not specified'}
+                    {job.matchSummary ? ' · ' + job.matchSummary.overallScore + '% match' : ''}
+                  </p>
+                </div>
+                <Button className="btn-ghost" onClick={() => onNavigate('jobs', job.id)}>
+                  View job
+                </Button>
+              </div>
+            ))
+          ) : (
+            <p className="page-subtitle">Find opportunities in Jobs to start exploring your fit.</p>
+          )}
+        </Card>
+        <Card>
           <h2 className="card-title">Your profile</h2>
           <p>
             {setupItems.length
               ? 'Add a few details to personalize your search.'
-              : 'Your basic details, CV and job preferences are saved.'}
+              : overview.hasActiveMasterCv
+                ? 'Your basic details, CV and job preferences are saved.'
+                : 'Your basic details and job preferences are saved. Adding a CV is optional.'}
           </p>
           {setupItems.length > 0 && (
             <ul>
@@ -203,76 +230,57 @@ export function HomeOverview({
           </details>
         </Card>
       </div>
-      <Card style={{ marginTop: 24 }}>
-        <div className="section-toolbar">
-          <h2 className="card-title">Jobs to explore</h2>
-          <Button className="btn-ghost" onClick={() => onNavigate('jobs')}>
-            All jobs{jobs ? ' · ' + jobs.totalJobs : ''}
-          </Button>
-        </div>
-        {jobs?.recentJobs?.length ? (
-          jobs.recentJobs.slice(0, 3).map((job) => (
-            <div className="action-row" key={job.id}>
-              <div>
-                <strong>{job.title}</strong>
-                <p>
-                  {job.company} · {job.locationText || 'Location not specified'}
-                  {job.matchSummary ? ' · ' + job.matchSummary.overallScore + '% match' : ''}
-                </p>
+      <details className="advanced-details">
+        <summary>Applications & activity</summary>
+        <Card>
+          <div className="section-toolbar">
+            <h2 className="card-title">Your applications</h2>
+            <Button className="btn-ghost" onClick={() => onNavigate('applications')}>
+              All applications
+            </Button>
+          </div>
+          {failed ? (
+            <p className="page-subtitle">
+              Applications could not be loaded. Open the tracker to retry.
+            </p>
+          ) : applications.length ? (
+            applications.map((app) => (
+              <div className="action-row" key={app.id}>
+                <div>
+                  <strong>
+                    {app.jobTitle} · {app.company}
+                  </strong>
+                  <p>
+                    {app.status.replaceAll('_', ' ')}
+                    {app.nextAction ? ' · Next: ' + app.nextAction : ''}
+                  </p>
+                </div>
+                <Button className="btn-ghost" onClick={() => onNavigate('applications', app.id)}>
+                  Open
+                </Button>
               </div>
-              <Button className="btn-ghost" onClick={() => onNavigate('jobs', job.id)}>
-                View job
-              </Button>
-            </div>
-          ))
-        ) : (
-          <p className="page-subtitle">Find opportunities in Jobs to start exploring your fit.</p>
-        )}
-      </Card>
-      <Card>
-        <div className="section-toolbar">
-          <h2 className="card-title">Your applications</h2>
-          <Button className="btn-ghost" onClick={() => onNavigate('applications')}>
-            All applications
-          </Button>
+            ))
+          ) : (
+            <p className="page-subtitle">Your tracked applications will appear here.</p>
+          )}
+        </Card>
+        <div className="account-actions">
+          {[
+            { section: 'emails', label: 'Messages' },
+            { section: 'interviews', label: 'Interviews' },
+            { section: 'documents', label: 'CV & Documents' },
+            { section: 'preferences', label: 'Job preferences' },
+          ].map((item) => (
+            <Button
+              key={item.section}
+              className="btn-ghost"
+              onClick={() => onNavigate(item.section)}
+            >
+              {item.label}
+            </Button>
+          ))}
         </div>
-        {failed ? (
-          <p className="page-subtitle">
-            Applications could not be loaded. Open the tracker to retry.
-          </p>
-        ) : applications.length ? (
-          applications.map((app) => (
-            <div className="action-row" key={app.id}>
-              <div>
-                <strong>
-                  {app.jobTitle} · {app.company}
-                </strong>
-                <p>
-                  {app.status.replaceAll('_', ' ')}
-                  {app.nextAction ? ' · Next: ' + app.nextAction : ''}
-                </p>
-              </div>
-              <Button className="btn-ghost" onClick={() => onNavigate('applications', app.id)}>
-                Open
-              </Button>
-            </div>
-          ))
-        ) : (
-          <p className="page-subtitle">Your tracked applications will appear here.</p>
-        )}
-      </Card>
-      <div className="account-actions">
-        {[
-          { section: 'emails', label: 'Messages' },
-          { section: 'interviews', label: 'Interviews' },
-          { section: 'documents', label: 'CV & Documents' },
-          { section: 'preferences', label: 'Job preferences' },
-        ].map((item) => (
-          <Button key={item.section} className="btn-ghost" onClick={() => onNavigate(item.section)}>
-            {item.label}
-          </Button>
-        ))}
-      </div>
+      </details>
     </section>
   );
 }

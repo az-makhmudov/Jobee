@@ -1,3 +1,4 @@
+import { Button } from './Primitives.js';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -52,19 +53,18 @@ export function AppearanceSettings() {
     <section className="card">
       <h2 className="card-title">Appearance</h2>
       <p className="page-subtitle">Choose what feels comfortable. System follows your device.</p>
-      <label className="form-label" htmlFor="jobee-appearance">
-        Color theme
-      </label>
-      <select
-        id="jobee-appearance"
-        className="form-input"
-        value={preference}
-        onChange={(event) => setPreference(event.target.value as ThemePreference)}
-      >
-        <option value="system">System</option>
-        <option value="light">Light</option>
-        <option value="dark">Dark</option>
-      </select>
+      <div className="account-actions" role="group" aria-label="Color theme">
+        {(['system', 'light', 'dark'] as const).map((value) => (
+          <Button
+            key={value}
+            className={preference === value ? 'btn-primary' : 'btn-outline'}
+            aria-pressed={preference === value}
+            onClick={() => setPreference(value)}
+          >
+            {value[0].toUpperCase() + value.slice(1)}
+          </Button>
+        ))}
+      </div>
     </section>
   );
 }

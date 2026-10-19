@@ -1,86 +1,56 @@
-# Student UX — implementation and prototype checkpoint
+# Student UX — approved application implementation
 
-Parent milestone: **JOB-UI-MIGRATION-01**, owner-authorized student UX continuation, 19 October 2026.
+Parent milestone: **JOB-UI-MIGRATION-01**, student UX continuation, 19 October 2026.
 
-Status: **IN PROGRESS**. Immediate presentation fixes are implemented and tested locally. The larger navigation/workspace proposal is an editable Figma review prototype. Student usability sessions, final structural scope approval, Linux visual-reference refresh and release remain pending. This checkpoint is not a production release or a claim that the complete simplification is implemented.
+Status: **LOCAL IMPLEMENTATION VERIFIED; RELEASE PENDING**. The owner approved the simplified design and flow, requested adaptation across the existing Figma file, and then explicitly authorized application implementation. This supersedes the earlier prototype-only boundary. No human student usability sessions have been claimed. Production release remains separate from this local implementation.
 
-Baseline: `a98ac9f073f4d2ed5247b28faa97d13d71477500`. Implementation checkpoint: `04548142fe3ced25fa76b546cf112cd1c7829df8`. Isolated branch: `codex/jobee-student-ux`. Main checkout and its pre-existing `AGENTS.md` edit are untouched.
+Baseline: `a98ac9f073f4d2ed5247b28faa97d13d71477500`. Prior verified source checkpoint: `04548142fe3ced25fa76b546cf112cd1c7829df8`. Branch: `codex/jobee-student-ux`. Main checkout and its pre-existing `AGENTS.md` edit are preserved.
 
-## Implemented locally
+## Approved design
 
-- Home derives up to three next steps from actual pending approvals, interview metrics, pending profile suggestions and unverified facts. Empty queues no longer create approval/interview tasks. Loading and failed checks cannot claim that everything is clear.
-- Basic profile setup uses the existing profile/CV/preferences categories. Completed basic setup offers View profile/View CV; missing professional experience does not force Continue setup. The unchanged completeness score is secondary and explicitly separate from accuracy, AI permission and submission authorization.
-- Application detail describes recorded submission evidence. A missing frozen package no longer implies that a draft was submitted externally. Running and uncertain submissions keep distinct explanations.
-- Studio says Not created yet and Create application documents when no version exists. Existing documents retain generation/version history. Actions use View application and Add to my applications; the CV tab no longer emphasizes the number of employment entries.
-- Applications initially uses List, remembers an explicit Board choice and exposes its selected view accessibly. APPLYING appears in Preparing, outside the confirmed Applied column; all canonical statuses remain unchanged.
-- Profile review leads with suggestions and defaults to records needing verification. All/category views retain existing record management. Processing hashes/context metadata sit in a disclosure. Verification, AI-use permission and suggestion acceptance remain separate operations.
-- Messages opens on Messages instead of an empty review queue. Review remains available.
+[Approved flow guide](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=303-24509) · [Screen and state index](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=304-36). These replace the earlier 24-frame proposal as the current reference. [Machine-readable source mapping](student-ux-figma.json) contains the Light/Dark defaults and supporting frames.
 
-No backend, shared domain model, database schema, worker, scoring formula, consent default or authorization rule changed. The new Home lookup reads the existing pending-suggestions endpoint. No feature was removed based on presumed lack of use.
+## Implemented experience
 
-## Editable Figma proposal
+- Four primary destinations: Home, Find jobs, My applications and My profile. Settings remains a bottom utility. Existing section identifiers and state navigation remain compatible with notifications and record callbacks.
+- Home leads with up to three genuine next steps, two recent opportunities and a compact profile summary. Detailed progress and the application summary remain accessible. Work history and CV upload are optional for basic setup presentation; completeness scoring is unchanged.
+- Find jobs leads with keyword search, discovery, adding a job link and readable opportunity rows. Policy/source/freshness filters, sorting, per-job and batch analysis, metrics and refresh remain available through named tools and disclosures.
+- My applications groups All applications, Needs review, Interviews and Messages. The default tracker is a short list; a remembered Board preference, detailed table, all filters, analytics, manual recording and prepared materials remain accessible.
+- A selected application has Documents, Questions, Final review and Progress & details. The linked package/application IDs stay in one mounted workspace. Editors retain unsaved drafts across its tabs. Returning from a review queue returns to that queue.
+- Documents exposes current CV/letter viewing and editing, downloads, regeneration and source information. Questions retains every individual approval, rejection and policy override. Final review is unavailable until server-provided readiness passes. This presentation gate supplements the unchanged server authorization checks.
+- Progress starts with recorded status, submission evidence and the next step. Notes, contacts, assessments, interviews, offers, corrections, archive/restore and the audit timeline remain in the detailed record. Browser assistance is optional; pending/running/uncertain run states and explicit submission confirmation remain distinct. A failed history lookup cannot claim that a submission succeeded.
+- My profile leads with suggestions and direct access to personal details, studies/projects, documents and preferences. Skills, languages, certifications, facts, links, optional employment, saved answers and separate AI-use permissions remain reachable.
+- Add document asks whether the user wants storage/inline preview or CV extraction. Choosing a path alone does not upload, extract, accept facts or grant permission. Existing basic/external parser choices, conflicts, import acceptance and verification remain unchanged.
+- Settings defaults to appearance, connections and privacy entry points. Connected accounts, Advanced settings and System activity retain their existing controls and authorization. Messages and interview workspaces keep sync, review, calendar, preparation and debrief controls.
+- Shared M3 semantic colors, Google Sans Flex, local Material Symbols and content-driven card heights remain. Context navigation uses the approved pill style; legacy detailed-editor tabs retain their original interaction semantics. System/Light/Dark and existing narrow-screen access remain supported.
 
-Existing file only: [Start here — student UX review](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=277-1270). New page: **40 — Student UX · Simplification prototype**. Existing design-system pages and original screen pages were preserved.
+## Feature access and preservation
 
-Twelve desktop views, each in Light and Dark, use Google Sans Flex, existing semantic variables/components and content-driven cards. They contain editable text, component instances and vectors; no flattened UI images. The proposed sidebar has Home, Find jobs, My applications and My profile, with Settings as a utility.
+| Existing capability                                                   | Current home                                                                 |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Dashboard metrics, activity, notifications                            | Home / Progress & activity; notification utility; Settings / System activity |
+| Discovery, import, search, job analysis/edit/archive/feedback         | Find jobs; More filters; Analysis & source details; selected job             |
+| CRM, all 17 lifecycle statuses, corrections, archive/restore          | My applications / All applications; Board/List; detailed record              |
+| Analytics, manual record, orphan/untracked prepared packages          | My applications / More tools; Prepared materials                             |
+| CV/letter generation, editing, downloads and sources                  | Selected application / Documents / contextual tools                          |
+| Questions, independent approvals, rejection/reconfirmation, overrides | My applications / Needs review; selected application / Questions             |
+| Browser runs, authorization, cancellation, uncertainty resolution     | Selected application / detailed record / Browser assistance & run history    |
+| Email review/classification/status/link, original messages, accounts  | My applications / Messages; Settings / Connected accounts / Email            |
+| Calendar, conflicts, interview briefs/debriefs, scheduling            | My applications / Interviews; Settings / Connected accounts / Calendar       |
+| Every profile record type, Career Intelligence and AI permissions     | My profile / overview; More profile details; Review suggestions              |
+| Upload/preview/download/delete, Smart Import and comparisons          | My profile / CV & Documents / Add document                                   |
+| Saved answers and all preference/policy fields                        | My profile / Saved answers and Preferences                                   |
+| Providers/configuration, diagnostics and activity                     | Settings / Advanced settings and System activity                             |
+| Guest/pilot/admin/session/invitation behavior                         | Existing shell and account dialogs                                           |
 
-| View                                          | Light                                                                                 | Dark                                                                                  |
-| --------------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| Home                                          | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=269-34)   | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=273-649)  |
-| Find jobs                                     | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=269-117)  | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=273-668)  |
-| Job details                                   | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=270-479)  | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=274-1002) |
-| Application documents                         | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=271-691)  | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=274-1100) |
-| Application questions                         | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=269-203)  | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=273-690)  |
-| Later final-review example                    | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=271-432)  | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=274-1026) |
-| My applications                               | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=270-205)  | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=273-715)  |
-| My profile                                    | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=270-299)  | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=273-740)  |
-| Messages                                      | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=271-517)  | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=274-1049) |
-| Interviews                                    | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=271-608)  | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=274-1075) |
-| Settings                                      | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=270-390)  | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=273-763)  |
-| Getting started, including no CV/work history | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=278-1276) | [Open](https://www.figma.com/design/WistInjosE5NSGLCAnpznU/Untitled?node-id=278-1363) |
+The [25-component / 18-closure-group inventory](UI_MIGRATION_MAP.md) remains the exhaustive behavior reference. The contract audit compares all 184 existing calls/payloads against `9c1b206`. Backend endpoints, shared domain types, schemas, worker logic, scoring formulas, processing-consent defaults and authorization rules are outside this presentation change.
 
-Navigation links connect the major review journey and remain within the chosen theme. The prototype is a navigation/layout proposal, not a functional replacement for editors, generation, OAuth, downloads or submission. Not every secondary control is interactive. Unanswered questions keep save/approve and final-review continuation disabled. The review guide opens a separate later resolved final-review example for inspection; no click silently resolves other blockers. All example people/companies/records are synthetic.
+## Validation and preview
 
-Machine-readable IDs and structural checks: [student-ux-figma.json](student-ux-figma.json).
+Local preview: **http://127.0.0.1:5183**. Use synthetic account `alex.morgan@example.test` / `JobeePreview123!`. The API uses disposable loopback PostgreSQL, disabled external AI and no worker. No production account is used for mutation tests.
 
-## Planned feature homes before structural development
+Run `UI_TEST_WEB_PORT=5183 JOBEE_UI_PREVIEW_FIXTURES=local-only npm run test:ui` with isolated API/web services. Existing tests now follow the contextual navigation; added regressions cover draft retention, blocked final review, manual applications without packages, retrieval errors, explicit document intent and keyboard navigation over disabled steps.
 
-These are proposed destinations, not claims that the new structure is already implemented or fully represented by the prototype. The current eight-destination application keeps every existing feature accessible until reconciliation and review are complete. The [existing 25-component / 18-group inventory](UI_MIGRATION_MAP.md) remains the exhaustive behavior checklist.
+All eight required gates pass locally: 606 tests in 67 files, typecheck, lint (701 existing warnings, zero errors), build, format and isolated database checks/migrations. All 32 Chromium checks pass, including Light/Dark Home visual comparisons at the unchanged 1% tolerance. The 42-render inventory covers 21 desktop views in both themes; targeted dialogs and document previews have additional captures. See [the implementation report](STUDENT_UX_IMPLEMENTATION_REPORT.md) and task log. The Linux Home reference refresh remains a merge/release check; macOS images must not be copied over Linux references. Human usability sessions can use [the review protocol](STUDENT_UX_REVIEW.md); there are no measured student-study results yet.
 
-| Existing capability                                                         | Proposed reachable home                                                                    | Preservation contract                                                                                                                                                           |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Dashboard, progress, notifications                                          | Home; notification utility; Settings / System activity                                     | Retain record-specific destinations, unread controls and refresh behavior.                                                                                                      |
-| Job discovery, search, import, add/edit/archive, match details, feedback    | Find jobs; job detail; More filters/tools                                                  | Distinguish feedback from recording an application; retain stale/eligibility warnings.                                                                                          |
-| CRM, Board/List, analytics, manual recording and status correction          | My applications / All; More tools; application detail                                      | All 17 lifecycle states, reasons, archive/restore and recorded submission provenance remain.                                                                                    |
-| Prepared materials, Studio CV/letter/questions, version history and editors | Selected application / Documents and Questions                                             | Preserve current package IDs, generation, edit, regeneration and independent readiness blockers. Keep an accessible materials index for orphan/untracked packages until linked. |
-| Approvals, policy overrides, browser run/history/authorization              | My applications / Needs review; selected application review; named advanced apply controls | Each decision remains explicit; one approval/override cannot clear other blockers. Eight browser-run statuses and uncertain-submission resolution remain visible.               |
-| Interview scheduling/preparation/debrief/calendar                           | My applications / Interviews; selected interview                                           | Stable view even when empty; retain scheduling, confirmation, conflict and calendar controls.                                                                                   |
-| Messages, classification/link/status review, sync/accounts                  | My applications / Messages; Needs review; Settings / Connected accounts                    | Default to messages; retain review/dismiss decisions and integration errors.                                                                                                    |
-| Profile editors, Career Intelligence, verification and AI permission        | My profile; directly editable sections; Suggestions; Manage saved details                  | Preserve all record types, source evidence and separate verification/permission actions.                                                                                        |
-| Documents, inline preview, Smart Import and comparison/editors              | My profile / CV & Documents; Add CV                                                        | Separate storage from extraction; retain basic parser, external-processing choice, acceptance, conflicts and original download.                                                 |
-| Saved answers and preferences                                               | My profile / Saved answers and Job preferences; contextual answer entry                    | Retain filters/edit/delete, consequential questions, all policy settings and unresolved unknowns.                                                                               |
-| Configuration, providers, diagnostics, activity                             | Settings / account basics; Advanced settings; System activity                              | Reuse existing authorization. Do not hide failures or change who can access settings as part of a visual regrouping.                                                            |
-| Authentication, invitations, account and dialogs                            | Shell/account utilities and their existing authorized flows                                | Preserve guest/session/pilot/admin boundaries and invitation deep links.                                                                                                        |
-
-Before moving these views, add restoration/focus tests for selected records, drafts, cancellation, notification targets and back navigation. Do not introduce a router or new authorization model incidentally.
-
-## Local preview and verification
-
-Preview: **http://127.0.0.1:5183**. Synthetic account: `alex.morgan@example.test` / `JobeePreview123!`. The preview uses disposable loopback PostgreSQL, disabled external AI, no worker and no production credentials. The authenticated live-account audit informed the findings; production records are not test fixtures.
-
-Use the existing guarded browser harness with `UI_TEST_WEB_PORT=5183 JOBEE_UI_PREVIEW_FIXTURES=local-only npm run test:ui`. The optional port only isolates local previews; the default remains 5179. Ensure reused API/web servers belong to the isolated test environment. See [UI_MIGRATION.md](UI_MIGRATION.md) for setup.
-
-Verification evidence for this checkpoint:
-
-- Full unit/integration suite: 600 tests across 66 files, including five state-driven Home tests and status/default-view regressions.
-- Browser suite: 26 checks, including PDFs/DOCX/TXT, denied access, selection recovery, Studio, independent blockers, all lifecycle/run states, authentication, grouped views, new defaults and remembered Board selection.
-- Both macOS Home visual references were intentionally updated and reviewed. The comparison threshold is unchanged. Linux references still represent the previous Home and must be regenerated/reviewed in Linux CI before a merge/release; do not copy macOS images over them or claim cloud CI is green.
-- All 184 baseline API calls/payloads across 25 components reconcile. Source changes stay in frontend presentation and local test configuration.
-- Figma structural checks found no visible content outside any of the 24 desktop frames, no UI image fills and only Google Sans Flex. Render review covers composition and both themes; it is not a measured accessibility certification or proof of human usability.
-- Required format, lint, typecheck, tests, build and isolated database checks are recorded in the task log. Lint retains the baseline 701 warnings and has zero errors.
-
-No real application submission, outbound email, calendar mutation, paid AI call, production database change, push or deployment was performed for this continuation.
-
-## Next acceptance boundary
-
-Use [the student review protocol](STUDENT_UX_REVIEW.md) with 5–8 target students and comparable baseline tasks. Record observed results; none have been collected yet. Resolve prototype gaps and agree the final feature-access mapping before implementing the four-destination navigation and combined application workspace. This follows the approved plan's test-before-structural-development sequence.
+No real ATS submission, recruiter email, calendar mutation, paid AI call, production database change, merge, push or deployment is part of this local continuation.

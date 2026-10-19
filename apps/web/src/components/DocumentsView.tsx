@@ -1,7 +1,7 @@
 import { useFeedback } from '../ui/Feedback.js';
 import { DocumentPreview } from './DocumentPreview.js';
 import { Button, Card, Icon, Input, ModalSurface, Select } from '../ui/Primitives.js';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { candidateApi } from '../api/candidate-client.js';
 import { SmartProfileImportModal } from './SmartProfileImportModal.js';
 import type { CandidateDocumentDto, DocumentType } from '@job-agent/shared';
@@ -12,12 +12,23 @@ interface Props {
 
 export function DocumentsView({ onUpdate }: Props) {
   const { confirm } = useFeedback();
+  const addDocumentRef = useRef<HTMLButtonElement>(null);
+  const restoreAddFocus = () => requestAnimationFrame(() => addDocumentRef.current?.focus());
+  const closeUpload = () => {
+    setShowUploadModal(false);
+    restoreAddFocus();
+  };
+  const closeImport = () => {
+    setIsSmartImportOpen(false);
+    restoreAddFocus();
+  };
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [documents, setDocuments] = useState<CandidateDocumentDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState<{ type: 'ok' | 'error'; message: string } | null>(null);
 
+  const [showDocumentPurpose, setShowDocumentPurpose] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [isSmartImportOpen, setIsSmartImportOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -67,7 +78,7 @@ export function DocumentsView({ onUpdate }: Props) {
 
       await candidateApi.uploadDocument(formData);
       showToast('ok', 'Document uploaded successfully');
-      setShowUploadModal(false);
+      closeUpload();
       setSelectedFile(null);
       setDisplayName('');
       setRoleFocus('');
@@ -103,9 +114,7 @@ export function DocumentsView({ onUpdate }: Props) {
     <div>
       <header className="page-header">
         <h2 className="page-title">CV & Documents</h2>
-        <p className="page-subtitle">
-          Manage your Master CV, tailored role variants, cover letter templates, and credentials
-        </p>
+        <p className="page-subtitle">Preview your files or add a CV, letter or certificate.</p>
       </header>
 
       {toast && (
@@ -136,15 +145,74 @@ export function DocumentsView({ onUpdate }: Props) {
             {documents.length} document{documents.length === 1 ? '' : 's'} stored securely
           </span>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
-          <Button className="btn btn-secondary btn-sm" onClick={() => setIsSmartImportOpen(true)}>
-            <Icon name="ai" /> Smart Import & Extract
+        <span
+          ref={(node) => {
+            addDocumentRef.current = node?.querySelector('button') || null;
+          }}
+        >
+          <Button className="btn-primary" onClick={() => setShowDocumentPurpose(true)}>
+            <Icon name="add" /> Add document
           </Button>
-          <Button className="btn btn-primary btn-sm" onClick={() => setShowUploadModal(true)}>
-            + Upload Document
-          </Button>
-        </div>
+        </span>
       </div>
+      {showDocumentPurpose && (
+        <ModalSurface
+          className="modal-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setShowDocumentPurpose(false);
+          }}
+        >
+          <div className="modal-container student-stack">
+            <header>
+              <h2>Add a document</h2>
+              <p className="page-subtitle">Choose what you want to do with your file.</p>
+            </header>
+            <Card>
+              <h3>Keep a file in my documents</h3>
+              <p>
+                Upload a CV, letter or certificate for storage and inline preview. This does not
+                extract profile details.
+              </p>
+              <Button
+                className="btn-primary"
+                onClick={() => {
+                  setShowDocumentPurpose(false);
+                  setShowUploadModal(true);
+                }}
+              >
+                Upload file
+              </Button>
+            </Card>
+            <Card>
+              <h3>Use a CV to build my profile</h3>
+              <p>
+                Extract details, then check and choose what to add. Use the basic parser or
+                explicitly choose external AI processing.
+              </p>
+              <p className="page-subtitle">
+                Accuracy checks and later AI-use permission remain separate choices.
+              </p>
+              <Button
+                className="btn-outline"
+                onClick={() => {
+                  setShowDocumentPurpose(false);
+                  setIsSmartImportOpen(true);
+                }}
+              >
+                Choose a CV
+              </Button>
+            </Card>
+            <div className="account-actions">
+              <Button className="btn-outline" onClick={() => setShowDocumentPurpose(false)}>
+                View uploaded documents
+              </Button>
+              <Button className="btn-ghost" onClick={() => setShowDocumentPurpose(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </ModalSurface>
+      )}
 
       {loading && documents.length === 0 ? (
         <Card className="card" style={{ textAlign: 'center', padding: '2rem' }}>
@@ -159,7 +227,7 @@ export function DocumentsView({ onUpdate }: Props) {
           <Button
             className="btn btn-primary"
             style={{ marginTop: '1rem' }}
-            onClick={() => setShowUploadModal(true)}
+            onClick={() => setShowDocumentPurpose(true)}
           >
             Upload Master CV
           </Button>
@@ -240,11 +308,7 @@ export function DocumentsView({ onUpdate }: Props) {
               }}
             >
               <h3 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Upload Candidate Document</h3>
-              <Button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowUploadModal(false)}
-                aria-label="Close"
-              >
+              <Button className="btn btn-secondary btn-sm" onClick={closeUpload} aria-label="Close">
                 <Icon name="close" size={20} />
               </Button>
             </div>
@@ -364,7 +428,7 @@ export function DocumentsView({ onUpdate }: Props) {
                 <Button
                   type="button"
                   className="btn btn-secondary"
-                  onClick={() => setShowUploadModal(false)}
+                  onClick={closeUpload}
                   disabled={uploading}
                 >
                   Cancel
@@ -384,7 +448,7 @@ export function DocumentsView({ onUpdate }: Props) {
       {isSmartImportOpen && (
         <SmartProfileImportModal
           isOpen={isSmartImportOpen}
-          onClose={() => setIsSmartImportOpen(false)}
+          onClose={closeImport}
           onSuccess={() => {
             loadDocuments();
             onUpdate?.();

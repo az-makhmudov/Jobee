@@ -146,10 +146,8 @@ export function JobInboxView({ onSelectJob }: Props) {
         className="layout-group"
       >
         <div>
-          <h1 className="page-title">Jobs</h1>
-          <p className="page-subtitle">
-            Find internships and entry-level roles, then check your fit.
-          </p>
+          <h1 className="page-title">Find your next opportunity</h1>
+          <p className="page-subtitle">Explore roles, check your fit and prepare an application.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }} className="layout-group">
           <Button
@@ -160,25 +158,8 @@ export function JobInboxView({ onSelectJob }: Props) {
           >
             {discovering ? '🌐 Discovering...' : 'Find jobs'}
           </Button>
-          <Button
-            className="btn btn-secondary btn-sm"
-            onClick={handleBatchAnalyze}
-            disabled={batchAnalyzing || loading}
-            title="Analyze unanalyzed jobs in batch (up to 10)"
-          >
-            {batchAnalyzing ? (
-              <>
-                <Icon name="schedule" size={20} /> Analyzing...
-              </>
-            ) : (
-              'Analyze new jobs'
-            )}
-          </Button>
-          <Button className="btn btn-secondary btn-sm" onClick={loadData} disabled={loading}>
-            <Icon name="sync" /> Refresh
-          </Button>
           <Button className="btn btn-primary btn-sm" onClick={() => setIsAddModalOpen(true)}>
-            Add job
+            Add a job link
           </Button>
         </div>
       </div>
@@ -209,67 +190,91 @@ export function JobInboxView({ onSelectJob }: Props) {
         </Card>
       )}
 
-      {/* Metrics Ribbon */}
-      {metrics && (
-        <div
-          className="status-grid"
-          style={{
-            marginBottom: '1.5rem',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-          }}
-        >
-          <div className="status-item">
-            <div className="status-item-label">Total Jobs</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {metrics.totalJobs}
-            </div>
-            <div className="status-item-meta">In inbox</div>
-          </div>
-          <div className="status-item">
-            <div className="status-item-label">Analyzed</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--m3-on-surface)' }}>
-              {metrics.totalAnalyzed ?? 0}
-            </div>
-            <div className="status-item-meta">Avg: {metrics.averageMatchScore ?? 0}%</div>
-          </div>
-          <div className="status-item">
-            <div className="status-item-label">Matches</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-success)' }}>
-              {metrics.matchCount ?? 0}
-            </div>
-            <div className="status-item-meta">Eligible roles</div>
-          </div>
-          <div className="status-item">
-            <div className="status-item-label">Review Needed</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-warning)' }}>
-              {metrics.reviewCount ?? 0}
-            </div>
-            <div className="status-item-meta">Gaps or unknowns</div>
-          </div>
-          <div className="status-item">
-            <div className="status-item-label">Policy Skips</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-danger)' }}>
-              {metrics.skipCount ?? 0}
-            </div>
-            <div className="status-item-meta">Hard policy blocked</div>
-          </div>
-          {metrics.staleAnalysisCount > 0 && (
-            <div
-              className="status-item"
-              style={{ borderLeft: '3px solid var(--status-warning-border)' }}
-            >
-              <div className="status-item-label">Stale Analyses</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-warning)' }}>
-                {metrics.staleAnalysisCount}
-              </div>
-              <div className="status-item-meta">Profile changed</div>
-            </div>
-          )}
+      <details className="student-tools" style={{ marginBottom: 24 }}>
+        <summary>Analysis & source details</summary>
+        <div className="account-actions">
+          <Button
+            className="btn btn-secondary btn-sm"
+            onClick={handleBatchAnalyze}
+            disabled={batchAnalyzing || loading}
+            title="Analyze unanalyzed jobs in batch (up to 10)"
+          >
+            {batchAnalyzing ? (
+              <>
+                <Icon name="schedule" size={20} /> Analyzing...
+              </>
+            ) : (
+              'Analyze new jobs'
+            )}
+          </Button>
+          <Button className="btn btn-secondary btn-sm" onClick={loadData} disabled={loading}>
+            <Icon name="sync" /> Refresh
+          </Button>
         </div>
-      )}
-
+        {/* Metrics Ribbon */}
+        {metrics && (
+          <div
+            className="status-grid"
+            style={{
+              marginBottom: '1.5rem',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+            }}
+          >
+            <div className="status-item">
+              <div className="status-item-label">Total Jobs</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {metrics.totalJobs}
+              </div>
+              <div className="status-item-meta">In inbox</div>
+            </div>
+            <div className="status-item">
+              <div className="status-item-label">Analyzed</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--m3-on-surface)' }}>
+                {metrics.totalAnalyzed ?? 0}
+              </div>
+              <div className="status-item-meta">Avg: {metrics.averageMatchScore ?? 0}%</div>
+            </div>
+            <div className="status-item">
+              <div className="status-item-label">Matches</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-success)' }}>
+                {metrics.matchCount ?? 0}
+              </div>
+              <div className="status-item-meta">Eligible roles</div>
+            </div>
+            <div className="status-item">
+              <div className="status-item-label">Review Needed</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-warning)' }}>
+                {metrics.reviewCount ?? 0}
+              </div>
+              <div className="status-item-meta">Gaps or unknowns</div>
+            </div>
+            <div className="status-item">
+              <div className="status-item-label">Policy Skips</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-danger)' }}>
+                {metrics.skipCount ?? 0}
+              </div>
+              <div className="status-item-meta">Hard policy blocked</div>
+            </div>
+            {metrics.staleAnalysisCount > 0 && (
+              <div
+                className="status-item"
+                style={{ borderLeft: '3px solid var(--status-warning-border)' }}
+              >
+                <div className="status-item-label">Stale Analyses</div>
+                <div
+                  style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-warning)' }}
+                >
+                  {metrics.staleAnalysisCount}
+                </div>
+                <div className="status-item-meta">Profile changed</div>
+              </div>
+            )}
+          </div>
+        )}
+      </details>
       {/* Filter and Search Bar */}
       <Card className="card" style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem' }}>
+        <h2 className="card-title">What are you looking for?</h2>
         <form
           className="job-search-form"
           onSubmit={handleSearchSubmit}
@@ -287,102 +292,107 @@ export function JobInboxView({ onSelectJob }: Props) {
             />
           </div>
 
-          <div
-            style={{ flex: '0 0 auto', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
-            className="layout-group"
-          >
-            <Select
-              className="form-input"
-              value={decisionFilter}
-              onChange={(e) => {
-                setDecisionFilter(e.target.value as any);
-                setPage(1);
-              }}
-              style={{ minWidth: '130px' }}
-              title="Filter by match policy decision"
+          <Button type="submit" className="btn btn-secondary btn-sm">
+            Search
+          </Button>
+          <details className="advanced-details">
+            <summary>
+              More filters
+              {decisionFilter || staleFilter || stateFilter || providerFilter ? ' · active' : ''}
+            </summary>
+            <div
+              style={{ flex: '0 0 auto', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
+              className="layout-group"
             >
-              <option value="">All Decisions</option>
-              <option value="MATCH">MATCH Only</option>
-              <option value="REVIEW">REVIEW Only</option>
-              <option value="SKIP">SKIP Only</option>
-              <option value="UNANALYZED">Unanalyzed Only</option>
-            </Select>
+              <Select
+                className="form-input"
+                value={decisionFilter}
+                onChange={(e) => {
+                  setDecisionFilter(e.target.value as any);
+                  setPage(1);
+                }}
+                style={{ minWidth: '130px' }}
+                title="Filter by match policy decision"
+              >
+                <option value="">All Decisions</option>
+                <option value="MATCH">MATCH Only</option>
+                <option value="REVIEW">REVIEW Only</option>
+                <option value="SKIP">SKIP Only</option>
+                <option value="UNANALYZED">Unanalyzed Only</option>
+              </Select>
 
-            <Select
-              className="form-input"
-              value={staleFilter}
-              onChange={(e) => {
-                setStaleFilter(e.target.value);
-                setPage(1);
-              }}
-              style={{ minWidth: '120px' }}
-              title="Filter by analysis staleness"
-            >
-              <option value="">All Freshness</option>
-              <option value="stale">Stale Only</option>
-              <option value="fresh">Fresh Only</option>
-            </Select>
+              <Select
+                className="form-input"
+                value={staleFilter}
+                onChange={(e) => {
+                  setStaleFilter(e.target.value);
+                  setPage(1);
+                }}
+                style={{ minWidth: '120px' }}
+                title="Filter by analysis staleness"
+              >
+                <option value="">All Freshness</option>
+                <option value="stale">Stale Only</option>
+                <option value="fresh">Fresh Only</option>
+              </Select>
 
-            <Select
-              className="form-input"
-              value={stateFilter}
-              onChange={(e) => {
-                setStateFilter(e.target.value as any);
-                setPage(1);
-              }}
-              style={{ minWidth: '120px' }}
-            >
-              <option value="">All States</option>
-              <option value="INGESTED">Ingested</option>
-              <option value="NEW">New</option>
-              <option value="NEEDS_REVIEW">Needs Review</option>
-              <option value="ARCHIVED">Archived</option>
-            </Select>
+              <Select
+                className="form-input"
+                value={stateFilter}
+                onChange={(e) => {
+                  setStateFilter(e.target.value as any);
+                  setPage(1);
+                }}
+                style={{ minWidth: '120px' }}
+              >
+                <option value="">All States</option>
+                <option value="INGESTED">Ingested</option>
+                <option value="NEW">New</option>
+                <option value="NEEDS_REVIEW">Needs Review</option>
+                <option value="ARCHIVED">Archived</option>
+              </Select>
 
-            <Select
-              className="form-input"
-              value={providerFilter}
-              onChange={(e) => {
-                setProviderFilter(e.target.value as any);
-                setPage(1);
-              }}
-              style={{ minWidth: '120px' }}
-            >
-              <option value="">All Providers</option>
-              <option value="GREENHOUSE">Greenhouse</option>
-              <option value="LEVER">Lever</option>
-              <option value="ASHBY">Ashby</option>
-              <option value="LINKEDIN">LinkedIn</option>
-              <option value="ARBEITNOW">Arbeitnow (Public Feed)</option>
-              <option value="GENERIC">Generic</option>
-              <option value="MANUAL">Pasted / Manual</option>
-            </Select>
+              <Select
+                className="form-input"
+                value={providerFilter}
+                onChange={(e) => {
+                  setProviderFilter(e.target.value as any);
+                  setPage(1);
+                }}
+                style={{ minWidth: '120px' }}
+              >
+                <option value="">All Providers</option>
+                <option value="GREENHOUSE">Greenhouse</option>
+                <option value="LEVER">Lever</option>
+                <option value="ASHBY">Ashby</option>
+                <option value="LINKEDIN">LinkedIn</option>
+                <option value="ARBEITNOW">Arbeitnow (Public Feed)</option>
+                <option value="GENERIC">Generic</option>
+                <option value="MANUAL">Pasted / Manual</option>
+              </Select>
 
-            <Select
-              className="form-input"
-              value={`${sortBy}:${sortOrder}`}
-              onChange={(e) => {
-                const [sb, so] = e.target.value.split(':');
-                setSortBy(sb as any);
-                setSortOrder(so as any);
-                setPage(1);
-              }}
-              style={{ minWidth: '140px' }}
-              title="Sort jobs by"
-            >
-              <option value="discoveredDate:desc">Newest First</option>
-              <option value="discoveredDate:asc">Oldest First</option>
-              <option value="score:desc">Highest Match Score</option>
-              <option value="score:asc">Lowest Match Score</option>
-              <option value="confidence:desc">Highest Confidence</option>
-              <option value="title:asc">Title (A-Z)</option>
-              <option value="company:asc">Company (A-Z)</option>
-            </Select>
-
-            <Button type="submit" className="btn btn-secondary btn-sm">
-              Search
-            </Button>
-          </div>
+              <Select
+                className="form-input"
+                value={`${sortBy}:${sortOrder}`}
+                onChange={(e) => {
+                  const [sb, so] = e.target.value.split(':');
+                  setSortBy(sb as any);
+                  setSortOrder(so as any);
+                  setPage(1);
+                }}
+                style={{ minWidth: '140px' }}
+                title="Sort jobs by"
+              >
+                <option value="discoveredDate:desc">Newest First</option>
+                <option value="discoveredDate:asc">Oldest First</option>
+                <option value="score:desc">Highest Match Score</option>
+                <option value="score:asc">Lowest Match Score</option>
+                <option value="confidence:desc">Highest Confidence</option>
+                <option value="title:asc">Title (A-Z)</option>
+                <option value="company:asc">Company (A-Z)</option>
+              </Select>
+            </div>
+          </details>
         </form>
       </Card>
 
@@ -429,57 +439,50 @@ export function JobInboxView({ onSelectJob }: Props) {
             <div className="job-results">
               {jobs.map((job) => (
                 <Card key={job.id} className="job-card">
-                  <div className="section-toolbar">
+                  <div className="action-row">
                     <div>
                       <h2>{job.title}</h2>
-                      <p className="page-subtitle">
-                        {job.company}
-                        {job.department ? ' · ' + job.department : ''} ·{' '}
-                        {job.locationText || 'Location not specified'} · {job.workplaceType} ·{' '}
-                        {job.employmentType}
+                      <p>
+                        {job.company} · {job.locationText || 'Location not specified'} ·{' '}
+                        {job.employmentType === 'UNKNOWN'
+                          ? 'Employment type not specified'
+                          : job.employmentType.replaceAll('_', ' ').toLowerCase()}
+                      </p>
+                      <p>
+                        {job.matchSummary?.isStale ? (
+                          'Analysis needs refresh'
+                        ) : job.matchSummary?.careerFitCategory ? (
+                          <CareerFitBadge category={job.matchSummary.careerFitCategory} size="sm" />
+                        ) : (
+                          job.matchSummary?.decision || 'Analysis not run yet'
+                        )}
                       </p>
                     </div>
-                    <div>
-                      {job.matchSummary?.careerFitCategory ? (
-                        <CareerFitBadge category={job.matchSummary.careerFitCategory} size="sm" />
-                      ) : (
-                        <span className="nav-tag">
-                          {job.matchSummary?.decision || 'Not analyzed'}
-                        </span>
-                      )}
-                    </div>
+                    <Button className="btn-outline" onClick={() => onSelectJob(job.id)}>
+                      View job
+                    </Button>
                   </div>
-                  <div className="section-toolbar" style={{ marginBottom: 0 }}>
-                    <div>
-                      <p className="page-subtitle">
-                        {job.provider} · Added {new Date(job.discoveredDate).toLocaleDateString()} ·{' '}
-                        {job.state}
-                      </p>
-                      <p className="page-subtitle">
-                        {job.requirementCount} requirements
-                        {job.matchSummary
-                          ? ' · ' +
-                            job.matchSummary.overallScore +
-                            '% match · Confidence ' +
-                            job.matchSummary.confidenceScore +
-                            '%'
-                          : ''}
-                        {job.matchSummary?.isStale ? ' · Analysis needs refresh' : ''}
-                      </p>
-                    </div>
-                    <div className="account-actions">
-                      <Button
-                        className="btn-outline"
-                        disabled={analyzingJobId === job.id}
-                        onClick={(event) => handleAnalyzeJob(job.id, event)}
-                      >
-                        {analyzingJobId === job.id ? 'Analyzing…' : 'Analyze'}
-                      </Button>
-                      <Button className="btn-primary" onClick={() => onSelectJob(job.id)}>
-                        View job
-                      </Button>
-                    </div>
-                  </div>
+                  <details className="advanced-details">
+                    <summary>Analysis & source</summary>
+                    <p>
+                      {job.provider} · Added {new Date(job.discoveredDate).toLocaleDateString()} ·{' '}
+                      {job.state} · {job.workplaceType}
+                      {job.department ? ` · ${job.department}` : ''}
+                    </p>
+                    <p>
+                      {job.requirementCount} requirements
+                      {job.matchSummary
+                        ? ` · ${job.matchSummary.overallScore}% match · Confidence ${job.matchSummary.confidenceScore}%`
+                        : ''}
+                    </p>
+                    <Button
+                      className="btn-outline"
+                      disabled={analyzingJobId === job.id}
+                      onClick={(event) => handleAnalyzeJob(job.id, event)}
+                    >
+                      {analyzingJobId === job.id ? 'Analyzing…' : 'Analyze'}
+                    </Button>
+                  </details>
                 </Card>
               ))}
             </div>

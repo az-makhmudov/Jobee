@@ -259,100 +259,11 @@ export function ApplicationsCrmView({
           className="layout-group"
         >
           <div>
-            <h1 className="page-title">Applications</h1>
-            <p className="page-subtitle">Track applications, follow up and see your next step.</p>
-          </div>
-          <div
-            style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}
-            className="layout-group"
-          >
-            <Button className="btn btn-secondary" onClick={() => setShowAnalyticsModal(true)}>
-              <Icon name="activity" /> Analytics
-            </Button>
-            <Button className="btn btn-outline" onClick={handleOpenRecordModal}>
-              <Icon name="edit" /> Record application
-            </Button>
-            {onNavigateToStudioList && (
-              <Button className="btn btn-outline" onClick={onNavigateToStudioList}>
-                <Icon name="document" /> Application Studio
-              </Button>
-            )}
+            <h2 className="card-title">Your applications</h2>
+            <p className="page-subtitle">Role, company, current status and next step.</p>
           </div>
         </div>
-
-        {/* Metrics KPI Ribbon */}
-        {metrics && (
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-              gap: '0.75rem',
-              marginTop: '1.25rem',
-            }}
-            className="layout-group"
-          >
-            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Tracked</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{metrics.totalTracked}</div>
-            </Card>
-            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Ready</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--m3-on-surface)' }}>
-                {metrics.readyToApply}
-              </div>
-            </Card>
-            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Applied</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-success)' }}>
-                {metrics.applied}
-              </div>
-            </Card>
-            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Active</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-warning)' }}>
-                {metrics.activeProcesses}
-              </div>
-            </Card>
-            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Interviews</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--m3-on-surface)' }}>
-                {metrics.interviews}
-              </div>
-            </Card>
-            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Offers</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-success)' }}>
-                {metrics.offers}
-              </div>
-            </Card>
-            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Follow-ups</div>
-              <div
-                style={{
-                  fontSize: '1.4rem',
-                  fontWeight: 700,
-                  color:
-                    metrics.overdueFollowUps > 0 ? 'var(--status-danger)' : 'var(--text-primary)',
-                }}
-              >
-                {metrics.pendingFollowUps + metrics.overdueFollowUps}
-                {metrics.overdueFollowUps > 0 && (
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      color: 'var(--status-danger)',
-                      marginLeft: '0.25rem',
-                    }}
-                  >
-                    ({metrics.overdueFollowUps} overdue)
-                  </span>
-                )}
-              </div>
-            </Card>
-          </div>
-        )}
       </header>
-
       {/* Filter and View Mode Toolbar */}
       <Card
         className="card crm-filters"
@@ -379,67 +290,75 @@ export function ApplicationsCrmView({
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          <Select
-            className="input"
-            aria-label="Application status"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="">All Statuses</option>
-            {Object.values(ApplicationLifecycleStatus).map((s) => (
-              <option key={s} value={s}>
-                {formatStatusLabel(s)}
-              </option>
-            ))}
-          </Select>
+          <details className="advanced-details">
+            <summary>
+              Filters
+              {statusFilter || sourceFilter || onlyFollowUps || showArchived ? ' · active' : ''}
+            </summary>
+            <div className="account-actions">
+              <Select
+                className="input"
+                aria-label="Application status"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">All Statuses</option>
+                {Object.values(ApplicationLifecycleStatus).map((s) => (
+                  <option key={s} value={s}>
+                    {formatStatusLabel(s)}
+                  </option>
+                ))}
+              </Select>
 
-          <Select
-            className="input"
-            aria-label="Application source"
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-          >
-            <option value="">All Sources</option>
-            {Object.values(SubmissionMethod).map((m) => (
-              <option key={m} value={m}>
-                {m}
-              </option>
-            ))}
-          </Select>
+              <Select
+                className="input"
+                aria-label="Application source"
+                value={sourceFilter}
+                onChange={(e) => setSourceFilter(e.target.value)}
+              >
+                <option value="">All Sources</option>
+                {Object.values(SubmissionMethod).map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </Select>
 
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-            }}
-          >
-            <Input
-              type="checkbox"
-              checked={onlyFollowUps}
-              onChange={(e) => setOnlyFollowUps(e.target.checked)}
-            />
-            <Icon name="schedule" size={20} /> Follow-ups Due
-          </label>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                }}
+              >
+                <Input
+                  type="checkbox"
+                  checked={onlyFollowUps}
+                  onChange={(e) => setOnlyFollowUps(e.target.checked)}
+                />
+                <Icon name="schedule" size={20} /> Follow-ups Due
+              </label>
 
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              fontSize: '0.85rem',
-              cursor: 'pointer',
-            }}
-          >
-            <Input
-              type="checkbox"
-              checked={showArchived}
-              onChange={(e) => setShowArchived(e.target.checked)}
-            />
-            <Icon name="folder" size={20} /> Show Archived
-          </label>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                }}
+              >
+                <Input
+                  type="checkbox"
+                  checked={showArchived}
+                  onChange={(e) => setShowArchived(e.target.checked)}
+                />
+                <Icon name="folder" size={20} /> Show Archived
+              </label>
+            </div>
+          </details>
         </div>
 
         {/* View Switcher Toggle */}
@@ -717,125 +636,248 @@ export function ApplicationsCrmView({
         </div>
       ) : (
         /* TABLE LIST VIEW */
-        <Card className="card" style={{ padding: 0, overflowX: 'auto' }}>
-          <table className="data-table" style={{ width: '100%' }}>
-            <thead>
-              <tr>
-                <th>Job Title & Company</th>
-                <th>Status</th>
-                <th>Match Fit</th>
-                <th>Applied Date</th>
-                <th>Next Action</th>
-                <th>Follow-up</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {applications.map((app) => (
-                <tr
-                  key={app.id}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => onSelectApplication(app.id)}
-                >
-                  <td>
-                    <strong>{app.jobTitle}</strong>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      {app.company} {app.location ? `• ${app.location}` : ''}
-                    </div>
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        ...applicationStatusStyle(app.status),
-                        fontSize: '0.75rem',
-                        padding: '0.15rem 0.5rem',
-                        borderRadius: '16px',
-                        fontWeight: 600,
-                      }}
-                    >
+        <div className="student-stack">
+          <Card className="application-list">
+            {applications.map((app) => (
+              <div className="action-row" key={app.id}>
+                <div>
+                  <strong>
+                    {app.jobTitle} · {app.company}
+                  </strong>
+                  <p>
+                    <span style={applicationStatusStyle(app.status)}>
                       {formatStatusLabel(app.status)}
                     </span>
-                    {app.isArchived && (
-                      <span
-                        className="badge badge-secondary"
-                        style={{ marginLeft: '0.35rem', fontSize: '0.7rem' }}
-                      >
-                        <Icon name="folder" size={20} /> Archived
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    {app.matchScore !== null ? (
-                      <strong>{app.matchScore}%</strong>
-                    ) : (
-                      <span style={{ color: 'var(--text-secondary)' }}>—</span>
-                    )}
-                  </td>
-                  <td>
-                    {app.appliedAt ? (
-                      new Date(app.appliedAt).toLocaleDateString()
-                    ) : (
-                      <span style={{ color: 'var(--text-secondary)' }}>—</span>
-                    )}
-                  </td>
-                  <td>
-                    {app.nextAction ? (
-                      <span>{app.nextAction}</span>
-                    ) : (
-                      <span style={{ color: 'var(--text-secondary)' }}>—</span>
-                    )}
-                  </td>
-                  <td>
-                    {app.followUpAt ? (
-                      <div>
-                        <span>{new Date(app.followUpAt).toLocaleDateString()}</span>
-                        {app.isFollowUpOverdue && (
-                          <div
-                            style={{
-                              color: 'var(--status-danger)',
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
+                    {app.appliedAt
+                      ? ` · Submission recorded ${new Date(app.appliedAt).toLocaleDateString()}`
+                      : ' · No submission date recorded'}
+                    {app.nextAction ? ` · ${app.nextAction}` : ''}
+                  </p>
+                  {(app.isFollowUpDue || app.isFollowUpOverdue) && (
+                    <p className="follow-up-notice">
+                      {app.isFollowUpOverdue ? 'Follow-up overdue' : 'Follow-up due today'}
+                    </p>
+                  )}
+                  {app.isArchived && <p>Archived</p>}
+                </div>
+                <Button className="btn-outline" onClick={() => onSelectApplication(app.id)}>
+                  Open application
+                </Button>
+              </div>
+            ))}
+          </Card>
+          <details className="student-tools">
+            <summary>Detailed table</summary>
+            <Card className="card" style={{ padding: 0, overflowX: 'auto' }}>
+              <table className="data-table" style={{ width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th>Job Title & Company</th>
+                    <th>Status</th>
+                    <th>Match Fit</th>
+                    <th>Applied Date</th>
+                    <th>Next Action</th>
+                    <th>Follow-up</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {applications.map((app) => (
+                    <tr
+                      key={app.id}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => onSelectApplication(app.id)}
+                    >
+                      <td>
+                        <strong>{app.jobTitle}</strong>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          {app.company} {app.location ? `• ${app.location}` : ''}
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          style={{
+                            ...applicationStatusStyle(app.status),
+                            fontSize: '0.75rem',
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '16px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {formatStatusLabel(app.status)}
+                        </span>
+                        {app.isArchived && (
+                          <span
+                            className="badge badge-secondary"
+                            style={{ marginLeft: '0.35rem', fontSize: '0.7rem' }}
+                          >
+                            <Icon name="folder" size={20} /> Archived
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {app.matchScore !== null ? (
+                          <strong>{app.matchScore}%</strong>
+                        ) : (
+                          <span style={{ color: 'var(--text-secondary)' }}>—</span>
+                        )}
+                      </td>
+                      <td>
+                        {app.appliedAt ? (
+                          new Date(app.appliedAt).toLocaleDateString()
+                        ) : (
+                          <span style={{ color: 'var(--text-secondary)' }}>—</span>
+                        )}
+                      </td>
+                      <td>
+                        {app.nextAction ? (
+                          <span>{app.nextAction}</span>
+                        ) : (
+                          <span style={{ color: 'var(--text-secondary)' }}>—</span>
+                        )}
+                      </td>
+                      <td>
+                        {app.followUpAt ? (
+                          <div>
+                            <span>{new Date(app.followUpAt).toLocaleDateString()}</span>
+                            {app.isFollowUpOverdue && (
+                              <div
+                                style={{
+                                  color: 'var(--status-danger)',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                Overdue
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-secondary)' }}>—</span>
+                        )}
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.3rem' }} className="layout-group">
+                          {app.packageId && onOpenStudio && (
+                            <Button
+                              className="btn btn-secondary btn-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenStudio(app.packageId!);
+                              }}
+                              title="Open Studio Package"
+                            >
+                              Studio
+                            </Button>
+                          )}
+                          <Button
+                            className="btn btn-secondary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectApplication(app.id);
                             }}
                           >
-                            Overdue
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span style={{ color: 'var(--text-secondary)' }}>—</span>
-                    )}
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.3rem' }} className="layout-group">
-                      {app.packageId && onOpenStudio && (
-                        <Button
-                          className="btn btn-secondary btn-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenStudio(app.packageId!);
-                          }}
-                          title="Open Studio Package"
-                        >
-                          Studio
-                        </Button>
-                      )}
-                      <Button
-                        className="btn btn-secondary btn-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectApplication(app.id);
-                        }}
-                      >
-                        View
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+                            View
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          </details>
+        </div>
       )}
+
+      <details className="student-tools">
+        <summary>More tools · filters, analytics & recording</summary>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }} className="layout-group">
+          <Button className="btn btn-secondary" onClick={() => setShowAnalyticsModal(true)}>
+            <Icon name="activity" /> Analytics
+          </Button>
+          <Button className="btn btn-outline" onClick={handleOpenRecordModal}>
+            <Icon name="edit" /> Record application
+          </Button>
+          {onNavigateToStudioList && (
+            <Button className="btn btn-outline" onClick={onNavigateToStudioList}>
+              <Icon name="document" /> Prepared materials
+            </Button>
+          )}
+        </div>
+
+        {/* Metrics KPI Ribbon */}
+        {metrics && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+              gap: '0.75rem',
+              marginTop: '1.25rem',
+            }}
+            className="layout-group"
+          >
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Tracked</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{metrics.totalTracked}</div>
+            </Card>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Ready</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--m3-on-surface)' }}>
+                {metrics.readyToApply}
+              </div>
+            </Card>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Applied</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-success)' }}>
+                {metrics.applied}
+              </div>
+            </Card>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Active</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-warning)' }}>
+                {metrics.activeProcesses}
+              </div>
+            </Card>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Interviews</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--m3-on-surface)' }}>
+                {metrics.interviews}
+              </div>
+            </Card>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Offers</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-success)' }}>
+                {metrics.offers}
+              </div>
+            </Card>
+            <Card className="card" style={{ padding: '0.75rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Follow-ups</div>
+              <div
+                style={{
+                  fontSize: '1.4rem',
+                  fontWeight: 700,
+                  color:
+                    metrics.overdueFollowUps > 0 ? 'var(--status-danger)' : 'var(--text-primary)',
+                }}
+              >
+                {metrics.pendingFollowUps + metrics.overdueFollowUps}
+                {metrics.overdueFollowUps > 0 && (
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--status-danger)',
+                      marginLeft: '0.25rem',
+                    }}
+                  >
+                    ({metrics.overdueFollowUps} overdue)
+                  </span>
+                )}
+              </div>
+            </Card>
+          </div>
+        )}
+      </details>
 
       {/* Analytics Modal */}
       <ApplicationAnalyticsModal

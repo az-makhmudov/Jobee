@@ -1033,3 +1033,137 @@ input[type='radio'] {
   height: auto;
   max-width: 100%;
 }
+
+/* Approved student workspaces share the existing semantic M3 foundation. */
+.student-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+.student-stack > .card {
+  margin: 0;
+}
+.student-stack h3 {
+  font-weight: 500;
+}
+.student-stack > header {
+  margin-bottom: 0;
+}
+.desktop-topbar {
+  min-height: 72px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.main-content {
+  padding-top: 8px;
+}
+.breadcrumb {
+  font-size: 12px;
+  color: var(--m3-on-surface);
+}
+.application-list {
+  display: flex;
+  flex-direction: column;
+}
+.application-list .action-row {
+  padding: 16px 0;
+}
+.application-list .action-row:first-child {
+  padding-top: 0;
+}
+.application-list .action-row:last-child {
+  padding-bottom: 0;
+}
+.application-context {
+  margin-bottom: 24px;
+}
+.student-tools {
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: 28px;
+  padding: 24px;
+}
+.student-tools > summary {
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.student-tools[open] > summary {
+  margin-bottom: 20px;
+}
+[hidden] {
+  display: none !important;
+}
+@media (max-width: 767px) {
+  .main-content {
+    padding-top: 16px;
+  }
+  .student-tools {
+    padding: 16px;
+  }
+}
+
+.application-detail .browser-assistance-card {
+  border: 0;
+  padding: 0 !important;
+  margin: 0;
+}
+.final-review-details > header,
+.final-review-details .card:not(.browser-assistance-card),
+.final-review-details .optional-application-tools {
+  display: none;
+}
+.final-review-details > .layout-group {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.final-review-details .browser-assistance {
+  width: 100%;
+}
+
+.student-stack > .card,
+.student-stack > .student-stack > .card {
+  border-radius: 28px;
+}
+.student-stack .card-title {
+  font-size: 22px;
+  line-height: 28px;
+  margin-bottom: 16px;
+}
+.student-stack .action-row {
+  padding: 8px 0;
+  border: 0;
+}
+.student-stack .action-row p {
+  font-size: 14px;
+  line-height: 20px;
+}
+.student-stack .section-toolbar {
+  margin-bottom: 16px;
+}
+.student-stack .section-toolbar > h2 {
+  margin: 0;
+}
+
+/* Match the approved screen surface roles in both semantic theme modes. */
+.workspace {
+  background: var(--m3-surface);
+}
+.student-stack > .card,
+.student-stack > .student-stack > .card,
+.application-list,
+.job-card {
+  background: var(--m3-surface-container-lowest);
+}
+.student-stack .btn-outline {
+  background: var(--m3-surface);
+}
+.application-workspace > [role='tablist'] {
+  margin-bottom: 0;
+}
+.final-review-details > .layout-group > div:last-child {
+  display: none;
+}
+
+.application-workspace .application-studio-container > .card {
+  background: var(--m3-surface-container-lowest);
+}
