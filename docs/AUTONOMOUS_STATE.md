@@ -2,7 +2,7 @@
 
 > Active authorized continuation: **JOB-UI-MIGRATION-01 — Student UX simplification**, 19 October 2026. Immediate presentation fixes are implemented in isolated branch `codex/jobee-student-ux`; a 24-frame Light/Dark Figma proposal and review protocol are ready. The larger navigation/workspace migration remains **IN PROGRESS**, pending the approved student-review and scope boundary. No changes from this continuation have been merged, pushed or deployed. See `docs/STUDENT_UX.md`.
 
-**Current source baseline:** `a98ac9f073f4d2ed5247b28faa97d13d71477500`. **Local checkpoint:** verified implementation commit pending recording below; 600 unit/integration tests and 26 browser checks passed. **Next action:** review the prototype with target students, finalize the feature-access map and structural scope, then implement the grouped navigation/workspace. Linux Home visual references require refresh/review before merge/release.
+**Current source baseline:** `a98ac9f073f4d2ed5247b28faa97d13d71477500`. **Local checkpoint:** `04548142fe3ced25fa76b546cf112cd1c7829df8` (verified source checkpoint); 600 unit/integration tests and 26 browser checks passed. **Next action:** review the prototype with target students, finalize the feature-access map and structural scope, then implement the grouped navigation/workspace. Linux Home visual references require refresh/review before merge/release.
 
 **Previous deployed design-system checkpoint:** `675ec5c06b5e6a572ea5b8ae23803516a7dc904e`; production application release `7b6b85d`, both Railway services successful. Historical release records below refer to that completed work, not this new continuation.
 

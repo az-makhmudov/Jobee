@@ -4,7 +4,7 @@ Parent milestone: **JOB-UI-MIGRATION-01**, owner-authorized student UX continuat
 
 Status: **IN PROGRESS**. Immediate presentation fixes are implemented and tested locally. The larger navigation/workspace proposal is an editable Figma review prototype. Student usability sessions, final structural scope approval, Linux visual-reference refresh and release remain pending. This checkpoint is not a production release or a claim that the complete simplification is implemented.
 
-Baseline: `a98ac9f073f4d2ed5247b28faa97d13d71477500`. Isolated branch: `codex/jobee-student-ux`. Main checkout and its pre-existing `AGENTS.md` edit are untouched.
+Baseline: `a98ac9f073f4d2ed5247b28faa97d13d71477500`. Implementation checkpoint: `04548142fe3ced25fa76b546cf112cd1c7829df8`. Isolated branch: `codex/jobee-student-ux`. Main checkout and its pre-existing `AGENTS.md` edit are untouched.
 
 ## Implemented locally
 
