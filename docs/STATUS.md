@@ -4,9 +4,9 @@ Updated 2026-10-20. Durable continuation record; distinguish local source, test 
 
 ## Current task and checkout
 
-**JOB-DOC-CONSOLIDATION-01 — COMPLETED locally and verified.** Local baseline: `/Users/bek/Job Agent`, branch `codex/jobee-2-foundation`, clean starting tree, HEAD `cb15f9ea1e171428564f8e7e88d95a19e80edd3d`. This documentation checkpoint is identified by its task stamp; its final commit hash is reported in the completion response/Git log rather than made self-referential here.
+**Repository reality audit — COMPLETE within JOB-P0-T01 foundation reconciliation.** Audited source: `/Users/bek/Job Agent`, branch `codex/jobee-2-foundation`, clean starting tree, HEAD `32edca5b331b24df96ac6320d72e8079eb285789`. Compared all three owner-supplied Jobee 2.0 reference documents with the nine core documents, implementation, contracts, schema, migration inventory and tests. Phase 1/2 completion is supported locally; later macro tasks remain partial as recorded in [roadmap](ROADMAP.md). No new feature implementation was requested or started.
 
-Nine core documents replace 55 tracked Markdown files (including three local skills); obsolete copies/reports/archives and redundant local skills are consolidated. Runtime behavior and schema are unchanged. Two verification scripts have documentation-output/evidence reference repairs; ignore rules and environment comments are aligned. No feature work, push, merge, deployment, production migration, paid operation, real employer submission or external communication is included.
+**JOB-DOC-CONSOLIDATION-01 remains complete.** Exactly nine tracked Markdown files remain; reference attachments are not restored as competing specifications. Runtime behavior and schema are unchanged. This audit includes no push, merge, deployment, production migration, paid operation, real employer submission or external communication.
 
 ## Release and implementation evidence
 
@@ -22,6 +22,8 @@ Nine core documents replace 55 tracked Markdown files (including three local ski
 Do not label the local Jobee 2.0 source as deployed. Do not list the already delivered student interface or previous production setup as unfinished coding work. Historical deployment does not establish the revised One-click MVP.
 
 ## Verification
+
+Fresh audit verification on 2026-10-20 against `32edca5`: typecheck PASS; test PASS (672 tests, 75 files, no skips); lint PASS (0 errors, 693 warnings); build PASS (existing Vite chunk-size warning); format:write / format PASS. Tests used explicitly scoped localhost `jobee_test_isolated`, disabled external AI and local storage. No standalone worker or live integration actions ran. Read-only database identity/journal queries and isolated `db:check` PASS: 25 applied entries, latest timestamp matches `0024`, and 25 matching SQL files. No migration was executed. Exactly nine tracked Markdown files and all 89 local Markdown link targets were verified. Browser E2E, public feeds, production, paid AI and real-account behavior were not rerun; this is a source/readiness audit, not fresh external acceptance.
 
 The preceding feature checkpoint recorded **672 tests in 75 files**, zero lint errors with 693 warnings, all workspace typechecks/builds/format checks and isolated database gates. It also recorded 37 Chromium scenarios plus three affected render/navigation checks, desktop Light/Dark and 390px mobile inspection, disabled-AI source-to-analysis checks and point-in-time public feed acceptance. Those browser/feed observations belong to that checkpoint; they are not new live results from documentation cleanup.
 
@@ -53,4 +55,6 @@ Fresh consolidation verification on 2026-10-20: all required project checks pass
 
 For the next feature request, load [AGENTS.md](../AGENTS.md), [master context](MASTER_CONTEXT.md) and this file. Inspect the working tree before resuming. The next product dependency is **JOB-P3-T01**, then **JOB-P5-T01**, with scope in [roadmap](ROADMAP.md). Reuse existing preparation/package/authorization services; preserve reviewed flows and data. Do not skip to broader Autopilot or integration expansion.
 
-Local phase-by-phase engineering remains approved within the owner's active scope. Credentials and old release records grant no new external authority. This documentation task is complete; inspect Git status before starting the next requested scope.
+For JOB-P3-T01, extend `PreparationBatchService`, existing application/package records and shared submission authorization rather than creating a parallel engine. The current detail action creates/opens a package; batch preparation creates the application after generation, and review issues a later signed ticket. The missing boundary is durable job-scoped authorization before preparation, followed by binding the generated manifest to still-valid intent. Keep sensitive/question-specific consent, source revocation, idempotency and uncertain-dispatch handling intact. Map these additions onto the existing schema before deciding whether an additive migration is needed.
+
+Local phase-by-phase engineering remains approved within the owner's active scope. Credentials and old release records grant no new external authority. Audit scope is complete; the next implementation scope is JOB-P3-T01. Inspect Git status before starting it.
