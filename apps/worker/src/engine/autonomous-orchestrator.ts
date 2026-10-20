@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import type { Database } from '@job-agent/database';
 import {
   orchestrationRuns,
+  BrowserWorkerService,
   applicationPolicy,
   applications,
   applicationPackages,
@@ -718,19 +719,16 @@ export class AutonomousOrchestrator {
         continue;
       }
 
-      const targetUrl = job?.applicationUrl || job?.originalUrl || 'https://jobs.example.com/apply';
-
-      const [run] = await this.db
-        .insert(browserApplicationRuns)
-        .values({
-          applicationId: app.id,
-          userId,
-          atsProvider: 'GREENHOUSE',
-          targetUrl,
+      const targetUrl = job?.applicationUrl || job?.originalUrl;
+      let run: { id: string } | undefined;
+      try {
+        run = await BrowserWorkerService.createBrowserRun(userId, app.id, {
           mode: BrowserRunMode.SUBMIT,
-          status: BrowserRunStatus.PENDING,
-        })
-        .returning({ id: browserApplicationRuns.id });
+        });
+      } catch {
+        blocked++;
+        continue;
+      }
 
       if (!run) {
         blocked++;

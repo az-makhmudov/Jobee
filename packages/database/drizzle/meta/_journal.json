@@ -155,6 +155,13 @@
       "when": 1792050000000,
       "tag": "0021_career_intelligence_2",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1792450000000,
+      "tag": "0022_product_evolution",
+      "breakpoints": true
     }
   ]
 }

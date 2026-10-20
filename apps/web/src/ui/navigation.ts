@@ -1,25 +1,24 @@
-export type Destination =
-  | 'dashboard'
-  | 'jobs'
-  | 'applications'
-  | 'approvals'
-  | 'interviews'
-  | 'emails'
-  | 'profile'
-  | 'settings';
+// Legacy section identifiers remain the navigation contract for record links and notifications.
+export type Destination = 'dashboard' | 'jobs' | 'applications' | 'profile' | 'settings';
 export function destinationFor(section: string): Destination {
   if (['profile', 'career-intelligence', 'documents', 'answers', 'preferences'].includes(section))
     return 'profile';
+  if (['applications', 'approvals', 'interviews', 'emails'].includes(section))
+    return 'applications';
   if (section === 'activity') return 'settings';
-  return section as Destination;
+  if (section === 'jobs' || section === 'settings') return section;
+  return 'dashboard';
 }
 export const destinations = [
   { id: 'dashboard', label: 'Home', icon: 'home' },
-  { id: 'jobs', label: 'Jobs', icon: 'jobs' },
-  { id: 'applications', label: 'Applications', icon: 'applications' },
-  { id: 'approvals', label: 'Approvals', icon: 'approvals' },
-  { id: 'interviews', label: 'Interviews', icon: 'interviews' },
-  { id: 'emails', label: 'Messages', icon: 'messages' },
-  { id: 'profile', label: 'My Profile', icon: 'profile' },
+  { id: 'jobs', label: 'Find jobs', icon: 'jobs' },
+  { id: 'applications', label: 'My applications', icon: 'applications' },
+  { id: 'profile', label: 'My profile', icon: 'profile' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ] as const;
+export const applicationViews = [
+  { id: 'applications', label: 'All applications' },
+  { id: 'approvals', label: 'Needs review' },
+  { id: 'interviews', label: 'Interviews' },
+  { id: 'emails', label: 'Messages' },
+];

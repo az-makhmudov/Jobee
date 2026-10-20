@@ -170,6 +170,7 @@ export function DashboardView({ onNavigate, onOpenAuth }: Props) {
           overview={overview}
           jobs={jobMetrics}
           materials={packageMetrics}
+          interviews={calendarMetrics}
           onNavigate={onNavigate}
           onImport={() => setIsSmartImportOpen(true)}
           onProgress={() => setShowProgress(true)}

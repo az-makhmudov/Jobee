@@ -7,7 +7,7 @@ import { AuthModal } from './components/AuthModal.js';
 import { PilotInvitationsModal } from './components/PilotInvitationsModal.js';
 
 import { Icon, Button, Tabs } from './ui/Primitives.js';
-import { destinations, destinationFor } from './ui/navigation.js';
+import { destinations, destinationFor, applicationViews } from './ui/navigation.js';
 import { brandDot } from './ui/icons.js';
 import { AppearanceSettings } from './ui/Theme.js';
 import { ProfileOverview } from './components/ProfileOverview.js';
@@ -44,19 +44,14 @@ const ApplicationsCrmView = lazy(() =>
     default: module.ApplicationsCrmView,
   })),
 );
-const ApplicationDetailView = lazy(() =>
-  import('./components/ApplicationDetailView.js').then((module) => ({
-    default: module.ApplicationDetailView,
+const ApplicationWorkspaceView = lazy(() =>
+  import('./components/ApplicationWorkspaceView.js').then((module) => ({
+    default: module.ApplicationWorkspaceView,
   })),
 );
 const ApplicationPackagesListView = lazy(() =>
   import('./components/ApplicationPackagesListView.js').then((module) => ({
     default: module.ApplicationPackagesListView,
-  })),
-);
-const ApplicationStudioView = lazy(() =>
-  import('./components/ApplicationStudioView.js').then((module) => ({
-    default: module.ApplicationStudioView,
   })),
 );
 const CareerIntelligenceView = lazy(() =>
@@ -98,9 +93,12 @@ export type NavSection =
 export default function App() {
   const [currentSection, setCurrentSection] = useState<NavSection>('dashboard');
   const [profileTab, setProfileTab] = useState<string | undefined>(undefined);
+  const [applicationOrigin, setApplicationOrigin] = useState<NavSection>('applications');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
+  const [settingsTab, setSettingsTab] = useState<'basics' | 'advanced'>('basics');
+  const [connectionTab, setConnectionTab] = useState<'email' | 'calendar' | null>(null);
   const [applicationsSubView, setApplicationsSubView] = useState<'crm' | 'packages'>('crm');
   const [, setRefreshKey] = useState<number>(0);
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
@@ -179,12 +177,23 @@ export default function App() {
   }, []);
 
   const handleNavigate = (section: string, tabOrId?: string) => {
+    if (section === 'applications' && tabOrId)
+      setApplicationOrigin(
+        ['approvals', 'interviews', 'emails'].includes(currentSection)
+          ? currentSection
+          : 'applications',
+      );
     setCurrentSection(section as NavSection);
+    if (section === 'settings') {
+      setSettingsTab('basics');
+      setConnectionTab(null);
+    }
     if (section === 'profile') {
       setProfileTab(tabOrId);
     } else if (section === 'jobs') {
       setSelectedJobId(tabOrId || null);
     } else if (section === 'applications') {
+      setApplicationsSubView('crm');
       if (tabOrId) {
         setSelectedApplicationId(tabOrId);
         setSelectedPackageId(null);
@@ -208,6 +217,7 @@ export default function App() {
   const selectDestination = (section: NavSection) => {
     if (section === 'jobs') setSelectedJobId(null);
     if (section === 'applications') {
+      setApplicationOrigin('applications');
       setSelectedPackageId(null);
       setSelectedApplicationId(null);
     }
@@ -255,7 +265,7 @@ export default function App() {
         </div>
         <nav aria-label="Main navigation">
           <ul className="nav-list">
-            {destinations.slice(0, 6).map((item) => (
+            {destinations.slice(0, 4).map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
@@ -272,7 +282,7 @@ export default function App() {
         </nav>
         <nav aria-label="Profile and settings" className="sidebar-utilities">
           <ul className="nav-list">
-            {destinations.slice(6).map((item) => (
+            {destinations.slice(4).map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
@@ -337,7 +347,7 @@ export default function App() {
             >
               <Icon name="menu" />
             </button>
-            <span className="breadcrumb">Your workspace / {destinationLabel}</span>
+            <span className="breadcrumb">{destinationLabel}</span>
           </div>
           <button
             className="notification-button"
@@ -353,15 +363,18 @@ export default function App() {
         <main
           id="main-content"
           tabIndex={-1}
-          className={`main-content ${profileGroup || settingsGroup ? 'grouped-view' : ''}`}
+          className={`main-content ${profileGroup || settingsGroup || destination === 'applications' ? 'grouped-view' : ''}`}
         >
           {profileGroup && (
             <>
               <header className="group-heading">
-                <h1>My Profile</h1>
-                <p className="page-subtitle">Your studies, skills and next steps, in one place.</p>
+                <h1 className="page-title">My profile</h1>
+                <p className="page-subtitle">
+                  Your studies, skills and documents. Add more when it is useful.
+                </p>
               </header>
               <Tabs
+                variant="pill"
                 label="My Profile"
                 value={
                   ['documents', 'answers', 'preferences'].includes(currentSection)
@@ -376,28 +389,11 @@ export default function App() {
                 ]}
                 onChange={navigate}
               />
-              {(currentSection === 'profile' || currentSection === 'career-intelligence') && (
-                <Tabs
-                  label="Profile workspace"
-                  value={
-                    currentSection === 'career-intelligence'
-                      ? 'review'
-                      : profileTab === undefined
-                        ? 'overview'
-                        : 'records'
-                  }
-                  items={[
-                    { id: 'overview', label: 'Overview' },
-                    { id: 'records', label: 'Your details' },
-                    { id: 'review', label: 'Review & suggestions' },
-                  ]}
-                  onChange={(id) =>
-                    navigate(
-                      id === 'review' ? 'career-intelligence' : 'profile',
-                      id === 'records' ? 'personal' : undefined,
-                    )
-                  }
-                />
+              {(currentSection === 'career-intelligence' ||
+                (currentSection === 'profile' && profileTab !== undefined)) && (
+                <Button className="btn-ghost" onClick={() => navigate('profile')}>
+                  ← Back to profile overview
+                </Button>
               )}
               {currentSection === 'profile' && profileTab === undefined && (
                 <ProfileOverview onNavigate={navigate} />
@@ -408,31 +404,72 @@ export default function App() {
             <>
               <header className="group-heading">
                 <h1>Settings</h1>
-                <p className="page-subtitle">Manage connections, appearance and system activity.</p>
+                <p className="page-subtitle">Your appearance, connections and privacy choices.</p>
               </header>
               <Tabs
+                variant="pill"
                 label="Settings"
-                value={currentSection}
+                value={
+                  currentSection === 'activity'
+                    ? 'activity'
+                    : connectionTab
+                      ? 'connections'
+                      : settingsTab
+                }
                 items={[
-                  { id: 'settings', label: 'Configuration' },
+                  { id: 'basics', label: 'Account basics' },
+                  { id: 'connections', label: 'Connected accounts' },
+                  { id: 'advanced', label: 'Advanced settings' },
                   { id: 'activity', label: 'System activity' },
                 ]}
-                onChange={navigate}
+                onChange={(id) => {
+                  if (id === 'activity') navigate('activity');
+                  else {
+                    setCurrentSection('settings');
+                    setSettingsTab(id === 'advanced' ? 'advanced' : 'basics');
+                    setConnectionTab(id === 'connections' ? 'email' : null);
+                  }
+                }}
               />
             </>
           )}
-          {currentSection === 'applications' && !selectedApplicationId && !selectedPackageId && (
-            <Tabs
-              label="Applications"
-              value={applicationsSubView}
-              items={[
-                { id: 'crm', label: 'Tracker' },
-                { id: 'packages', label: 'Prepared materials' },
-              ]}
-              onChange={(id) => setApplicationsSubView(id as 'crm' | 'packages')}
-            />
+          {destination === 'applications' && (
+            <>
+              {!(
+                currentSection === 'applications' &&
+                (selectedApplicationId || selectedPackageId)
+              ) && (
+                <header className="group-heading">
+                  <h1 className="page-title">My applications</h1>
+                  <p className="page-subtitle">
+                    See where each application stands and what to do next.
+                  </p>
+                </header>
+              )}
+              {!(
+                currentSection === 'applications' &&
+                (selectedApplicationId || selectedPackageId)
+              ) && (
+                <Tabs
+                  variant="pill"
+                  label="Application views"
+                  value={currentSection}
+                  items={applicationViews}
+                  onChange={navigate}
+                />
+              )}
+              {currentSection === 'applications' &&
+                !selectedApplicationId &&
+                !selectedPackageId &&
+                applicationsSubView === 'packages' && (
+                  <Button className="btn-ghost" onClick={() => setApplicationsSubView('crm')}>
+                    ← Back to all applications
+                  </Button>
+                )}
+            </>
           )}
           <Suspense
+            key={session?.user.id ?? 'guest'}
             fallback={
               <div className="card" role="status">
                 Loading your workspace…
@@ -478,58 +515,65 @@ export default function App() {
                   onBack={() => setSelectedJobId(null)}
                   onJobUpdated={() => setRefreshKey((k) => k + 1)}
                   onPrepareApplication={(pkgId) => {
+                    setApplicationOrigin('applications');
                     setSelectedPackageId(pkgId);
                     setSelectedApplicationId(null);
                     setCurrentSection('applications');
                   }}
                   onViewApplicationInCrm={(appId) => {
+                    setApplicationOrigin('applications');
                     setSelectedApplicationId(appId);
                     setSelectedPackageId(null);
                     setCurrentSection('applications');
                   }}
                 />
               ) : (
-                <JobInboxView onSelectJob={(id) => setSelectedJobId(id)} />
+                <JobInboxView
+                  onSelectJob={(id) => setSelectedJobId(id)}
+                  onOpenPackage={(id) => {
+                    setApplicationOrigin('jobs');
+                    setSelectedPackageId(id);
+                    setSelectedApplicationId(null);
+                    setCurrentSection('applications');
+                  }}
+                />
               ))}
 
             {/* Phase 3: Application CRM & Studio */}
             {currentSection === 'applications' &&
-              (selectedApplicationId ? (
-                <ApplicationDetailView
+              (selectedApplicationId || selectedPackageId ? (
+                <ApplicationWorkspaceView
+                  key={selectedApplicationId || selectedPackageId}
                   applicationId={selectedApplicationId}
-                  onBack={() => setSelectedApplicationId(null)}
-                  onOpenStudio={(pkgId) => {
-                    setSelectedPackageId(pkgId);
-                    setSelectedApplicationId(null);
-                  }}
-                  onNavigateToJob={(jId) => {
-                    setSelectedJobId(jId);
-                    setCurrentSection('jobs');
-                  }}
-                />
-              ) : selectedPackageId ? (
-                <ApplicationStudioView
+                  initialPanel={applicationOrigin === 'approvals' ? 'questions' : undefined}
                   packageId={selectedPackageId}
-                  onBack={() => setSelectedPackageId(null)}
-                  onNavigateToJob={(jId) => {
-                    setSelectedJobId(jId);
-                    setCurrentSection('jobs');
-                  }}
-                  onNavigateToApplication={(appId) => {
-                    setSelectedApplicationId(appId);
+                  onBack={() => {
+                    setSelectedApplicationId(null);
                     setSelectedPackageId(null);
+                    setCurrentSection(applicationOrigin);
                   }}
+                  onNavigateToJob={(id) => navigate('jobs', id)}
+                  onNavigateToProfile={() => navigate('profile')}
                 />
               ) : applicationsSubView === 'packages' ? (
                 <ApplicationPackagesListView
-                  onOpenPackage={(pkgId) => setSelectedPackageId(pkgId)}
+                  onOpenPackage={(pkgId) => {
+                    setApplicationOrigin('applications');
+                    setSelectedPackageId(pkgId);
+                  }}
                   onNavigateToJobs={() => setCurrentSection('jobs')}
                   onNavigateToCrm={() => setApplicationsSubView('crm')}
                 />
               ) : (
                 <ApplicationsCrmView
-                  onSelectApplication={(id) => setSelectedApplicationId(id)}
-                  onOpenStudio={(pkgId) => setSelectedPackageId(pkgId)}
+                  onSelectApplication={(id) => {
+                    setApplicationOrigin('applications');
+                    setSelectedApplicationId(id);
+                  }}
+                  onOpenStudio={(pkgId) => {
+                    setApplicationOrigin('applications');
+                    setSelectedPackageId(pkgId);
+                  }}
                   onNavigateToStudioList={() => setApplicationsSubView('packages')}
                 />
               ))}
@@ -538,6 +582,7 @@ export default function App() {
             {currentSection === 'approvals' && (
               <ApprovalsInboxView
                 onOpenPackage={(pkgId) => {
+                  setApplicationOrigin('approvals');
                   setSelectedPackageId(pkgId);
                   setSelectedApplicationId(null);
                   setCurrentSection('applications');
@@ -550,14 +595,83 @@ export default function App() {
 
             {currentSection === 'settings' && (
               <>
-                <AppearanceSettings />
-                <SettingsView />
+                {connectionTab ? (
+                  <>
+                    <Tabs
+                      variant="pill"
+                      label="Connected accounts"
+                      value={connectionTab}
+                      items={[
+                        { id: 'email', label: 'Email' },
+                        { id: 'calendar', label: 'Calendar' },
+                      ]}
+                      onChange={(id) => setConnectionTab(id as 'email' | 'calendar')}
+                    />
+                    {connectionTab === 'email' ? (
+                      <EmailIntelligenceView initialTab="accounts" />
+                    ) : (
+                      <InterviewWorkspaceView
+                        initialTab="accounts"
+                        onNavigateToApplication={(id) => navigate('applications', id)}
+                      />
+                    )}
+                  </>
+                ) : settingsTab === 'advanced' ? (
+                  <SettingsView />
+                ) : (
+                  <div className="student-stack">
+                    <AppearanceSettings />
+                    <section className="card">
+                      <h2 className="card-title">Connected accounts</h2>
+                      <div className="action-row">
+                        <div>
+                          <strong>Email</strong>
+                          <p>Connect Gmail when you want to follow recruiter updates here.</p>
+                        </div>
+                        <Button className="btn-outline" onClick={() => setConnectionTab('email')}>
+                          Manage email
+                        </Button>
+                      </div>
+                      <div className="action-row">
+                        <div>
+                          <strong>Calendar</strong>
+                          <p>Connect your calendar when you need interview scheduling.</p>
+                        </div>
+                        <Button
+                          className="btn-outline"
+                          onClick={() => setConnectionTab('calendar')}
+                        >
+                          Manage calendar
+                        </Button>
+                      </div>
+                    </section>
+                    <section className="card">
+                      <h2 className="card-title">Privacy & advanced tools</h2>
+                      <p>Control external AI processing and permission to use saved details.</p>
+                      <div className="account-actions">
+                        <Button
+                          className="btn-outline"
+                          onClick={() => navigate('career-intelligence')}
+                        >
+                          AI permissions
+                        </Button>
+                        <Button className="btn-outline" onClick={() => setSettingsTab('advanced')}>
+                          Advanced settings
+                        </Button>
+                        <Button className="btn-outline" onClick={() => navigate('activity')}>
+                          System activity
+                        </Button>
+                      </div>
+                    </section>
+                  </div>
+                )}
               </>
             )}
 
             {currentSection === 'interviews' && (
               <InterviewWorkspaceView
                 onNavigateToApplication={(appId) => {
+                  setApplicationOrigin('interviews');
                   setSelectedApplicationId(appId);
                   setSelectedPackageId(null);
                   setCurrentSection('applications');

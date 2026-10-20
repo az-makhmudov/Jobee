@@ -1,4 +1,5 @@
 import { applicationStatusStyle, browserRunStyle } from '../ui/status.js';
+import { submissionSummary } from '../ui/student-experience.js';
 import { useFeedback } from '../ui/Feedback.js';
 import { Button, Card, Icon, Input, ModalSurface, Select, Textarea } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
@@ -11,12 +12,23 @@ import {
   AssessmentType,
   InterviewType,
   BrowserRunMode,
+  type BrowserRunStatus,
   type ApplicationDetailDto,
   type BrowserApplicationRunDto,
 } from '@job-agent/shared';
 import { BrowserWorkerClient } from '../api/browser-worker-client.js';
 
 interface Props {
+  onLoadError?: (message: string | null) => void;
+  onSnapshot?: (
+    detail: ApplicationDetailDto,
+    runStatus: BrowserRunStatus | undefined,
+    runHistoryFailed: boolean,
+    checkingRuns: boolean,
+  ) => void;
+  embedded?: boolean;
+  workspacePanel?: 'review' | 'progress';
+  active?: boolean;
   applicationId: string;
   onBack: () => void;
   onOpenStudio?: (packageId: string) => void;
@@ -28,6 +40,11 @@ export function ApplicationDetailView({
   onBack,
   onOpenStudio,
   onNavigateToJob,
+  onSnapshot,
+  onLoadError,
+  embedded = false,
+  workspacePanel = 'progress',
+  active = true,
 }: Props) {
   const { alert, confirm } = useFeedback();
   const [detail, setDetail] = useState<ApplicationDetailDto | null>(null);
@@ -91,8 +108,9 @@ export function ApplicationDetailView({
 
   // Browser worker automation state
   const [browserRuns, setBrowserRuns] = useState<BrowserApplicationRunDto[]>([]);
-  const [, setLoadingRuns] = useState(false);
+  const [loadingRuns, setLoadingRuns] = useState(false);
   const [startingRun, setStartingRun] = useState(false);
+  const [runHistoryFailed, setRunHistoryFailed] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
   const [selectedRun, setSelectedRun] = useState<BrowserApplicationRunDto | null>(null);
   const [showRunModal, setShowRunModal] = useState(false);
@@ -102,8 +120,9 @@ export function ApplicationDetailView({
       setLoadingRuns(true);
       const runs = await BrowserWorkerClient.listBrowserRuns(applicationId);
       setBrowserRuns(runs);
+      setRunHistoryFailed(false);
     } catch {
-      // Ignore background fetch error
+      setRunHistoryFailed(true);
     } finally {
       setLoadingRuns(false);
     }
@@ -134,22 +153,26 @@ export function ApplicationDetailView({
     }
   };
 
-  const loadDetail = async () => {
+  const loadDetail = async (preserveDrafts = false) => {
     try {
       setLoading(true);
       setError(null);
       const data = await ApplicationCrmClient.getApplicationDetail(applicationId);
       setDetail(data);
-      setNextActionText(data.application.nextAction || '');
-      setNextActionType(data.application.nextActionType || 'FOLLOW_UP');
-      setFollowUpDate(data.application.followUpAt ? data.application.followUpAt.slice(0, 16) : '');
-      if (data.offer) {
-        setOfferBase(data.offer.baseSalary ? String(data.offer.baseSalary) : '');
-        setOfferTotal(data.offer.totalComp ? String(data.offer.totalComp) : '');
-        setOfferCurrency(data.offer.currency || 'USD');
-        setOfferStatus(data.offer.status || 'PENDING');
-        setOfferDeadline(data.offer.deadlineAt ? data.offer.deadlineAt.slice(0, 16) : '');
-        setOfferNotes(data.offer.notes || '');
+      if (!preserveDrafts) {
+        setNextActionText(data.application.nextAction || '');
+        setNextActionType(data.application.nextActionType || 'FOLLOW_UP');
+        setFollowUpDate(
+          data.application.followUpAt ? data.application.followUpAt.slice(0, 16) : '',
+        );
+        if (data.offer) {
+          setOfferBase(data.offer.baseSalary ? String(data.offer.baseSalary) : '');
+          setOfferTotal(data.offer.totalComp ? String(data.offer.totalComp) : '');
+          setOfferCurrency(data.offer.currency || 'USD');
+          setOfferStatus(data.offer.status || 'PENDING');
+          setOfferDeadline(data.offer.deadlineAt ? data.offer.deadlineAt.slice(0, 16) : '');
+          setOfferNotes(data.offer.notes || '');
+        }
       }
       await loadBrowserRuns();
     } catch (err) {
@@ -160,8 +183,8 @@ export function ApplicationDetailView({
   };
 
   useEffect(() => {
-    loadDetail();
-  }, [applicationId]);
+    if (active) loadDetail(detail !== null);
+  }, [applicationId, active, workspacePanel]);
 
   const handleMarkApplied = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -366,7 +389,15 @@ export function ApplicationDetailView({
     }
   };
 
-  if (loading) {
+  useEffect(() => {
+    if (detail) onSnapshot?.(detail, browserRuns[0]?.status, runHistoryFailed, loadingRuns);
+  }, [detail, browserRuns, runHistoryFailed, loadingRuns, onSnapshot]);
+
+  useEffect(() => {
+    onLoadError?.(error);
+  }, [error, onLoadError]);
+
+  if (loading && !detail) {
     return (
       <div style={{ textAlign: 'center', padding: '3rem' }}>
         <div className="spinner" />
@@ -388,6 +419,9 @@ export function ApplicationDetailView({
           ← Back to Applications
         </Button>
         <div className="banner banner-error">{error || 'Application not found'}</div>
+        <Button className="btn-outline" onClick={() => loadDetail(detail !== null)}>
+          Retry application details
+        </Button>
       </div>
     );
   }
@@ -398,12 +432,15 @@ export function ApplicationDetailView({
   return (
     <div
       style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', paddingBottom: '3rem' }}
-      className="layout-group"
+      className={`layout-group application-detail ${workspacePanel === 'review' ? 'final-review-details' : ''}`}
     >
       {/* Top Navigation & Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div
+        hidden={embedded}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+      >
         <Button className="btn btn-secondary btn-sm" onClick={onBack}>
-          ← Back to Applications CRM
+          ← Back to my applications
         </Button>
         <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
           {currentPackage && onOpenStudio && (
@@ -411,7 +448,7 @@ export function ApplicationDetailView({
               className="btn btn-outline btn-sm"
               onClick={() => onOpenStudio(currentPackage.packageId)}
             >
-              <Icon name="document" /> Open in Application Studio
+              <Icon name="document" /> View documents
             </Button>
           )}
           {onNavigateToJob && (
@@ -423,7 +460,7 @@ export function ApplicationDetailView({
       </div>
 
       {/* Main Header Card */}
-      <header className="card" style={{ padding: '1.5rem' }}>
+      <header hidden={workspacePanel === 'review'} className="card" style={{ padding: '1.5rem' }}>
         <div
           style={{
             display: 'flex',
@@ -444,7 +481,9 @@ export function ApplicationDetailView({
               }}
               className="layout-group"
             >
-              <h1 style={{ fontSize: '1.6rem', margin: 0 }}>{job.title}</h1>
+              <h2 style={{ fontSize: '1.375rem', margin: 0 }}>
+                {embedded ? 'Application progress' : job.title}
+              </h2>
               <span
                 style={{
                   ...applicationStatusStyle(application.status),
@@ -516,290 +555,293 @@ export function ApplicationDetailView({
           </div>
         </div>
 
-        {/* State Machine Transition Action Toolbar */}
-        <div
-          style={{
-            marginTop: '1.25rem',
-            paddingTop: '1rem',
-            borderTop: '1px solid var(--border-color)',
-            display: 'flex',
-            gap: '0.5rem',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-          }}
-          className="layout-group"
-        >
-          <span
-            style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}
+        <details className="advanced-details">
+          <summary>Update status & manage application</summary>
+          {/* State Machine Transition Action Toolbar */}
+          <div
+            style={{
+              marginTop: '1.25rem',
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+              display: 'flex',
+              gap: '0.5rem',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+            }}
+            className="layout-group"
           >
-            Available Transitions:
-          </span>
-
-          {/* Pre-Application Actions */}
-          {application.status === 'DISCOVERED' && (
-            <>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.ANALYZED)}
-              >
-                <Icon name="search" /> Mark Analyzed
-              </Button>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.MATCHED)}
-              >
-                <Icon name="jobs" /> Mark Matched
-              </Button>
-              <Button
-                className="btn btn-primary btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
-              >
-                <Icon name="ai" size={20} /> Ready to Apply
-              </Button>
-              <Button
-                className="btn btn-secondary btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
-              >
-                ⏭️ Skip
-              </Button>
-            </>
-          )}
-
-          {application.status === 'ANALYZED' && (
-            <>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.MATCHED)}
-              >
-                <Icon name="jobs" /> Mark Matched
-              </Button>
-              <Button
-                className="btn btn-primary btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
-              >
-                <Icon name="ai" size={20} /> Ready to Apply
-              </Button>
-              <Button
-                className="btn btn-secondary btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
-              >
-                ⏭️ Skip
-              </Button>
-            </>
-          )}
-
-          {application.status === 'MATCHED' && (
-            <>
-              <Button
-                className="btn btn-primary btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
-              >
-                <Icon name="ai" size={20} /> Ready to Apply
-              </Button>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.NEEDS_REVIEW)}
-              >
-                <Icon name="warning" /> Needs Review
-              </Button>
-              <Button
-                className="btn btn-secondary btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
-              >
-                ⏭️ Skip
-              </Button>
-            </>
-          )}
-
-          {application.status === 'NEEDS_REVIEW' && (
-            <>
-              <Button
-                className="btn btn-primary btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
-              >
-                <Icon name="ai" size={20} /> Ready to Apply
-              </Button>
-              <Button
-                className="btn btn-secondary btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
-              >
-                ⏭️ Skip
-              </Button>
-            </>
-          )}
-
-          {application.status === 'READY_TO_APPLY' && (
-            <>
-              <Button
-                className="btn btn-primary btn-sm"
-                onClick={() => setShowMarkAppliedModal(true)}
-              >
-                <Icon name="forward" /> Mark as Applied
-              </Button>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.APPLYING)}
-              >
-                <Icon name="schedule" size={20} /> Move to Applying
-              </Button>
-              <Button
-                className="btn btn-secondary btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
-              >
-                ⏭️ Skip
-              </Button>
-            </>
-          )}
-
-          {application.status === 'APPLYING' && (
-            <>
-              <Button
-                className="btn btn-primary btn-sm"
-                onClick={() => setShowMarkAppliedModal(true)}
-              >
-                <Icon name="forward" /> Complete Application (Mark Applied)
-              </Button>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
-              >
-                ↩️ Back to Ready
-              </Button>
-            </>
-          )}
-
-          {application.status === 'SKIPPED' && (
-            <>
-              <Button
-                className="btn btn-primary btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
-              >
-                <Icon name="ai" size={20} /> Reopen (Ready to Apply)
-              </Button>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.MATCHED)}
-              >
-                <Icon name="jobs" /> Move to Matched
-              </Button>
-            </>
-          )}
-
-          {application.status === 'APPLIED' && (
-            <>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.CONFIRMATION_RECEIVED)}
-              >
-                <Icon name="messages" size={20} /> Confirmation Received
-              </Button>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.SCREENING)}
-              >
-                <Icon name="interviews" size={20} /> Move to Screening
-              </Button>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.INTERVIEW)}
-              >
-                <Icon name="interviews" size={20} /> Move to Interview
-              </Button>
-            </>
-          )}
-
-          {(application.status === 'CONFIRMATION_RECEIVED' ||
-            application.status === 'SCREENING' ||
-            application.status === 'ASSESSMENT') && (
-            <>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.ASSESSMENT)}
-              >
-                <Icon name="edit" /> Assessment Received
-              </Button>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.INTERVIEW)}
-              >
-                <Icon name="interviews" size={20} /> Move to Interview
-              </Button>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.OFFER)}
-              >
-                <Icon name="verified" size={20} /> Offer Received
-              </Button>
-            </>
-          )}
-
-          {(application.status === 'INTERVIEW' || application.status === 'FINAL_INTERVIEW') && (
-            <>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.FINAL_INTERVIEW)}
-              >
-                <Icon name="jobs" /> Final Interview
-              </Button>
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.OFFER)}
-              >
-                <Icon name="verified" size={20} /> Offer Received
-              </Button>
-            </>
-          )}
-
-          {/* Terminal Actions */}
-          {!isTerminal && application.status !== 'SKIPPED' && (
-            <>
-              <Button
-                className="btn btn-secondary btn-sm"
-                style={{ color: 'var(--status-danger)' }}
-                onClick={() => openTransition(ApplicationLifecycleStatus.REJECTED)}
-              >
-                <Icon name="close" size={20} /> Rejected
-              </Button>
-              <Button
-                className="btn btn-secondary btn-sm"
-                onClick={() => openTransition(ApplicationLifecycleStatus.WITHDRAWN)}
-              >
-                Withdraw
-              </Button>
-            </>
-          )}
-
-          {/* Correction Reopen Action for Terminal States */}
-          {isTerminal && (
-            <Button
-              className="btn btn-warning btn-sm"
-              onClick={() => openTransition(ApplicationLifecycleStatus.INTERVIEW, true)}
+            <span
+              style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginRight: '0.5rem' }}
             >
-              <Icon name="sync" /> Reopen Process (Correction)
-            </Button>
-          )}
+              Available Transitions:
+            </span>
 
-          {/* Archive / Unarchive Action */}
-          <div style={{ marginLeft: 'auto' }}>
-            {application.isArchived ? (
+            {/* Pre-Application Actions */}
+            {application.status === 'DISCOVERED' && (
+              <>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.ANALYZED)}
+                >
+                  <Icon name="search" /> Mark Analyzed
+                </Button>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.MATCHED)}
+                >
+                  <Icon name="jobs" /> Mark Matched
+                </Button>
+                <Button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
+                >
+                  <Icon name="ai" size={20} /> Ready to Apply
+                </Button>
+                <Button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
+                >
+                  ⏭️ Skip
+                </Button>
+              </>
+            )}
+
+            {application.status === 'ANALYZED' && (
+              <>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.MATCHED)}
+                >
+                  <Icon name="jobs" /> Mark Matched
+                </Button>
+                <Button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
+                >
+                  <Icon name="ai" size={20} /> Ready to Apply
+                </Button>
+                <Button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
+                >
+                  ⏭️ Skip
+                </Button>
+              </>
+            )}
+
+            {application.status === 'MATCHED' && (
+              <>
+                <Button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
+                >
+                  <Icon name="ai" size={20} /> Ready to Apply
+                </Button>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.NEEDS_REVIEW)}
+                >
+                  <Icon name="warning" /> Needs Review
+                </Button>
+                <Button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
+                >
+                  ⏭️ Skip
+                </Button>
+              </>
+            )}
+
+            {application.status === 'NEEDS_REVIEW' && (
+              <>
+                <Button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
+                >
+                  <Icon name="ai" size={20} /> Ready to Apply
+                </Button>
+                <Button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
+                >
+                  ⏭️ Skip
+                </Button>
+              </>
+            )}
+
+            {application.status === 'READY_TO_APPLY' && (
+              <>
+                <Button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setShowMarkAppliedModal(true)}
+                >
+                  <Icon name="forward" /> Mark as Applied
+                </Button>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.APPLYING)}
+                >
+                  <Icon name="schedule" size={20} /> Move to Applying
+                </Button>
+                <Button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.SKIPPED)}
+                >
+                  ⏭️ Skip
+                </Button>
+              </>
+            )}
+
+            {application.status === 'APPLYING' && (
+              <>
+                <Button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setShowMarkAppliedModal(true)}
+                >
+                  <Icon name="forward" /> Complete Application (Mark Applied)
+                </Button>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
+                >
+                  ↩️ Back to Ready
+                </Button>
+              </>
+            )}
+
+            {application.status === 'SKIPPED' && (
+              <>
+                <Button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.READY_TO_APPLY)}
+                >
+                  <Icon name="ai" size={20} /> Reopen (Ready to Apply)
+                </Button>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.MATCHED)}
+                >
+                  <Icon name="jobs" /> Move to Matched
+                </Button>
+              </>
+            )}
+
+            {application.status === 'APPLIED' && (
+              <>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.CONFIRMATION_RECEIVED)}
+                >
+                  <Icon name="messages" size={20} /> Confirmation Received
+                </Button>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.SCREENING)}
+                >
+                  <Icon name="interviews" size={20} /> Move to Screening
+                </Button>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.INTERVIEW)}
+                >
+                  <Icon name="interviews" size={20} /> Move to Interview
+                </Button>
+              </>
+            )}
+
+            {(application.status === 'CONFIRMATION_RECEIVED' ||
+              application.status === 'SCREENING' ||
+              application.status === 'ASSESSMENT') && (
+              <>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.ASSESSMENT)}
+                >
+                  <Icon name="edit" /> Assessment Received
+                </Button>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.INTERVIEW)}
+                >
+                  <Icon name="interviews" size={20} /> Move to Interview
+                </Button>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.OFFER)}
+                >
+                  <Icon name="verified" size={20} /> Offer Received
+                </Button>
+              </>
+            )}
+
+            {(application.status === 'INTERVIEW' || application.status === 'FINAL_INTERVIEW') && (
+              <>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.FINAL_INTERVIEW)}
+                >
+                  <Icon name="jobs" /> Final Interview
+                </Button>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.OFFER)}
+                >
+                  <Icon name="verified" size={20} /> Offer Received
+                </Button>
+              </>
+            )}
+
+            {/* Terminal Actions */}
+            {!isTerminal && application.status !== 'SKIPPED' && (
+              <>
+                <Button
+                  className="btn btn-secondary btn-sm"
+                  style={{ color: 'var(--status-danger)' }}
+                  onClick={() => openTransition(ApplicationLifecycleStatus.REJECTED)}
+                >
+                  <Icon name="close" size={20} /> Rejected
+                </Button>
+                <Button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => openTransition(ApplicationLifecycleStatus.WITHDRAWN)}
+                >
+                  Withdraw
+                </Button>
+              </>
+            )}
+
+            {/* Correction Reopen Action for Terminal States */}
+            {isTerminal && (
               <Button
-                className="btn btn-outline btn-sm"
-                onClick={handleUnarchive}
-                title="Restore application to active pipeline"
+                className="btn btn-warning btn-sm"
+                onClick={() => openTransition(ApplicationLifecycleStatus.INTERVIEW, true)}
               >
-                <Icon name="folder" /> Unarchive
-              </Button>
-            ) : (
-              <Button
-                className="btn btn-outline btn-sm"
-                onClick={handleArchive}
-                title="Soft-hide from active pipeline while preserving all history and provenance"
-              >
-                <Icon name="folder" size={20} /> Archive Application
+                <Icon name="sync" /> Reopen Process (Correction)
               </Button>
             )}
+
+            {/* Archive / Unarchive Action */}
+            <div style={{ marginLeft: 'auto' }}>
+              {application.isArchived ? (
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={handleUnarchive}
+                  title="Restore application to active pipeline"
+                >
+                  <Icon name="folder" /> Unarchive
+                </Button>
+              ) : (
+                <Button
+                  className="btn btn-outline btn-sm"
+                  onClick={handleArchive}
+                  title="Soft-hide from active pipeline while preserving all history and provenance"
+                >
+                  <Icon name="folder" size={20} /> Archive Application
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
+        </details>
       </header>
 
       {/* Grid: Left Column (Next Action & Materials) | Right Column (Timeline & Notes) */}
@@ -871,6 +913,7 @@ export function ApplicationDetailView({
                 <Input
                   type="text"
                   className="input"
+                  aria-label="Next action"
                   placeholder="e.g. Follow up with recruiter on phone screen"
                   value={nextActionText}
                   onChange={(e) => setNextActionText(e.target.value)}
@@ -881,6 +924,7 @@ export function ApplicationDetailView({
                 >
                   <Select
                     className="input"
+                    aria-label="Next action type"
                     value={nextActionType}
                     onChange={(e) => setNextActionType(e.target.value)}
                   >
@@ -893,6 +937,7 @@ export function ApplicationDetailView({
                   <Input
                     type="datetime-local"
                     className="input"
+                    aria-label="Follow-up date"
                     value={followUpDate}
                     onChange={(e) => setFollowUpDate(e.target.value)}
                   />
@@ -995,405 +1040,435 @@ export function ApplicationDetailView({
               </div>
             ) : (
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                {application.status === 'READY_TO_APPLY'
-                  ? 'Application is ready to submit. Click "Mark as Applied" when sent.'
-                  : 'Submitted externally without a frozen studio package.'}
+                {submissionSummary(
+                  application.status,
+                  application.appliedAt,
+                  browserRuns[0]?.status,
+                )}
               </p>
             )}
           </Card>
 
-          {/* Browser Application Automation & ATS Worker Card (JOB-P5-T01) */}
-          <Card className="card" style={{ padding: '1.25rem' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <h3
-                style={{
-                  fontSize: '1.05rem',
-                  margin: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
-              >
-                <span>
-                  <Icon name="ai" size={20} />
-                </span>{' '}
-                Browser Application Worker & ATS Auto-Fill
-              </h3>
-              {browserRuns.length > 0 && (
-                <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>
-                  {browserRuns.length} run{browserRuns.length > 1 ? 's' : ''} recorded
-                </span>
-              )}
-            </div>
-
-            <p
-              style={{
-                fontSize: '0.85rem',
-                color: 'var(--text-secondary)',
-                marginBottom: '1rem',
-                lineHeight: 1.4,
-              }}
-            >
-              Automated headless form inspection and prefilling for Greenhouse, Lever, and Ashby
-              boards. Grounded exclusively in verified Candidate Brain facts and Answer Library
-              entries with mandatory halt on CAPTCHAs or missing required questions.
-            </p>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'var(--bg-secondary)',
-                padding: '0.6rem 0.85rem',
-                borderRadius: '16px',
-                fontSize: '0.85rem',
-                marginBottom: '1rem',
-                gap: '0.5rem',
-              }}
-              className="layout-group"
-            >
-              <span style={{ color: 'var(--text-secondary)' }}>Target Apply URL:</span>
-              <span
-                style={{
-                  fontFamily: 'monospace',
-                  fontWeight: 600,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  maxWidth: '380px',
-                }}
-                title={application.applicationUrl || job.sourceUrl || ''}
-              >
-                {application.applicationUrl || job.sourceUrl || 'No target apply URL set'}
-              </span>
-            </div>
-
-            {runError && (
+          <details
+            className="student-tools browser-assistance"
+            open={
+              browserRuns.some((run) =>
+                ['SUBMISSION_UNCERTAIN', 'RUNNING', 'PENDING'].includes(run.status),
+              ) || !!runError
+            }
+          >
+            <summary>
+              Browser assistance & run history{browserRuns.length ? ` (${browserRuns.length})` : ''}
+            </summary>
+            {/* Browser Application Automation & ATS Worker Card (JOB-P5-T01) */}
+            <Card className="card browser-assistance-card" style={{ padding: '1.25rem' }}>
               <div
                 style={{
-                  background: 'var(--status-danger-container)',
-                  color: 'var(--status-danger)',
-                  padding: '0.6rem 0.75rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                <h3
+                  style={{
+                    fontSize: '1.05rem',
+                    margin: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <span>
+                    <Icon name="ai" size={20} />
+                  </span>{' '}
+                  Browser Application Worker & ATS Auto-Fill
+                </h3>
+                {browserRuns.length > 0 && (
+                  <span className="badge badge-secondary" style={{ fontSize: '0.75rem' }}>
+                    {browserRuns.length} run{browserRuns.length > 1 ? 's' : ''} recorded
+                  </span>
+                )}
+              </div>
+
+              <p
+                style={{
+                  fontSize: '0.85rem',
+                  color: 'var(--text-secondary)',
+                  marginBottom: '1rem',
+                  lineHeight: 1.4,
+                }}
+              >
+                Automated headless form inspection and prefilling for Greenhouse, Lever, and Ashby
+                boards. Grounded exclusively in verified Candidate Brain facts and Answer Library
+                entries with mandatory halt on CAPTCHAs or missing required questions.
+              </p>
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'var(--bg-secondary)',
+                  padding: '0.6rem 0.85rem',
                   borderRadius: '16px',
                   fontSize: '0.85rem',
                   marginBottom: '1rem',
+                  gap: '0.5rem',
                 }}
+                className="layout-group"
               >
-                <Icon name="warning" /> {runError}
-              </div>
-            )}
-
-            <div
-              style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '1rem' }}
-              className="layout-group"
-            >
-              <Button
-                className="btn btn-primary btn-sm"
-                disabled={startingRun || !(application.applicationUrl || job.sourceUrl)}
-                onClick={() => handleTriggerRun(BrowserRunMode.DRY_RUN)}
-                title="Prefills and validates form fields without submitting"
-              >
-                {startingRun ? (
-                  'Executing Run...'
-                ) : (
-                  <>
-                    <Icon name="settings" size={20} /> Run Safe Dry-Run
-                  </>
-                )}
-              </Button>
-              <Button
-                className="btn btn-outline btn-sm"
-                disabled={startingRun || !(application.applicationUrl || job.sourceUrl)}
-                onClick={() => handleTriggerRun(BrowserRunMode.PREFILL_ONLY)}
-                title="Fills form and preserves active session for manual review"
-              >
-                <Icon name="edit" /> Prefill in Browser
-              </Button>
-              <Button
-                className="btn btn-warning btn-sm"
-                disabled={startingRun || !(application.applicationUrl || job.sourceUrl)}
-                onClick={async () => {
-                  if (
-                    await confirm(
-                      `Human Authorization Required:\n\nAuthorize automated submission to ${job.company || 'employer'}?\n\nThis will populate your verified candidate information, attach your selected CV, and submit the external application form.`,
-                    )
-                  ) {
-                    handleTriggerRun(BrowserRunMode.SUBMIT);
-                  }
-                }}
-                title="Authorizes worker to fill and submit application to the external ATS"
-              >
-                <Icon name="forward" /> Submit via Browser Worker
-              </Button>
-              {browserRuns.length > 0 && (
-                <Button
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    setSelectedRun(browserRuns[0]);
-                    setShowRunModal(true);
-                  }}
-                >
-                  <Icon name="search" /> View Latest Audit Trail
-                </Button>
-              )}
-            </div>
-
-            {/* Recent Runs summary list */}
-            {browserRuns.length > 0 && (
-              <div style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}>
-                <div
+                <span style={{ color: 'var(--text-secondary)' }}>Target Apply URL:</span>
+                <span
                   style={{
+                    fontFamily: 'monospace',
                     fontWeight: 600,
-                    marginBottom: '0.5rem',
-                    color: 'var(--text-secondary)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '380px',
                   }}
+                  title={application.applicationUrl || job.sourceUrl || ''}
                 >
-                  Execution History
-                </div>
-                <div
-                  style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}
-                  className="layout-group"
-                >
-                  {browserRuns.slice(0, 3).map((run) => (
-                    <Button
-                      key={run.id}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        background: 'var(--bg-secondary)',
-                        padding: '0.4rem 0.6rem',
-                        borderRadius: '16px',
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => {
-                        setSelectedRun(run);
-                        setShowRunModal(true);
-                      }}
-                      className="btn-ghost"
-                    >
-                      <div
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                        className="layout-group"
-                      >
-                        <span
-                          className={`badge ${
-                            run.status === 'SUCCESS'
-                              ? 'badge-success'
-                              : run.status === 'SUBMISSION_UNCERTAIN'
-                                ? 'badge-warning'
-                                : run.status.startsWith('STOPPED')
-                                  ? 'badge-warning'
-                                  : 'badge-error'
-                          }`}
-                          style={{
-                            fontSize: '0.75rem',
-                            ...browserRunStyle(run.status),
-                          }}
-                        >
-                          {run.status === 'SUBMISSION_UNCERTAIN' ? (
-                            <>
-                              <Icon name="warning" size={20} /> UNCERTAIN
-                            </>
-                          ) : (
-                            run.status
-                          )}
-                        </span>
-                        <span style={{ fontWeight: 500 }}>{run.atsProvider}</span>
-                        <span style={{ color: 'var(--text-secondary)' }}>• {run.mode}</span>
-                      </div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          color: 'var(--text-secondary)',
-                        }}
-                        className="layout-group"
-                      >
-                        <span>
-                          {run.fieldsFilledCount}/{run.fieldsDetectedCount} fields filled
-                        </span>
-                        <span>
-                          {new Date(run.createdAt).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                    </Button>
-                  ))}
-                </div>
+                  {application.applicationUrl || job.sourceUrl || 'No target apply URL set'}
+                </span>
               </div>
-            )}
-          </Card>
 
-          {/* Offer & Compensation Card */}
-          <Card className="card" style={{ padding: '1.25rem' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Offer & Compensation</h3>
-              <Button className="btn btn-secondary btn-sm" onClick={() => setShowOfferModal(true)}>
-                {detail.offer ? 'Edit Offer' : '+ Record Offer'}
-              </Button>
-            </div>
-
-            {detail.offer ? (
-              <div style={{ fontSize: '0.9rem' }}>
+              {runHistoryFailed && (
+                <p role="alert">
+                  Run history could not be checked. Do not assume a submission succeeded.{' '}
+                  <Button className="btn-outline" onClick={loadBrowserRuns}>
+                    Retry run history
+                  </Button>
+                </p>
+              )}
+              {runError && (
                 <div
                   style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    marginBottom: '0.5rem',
+                    background: 'var(--status-danger-container)',
+                    color: 'var(--status-danger)',
+                    padding: '0.6rem 0.75rem',
+                    borderRadius: '16px',
+                    fontSize: '0.85rem',
+                    marginBottom: '1rem',
                   }}
                 >
-                  <span style={{ color: 'var(--text-secondary)' }}>Status:</span>
-                  <strong>{detail.offer.status}</strong>
+                  <Icon name="warning" /> {runError}
                 </div>
-                {detail.offer.baseSalary && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: '0.5rem',
+              )}
+
+              <div
+                style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '1rem' }}
+                className="layout-group"
+              >
+                <Button
+                  className="btn btn-primary btn-sm"
+                  disabled={startingRun || !(application.applicationUrl || job.sourceUrl)}
+                  onClick={() => handleTriggerRun(BrowserRunMode.DRY_RUN)}
+                  title="Prefills and validates form fields without submitting"
+                >
+                  {startingRun ? (
+                    'Executing Run...'
+                  ) : (
+                    <>
+                      <Icon name="settings" size={20} /> Run Safe Dry-Run
+                    </>
+                  )}
+                </Button>
+                <Button
+                  className="btn btn-outline btn-sm"
+                  disabled={startingRun || !(application.applicationUrl || job.sourceUrl)}
+                  onClick={() => handleTriggerRun(BrowserRunMode.PREFILL_ONLY)}
+                  title="Fills form and preserves active session for manual review"
+                >
+                  <Icon name="edit" /> Prefill in Browser
+                </Button>
+                <Button
+                  className="btn btn-warning btn-sm"
+                  disabled={startingRun || !(application.applicationUrl || job.sourceUrl)}
+                  onClick={async () => {
+                    if (
+                      await confirm(
+                        `Human Authorization Required:\n\nAuthorize automated submission to ${job.company || 'employer'}?\n\nThis will populate your verified candidate information, attach your selected CV, and submit the external application form.`,
+                      )
+                    ) {
+                      handleTriggerRun(BrowserRunMode.SUBMIT);
+                    }
+                  }}
+                  title="Authorizes worker to fill and submit application to the external ATS"
+                >
+                  <Icon name="forward" /> Submit via Browser Worker
+                </Button>
+                {browserRuns.length > 0 && (
+                  <Button
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => {
+                      setSelectedRun(browserRuns[0]);
+                      setShowRunModal(true);
                     }}
                   >
-                    <span style={{ color: 'var(--text-secondary)' }}>Base Salary:</span>
-                    <strong>
-                      {detail.offer.currency} {detail.offer.baseSalary.toLocaleString()}
-                    </strong>
-                  </div>
+                    <Icon name="search" /> View Latest Audit Trail
+                  </Button>
                 )}
-                {detail.offer.totalComp && (
+              </div>
+
+              {/* Recent Runs summary list */}
+              {browserRuns.length > 0 && (
+                <div style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}>
                   <div
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
+                      fontWeight: 600,
                       marginBottom: '0.5rem',
-                    }}
-                  >
-                    <span style={{ color: 'var(--text-secondary)' }}>Total Compensation:</span>
-                    <strong>
-                      {detail.offer.currency} {detail.offer.totalComp.toLocaleString()}
-                    </strong>
-                  </div>
-                )}
-                {detail.offer.deadlineAt && (
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      marginBottom: '0.5rem',
-                    }}
-                  >
-                    <span style={{ color: 'var(--text-secondary)' }}>Deadline:</span>
-                    <span>{new Date(detail.offer.deadlineAt).toLocaleDateString()}</span>
-                  </div>
-                )}
-                {detail.offer.notes && (
-                  <p
-                    style={{
-                      margin: '0.5rem 0 0 0',
-                      fontSize: '0.85rem',
                       color: 'var(--text-secondary)',
                     }}
                   >
-                    {detail.offer.notes}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                No offer recorded yet.
-              </p>
-            )}
-          </Card>
-
-          {/* Recruiter Contacts Card */}
-          <Card className="card" style={{ padding: '1.25rem' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <h3 style={{ fontSize: '1.05rem', margin: 0 }}>
-                Recruiter & Contacts ({detail.contacts.length})
-              </h3>
-              <Button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowAddContactModal(true)}
-              >
-                + Add Contact
-              </Button>
-            </div>
-
-            {detail.contacts.length === 0 ? (
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                No recruiters or contacts linked.
-              </p>
-            ) : (
-              <div
-                style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
-                className="layout-group"
-              >
-                {detail.contacts.map((c) => (
+                    Execution History
+                  </div>
                   <div
-                    key={c.id}
+                    style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}
+                    className="layout-group"
+                  >
+                    {browserRuns.slice(0, 3).map((run) => (
+                      <Button
+                        key={run.id}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          background: 'var(--bg-secondary)',
+                          padding: '0.4rem 0.6rem',
+                          borderRadius: '16px',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => {
+                          setSelectedRun(run);
+                          setShowRunModal(true);
+                        }}
+                        className="btn-ghost"
+                      >
+                        <div
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                          className="layout-group"
+                        >
+                          <span
+                            className={`badge ${
+                              run.status === 'SUCCESS'
+                                ? 'badge-success'
+                                : run.status === 'SUBMISSION_UNCERTAIN'
+                                  ? 'badge-warning'
+                                  : run.status.startsWith('STOPPED')
+                                    ? 'badge-warning'
+                                    : 'badge-error'
+                            }`}
+                            style={{
+                              fontSize: '0.75rem',
+                              ...browserRunStyle(run.status),
+                            }}
+                          >
+                            {run.status === 'SUBMISSION_UNCERTAIN' ? (
+                              <>
+                                <Icon name="warning" size={20} /> UNCERTAIN
+                              </>
+                            ) : (
+                              run.status
+                            )}
+                          </span>
+                          <span style={{ fontWeight: 500 }}>{run.atsProvider}</span>
+                          <span style={{ color: 'var(--text-secondary)' }}>• {run.mode}</span>
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            color: 'var(--text-secondary)',
+                          }}
+                          className="layout-group"
+                        >
+                          <span>
+                            {run.fieldsFilledCount}/{run.fieldsDetectedCount} fields filled
+                          </span>
+                          <span>
+                            {new Date(run.createdAt).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+          </details>
+          <details className="student-tools optional-application-tools">
+            <summary>Offer & compensation</summary>
+            {/* Offer & Compensation Card */}
+            <Card className="card" style={{ padding: '1.25rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                <h3 style={{ fontSize: '1.05rem', margin: 0 }}>Offer & Compensation</h3>
+                <Button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowOfferModal(true)}
+                >
+                  {detail.offer ? 'Edit Offer' : '+ Record Offer'}
+                </Button>
+              </div>
+
+              {detail.offer ? (
+                <div style={{ fontSize: '0.9rem' }}>
+                  <div
                     style={{
-                      background: 'var(--bg-secondary)',
-                      padding: '0.75rem',
-                      borderRadius: '16px',
-                      fontSize: '0.85rem',
                       display: 'flex',
                       justifyContent: 'space-between',
-                      alignItems: 'flex-start',
+                      marginBottom: '0.5rem',
                     }}
                   >
-                    <div>
-                      <strong>{c.name}</strong>
-                      {c.isPrimary && (
-                        <span className="badge badge-primary" style={{ marginLeft: '0.5rem' }}>
-                          Primary
-                        </span>
-                      )}
-                      {c.title && <div style={{ color: 'var(--text-secondary)' }}>{c.title}</div>}
-                      {c.email && (
-                        <div>
-                          <a href={`mailto:${c.email}`}>{c.email}</a>
-                        </div>
-                      )}
-                      {c.phone && <div>{c.phone}</div>}
-                    </div>
-                    <Button
-                      className="btn btn-secondary btn-sm"
-                      style={{ color: 'var(--status-danger)' }}
-                      onClick={() => handleDeleteContact(c.id)}
-                      aria-label="Delete record"
-                    >
-                      <Icon name="close" size={20} />
-                    </Button>
+                    <span style={{ color: 'var(--text-secondary)' }}>Status:</span>
+                    <strong>{detail.offer.status}</strong>
                   </div>
-                ))}
+                  {detail.offer.baseSalary && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      <span style={{ color: 'var(--text-secondary)' }}>Base Salary:</span>
+                      <strong>
+                        {detail.offer.currency} {detail.offer.baseSalary.toLocaleString()}
+                      </strong>
+                    </div>
+                  )}
+                  {detail.offer.totalComp && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      <span style={{ color: 'var(--text-secondary)' }}>Total Compensation:</span>
+                      <strong>
+                        {detail.offer.currency} {detail.offer.totalComp.toLocaleString()}
+                      </strong>
+                    </div>
+                  )}
+                  {detail.offer.deadlineAt && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      <span style={{ color: 'var(--text-secondary)' }}>Deadline:</span>
+                      <span>{new Date(detail.offer.deadlineAt).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  {detail.offer.notes && (
+                    <p
+                      style={{
+                        margin: '0.5rem 0 0 0',
+                        fontSize: '0.85rem',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      {detail.offer.notes}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                  No offer recorded yet.
+                </p>
+              )}
+            </Card>
+          </details>
+
+          <details className="student-tools optional-application-tools">
+            <summary>Recruiter contacts</summary>
+            {/* Recruiter Contacts Card */}
+            <Card className="card" style={{ padding: '1.25rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                <h3 style={{ fontSize: '1.05rem', margin: 0 }}>
+                  Recruiter & Contacts ({detail.contacts.length})
+                </h3>
+                <Button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowAddContactModal(true)}
+                >
+                  + Add Contact
+                </Button>
               </div>
-            )}
-          </Card>
+
+              {detail.contacts.length === 0 ? (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                  No recruiters or contacts linked.
+                </p>
+              ) : (
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                  className="layout-group"
+                >
+                  {detail.contacts.map((c) => (
+                    <div
+                      key={c.id}
+                      style={{
+                        background: 'var(--bg-secondary)',
+                        padding: '0.75rem',
+                        borderRadius: '16px',
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                      }}
+                    >
+                      <div>
+                        <strong>{c.name}</strong>
+                        {c.isPrimary && (
+                          <span className="badge badge-primary" style={{ marginLeft: '0.5rem' }}>
+                            Primary
+                          </span>
+                        )}
+                        {c.title && <div style={{ color: 'var(--text-secondary)' }}>{c.title}</div>}
+                        {c.email && (
+                          <div>
+                            <a href={`mailto:${c.email}`}>{c.email}</a>
+                          </div>
+                        )}
+                        {c.phone && <div>{c.phone}</div>}
+                      </div>
+                      <Button
+                        className="btn btn-secondary btn-sm"
+                        style={{ color: 'var(--status-danger)' }}
+                        onClick={() => handleDeleteContact(c.id)}
+                        aria-label="Delete record"
+                      >
+                        <Icon name="close" size={20} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </details>
         </div>
 
         {/* Right Column: Timeline, Interviews, Assessments & Notes */}
@@ -1547,78 +1622,86 @@ export function ApplicationDetailView({
             )}
           </Card>
 
-          {/* CRM User Notes */}
-          <Card className="card" style={{ padding: '1.25rem' }}>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '0.75rem',
-              }}
-            >
-              <h3 style={{ fontSize: '1.05rem', margin: 0 }}>
-                Candidate Notes ({detail.notes.length})
-              </h3>
-              <Button
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowAddNoteModal(true)}
-              >
-                + Add Note
-              </Button>
-            </div>
-
-            {detail.notes.length === 0 ? (
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                No notes logged for this application yet.
-              </p>
-            ) : (
+          <details className="student-tools optional-application-tools">
+            <summary>Notes</summary>
+            {/* CRM User Notes */}
+            <Card className="card" style={{ padding: '1.25rem' }}>
               <div
-                style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
-                className="layout-group"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.75rem',
+                }}
               >
-                {detail.notes.map((n) => (
-                  <div
-                    key={n.id}
-                    style={{
-                      background: 'var(--bg-secondary)',
-                      padding: '0.75rem',
-                      borderRadius: '16px',
-                      fontSize: '0.85rem',
-                    }}
-                  >
+                <h3 style={{ fontSize: '1.05rem', margin: 0 }}>
+                  Candidate Notes ({detail.notes.length})
+                </h3>
+                <Button
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setShowAddNoteModal(true)}
+                >
+                  + Add Note
+                </Button>
+              </div>
+
+              {detail.notes.length === 0 ? (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                  No notes logged for this application yet.
+                </p>
+              ) : (
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                  className="layout-group"
+                >
+                  {detail.notes.map((n) => (
                     <div
+                      key={n.id}
                       style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.75rem',
-                        marginBottom: '0.25rem',
+                        background: 'var(--bg-secondary)',
+                        padding: '0.75rem',
+                        borderRadius: '16px',
+                        fontSize: '0.85rem',
                       }}
                     >
-                      <span>{new Date(n.createdAt).toLocaleString()}</span>
-                      <Button
+                      <div
                         style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--status-danger)',
-                          cursor: 'pointer',
-                          padding: 0,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.75rem',
+                          marginBottom: '0.25rem',
                         }}
-                        onClick={() => handleDeleteNote(n.id)}
                       >
-                        Delete
-                      </Button>
+                        <span>{new Date(n.createdAt).toLocaleString()}</span>
+                        <Button
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--status-danger)',
+                            cursor: 'pointer',
+                            padding: 0,
+                          }}
+                          onClick={() => handleDeleteNote(n.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                      <div style={{ whiteSpace: 'pre-wrap' }}>{n.content}</div>
                     </div>
-                    <div style={{ whiteSpace: 'pre-wrap' }}>{n.content}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </details>
 
           {/* Append-only Lifecycle Event Timeline */}
-          <Card className="card" style={{ padding: '1.25rem' }}>
+          <Card
+            id="application-history"
+            tabIndex={-1}
+            className="card"
+            style={{ padding: '1.25rem' }}
+          >
             <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem' }}>
               Audit Timeline ({events.length} events)
             </h3>
@@ -2354,6 +2437,34 @@ export function ApplicationDetailView({
               </div>
             </div>
 
+            {selectedRun.submissionObservation && (
+              <div role="status">
+                <strong>
+                  {selectedRun.submissionObservation.outcome === 'ACCEPTED'
+                    ? 'Employer confirmation observed'
+                    : 'Confirmation needs attention'}
+                </strong>
+                <p>
+                  {selectedRun.submissionObservation.signal} ·{' '}
+                  {new Date(selectedRun.submissionObservation.observedAt).toLocaleString()}
+                </p>
+              </div>
+            )}
+            {!!selectedRun.screenshotPaths.length && (
+              <div className="account-actions">
+                {selectedRun.screenshotPaths.map((_, index) => (
+                  <a
+                    key={index}
+                    href={`/api/browser-runs/${selectedRun.id}/evidence/${index}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View retained evidence {index + 1}
+                  </a>
+                ))}
+                <span>Available for 30 days.</span>
+              </div>
+            )}
             {selectedRun.confirmationReference && (
               <div
                 style={{
@@ -2370,6 +2481,37 @@ export function ApplicationDetailView({
               </div>
             )}
 
+            {selectedRun.status === 'SUBMISSION_UNCERTAIN' && (
+              <p>
+                Check the employer website and your email before attempting this application again.
+                If it was received, update its status in this application record. An uncertain
+                attempt is never retried automatically.
+              </p>
+            )}
+            {selectedRun.status === 'SUBMISSION_UNCERTAIN' && (
+              <Button
+                onClick={async () => {
+                  const accepted = await confirm(
+                    'Confirm that you checked the employer website and your email and this application was not sent. This allows a separately authorized attempt; an incorrect check could create a duplicate application.',
+                  );
+                  if (!accepted) return;
+                  try {
+                    const updated = await BrowserWorkerClient.reconcileNotSent(
+                      selectedRun.id,
+                      'Candidate checked the employer website and email; no application was sent.',
+                    );
+                    setSelectedRun(updated);
+                    await loadDetail(true);
+                  } catch (err) {
+                    setError(
+                      err instanceof Error ? err.message : 'Could not reconcile this attempt.',
+                    );
+                  }
+                }}
+              >
+                I checked: this application was not sent
+              </Button>
+            )}
             {selectedRun.errorMessage && (
               <div
                 style={{

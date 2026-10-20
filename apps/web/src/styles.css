@@ -1,0 +1,5 @@
+
+.batch-items {list-style:none;padding:0;margin:16px 0;display:grid;gap:12px;}
+.batch-item {padding:16px;border:1px solid var(--surface-border);border-radius:16px;display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap;}
+.job-selection {display:flex;align-items:center;gap:8px;color:var(--text-secondary);margin-bottom:12px;}
+.batch-item p {margin:8px 0;}

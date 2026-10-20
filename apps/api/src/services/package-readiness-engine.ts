@@ -29,6 +29,14 @@ export class PackageReadinessEngine {
       reasons.push('Tailored CV DOCX artifact successfully generated and stored');
     }
 
+    if (
+      params.version.coverLetterEnabled &&
+      !params.artifacts.some((a) => a.artifactType === 'COVER_LETTER')
+    )
+      blockingIssues.push(
+        'Requested cover letter is missing. Regenerate materials or explicitly turn it off.',
+      );
+
     // 2. Policy Blocker check
     if (params.pkg.hasPolicyBlocker && !params.pkg.blockerOverridden) {
       blockingIssues.push(

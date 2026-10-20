@@ -95,12 +95,20 @@ export interface ApplicationSubmissionPayload {
   resumeFilePath?: string;
   resumeBuffer?: string; // base64 encoded
   resumeFileName?: string;
+  resumeMimeType?: string;
   coverLetterText?: string;
+  coverLetterBuffer?: string;
+  coverLetterMimeType?: string;
   coverLetterFilePath?: string;
   coverLetterFileName?: string;
   answers: Record<
     string,
-    { answerText: string; isSensitive?: boolean; verificationStatus?: string }
+    {
+      answerText: string;
+      isSensitive?: boolean;
+      verificationStatus?: string;
+      approvedQuestionText?: string;
+    }
   >;
   eeo?: {
     gender?: string;
@@ -121,6 +129,15 @@ export interface AtsValidationResult {
   isValid: boolean;
   errors: string[];
   missingRequiredFields: string[];
+}
+
+export interface SubmissionObservation {
+  outcome: 'ACCEPTED' | 'REJECTED' | 'UNCERTAIN';
+  provider: AtsProviderType;
+  observedAt: string;
+  pageUrl: string;
+  signal: string;
+  employerReference?: string;
 }
 
 export interface AtsSubmissionResult {
@@ -145,6 +162,7 @@ export interface BrowserApplicationRunDto {
   stepLogs: BrowserRunStepLog[];
   screenshotPaths: string[];
   confirmationReference?: string | null;
+  submissionObservation?: SubmissionObservation | null;
   errorMessage?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;
@@ -176,4 +194,19 @@ export interface SubmissionAuthorizationTicketDto {
     coverLetterChecksum?: string;
   };
   answersCount: number;
+}
+
+/** Hosted forms with dedicated adapters. Support is verified again against the loaded form. */
+export function inferHostedAtsProvider(url: string): AtsProviderType {
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return AtsProviderType.OTHER;
+  }
+  if (host === 'boards.greenhouse.io' || host === 'job-boards.greenhouse.io')
+    return AtsProviderType.GREENHOUSE;
+  if (host === 'jobs.lever.co' || host === 'jobs.eu.lever.co') return AtsProviderType.LEVER;
+  if (host === 'jobs.ashbyhq.com') return AtsProviderType.ASHBY;
+  return AtsProviderType.OTHER;
 }

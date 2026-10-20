@@ -1,11 +1,23 @@
+# Active continuation — 20 October 2026
+
+**JOB-PRODUCT-EVOLUTION-01 — LOCAL IMPLEMENTATION VERIFIED; ROLLOUT PENDING.** Owner explicitly authorized implementation and deployment. Branch `codex/jobee-product-evolution`, based on student UX checkpoint `f650fb0` / main `a98ac9f`. Employer observations and protected evidence, broad public source traversal, persistent preparation/review batches, per-item signed selected submissions and opt-in daily assistance are implemented. The student UX release and genuine reviewed Linux references are included.
+
+Verification: 634 passing tests across 72 files; all mandatory formatting, lint (693 warnings, zero errors), typecheck, build and isolated DB connectivity/migration gates pass. All 32 Linux browser checks pass at the unchanged 1% visual tolerance; macOS application checks also pass (one artifact-collision cleanup was rerun independently). Direct synthetic browser preparation produced two retained packages needing review; no employer application was sent. Three batch UI tests enforce separation of preparation, final review and deliberate submission authorization. See PRODUCT_EVOLUTION.md.
+
+Next: commit/push the reviewed change, require PR CI, apply additive migration 0022, deploy worker and API from the tested release, verify both services and public/auth boundaries, then record actual deployment IDs and source commit. No human usability/relevance pilot, paid provider experiment or live employer submission is claimed. Preserve the main checkout's preexisting AGENTS.md edit.
+
+---
+
 # Jobee — Autonomous Execution State
 
-> Active authorized work: **JOB-UI-MIGRATION-01**, led by Codex at the owner’s explicit request. Main checkout now includes `codex/jobee-design-system-migration`. **Owner authorized local integration and live deployment; deployed and live verified.** Verified 586 unit/integration tests, 25 browser checks and all quality gates. See `docs/UI_MIGRATION.md`. Prior release history below is retained.
+> Active authorized continuation: **JOB-UI-MIGRATION-01 — Student UX simplification**, 19 October 2026. The owner approved the complete Figma flow and explicitly requested application implementation. Four-destination navigation, contextual application workspaces, progressive tools, explicit document intent and simpler profile/settings screens are implemented locally in `codex/jobee-student-ux`. Local verification is complete: 606 tests / 67 files, all eight required gates and 32 Chromium checks pass; 42 desktop renders cover both themes. No merge, push or deployment has occurred. See `docs/STUDENT_UX.md`.
 
-**UI implementation checkpoint:** `675ec5c06b5e6a572ea5b8ae23803516a7dc904e` (integrated into main; production application release `7b6b85d`, both Railway services successful).
+**Source baseline:** `a98ac9f073f4d2ed5247b28faa97d13d71477500`. **Prior verified local checkpoint:** `04548142fe3ced25fa76b546cf112cd1c7829df8`. **Verified local implementation checkpoint:** `3c7f82f30182f90a3210297936804603f974a2ab`. **Next action:** owner review of the local preview; regenerate/review Linux visual references before any merge/release. The latest owner approval supersedes the older prototype-only scope gate; no student-study results are claimed. Linux visual-reference regeneration/review remains required before merge/release.
+
+**Previous deployed design-system checkpoint:** `675ec5c06b5e6a572ea5b8ae23803516a7dc904e`; production application release `7b6b85d`, both Railway services successful. Historical release records below refer to that completed work, not this new continuation.
 
 **Document Status:** Canonical Durable Execution State  
-**Updated At:** 2026-10-18 15:19:00 UTC
+**Updated At:** 2026-10-19 (student UX continuation)
 
 **Active Lead Engineer:** Codex (JOB-UI-MIGRATION-01, explicit owner assignment)
 
@@ -16,7 +28,9 @@
 
 ---
 
-## 1. Roadmap Snapshot
+## 1. Current continuation and historical roadmap snapshot
+
+Current work is the student UX continuation described above. The following acceptance-release snapshot is retained as historical evidence; its active/backlog labels and counts do not describe this continuation.
 
 - **Current Official Mode:** Authorized Acceptance Fix Release & Controlled Production Validation
 - **Active Backlog Item:** `JOBEE-POST-DEPLOY-ACCEPTANCE-01: CONTINUATION VERIFIED` (Acceptance Harness Security Hardening, Strict TLS, Zero Session Extraction, STUDIO-02 Rejection Blocker Fix, UI-02 Guest Landing View, 579/579 Tests Passing)

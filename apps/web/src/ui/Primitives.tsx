@@ -143,16 +143,22 @@ export function Tabs({
   items,
   onChange,
   panelId,
+  variant = 'underline',
 }: {
   label: string;
+  variant?: 'underline' | 'pill';
   panelId?: string;
   value: string;
-  items: { id: string; label: string }[];
+  items: { id: string; label: string; disabled?: boolean }[];
   onChange: (id: string) => void;
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   return (
-    <div className={styles.tabs} role="tablist" aria-label={label}>
+    <div
+      className={`${styles.tabs} ${variant === 'pill' ? styles.pills : ''}`}
+      role="tablist"
+      aria-label={label}
+    >
       {items.map((item, index) => (
         <button
           ref={(n) => {
@@ -162,6 +168,7 @@ export function Tabs({
           type="button"
           className={styles.tab}
           role="tab"
+          disabled={item.disabled}
           aria-controls={panelId}
           aria-selected={value === item.id}
           tabIndex={value === item.id ? 0 : -1}
@@ -173,6 +180,10 @@ export function Tabs({
             else if (event.key === 'Home') next = 0;
             else if (event.key === 'End') next = items.length - 1;
             else return;
+            const step = event.key === 'ArrowLeft' || event.key === 'End' ? -1 : 1;
+            let tried = 0;
+            while (items[next].disabled && tried++ < items.length)
+              next = (next + step + items.length) % items.length;
             event.preventDefault();
             refs.current[next]?.focus();
             onChange(items[next].id);

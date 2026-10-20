@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { JobService } from '../services/job-service.js';
 import type { MatchService } from '../services/match-service.js';
 import type { JobDiscoveryService } from '../services/job-discovery-service.js';
+import { z } from 'zod';
 import { AppError } from '@job-agent/shared';
 import {
   ingestTextSchema,
@@ -23,7 +24,21 @@ export function createJobRoutes(
     app.post('/jobs/discover', async (req) => {
       if (!discoveryService) throw AppError.internal('Discovery service is not initialized');
       const userId = requireCurrentUserId(req);
-      const options = (req.body as any) || {};
+      const options = z
+        .object({
+          limit: z.number().int().min(1).max(50).optional(),
+          sources: z
+            .array(z.enum(['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY']))
+            .max(4)
+            .optional(),
+          companies: z
+            .array(z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/))
+            .max(20)
+            .optional(),
+          queryKeywords: z.array(z.string().max(100)).max(20).optional(),
+        })
+        .strict()
+        .parse(req.body ?? {});
       const result = await discoveryService.discoverForCandidate(userId, options);
       return { status: 'ok', data: result, timestamp: new Date().toISOString() };
     });

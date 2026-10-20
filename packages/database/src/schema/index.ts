@@ -53,3 +53,4 @@ export * from './profile-import-sessions.js';
 export * from './profile-import-items.js';
 export * from './candidate-job-feedback.js';
 export * from './candidate-intelligence-suggestions.js';
+export * from './job-search.js';

@@ -1,3 +1,8 @@
+import { pruneBrowserEvidence } from './services/browser-evidence-retention.js';
+import { PreparationBatchService } from './services/preparation-batch-service.js';
+import { JobSearchSettingsService } from './services/job-search-settings-service.js';
+import { DailySearchService } from './services/daily-search-service.js';
+import { createPreparationBatchRoutes } from './routes/preparation-batch-routes.js';
 import fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
@@ -251,6 +256,44 @@ export function buildApp(options: AppOptions): FastifyInstance {
       prefix: '/api',
     });
     app.register(createApplicationPackageRoutes(packageService, candidateService));
+  }
+
+  if (db && packageService && config.BATCH_PREPARATION_ENABLED) {
+    const batches = new PreparationBatchService(db, packageService);
+    const searchSettings = new JobSearchSettingsService(db);
+    app.register(
+      createPreparationBatchRoutes(batches, searchSettings, config.SELECTED_SUBMISSIONS_ENABLED),
+      { prefix: '/api' },
+    );
+    if (config.NODE_ENV !== 'test') {
+      let active: Promise<void> | undefined;
+      let timer: ReturnType<typeof setInterval> | undefined;
+      let lastDaily = 0;
+      app.addHook('onReady', async () => {
+        const tick = () => {
+          if (active) return;
+          active = (async () => {
+            await batches.processOne();
+            if (discoveryService && matchService && Date.now() - lastDaily > 60_000) {
+              lastDaily = Date.now();
+              await pruneBrowserEvidence(db, options.storage ?? createStorageProvider(config));
+              await new DailySearchService(db, discoveryService, batches, matchService).runDue();
+            }
+          })()
+            .catch((error) => logger.error('Background preparation failed', undefined, error))
+            .finally(() => {
+              active = undefined;
+            });
+        };
+        timer = setInterval(tick, 5000);
+        timer.unref();
+        tick();
+      });
+      app.addHook('onClose', async () => {
+        if (timer) clearInterval(timer);
+        await active;
+      });
+    }
   }
 
   // Initialize and register Application CRM routes

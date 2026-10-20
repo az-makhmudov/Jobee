@@ -23,13 +23,17 @@ import type {
 } from '@job-agent/shared';
 
 interface Props {
+  initialTab?: 'interviews' | 'availability' | 'accounts';
   onNavigateToApplication?: (applicationId: string) => void;
 }
 
-export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
+export function InterviewWorkspaceView({
+  onNavigateToApplication,
+  initialTab = 'interviews',
+}: Props) {
   const { confirm } = useFeedback();
   const [activeTab, setActiveTab] = useState<'interviews' | 'availability' | 'accounts'>(
-    'interviews',
+    initialTab,
   );
   const [filter, setFilter] = useState<
     'ALL' | 'UPCOMING' | 'PAST' | 'NEEDS_BRIEF' | 'NEEDS_DEBRIEF'
@@ -466,60 +470,64 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
         </Card>
       )}
 
-      {/* Metrics Bar */}
-      {metrics && (
-        <div className="status-grid" style={{ marginBottom: '1.5rem' }}>
-          <div className="status-item">
-            <div className="status-item-label">Upcoming (7 Days)</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent)' }}>
-              {metrics.interviewsThisWeek}
+      <details className="student-tools" style={{ marginBottom: 24 }}>
+        <summary>Interview overview</summary>
+        {/* Metrics Bar */}
+        {metrics && (
+          <div className="status-grid" style={{ marginBottom: '1.5rem' }}>
+            <div className="status-item">
+              <div className="status-item-label">Upcoming (7 Days)</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--accent)' }}>
+                {metrics.interviewsThisWeek}
+              </div>
+              <div className="status-item-meta">{metrics.upcomingInterviews} total upcoming</div>
             </div>
-            <div className="status-item-meta">{metrics.upcomingInterviews} total upcoming</div>
-          </div>
 
-          <div className="status-item">
-            <div className="status-item-label">Prep Needed</div>
-            <div
-              style={{
-                fontSize: '1.4rem',
-                fontWeight: 700,
-                color:
-                  metrics.preparationNeeded > 0 ? 'var(--status-warning)' : 'var(--status-success)',
-              }}
-            >
-              {metrics.preparationNeeded}
+            <div className="status-item">
+              <div className="status-item-label">Prep Needed</div>
+              <div
+                style={{
+                  fontSize: '1.4rem',
+                  fontWeight: 700,
+                  color:
+                    metrics.preparationNeeded > 0
+                      ? 'var(--status-warning)'
+                      : 'var(--status-success)',
+                }}
+              >
+                {metrics.preparationNeeded}
+              </div>
+              <div className="status-item-meta">Briefs pending generation</div>
             </div>
-            <div className="status-item-meta">Briefs pending generation</div>
-          </div>
 
-          <div className="status-item">
-            <div className="status-item-label">Overdue Follow-ups</div>
-            <div
-              style={{
-                fontSize: '1.4rem',
-                fontWeight: 700,
-                color: metrics.overdueFollowUps > 0 ? 'var(--danger)' : 'inherit',
-              }}
-            >
-              {metrics.overdueFollowUps}
+            <div className="status-item">
+              <div className="status-item-label">Overdue Follow-ups</div>
+              <div
+                style={{
+                  fontSize: '1.4rem',
+                  fontWeight: 700,
+                  color: metrics.overdueFollowUps > 0 ? 'var(--danger)' : 'inherit',
+                }}
+              >
+                {metrics.overdueFollowUps}
+              </div>
+              <div className="status-item-meta">Pending response dates</div>
             </div>
-            <div className="status-item-meta">Pending response dates</div>
-          </div>
 
-          <div className="status-item">
-            <div className="status-item-label">Calendar Sync</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>
-              {metrics.calendarConnected ? (
-                <span style={{ color: 'var(--status-success)' }}>Connected</span>
-              ) : (
-                <span style={{ color: 'var(--text-secondary)' }}>Offline</span>
-              )}
+            <div className="status-item">
+              <div className="status-item-label">Calendar Sync</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>
+                {metrics.calendarConnected ? (
+                  <span style={{ color: 'var(--status-success)' }}>Connected</span>
+                ) : (
+                  <span style={{ color: 'var(--text-secondary)' }}>Offline</span>
+                )}
+              </div>
+              <div className="status-item-meta">{accounts.length} linked account(s)</div>
             </div>
-            <div className="status-item-meta">{accounts.length} linked account(s)</div>
           </div>
-        </div>
-      )}
-
+        )}
+      </details>
       <Tabs
         panelId="interviews-panel"
         label="Interview workspace"
@@ -1104,14 +1112,14 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
               }}
             >
               <div>
-                <h3 className="card-title">Connected Calendar Inboxes</h3>
+                <h3 className="card-title">Connected calendars</h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                  Manage Google Calendar OAuth connections and offline Demo Fixture accounts.
+                  Manage the calendars you use for interview scheduling.
                 </p>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
                 <Button className="btn btn-primary btn-sm" onClick={handleConnectGoogle}>
-                  + Connect Google Calendar (OAuth)
+                  Connect Google Calendar
                 </Button>
                 <Button
                   className="btn btn-secondary btn-sm"
@@ -1140,7 +1148,7 @@ export function InterviewWorkspaceView({ onNavigateToApplication }: Props) {
                   className="layout-group"
                 >
                   <Button className="btn btn-primary" onClick={handleConnectGoogle}>
-                    + Connect Google Calendar (OAuth)
+                    Connect Google Calendar
                   </Button>
                   <Button
                     className="btn btn-secondary"

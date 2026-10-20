@@ -25,6 +25,7 @@ describe('BrowserApplicationEngine (JOB-P5-T01)', () => {
       github: 'https://github.com/alexmorgan',
     },
     resumeFileName: 'alex-morgan-resume.pdf',
+    resumeBuffer: Buffer.from('test fixture CV').toString('base64'),
     coverLetterText: 'I am excited to apply for this engineering role.',
     answers: {
       work_authorization: {
@@ -94,7 +95,11 @@ describe('BrowserApplicationEngine (JOB-P5-T01)', () => {
     expect(steps).toContain('PREFILL_ONLY');
   });
 
-  it('executes SUBMIT mode on Ashby with confirmation reference', async () => {
+  it('executes SUBMIT mode only after an explicit Ashby confirmation', async () => {
+    controller.registerSubmission(
+      'ashbyhq.com',
+      '<div data-testid="application-success" data-application-id="fixture-employer-receipt-1">Thank you. Your application was received.</div>',
+    );
     const ashbyPayload: ApplicationSubmissionPayload = {
       ...validPayload,
       answers: {
@@ -120,7 +125,8 @@ describe('BrowserApplicationEngine (JOB-P5-T01)', () => {
     expect(result.mode).toBe(BrowserRunMode.SUBMIT);
     expect(result.atsProvider).toBe(AtsProviderType.ASHBY);
     expect(result.confirmationReference).toBeDefined();
-    expect(result.confirmationReference).toContain('SUBMITTED-');
+    expect(result.confirmationReference).toBe('fixture-employer-receipt-1');
+    expect(result.submissionObservation?.outcome).toBe('ACCEPTED');
 
     const steps = result.stepLogs.map((s) => s.step);
     expect(steps).toContain('SUBMISSION');

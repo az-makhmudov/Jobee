@@ -126,7 +126,10 @@ export class GreenhouseAdapter extends BaseAtsAdapter {
         id: coverLetterEl.attr('id') || 'cover_letter',
         name: coverLetterEl.attr('name') || 'cover_letter',
         label: this.getLabelForElement($, coverLetterEl, 'Cover Letter'),
-        type: AtsFormFieldType.TEXTAREA,
+        type:
+          coverLetterEl.attr('type') === 'file'
+            ? AtsFormFieldType.FILE_COVER_LETTER
+            : AtsFormFieldType.TEXTAREA,
         required: this.isElementRequired(coverLetterEl),
         selector: '#cover_letter, textarea[name="cover_letter"]',
         mappedConcept: 'coverLetter',

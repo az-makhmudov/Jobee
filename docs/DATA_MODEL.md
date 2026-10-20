@@ -907,3 +907,12 @@ Persistent, restart-resilient OAuth state replay defense and CSRF protection:
 - `0013_orchestrator_scheduling_notifications.sql`: Additive schema for Autonomous Orchestrator runs, System Notifications center, and User Preferences (`orchestration_runs`, `system_notifications`, `notification_preferences`).
 - `0014_candidate_data_quarantine.sql`: Candidate data quarantine and reconfirmation verification fields.
 - `0015_better_auth.sql`: Authoritative identity management and session infrastructure via Better Auth (`sessions`, `accounts`, `verifications`, `pilot_invitations`, and `users` authentication columns).
+
+## Product evolution persistence (migration 0022)
+
+- `job_search_settings`: one row per tenant; source/board/CV/default budget settings, traversal cursors, daily/discovery leases and daily completion time.
+- `preparation_batches`: tenant, creation and cancellation timestamps.
+- `preparation_items`: tenant/job/batch, selected CV, input fingerprint, package link, preparation status, attempts and timing/error fields. An active-job partial unique index prevents duplicate queued/preparing items per tenant/job.
+- `browser_application_runs`: additive authorization manifest and typed employer submission observation JSON. Existing internal run ID, employer reference and retained storage keys remain distinct. Evidence access is owner-scoped and expires after 30 days.
+
+No existing CRM state is replaced. Preparation, attempted dispatch, provider confirmation and candidate reconciliation remain separate recorded events.

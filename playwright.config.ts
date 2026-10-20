@@ -1,4 +1,6 @@
 import { defineConfig } from '@playwright/test';
+const webPort = process.env.UI_TEST_WEB_PORT || '5179';
+const webOrigin = `http://127.0.0.1:${webPort}`;
 const database =
   process.env.UI_TEST_DATABASE_URL ||
   'postgresql://jobee_ui@127.0.0.1:55439/jobee_ui_test_isolated';
@@ -13,9 +15,9 @@ const env = {
   DATABASE_URL: database,
   API_HOST: '127.0.0.1',
   API_PORT: '3000',
-  WEB_ORIGIN: 'http://127.0.0.1:5179',
+  WEB_ORIGIN: webOrigin,
   BETTER_AUTH_URL: 'http://127.0.0.1:3000',
-  BETTER_AUTH_TRUSTED_ORIGINS: 'http://127.0.0.1:5179,http://127.0.0.1:3000',
+  BETTER_AUTH_TRUSTED_ORIGINS: `${webOrigin},http://127.0.0.1:5179,http://127.0.0.1:3000`,
   BETTER_AUTH_SECRET: 'jobee-ui-local-test-secret-0000000000000000',
   EMAIL_TOKEN_ENCRYPTION_KEY: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
   OWNER_EMAIL: 'alex.morgan@example.test',
@@ -34,7 +36,7 @@ export default defineConfig({
   timeout: 45000,
   globalSetup: './apps/web/e2e/setup.ts',
   use: {
-    baseURL: 'http://127.0.0.1:5179',
+    baseURL: webOrigin,
     viewport: { width: 1440, height: 1080 },
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
@@ -50,8 +52,8 @@ export default defineConfig({
       timeout: 60000,
     },
     {
-      command: 'npm run --workspace=@job-agent/web dev -- --host 127.0.0.1 --port 5179',
-      url: 'http://127.0.0.1:5179',
+      command: `npm run --workspace=@job-agent/web dev -- --host 127.0.0.1 --port ${webPort}`,
+      url: webOrigin,
       reuseExistingServer: !process.env.CI,
     },
   ],

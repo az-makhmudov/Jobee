@@ -78,3 +78,12 @@ output/playwright/
 playwright-report/
 
 apps/web/public/assets/pdfjs/
+
+# Local student UX review renders and browser reports
+output/student-ux/
+
+# Local product-evolution verification artifacts
+/work/
+/.playwright-cli/
+/output/playwright-mac/
+/output/playwright-linux/

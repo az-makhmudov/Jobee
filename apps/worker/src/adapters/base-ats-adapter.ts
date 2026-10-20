@@ -28,6 +28,73 @@ export abstract class BaseAtsAdapter {
    */
   abstract extractForm(page: BrowserPage): Promise<AtsFormSchema>;
 
+  /** Observe explicit provider UI evidence after dispatch; a click is never a receipt. */
+  async observeSubmission(
+    page: BrowserPage,
+    originalHtml: string,
+  ): Promise<import('@job-agent/shared').SubmissionObservation> {
+    const successSelectors: Record<string, string> = {
+      GREENHOUSE: '#application_confirmation, #application-confirmation, .application-confirmation',
+      LEVER: '.application-confirmation, .application-success, .thanks',
+      ASHBY:
+        '[data-testid="application-success"], .ashby-application-form-success, .ashby-application-form-success-container',
+    };
+    const success = successSelectors[this.provider];
+    const initial = this.get$FromHtml(originalHtml);
+    const signal = 'No verified employer confirmation was observed.';
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const current = this.get$FromHtml(await page.content());
+      const url = new URL(page.url());
+      url.search = '';
+      url.hash = '';
+      const base = {
+        provider: this.provider,
+        observedAt: new Date().toISOString(),
+        pageUrl: url.toString(),
+      };
+      const errorSelector =
+        '[aria-invalid="true"], .field-error, .error-message, .application-error';
+      const errors = page.locator(errorSelector);
+      for (let index = 0; index < Math.min(50, await errors.count()); index++)
+        if (await errors.nth(index).isVisible())
+          return {
+            ...base,
+            outcome: 'REJECTED',
+            signal: 'The employer form reported validation errors.',
+          };
+      if (
+        success &&
+        current(success).length &&
+        /(application\s+(?:(?:has\s+been|was|is)\s+)?(?:successfully\s+)?(?:submitted|received)|thank(?:s| you)\s+for\s+(?:your\s+)?(?:applying|application))/i.test(
+          current(success).text(),
+        ) &&
+        current(success).text().trim() !== initial(success).text().trim()
+      ) {
+        const loc = page.locator(success).first();
+        if (await loc.isVisible()) {
+          const ref = current(success).first().attr('data-application-id');
+          return {
+            ...base,
+            outcome: 'ACCEPTED',
+            signal: 'Provider confirmation element became visible after submission.',
+            ...(ref && /^[a-zA-Z0-9_-]{1,160}$/.test(ref) ? { employerReference: ref } : {}),
+          };
+        }
+      }
+      await page.waitForTimeout(500);
+    }
+    const url = new URL(page.url());
+    url.search = '';
+    url.hash = '';
+    return {
+      outcome: 'UNCERTAIN',
+      provider: this.provider,
+      observedAt: new Date().toISOString(),
+      pageUrl: url.toString(),
+      signal,
+    };
+  }
+
   /**
    * Detects presence of bot challenges (Cloudflare Turnstile, reCAPTCHA, hCaptcha, etc.).
    */
@@ -203,6 +270,20 @@ export abstract class BaseAtsAdapter {
     // Match against answers map by normalized key
     const answerEntries = Object.entries(payload.answers);
     for (const [key, val] of answerEntries) {
+      if (val.approvedQuestionText) {
+        const normalize = (text: string) =>
+          text
+            .replace(/\s*\*\s*$/, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+        if (
+          val.verificationStatus === 'VERIFIED' &&
+          normalize(field.label) === normalize(val.approvedQuestionText)
+        )
+          return val.answerText;
+        continue;
+      }
       if (val.isSensitive || (val.verificationStatus && val.verificationStatus !== 'VERIFIED')) {
         continue;
       }

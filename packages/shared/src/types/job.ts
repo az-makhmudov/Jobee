@@ -196,6 +196,7 @@ export interface JobSummaryDto {
   payPeriod: PayPeriod | null;
   originalUrl: string | null;
   discoveredDate: string;
+  lastCheckedDate?: string | null;
   isDuplicate: boolean;
   hasManualEdits: boolean;
   requirementCount: number;

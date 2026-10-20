@@ -9,7 +9,7 @@ import {
   Select,
   Textarea,
 } from '../ui/Primitives.js';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import {
   applicationPackageClient,
   type PackageDetailResponse,
@@ -22,27 +22,72 @@ import {
   type QuestionType,
   type ApplicationQuestionDto,
   type ApplicationSummaryDto,
+  type ApplicationPackageVersionDto,
 } from '@job-agent/shared';
 
+function MaterialTools({
+  disclosure,
+  blocked,
+  children,
+}: {
+  disclosure: boolean;
+  blocked: boolean;
+  children: ReactNode;
+}) {
+  return disclosure ? (
+    <details className="student-tools" open={blocked}>
+      <summary>Readiness & document details</summary>
+      {children}
+    </details>
+  ) : (
+    <>{children}</>
+  );
+}
+
 interface ApplicationStudioViewProps {
+  workspacePanel?: 'documents' | 'questions' | 'review';
+  onWorkspacePanel?: (panel: string) => void;
+  onPackageChange?: (data: PackageDetailResponse) => void;
+  onNavigateToProfile?: () => void;
   packageId: string;
   onBack: () => void;
   onNavigateToJob?: (jobId: string) => void;
   onNavigateToApplication?: (applicationId: string) => void;
 }
 
-type StudioTab = 'overview' | 'cv' | 'coverLetter' | 'questions' | 'approvals' | 'evidence';
+type StudioTab =
+  'documents' | 'overview' | 'cv' | 'coverLetter' | 'questions' | 'approvals' | 'evidence';
 
 export function ApplicationStudioView({
   packageId,
   onBack,
   onNavigateToJob,
   onNavigateToApplication,
+  workspacePanel,
+  onWorkspacePanel,
+  onPackageChange,
+  onNavigateToProfile,
 }: ApplicationStudioViewProps) {
   const { confirm, alert, prompt } = useFeedback();
+  const [versions, setVersions] = useState<ApplicationPackageVersionDto[]>([]);
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [versionsLoading, setVersionsLoading] = useState(false);
+  const [versionsError, setVersionsError] = useState('');
+  const loadVersions = async () => {
+    setVersionsOpen(true);
+    setVersionsLoading(true);
+    setVersionsError('');
+    try {
+      setVersions(await applicationPackageClient.listVersions(packageId));
+    } catch (err) {
+      setVersionsError(err instanceof Error ? err.message : 'Could not load document versions');
+    } finally {
+      setVersionsLoading(false);
+    }
+  };
   const [data, setData] = useState<PackageDetailResponse | null>(null);
   const [crmApp, setCrmApp] = useState<ApplicationSummaryDto | null>(null);
-  const [activeTab, setActiveTab] = useState<StudioTab>('overview');
+  const [activeTab, setActiveTab] = useState<StudioTab>(workspacePanel ? 'documents' : 'overview');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,10 +139,25 @@ export function ApplicationStudioView({
   };
 
   useEffect(() => {
-    loadPackage();
-  }, [packageId]);
+    void loadPackage();
+  }, [packageId, workspacePanel]);
 
-  if (loading) {
+  useEffect(() => {
+    if (workspacePanel) {
+      setActiveTab(
+        workspacePanel === 'documents'
+          ? 'documents'
+          : workspacePanel === 'questions'
+            ? 'questions'
+            : 'overview',
+      );
+    }
+  }, [workspacePanel]);
+  useEffect(() => {
+    if (data) onPackageChange?.(data);
+  }, [data, onPackageChange]);
+
+  if (loading && !data) {
     return (
       <Card className="card" style={{ padding: '2rem', textAlign: 'center' }}>
         <p>Loading Prepare application package...</p>
@@ -309,7 +369,7 @@ export function ApplicationStudioView({
       style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
     >
       {/* Studio Header */}
-      <header className="page-header" style={{ marginBottom: 0 }}>
+      <header className="page-header" hidden={!!workspacePanel} style={{ marginBottom: 0 }}>
         <div
           style={{
             display: 'flex',
@@ -345,7 +405,9 @@ export function ApplicationStudioView({
               </span>
             </div>
             <p className="page-subtitle" style={{ margin: 0 }}>
-              Prepare application • Version {pkg.currentVersionNumber}
+              {version
+                ? `Application documents · Version ${version.versionNumber}`
+                : 'Application documents · Not created yet'}
               {version?.baseSelectionReason && (
                 <span style={{ marginLeft: '0.5rem', color: 'var(--text-secondary)' }}>
                   ({version.baseSelectionReason})
@@ -410,7 +472,10 @@ export function ApplicationStudioView({
               onClick={handleRegenerate}
               disabled={actionLoading}
             >
-              <Icon name="sync" /> Regenerate (v{pkg.currentVersionNumber + 1})
+              <Icon name="sync" />{' '}
+              {version
+                ? `Regenerate documents (v${pkg.currentVersionNumber + 1})`
+                : 'Create application documents'}
             </Button>
 
             {/* CRM Lifecycle Action Button */}
@@ -420,7 +485,7 @@ export function ApplicationStudioView({
                 onClick={() => onNavigateToApplication?.(crmApp.id)}
                 title="View application lifecycle, timeline and follow-ups in CRM"
               >
-                <Icon name="list" /> View in CRM ({crmApp.status}) →
+                <Icon name="list" /> View application →
               </Button>
             ) : (
               <div style={{ display: 'flex', gap: '0.4rem' }} className="layout-group">
@@ -429,7 +494,7 @@ export function ApplicationStudioView({
                   onClick={handleTrackInCrm}
                   disabled={actionLoading}
                 >
-                  Track in CRM
+                  Add to my applications
                 </Button>
                 {readiness.status === 'READY' && (
                   <Button
@@ -504,414 +569,704 @@ export function ApplicationStudioView({
         </div>
       )}
 
-      <Tabs
-        panelId="studio-panel"
-        label="Application materials"
-        value={activeTab}
-        items={[
-          { id: 'overview', label: 'Overview' },
-          { id: 'cv', label: `CV (${tailoredCv?.experiences.length || 0} experiences)` },
-          { id: 'coverLetter', label: 'Cover letter' },
-          { id: 'questions', label: `Questions (${data.questions.length})` },
-          {
-            id: 'approvals',
-            label: `Approvals (${data.approvals.filter((a) => a.status === 'PENDING').length})`,
-          },
-          { id: 'evidence', label: 'Sources & changes' },
-        ]}
-        onChange={(id) => setActiveTab(id as StudioTab)}
-      />
-
-      <section id="studio-panel" role="tabpanel" aria-label={activeTab}>
-        {/* TAB 1: OVERVIEW & READINESS */}
-        {activeTab === 'overview' && (
-          <div className="detail-columns">
-            <div
-              style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
-              className="layout-group"
-            >
-              <Card className="card">
-                <h3 style={{ marginBottom: '1rem' }}>Readiness Inspection</h3>
-                <div
-                  style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
-                  className="layout-group"
-                >
-                  <div>
-                    <span style={{ fontWeight: 600 }}>Overall Readiness: </span>
-                    <span
-                      style={{
-                        fontWeight: 600,
-                        color: readiness.isReady
-                          ? 'var(--status-success)'
-                          : 'var(--status-warning)',
-                      }}
-                    >
-                      {readiness.isReady ? 'READY FOR SUBMISSION' : 'NEEDS CANDIDATE REVIEW'}
-                    </span>
-                  </div>
-
-                  {readiness.reasons.length > 0 && (
-                    <div>
-                      <h4
-                        style={{
-                          fontSize: '0.9rem',
-                          color: 'var(--status-success)',
-                          margin: '0.5rem 0',
-                        }}
-                      >
-                        <Icon name="check" size={20} /> Verified Elements:
-                      </h4>
-                      <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
-                        {readiness.reasons.map((r, i) => (
-                          <li key={i}>{r}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {readiness.blockingIssues.length > 0 && (
-                    <div>
-                      <h4
-                        style={{
-                          fontSize: '0.9rem',
-                          color: 'var(--status-danger)',
-                          margin: '0.5rem 0',
-                        }}
-                      >
-                        <Icon name="warning" /> Outstanding Blockers / Items:
-                      </h4>
-                      <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
-                        {readiness.blockingIssues.map((b, i) => (
-                          <li key={i} style={{ color: 'var(--status-danger)' }}>
-                            {b}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </Card>
-
-              {/* Generated Artifacts Summary */}
-              <Card className="card">
-                <h3 style={{ marginBottom: '1rem' }}>Generated Documents</h3>
-                <div
-                  style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
-                  className="layout-group"
-                >
-                  {data.artifacts.map((art) => (
-                    <div
-                      key={art.id}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '0.75rem',
-                        borderRadius: '16px',
-                        background: 'var(--m3-surface-container-low)',
-                        border: '1px solid var(--border-color)',
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{art.filename}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          {art.artifactType} • {(art.sizeBytes / 1024).toFixed(1)} KB • SHA:{' '}
-                          {art.sha256Checksum.slice(0, 10)}...
-                        </div>
-                      </div>
-                      <a
-                        href={applicationPackageClient.getArtifactDownloadUrl(packageId, art.id)}
-                        className="button button-secondary"
-                        download={art.filename}
-                        style={{ fontSize: '0.85rem', textDecoration: 'none' }}
-                      >
-                        <Icon name="download" size={20} /> Download (DOCX)
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            </div>
-
-            {/* Right Column: Job & Match Context */}
-            <div
-              style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
-              className="layout-group"
-            >
-              <Card className="card">
-                <h4 style={{ marginBottom: '0.75rem' }}>Matching Context</h4>
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.5rem',
-                    fontSize: '0.9rem',
-                  }}
-                  className="layout-group"
-                >
-                  <div>
-                    <span style={{ color: 'var(--text-secondary)' }}>Score: </span>
-                    <strong>{pkg.matchScore !== null ? `${pkg.matchScore}%` : 'N/A'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--text-secondary)' }}>Decision: </span>
-                    <span
-                      style={{
-                        fontWeight: 600,
-                        color:
-                          pkg.matchDecision === 'MATCH'
-                            ? 'var(--status-success)'
-                            : pkg.matchDecision === 'REVIEW'
-                              ? 'var(--status-warning)'
-                              : 'var(--status-danger)',
-                      }}
-                    >
-                      {pkg.matchDecision || 'N/A'}
-                    </span>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--text-secondary)' }}>Confidence: </span>
-                    <span>{pkg.matchConfidence !== null ? `${pkg.matchConfidence}%` : 'N/A'}</span>
-                  </div>
-                  {onNavigateToJob && (
-                    <Button
-                      className="button button-secondary"
-                      style={{ marginTop: '0.5rem' }}
-                      onClick={() => onNavigateToJob(pkg.jobId)}
-                    >
-                      View Job & Requirements
-                    </Button>
-                  )}
-                </div>
-              </Card>
-
-              <Card className="card">
-                <h4 style={{ marginBottom: '0.75rem' }}>Package Safety Rules</h4>
-                <p
-                  style={{
-                    fontSize: '0.8rem',
-                    color: 'var(--text-secondary)',
-                    lineHeight: 1.5,
-                    margin: 0,
-                  }}
-                >
-                  • Grounded Candidate Brain only: zero synthetic employers, dates, or skills.
-                  <br />
-                  • Metric Safeguard active: all numbers and KPIs are cross-checked.
-                  <br />• ATS-safe layout: single-column DOCX generation.
+      {!workspacePanel && (
+        <>
+          {' '}
+          <Tabs
+            panelId="studio-panel"
+            label="Application materials"
+            value={activeTab}
+            items={[
+              { id: 'overview', label: 'Overview' },
+              { id: 'cv', label: 'CV' },
+              { id: 'coverLetter', label: 'Cover letter' },
+              { id: 'questions', label: `Questions (${data.questions.length})` },
+              {
+                id: 'approvals',
+                label: `Approvals (${data.approvals.filter((a) => a.status === 'PENDING').length})`,
+              },
+              { id: 'evidence', label: 'Sources & changes' },
+            ]}
+            onChange={(id) => setActiveTab(id as StudioTab)}
+          />
+        </>
+      )}
+      {workspacePanel === 'documents' && (
+        <div className="student-stack">
+          <Card>
+            <h2 className="card-title">Your application documents</h2>
+            <p className="page-subtitle">
+              Create tailored materials from your verified and permitted details, then check the
+              result.
+            </p>
+            <div className="action-row">
+              <div>
+                <strong>CV · {pkg.jobTitle}</strong>
+                <p>
+                  {tailoredCv
+                    ? `Version ${version?.versionNumber} · Review before using`
+                    : 'Not created yet'}
                 </p>
-              </Card>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 2: TAILORED CV PREVIEW */}
-        {activeTab === 'cv' && tailoredCv && (
-          <div
-            style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
-            className="layout-group"
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: '0.75rem' }} className="layout-group">
-                {cvArtifact ? (
-                  <a
-                    href={applicationPackageClient.getArtifactDownloadUrl(packageId, cvArtifact.id)}
-                    className="button button-primary"
-                    download={cvArtifact.filename}
-                    style={{ textDecoration: 'none' }}
-                  >
-                    <Icon name="download" size={20} /> Download Tailored CV (DOCX)
-                  </a>
-                ) : (
-                  <Button
-                    className="button button-primary"
-                    onClick={handleRegenerate}
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? (
-                      <>
-                        <Icon name="schedule" size={20} /> Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="ai" size={20} /> Generate CV Document
-                      </>
-                    )}
-                  </Button>
-                )}
-                <Button
-                  className="button button-secondary"
-                  onClick={() => setShowEditSummaryModal(true)}
-                >
-                  <Icon name="edit" size={20} /> Edit Summary
-                </Button>
               </div>
-            </div>
-
-            {/* Clean ATS CV Preview Container */}
-            <Card
-              className="card cv-preview"
-              style={{
-                padding: '2.5rem',
-                background: 'var(--m3-surface)',
-                color: 'var(--m3-on-surface)',
-                boxShadow: '0 4px 16px color-mix(in srgb,var(--m3-scrim) 12%,transparent)',
-                maxWidth: '850px',
-                margin: '0 auto',
-                width: '100%',
-                fontFamily: 'system-ui, -apple-system, sans-serif',
-                lineHeight: 1.6,
-              }}
-            >
-              {/* Header */}
-              <div
-                style={{
-                  textAlign: 'center',
-                  borderBottom: '1px solid var(--m3-outline-variant)',
-                  paddingBottom: '1rem',
-                  marginBottom: '1.5rem',
-                }}
+              <Button
+                className="btn-outline"
+                disabled={!tailoredCv}
+                onClick={() => setActiveTab('cv')}
               >
-                <h2
-                  style={{
-                    fontSize: '1.75rem',
-                    fontWeight: 700,
-                    margin: '0 0 0.25rem',
-                    color: 'var(--m3-on-surface)',
-                  }}
-                >
-                  {tailoredCv.header.fullName}
-                </h2>
-                {tailoredCv.header.headline && (
-                  <div
-                    style={{
-                      fontStyle: 'italic',
-                      color: 'var(--m3-on-surface-variant)',
-                      marginBottom: '0.5rem',
-                    }}
-                  >
-                    {tailoredCv.header.headline}
-                  </div>
-                )}
-                <div style={{ fontSize: '0.85rem', color: 'var(--m3-on-surface-variant)' }}>
-                  {[
-                    tailoredCv.header.email,
-                    tailoredCv.header.phone,
-                    tailoredCv.header.location,
-                    ...tailoredCv.header.links.map((l) => `${l.label}: ${l.url}`),
-                  ]
-                    .filter(Boolean)
-                    .join('  •  ')}
-                </div>
+                View CV
+              </Button>
+            </div>
+            <div className="action-row">
+              <div>
+                <strong>Cover letter · {pkg.jobCompany}</strong>
+                <p>
+                  {version?.coverLetterContent
+                    ? 'Check the wording before using this document.'
+                    : 'No cover letter created yet.'}
+                </p>
               </div>
-
-              {/* Summary */}
-              {tailoredCv.summary && (
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h3
-                    style={{
-                      fontSize: '0.95rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      color: 'var(--m3-on-surface)',
-                      borderBottom: '1px solid var(--m3-outline-variant)',
-                      paddingBottom: '0.25rem',
-                      marginBottom: '0.5rem',
-                    }}
-                  >
-                    Professional Summary
-                  </h3>
-                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--m3-on-surface)' }}>
-                    {tailoredCv.summary}
-                  </p>
-                </div>
+              <Button
+                className="btn-outline"
+                disabled={!version?.coverLetterContent}
+                onClick={() => setActiveTab('coverLetter')}
+              >
+                View cover letter
+              </Button>
+            </div>
+            <div className="account-actions">
+              <Button className="btn-primary" onClick={() => onWorkspacePanel?.('questions')}>
+                Review application questions
+              </Button>
+              {!version && (
+                <Button className="btn-outline" onClick={handleRegenerate} disabled={actionLoading}>
+                  Create application documents
+                </Button>
               )}
+            </div>
+          </Card>
+          <Card>
+            <h2 className="card-title">Need to change something?</h2>
+            <p className="page-subtitle">
+              Document editing, regeneration, downloads and source details are available for this
+              application.
+            </p>
+            <div className="account-actions">
+              <Button
+                className="btn-outline"
+                disabled={!tailoredCv}
+                onClick={() => setActiveTab('cv')}
+              >
+                Edit documents
+              </Button>
+              <Button className="btn-outline" onClick={() => setActiveTab('overview')}>
+                Document details & downloads
+              </Button>
+              <Button className="btn-outline" onClick={loadVersions} disabled={versionsLoading}>
+                Document versions
+              </Button>
+              <Button className="btn-outline" onClick={() => setActiveTab('evidence')}>
+                Sources & changes
+              </Button>
+            </div>
+            <details className="advanced-details">
+              <summary>Regenerate or track this application</summary>
+              <div className="account-actions">
+                <Button className="btn-outline" onClick={handleRegenerate} disabled={actionLoading}>
+                  {version
+                    ? `Regenerate documents (v${pkg.currentVersionNumber + 1})`
+                    : 'Create application documents'}
+                </Button>
+                {crmApp ? (
+                  <Button onClick={() => onNavigateToApplication?.(crmApp.id)}>
+                    View application
+                  </Button>
+                ) : (
+                  <>
+                    <Button onClick={handleTrackInCrm} disabled={actionLoading}>
+                      Add to my applications
+                    </Button>
+                    {readiness.status === 'READY' && (
+                      <Button onClick={handleMarkAppliedInCrm} disabled={actionLoading}>
+                        Mark Applied in CRM →
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+            </details>
+          </Card>
+          {versionsOpen && (
+            <Card>
+              <h2 className="card-title">Document version history</h2>
+              {versionsLoading ? (
+                <p role="status">Loading versions…</p>
+              ) : versionsError ? (
+                <p role="alert">
+                  {versionsError}{' '}
+                  <Button className="btn-outline" onClick={loadVersions}>
+                    Retry versions
+                  </Button>
+                </p>
+              ) : versions.length ? (
+                versions.map((item) => (
+                  <details className="advanced-details" key={item.id}>
+                    <summary>
+                      Version {item.versionNumber} · {new Date(item.createdAt).toLocaleDateString()}{' '}
+                      · {item.status.replaceAll('_', ' ')}
+                    </summary>
+                    {item.baseSelectionReason && <p>{item.baseSelectionReason}</p>}
+                    {item.tailoredCvContent?.summary && <p>{item.tailoredCvContent.summary}</p>}
+                    {item.changeSummary.length > 0 && (
+                      <ul>
+                        {item.changeSummary.map((change, index) => (
+                          <li key={index}>{change}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {item.coverLetterContent && (
+                      <details>
+                        <summary>Cover letter from this version</summary>
+                        <p style={{ whiteSpace: 'pre-wrap' }}>{item.coverLetterContent}</p>
+                      </details>
+                    )}
+                  </details>
+                ))
+              ) : (
+                <p>No document versions have been created yet.</p>
+              )}
+              <Button className="btn-ghost" onClick={() => setVersionsOpen(false)}>
+                Close version history
+              </Button>
+            </Card>
+          )}
+          <Card>
+            <h2 className="card-title">Missing information?</h2>
+            <p className="page-subtitle">
+              Keep unknown facts unresolved. Add accurate details or answer the specific question
+              instead of guessing.
+            </p>
+            <Button className="btn-outline" onClick={onNavigateToProfile}>
+              Review my profile
+            </Button>
+          </Card>
+          {activeTab !== 'documents' && (
+            <Tabs
+              label="Document tools"
+              value={activeTab}
+              items={[
+                { id: 'overview', label: 'Details & downloads' },
+                { id: 'cv', label: 'CV' },
+                { id: 'coverLetter', label: 'Cover letter' },
+                { id: 'evidence', label: 'Sources & changes' },
+              ]}
+              onChange={(id) => setActiveTab(id as StudioTab)}
+            />
+          )}
+        </div>
+      )}
+      {workspacePanel === 'questions' && (
+        <Card>
+          <h2 className="card-title">Your application questions</h2>
+          <p className="page-subtitle">
+            These decisions are yours. Checking an answer does not authorize submission.
+          </p>
+          <Button
+            className="btn-outline"
+            onClick={() => setActiveTab(activeTab === 'approvals' ? 'questions' : 'approvals')}
+          >
+            {activeTab === 'approvals'
+              ? 'View questions'
+              : `Review pending decisions (${data.approvals.filter((item) => item.status === 'PENDING').length})`}
+          </Button>
+        </Card>
+      )}
+      {workspacePanel === 'review' && (
+        <Card>
+          <h2 className="card-title">Final review before you apply</h2>
+          <p className="page-subtitle">
+            Check the selected documents and each answer before continuing.
+          </p>
+          <div className="account-actions">
+            <Button className="btn-outline" onClick={() => onWorkspacePanel?.('documents')}>
+              View documents
+            </Button>
+            <Button className="btn-outline" onClick={() => onWorkspacePanel?.('questions')}>
+              Review answers
+            </Button>
+          </div>
+        </Card>
+      )}
 
-              {/* Skills */}
-              {tailoredCv.skills.length > 0 && (
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h3
-                    style={{
-                      fontSize: '0.95rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      color: 'var(--m3-on-surface)',
-                      borderBottom: '1px solid var(--m3-outline-variant)',
-                      paddingBottom: '0.25rem',
-                      marginBottom: '0.5rem',
-                    }}
-                  >
-                    Technical Skills
-                  </h3>
+      <MaterialTools disclosure={workspacePanel === 'review'} blocked={!readiness.isReady}>
+        <section id="studio-panel" role="tabpanel" aria-label={activeTab}>
+          {/* TAB 1: OVERVIEW & READINESS */}
+          {activeTab === 'overview' && (
+            <div className="detail-columns">
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+                className="layout-group"
+              >
+                <Card className="card">
+                  <h3 style={{ marginBottom: '1rem' }}>Readiness Inspection</h3>
                   <div
-                    style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}
+                    style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
                     className="layout-group"
                   >
-                    {tailoredCv.skills.map((s) => (
+                    <div>
+                      <span style={{ fontWeight: 600 }}>Overall Readiness: </span>
                       <span
-                        key={s.id}
                         style={{
-                          padding: '0.2rem 0.5rem',
-                          borderRadius: '16px',
-                          fontSize: '0.85rem',
-                          background: s.isHighlighted
-                            ? 'var(--m3-secondary-container)'
-                            : 'var(--m3-surface-container-low)',
-                          color: s.isHighlighted ? 'var(--m3-on-surface)' : 'var(--m3-on-surface)',
-                          border: s.isHighlighted
-                            ? '1px solid var(--m3-outline-variant)'
-                            : '1px solid transparent',
-                          fontWeight: s.isHighlighted ? 600 : 400,
+                          fontWeight: 600,
+                          color: readiness.isReady
+                            ? 'var(--status-success)'
+                            : 'var(--status-warning)',
                         }}
                       >
-                        {s.name}
+                        {readiness.isReady ? 'READY FOR SUBMISSION' : 'NEEDS CANDIDATE REVIEW'}
                       </span>
-                    ))}
-                  </div>
-                </div>
-              )}
+                    </div>
 
-              {/* Experience */}
-              {tailoredCv.experiences.length > 0 && (
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h3
-                    style={{
-                      fontSize: '0.95rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      color: 'var(--m3-on-surface)',
-                      borderBottom: '1px solid var(--m3-outline-variant)',
-                      paddingBottom: '0.25rem',
-                      marginBottom: '0.75rem',
-                    }}
-                  >
-                    Work Experience
-                  </h3>
-                  <div
-                    style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
-                    className="layout-group"
-                  >
-                    {tailoredCv.experiences.map((exp) => (
-                      <div key={exp.id}>
-                        <div
+                    {readiness.reasons.length > 0 && (
+                      <div>
+                        <h4
                           style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'baseline',
+                            fontSize: '0.9rem',
+                            color: 'var(--status-success)',
+                            margin: '0.5rem 0',
                           }}
                         >
-                          <div>
-                            <strong style={{ fontSize: '0.95rem', color: 'var(--m3-on-surface)' }}>
-                              {exp.title}
-                            </strong>
-                            <span style={{ color: 'var(--m3-on-surface-variant)' }}>
-                              {' '}
-                              — {exp.organization}
-                              {exp.location ? `, ${exp.location}` : ''}
+                          <Icon name="check" size={20} /> Verified Elements:
+                        </h4>
+                        <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
+                          {readiness.reasons.map((r, i) => (
+                            <li key={i}>{r}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {readiness.blockingIssues.length > 0 && (
+                      <div>
+                        <h4
+                          style={{
+                            fontSize: '0.9rem',
+                            color: 'var(--status-danger)',
+                            margin: '0.5rem 0',
+                          }}
+                        >
+                          <Icon name="warning" /> Outstanding Blockers / Items:
+                        </h4>
+                        <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem' }}>
+                          {readiness.blockingIssues.map((b, i) => (
+                            <li key={i} style={{ color: 'var(--status-danger)' }}>
+                              {b}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+
+                {/* Generated Artifacts Summary */}
+                <Card className="card">
+                  <h3 style={{ marginBottom: '1rem' }}>Generated Documents</h3>
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                    className="layout-group"
+                  >
+                    {data.artifacts.map((art) => (
+                      <div
+                        key={art.id}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '0.75rem',
+                          borderRadius: '16px',
+                          background: 'var(--m3-surface-container-low)',
+                          border: '1px solid var(--border-color)',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{art.filename}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            {art.artifactType} • {(art.sizeBytes / 1024).toFixed(1)} KB • SHA:{' '}
+                            {art.sha256Checksum.slice(0, 10)}...
+                          </div>
+                        </div>
+                        <a
+                          href={applicationPackageClient.getArtifactDownloadUrl(packageId, art.id)}
+                          className="button button-secondary"
+                          download={art.filename}
+                          style={{ fontSize: '0.85rem', textDecoration: 'none' }}
+                        >
+                          <Icon name="download" size={20} /> Download (DOCX)
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              </div>
+
+              {/* Right Column: Job & Match Context */}
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+                className="layout-group"
+              >
+                <Card className="card">
+                  <h4 style={{ marginBottom: '0.75rem' }}>Matching Context</h4>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.5rem',
+                      fontSize: '0.9rem',
+                    }}
+                    className="layout-group"
+                  >
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Score: </span>
+                      <strong>{pkg.matchScore !== null ? `${pkg.matchScore}%` : 'N/A'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Decision: </span>
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          color:
+                            pkg.matchDecision === 'MATCH'
+                              ? 'var(--status-success)'
+                              : pkg.matchDecision === 'REVIEW'
+                                ? 'var(--status-warning)'
+                                : 'var(--status-danger)',
+                        }}
+                      >
+                        {pkg.matchDecision || 'N/A'}
+                      </span>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Confidence: </span>
+                      <span>
+                        {pkg.matchConfidence !== null ? `${pkg.matchConfidence}%` : 'N/A'}
+                      </span>
+                    </div>
+                    {onNavigateToJob && (
+                      <Button
+                        className="button button-secondary"
+                        style={{ marginTop: '0.5rem' }}
+                        onClick={() => onNavigateToJob(pkg.jobId)}
+                      >
+                        View Job & Requirements
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+
+                <Card className="card">
+                  <h4 style={{ marginBottom: '0.75rem' }}>Package Safety Rules</h4>
+                  <p
+                    style={{
+                      fontSize: '0.8rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.5,
+                      margin: 0,
+                    }}
+                  >
+                    • Grounded Candidate Brain only: zero synthetic employers, dates, or skills.
+                    <br />
+                    • Metric Safeguard active: all numbers and KPIs are cross-checked.
+                    <br />• ATS-safe layout: single-column DOCX generation.
+                  </p>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: TAILORED CV PREVIEW */}
+          {activeTab === 'cv' && tailoredCv && (
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+              className="layout-group"
+            >
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <div style={{ display: 'flex', gap: '0.75rem' }} className="layout-group">
+                  {cvArtifact ? (
+                    <a
+                      href={applicationPackageClient.getArtifactDownloadUrl(
+                        packageId,
+                        cvArtifact.id,
+                      )}
+                      className="button button-primary"
+                      download={cvArtifact.filename}
+                      style={{ textDecoration: 'none' }}
+                    >
+                      <Icon name="download" size={20} /> Download Tailored CV (DOCX)
+                    </a>
+                  ) : (
+                    <Button
+                      className="button button-primary"
+                      onClick={handleRegenerate}
+                      disabled={actionLoading}
+                    >
+                      {actionLoading ? (
+                        <>
+                          <Icon name="schedule" size={20} /> Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Icon name="ai" size={20} /> Generate CV Document
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    className="button button-secondary"
+                    onClick={() => setShowEditSummaryModal(true)}
+                  >
+                    <Icon name="edit" size={20} /> Edit Summary
+                  </Button>
+                </div>
+              </div>
+
+              {/* Clean ATS CV Preview Container */}
+              <Card
+                className="card cv-preview"
+                style={{
+                  padding: '2.5rem',
+                  background: 'var(--m3-surface)',
+                  color: 'var(--m3-on-surface)',
+                  boxShadow: '0 4px 16px color-mix(in srgb,var(--m3-scrim) 12%,transparent)',
+                  maxWidth: '850px',
+                  margin: '0 auto',
+                  width: '100%',
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  lineHeight: 1.6,
+                }}
+              >
+                {/* Header */}
+                <div
+                  style={{
+                    textAlign: 'center',
+                    borderBottom: '1px solid var(--m3-outline-variant)',
+                    paddingBottom: '1rem',
+                    marginBottom: '1.5rem',
+                  }}
+                >
+                  <h2
+                    style={{
+                      fontSize: '1.75rem',
+                      fontWeight: 700,
+                      margin: '0 0 0.25rem',
+                      color: 'var(--m3-on-surface)',
+                    }}
+                  >
+                    {tailoredCv.header.fullName}
+                  </h2>
+                  {tailoredCv.header.headline && (
+                    <div
+                      style={{
+                        fontStyle: 'italic',
+                        color: 'var(--m3-on-surface-variant)',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      {tailoredCv.header.headline}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '0.85rem', color: 'var(--m3-on-surface-variant)' }}>
+                    {[
+                      tailoredCv.header.email,
+                      tailoredCv.header.phone,
+                      tailoredCv.header.location,
+                      ...tailoredCv.header.links.map((l) => `${l.label}: ${l.url}`),
+                    ]
+                      .filter(Boolean)
+                      .join('  •  ')}
+                  </div>
+                </div>
+
+                {/* Summary */}
+                {tailoredCv.summary && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <h3
+                      style={{
+                        fontSize: '0.95rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'var(--m3-on-surface)',
+                        borderBottom: '1px solid var(--m3-outline-variant)',
+                        paddingBottom: '0.25rem',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      Professional Summary
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--m3-on-surface)' }}>
+                      {tailoredCv.summary}
+                    </p>
+                  </div>
+                )}
+
+                {/* Skills */}
+                {tailoredCv.skills.length > 0 && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <h3
+                      style={{
+                        fontSize: '0.95rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'var(--m3-on-surface)',
+                        borderBottom: '1px solid var(--m3-outline-variant)',
+                        paddingBottom: '0.25rem',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      Technical Skills
+                    </h3>
+                    <div
+                      style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}
+                      className="layout-group"
+                    >
+                      {tailoredCv.skills.map((s) => (
+                        <span
+                          key={s.id}
+                          style={{
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '16px',
+                            fontSize: '0.85rem',
+                            background: s.isHighlighted
+                              ? 'var(--m3-secondary-container)'
+                              : 'var(--m3-surface-container-low)',
+                            color: s.isHighlighted
+                              ? 'var(--m3-on-surface)'
+                              : 'var(--m3-on-surface)',
+                            border: s.isHighlighted
+                              ? '1px solid var(--m3-outline-variant)'
+                              : '1px solid transparent',
+                            fontWeight: s.isHighlighted ? 600 : 400,
+                          }}
+                        >
+                          {s.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Experience */}
+                {tailoredCv.experiences.length > 0 && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <h3
+                      style={{
+                        fontSize: '0.95rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'var(--m3-on-surface)',
+                        borderBottom: '1px solid var(--m3-outline-variant)',
+                        paddingBottom: '0.25rem',
+                        marginBottom: '0.75rem',
+                      }}
+                    >
+                      Work Experience
+                    </h3>
+                    <div
+                      style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+                      className="layout-group"
+                    >
+                      {tailoredCv.experiences.map((exp) => (
+                        <div key={exp.id}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'baseline',
+                            }}
+                          >
+                            <div>
+                              <strong
+                                style={{ fontSize: '0.95rem', color: 'var(--m3-on-surface)' }}
+                              >
+                                {exp.title}
+                              </strong>
+                              <span style={{ color: 'var(--m3-on-surface-variant)' }}>
+                                {' '}
+                                — {exp.organization}
+                                {exp.location ? `, ${exp.location}` : ''}
+                              </span>
+                            </div>
+                            <span
+                              style={{
+                                fontSize: '0.8rem',
+                                color: 'var(--m3-on-surface-variant)',
+                                fontStyle: 'italic',
+                              }}
+                            >
+                              {exp.startDate} -{' '}
+                              {exp.isCurrent ? 'Present' : exp.endDate || 'Present'}
                             </span>
+                          </div>
+                          <ul
+                            style={{
+                              margin: '0.4rem 0 0',
+                              paddingLeft: '1.25rem',
+                              fontSize: '0.875rem',
+                              color: 'var(--m3-on-surface)',
+                            }}
+                          >
+                            {exp.bullets.map((b, idx) => (
+                              <li key={idx} style={{ marginBottom: '0.25rem' }}>
+                                {b.text}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Education */}
+                {tailoredCv.education.length > 0 && (
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <h3
+                      style={{
+                        fontSize: '0.95rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'var(--m3-on-surface)',
+                        borderBottom: '1px solid var(--m3-outline-variant)',
+                        paddingBottom: '0.25rem',
+                        marginBottom: '0.75rem',
+                      }}
+                    >
+                      Education
+                    </h3>
+                    <div
+                      style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+                      className="layout-group"
+                    >
+                      {tailoredCv.education.map((edu) => (
+                        <div
+                          key={edu.id}
+                          style={{ display: 'flex', justifyContent: 'space-between' }}
+                        >
+                          <div>
+                            <strong>
+                              {edu.degree}
+                              {edu.fieldOfStudy ? ` in ${edu.fieldOfStudy}` : ''}
+                            </strong>
+                            <div
+                              style={{ color: 'var(--m3-on-surface-variant)', fontSize: '0.85rem' }}
+                            >
+                              {edu.institution}
+                            </div>
                           </div>
                           <span
                             style={{
@@ -920,339 +1275,138 @@ export function ApplicationStudioView({
                               fontStyle: 'italic',
                             }}
                           >
-                            {exp.startDate} - {exp.isCurrent ? 'Present' : exp.endDate || 'Present'}
+                            {edu.startDate} - {edu.endDate || 'Present'}
                           </span>
                         </div>
-                        <ul
-                          style={{
-                            margin: '0.4rem 0 0',
-                            paddingLeft: '1.25rem',
-                            fontSize: '0.875rem',
-                            color: 'var(--m3-on-surface)',
-                          }}
-                        >
-                          {exp.bullets.map((b, idx) => (
-                            <li key={idx} style={{ marginBottom: '0.25rem' }}>
-                              {b.text}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {/* Education */}
-              {tailoredCv.education.length > 0 && (
-                <div style={{ marginBottom: '1.5rem' }}>
-                  <h3
-                    style={{
-                      fontSize: '0.95rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      color: 'var(--m3-on-surface)',
-                      borderBottom: '1px solid var(--m3-outline-variant)',
-                      paddingBottom: '0.25rem',
-                      marginBottom: '0.75rem',
-                    }}
-                  >
-                    Education
-                  </h3>
-                  <div
-                    style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
-                    className="layout-group"
-                  >
-                    {tailoredCv.education.map((edu) => (
-                      <div
-                        key={edu.id}
-                        style={{ display: 'flex', justifyContent: 'space-between' }}
-                      >
-                        <div>
-                          <strong>
-                            {edu.degree}
-                            {edu.fieldOfStudy ? ` in ${edu.fieldOfStudy}` : ''}
-                          </strong>
-                          <div
-                            style={{ color: 'var(--m3-on-surface-variant)', fontSize: '0.85rem' }}
-                          >
-                            {edu.institution}
-                          </div>
-                        </div>
-                        <span
-                          style={{
-                            fontSize: '0.8rem',
-                            color: 'var(--m3-on-surface-variant)',
-                            fontStyle: 'italic',
-                          }}
-                        >
-                          {edu.startDate} - {edu.endDate || 'Present'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Languages */}
-              {tailoredCv.languages.length > 0 && (
-                <div>
-                  <h3
-                    style={{
-                      fontSize: '0.95rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      color: 'var(--m3-on-surface)',
-                      borderBottom: '1px solid var(--m3-outline-variant)',
-                      paddingBottom: '0.25rem',
-                      marginBottom: '0.5rem',
-                    }}
-                  >
-                    Languages
-                  </h3>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--m3-on-surface)' }}>
-                    {tailoredCv.languages
-                      .map(
-                        (l) =>
-                          `${l.language} (${l.proficiencyLevel}${l.cefrLevel ? `, ${l.cefrLevel}` : ''})`,
-                      )
-                      .join('  •  ')}
-                  </div>
-                </div>
-              )}
-            </Card>
-          </div>
-        )}
-
-        {/* TAB 3: COVER LETTER */}
-        {activeTab === 'coverLetter' && (
-          <div
-            style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
-            className="layout-group"
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: '0.75rem' }} className="layout-group">
-                {clArtifact ? (
-                  <a
-                    href={applicationPackageClient.getArtifactDownloadUrl(packageId, clArtifact.id)}
-                    className="button button-primary"
-                    download={clArtifact.filename}
-                    style={{ textDecoration: 'none' }}
-                  >
-                    <Icon name="download" size={20} /> Download Cover Letter (DOCX)
-                  </a>
-                ) : (
-                  <Button
-                    className="button button-primary"
-                    onClick={handleRegenerate}
-                    disabled={actionLoading}
-                  >
-                    {actionLoading ? (
-                      <>
-                        <Icon name="schedule" size={20} /> Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Icon name="ai" size={20} /> Generate Cover Letter Document
-                      </>
-                    )}
-                  </Button>
                 )}
-                <Button
-                  className="button button-secondary"
-                  onClick={() => setShowEditCoverLetterModal(true)}
-                >
-                  <Icon name="edit" size={20} /> Edit Text
-                </Button>
-              </div>
+
+                {/* Languages */}
+                {tailoredCv.languages.length > 0 && (
+                  <div>
+                    <h3
+                      style={{
+                        fontSize: '0.95rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        color: 'var(--m3-on-surface)',
+                        borderBottom: '1px solid var(--m3-outline-variant)',
+                        paddingBottom: '0.25rem',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      Languages
+                    </h3>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--m3-on-surface)' }}>
+                      {tailoredCv.languages
+                        .map(
+                          (l) =>
+                            `${l.language} (${l.proficiencyLevel}${l.cefrLevel ? `, ${l.cefrLevel}` : ''})`,
+                        )
+                        .join('  •  ')}
+                    </div>
+                  </div>
+                )}
+              </Card>
             </div>
+          )}
 
-            <Card
-              className="card"
-              style={{
-                padding: '2.5rem',
-                background: 'var(--m3-surface)',
-                color: 'var(--m3-on-surface)',
-                maxWidth: '850px',
-                margin: '0 auto',
-                width: '100%',
-                lineHeight: 1.8,
-                fontSize: '0.95rem',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
-              {version?.coverLetterContent || 'No cover letter content generated.'}
-            </Card>
-          </div>
-        )}
-
-        {/* TAB 4: APPLICATION QUESTIONS */}
-        {activeTab === 'questions' && (
-          <div
-            style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
-            className="layout-group"
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-                Application questions mapped to Answer Library rules and Candidate Brain facts.
-              </p>
-              <Button
-                className="button button-primary"
-                onClick={() => setShowAddQuestionModal(true)}
-              >
-                + Add Custom Question
-              </Button>
-            </div>
-
+          {/* TAB 3: COVER LETTER */}
+          {activeTab === 'coverLetter' && (
             <div
-              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
               className="layout-group"
             >
-              {data.questions.map((q) => (
-                <Card key={q.id} className="card" style={{ padding: '1.25rem' }}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                    }}
-                  >
-                    <div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.5rem',
-                          marginBottom: '0.4rem',
-                        }}
-                        className="layout-group"
-                      >
-                        <span className="badge">{q.category}</span>
-                        <span className="badge">{q.questionType}</span>
-                        {q.sensitivity === 'SENSITIVE' && (
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--status-warning)',
-                              fontWeight: 600,
-                            }}
-                          >
-                            SENSITIVE
-                          </span>
-                        )}
-                        {q.isRequired && (
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--status-danger)',
-                              fontWeight: 600,
-                            }}
-                          >
-                            REQUIRED
-                          </span>
-                        )}
-                      </div>
-                      <strong style={{ fontSize: '1rem' }}>{q.questionText}</strong>
-                    </div>
-
-                    <span
-                      style={{
-                        padding: '0.25rem 0.6rem',
-                        borderRadius: '9999px',
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        background:
-                          q.approvalState === 'APPROVED'
-                            ? 'var(--status-success-container)'
-                            : q.approvalState === 'PENDING'
-                              ? 'var(--status-warning-container)'
-                              : 'var(--status-danger-container)',
-                        color:
-                          q.approvalState === 'APPROVED'
-                            ? 'var(--status-success)'
-                            : q.approvalState === 'PENDING'
-                              ? 'var(--status-warning)'
-                              : 'var(--status-danger)',
-                      }}
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <div style={{ display: 'flex', gap: '0.75rem' }} className="layout-group">
+                  {clArtifact ? (
+                    <a
+                      href={applicationPackageClient.getArtifactDownloadUrl(
+                        packageId,
+                        clArtifact.id,
+                      )}
+                      className="button button-primary"
+                      download={clArtifact.filename}
+                      style={{ textDecoration: 'none' }}
                     >
-                      {q.approvalState}
-                    </span>
-                  </div>
-
-                  <div
-                    style={{
-                      margin: '0.85rem 0',
-                      padding: '0.75rem',
-                      borderRadius: '16px',
-                      background: 'var(--m3-surface-container-low)',
-                      border: '1px solid var(--border-color)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: '0.8rem',
-                        color: 'var(--text-secondary)',
-                        marginBottom: '0.25rem',
-                      }}
-                    >
-                      Source: {q.answerSource}
-                    </div>
-                    <div>
-                      <strong>Answer: </strong>
-                      <span>
-                        {q.finalAnswer || q.proposedAnswer || (
-                          <em style={{ color: 'var(--text-secondary)' }}>
-                            Unresolved (Human input required)
-                          </em>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+                      <Icon name="download" size={20} /> Download Cover Letter (DOCX)
+                    </a>
+                  ) : (
                     <Button
-                      className="button button-secondary"
-                      onClick={() => {
-                        setSelectedQuestionForAnswer(q);
-                        setAnswerDraft(q.finalAnswer || q.proposedAnswer || '');
-                      }}
+                      className="button button-primary"
+                      onClick={handleRegenerate}
+                      disabled={actionLoading}
                     >
-                      <Icon name="edit" size={20} /> Edit / Answer
+                      {actionLoading ? (
+                        <>
+                          <Icon name="schedule" size={20} /> Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Icon name="ai" size={20} /> Generate Cover Letter Document
+                        </>
+                      )}
                     </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
+                  )}
+                  <Button
+                    className="button button-secondary"
+                    onClick={() => setShowEditCoverLetterModal(true)}
+                  >
+                    <Icon name="edit" size={20} /> Edit Text
+                  </Button>
+                </div>
+              </div>
 
-        {/* TAB 5: APPROVALS */}
-        {activeTab === 'approvals' && (
-          <div
-            style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
-            className="layout-group"
-          >
-            <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-              Pending authorizations for sensitive declarations, answer library overrides, and legal
-              statements.
-            </p>
-
-            {data.approvals.length === 0 ? (
               <Card
                 className="card"
-                style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}
+                style={{
+                  padding: '2.5rem',
+                  background: 'var(--m3-surface)',
+                  color: 'var(--m3-on-surface)',
+                  maxWidth: '850px',
+                  margin: '0 auto',
+                  width: '100%',
+                  lineHeight: 1.8,
+                  fontSize: '0.95rem',
+                  whiteSpace: 'pre-wrap',
+                }}
               >
-                <Icon name="check" size={20} /> No approval requests for this package.
+                {version?.coverLetterContent || 'No cover letter content generated.'}
               </Card>
-            ) : (
+            </div>
+          )}
+
+          {/* TAB 4: APPLICATION QUESTIONS */}
+          {activeTab === 'questions' && (
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+              className="layout-group"
+            >
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+                  Application questions mapped to Answer Library rules and Candidate Brain facts.
+                </p>
+                <Button
+                  className="button button-primary"
+                  onClick={() => setShowAddQuestionModal(true)}
+                >
+                  + Add Custom Question
+                </Button>
+              </div>
+
               <div
                 style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
                 className="layout-group"
               >
-                {data.approvals.map((appr) => (
-                  <Card key={appr.id} className="card" style={{ padding: '1.25rem' }}>
+                {data.questions.map((q) => (
+                  <Card key={q.id} className="card" style={{ padding: '1.25rem' }}>
                     <div
                       style={{
                         display: 'flex',
@@ -1262,33 +1416,40 @@ export function ApplicationStudioView({
                     >
                       <div>
                         <div
-                          style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.35rem' }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            marginBottom: '0.4rem',
+                          }}
                           className="layout-group"
                         >
-                          <span className="badge">{appr.approvalType}</span>
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              fontWeight: 600,
-                              color:
-                                appr.riskLevel === 'CRITICAL'
-                                  ? 'var(--status-danger)'
-                                  : 'var(--status-warning)',
-                            }}
-                          >
-                            Risk: {appr.riskLevel}
-                          </span>
+                          <span className="badge">{q.category}</span>
+                          <span className="badge">{q.questionType}</span>
+                          {q.sensitivity === 'SENSITIVE' && (
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--status-warning)',
+                                fontWeight: 600,
+                              }}
+                            >
+                              SENSITIVE
+                            </span>
+                          )}
+                          {q.isRequired && (
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--status-danger)',
+                                fontWeight: 600,
+                              }}
+                            >
+                              REQUIRED
+                            </span>
+                          )}
                         </div>
-                        <strong style={{ fontSize: '1rem' }}>{appr.subject}</strong>
-                        <p
-                          style={{
-                            margin: '0.25rem 0 0',
-                            fontSize: '0.85rem',
-                            color: 'var(--text-secondary)',
-                          }}
-                        >
-                          {appr.reason}
-                        </p>
+                        <strong style={{ fontSize: '1rem' }}>{q.questionText}</strong>
                       </div>
 
                       <span
@@ -1298,420 +1459,562 @@ export function ApplicationStudioView({
                           fontSize: '0.8rem',
                           fontWeight: 600,
                           background:
-                            appr.status === 'APPROVED'
+                            q.approvalState === 'APPROVED'
                               ? 'var(--status-success-container)'
-                              : appr.status === 'PENDING'
+                              : q.approvalState === 'PENDING'
                                 ? 'var(--status-warning-container)'
                                 : 'var(--status-danger-container)',
                           color:
-                            appr.status === 'APPROVED'
+                            q.approvalState === 'APPROVED'
                               ? 'var(--status-success)'
-                              : appr.status === 'PENDING'
+                              : q.approvalState === 'PENDING'
                                 ? 'var(--status-warning)'
                                 : 'var(--status-danger)',
                         }}
                       >
-                        {appr.status}
+                        {q.approvalState}
                       </span>
                     </div>
 
                     <div
                       style={{
-                        margin: '0.75rem 0',
+                        margin: '0.85rem 0',
                         padding: '0.75rem',
                         borderRadius: '16px',
                         background: 'var(--m3-surface-container-low)',
+                        border: '1px solid var(--border-color)',
                       }}
                     >
-                      <strong>Proposed Value: </strong>
-                      <span>{appr.proposedValue || 'None'}</span>
-                    </div>
-
-                    {appr.status === 'NEEDS_USER_RECONFIRMATION' && (
                       <div
                         style={{
-                          margin: '0.5rem 0',
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: '16px',
-                          background: 'var(--status-warning-container)',
-                          border: '1px solid var(--status-warning-border)',
-                          color: 'var(--status-warning)',
-                          fontSize: '0.85rem',
+                          fontSize: '0.8rem',
+                          color: 'var(--text-secondary)',
+                          marginBottom: '0.25rem',
                         }}
                       >
-                        <Icon name="warning" /> <strong>Candidate Reconfirmation Required:</strong>{' '}
-                        Quarantined by safety policy.
+                        Source: {q.answerSource}
                       </div>
-                    )}
-
-                    {(appr.status === 'PENDING' || appr.status === 'NEEDS_USER_RECONFIRMATION') && (
-                      <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
-                        <Button
-                          className="button button-primary"
-                          onClick={() => handleApprove(appr.id)}
-                          disabled={actionLoading}
-                        >
-                          {appr.status === 'NEEDS_USER_RECONFIRMATION' ? (
-                            <>
-                              <Icon name="check" size={20} /> Reconfirm &amp; Approve
-                            </>
-                          ) : (
-                            <>
-                              <Icon name="check" size={20} /> Approve
-                            </>
+                      <div>
+                        <strong>Answer: </strong>
+                        <span>
+                          {q.finalAnswer || q.proposedAnswer || (
+                            <em style={{ color: 'var(--text-secondary)' }}>
+                              Unresolved (Human input required)
+                            </em>
                           )}
-                        </Button>
-                        <Button
-                          className="button button-secondary"
-                          onClick={async () => {
-                            const val = await prompt(
-                              'Edit value before approval:',
-                              appr.proposedValue || '',
-                            );
-                            if (val !== null) handleApprove(appr.id, val);
-                          }}
-                          disabled={actionLoading}
-                        >
-                          <Icon name="edit" size={20} /> Edit & Approve
-                        </Button>
-                        <Button
-                          className="button button-secondary"
-                          style={{ color: 'var(--danger)' }}
-                          onClick={() => handleReject(appr.id)}
-                          disabled={actionLoading}
-                        >
-                          <Icon name="close" size={20} /> Reject
-                        </Button>
+                        </span>
                       </div>
-                    )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+                      <Button
+                        className="button button-secondary"
+                        onClick={() => {
+                          setSelectedQuestionForAnswer(q);
+                          setAnswerDraft(q.finalAnswer || q.proposedAnswer || '');
+                        }}
+                      >
+                        <Icon name="edit" size={20} /> Edit / Answer
+                      </Button>
+                    </div>
                   </Card>
                 ))}
               </div>
-            )}
-          </div>
-        )}
-
-        {/* TAB 6: EVIDENCE & CHANGES */}
-        {activeTab === 'evidence' && (
-          <div
-            style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
-            className="layout-group"
-          >
-            <Card className="card">
-              <h3>Change Explanation</h3>
-              <ul style={{ paddingLeft: '1.25rem', marginTop: '0.75rem', lineHeight: 1.6 }}>
-                {version?.changeSummary.map((item, idx) => (
-                  <li key={idx}>{item}</li>
-                ))}
-              </ul>
-            </Card>
-          </div>
-        )}
-
-        {/* MODAL: EDIT CV SUMMARY */}
-        {showEditSummaryModal && (
-          <ModalSurface className="modal-backdrop">
-            <div className="modal-card" style={{ maxWidth: '600px', width: '100%' }}>
-              <h3>Edit Professional Summary</h3>
-              <Textarea
-                className="input"
-                rows={6}
-                value={summaryDraft}
-                onChange={(e) => setSummaryDraft(e.target.value)}
-                style={{ width: '100%', marginTop: '0.75rem' }}
-              />
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.5rem',
-                  marginTop: '1rem',
-                }}
-                className="layout-group"
-              >
-                <Button
-                  className="button button-secondary"
-                  onClick={() => setShowEditSummaryModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="button button-primary"
-                  onClick={handleSaveSummary}
-                  disabled={actionLoading}
-                >
-                  Save & Regenerate DOCX
-                </Button>
-              </div>
             </div>
-          </ModalSurface>
-        )}
+          )}
 
-        {/* MODAL: EDIT COVER LETTER */}
-        {showEditCoverLetterModal && (
-          <ModalSurface className="modal-backdrop">
-            <div className="modal-card" style={{ maxWidth: '650px', width: '100%' }}>
-              <h3>Edit Cover Letter</h3>
-              <Textarea
-                className="input"
-                rows={12}
-                value={coverLetterDraft}
-                onChange={(e) => setCoverLetterDraft(e.target.value)}
-                style={{ width: '100%', marginTop: '0.75rem' }}
-              />
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.5rem',
-                  marginTop: '1rem',
-                }}
-                className="layout-group"
-              >
-                <Button
-                  className="button button-secondary"
-                  onClick={() => setShowEditCoverLetterModal(false)}
+          {/* TAB 5: APPROVALS */}
+          {activeTab === 'approvals' && (
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+              className="layout-group"
+            >
+              <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+                Pending authorizations for sensitive declarations, answer library overrides, and
+                legal statements.
+              </p>
+
+              {data.approvals.length === 0 ? (
+                <Card
+                  className="card"
+                  style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}
                 >
-                  Cancel
-                </Button>
-                <Button
-                  className="button button-primary"
-                  onClick={handleSaveCoverLetter}
-                  disabled={actionLoading}
-                >
-                  Save & Regenerate DOCX
-                </Button>
-              </div>
-            </div>
-          </ModalSurface>
-        )}
-
-        {/* MODAL: ADD QUESTION */}
-        {showAddQuestionModal && (
-          <ModalSurface className="modal-backdrop">
-            <div className="modal-card" style={{ maxWidth: '550px', width: '100%' }}>
-              <h3>Add Application Question</h3>
-              <form
-                onSubmit={handleAddQuestion}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.75rem',
-                  marginTop: '0.75rem',
-                }}
-              >
-                <div>
-                  <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Question Text</label>
-                  <Input
-                    className="input"
-                    value={newQuestionText}
-                    onChange={(e) => setNewQuestionText(e.target.value)}
-                    placeholder="e.g. What is your notice period?"
-                    required
-                  />
-                </div>
-
+                  <Icon name="check" size={20} /> No approval requests for this package.
+                </Card>
+              ) : (
                 <div
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}
+                  style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
                   className="layout-group"
                 >
-                  <div>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Category</label>
-                    <Select
-                      className="input"
-                      value={newQuestionCategory}
-                      onChange={(e) => setNewQuestionCategory(e.target.value as QuestionCategory)}
-                    >
-                      <option value="GENERAL">General</option>
-                      <option value="WORK_AUTHORIZATION">Work Authorization</option>
-                      <option value="SPONSORSHIP">Sponsorship</option>
-                      <option value="SALARY">Salary</option>
-                      <option value="AVAILABILITY">Availability</option>
-                      <option value="EXPERIENCE_YEARS">Experience Years</option>
-                    </Select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Question Type</label>
-                    <Select
-                      className="input"
-                      value={newQuestionType}
-                      onChange={(e) => setNewQuestionType(e.target.value as QuestionType)}
-                    >
-                      <option value="TEXT">Text</option>
-                      <option value="TEXTAREA">Textarea</option>
-                      <option value="BOOLEAN">Boolean</option>
-                      <option value="SINGLE_SELECT">Single Select</option>
-                      <option value="MULTI_SELECT">Multi Select</option>
-                      <option value="NUMBER">Number</option>
-                    </Select>
-                  </div>
-                </div>
+                  {data.approvals.map((appr) => (
+                    <Card key={appr.id} className="card" style={{ padding: '1.25rem' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'flex-start',
+                        }}
+                      >
+                        <div>
+                          <div
+                            style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.35rem' }}
+                            className="layout-group"
+                          >
+                            <span className="badge">{appr.approvalType}</span>
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                color:
+                                  appr.riskLevel === 'CRITICAL'
+                                    ? 'var(--status-danger)'
+                                    : 'var(--status-warning)',
+                              }}
+                            >
+                              Risk: {appr.riskLevel}
+                            </span>
+                          </div>
+                          <strong style={{ fontSize: '1rem' }}>{appr.subject}</strong>
+                          <p
+                            style={{
+                              margin: '0.25rem 0 0',
+                              fontSize: '0.85rem',
+                              color: 'var(--text-secondary)',
+                            }}
+                          >
+                            {appr.reason}
+                          </p>
+                        </div>
 
-                {(newQuestionType === 'SINGLE_SELECT' || newQuestionType === 'MULTI_SELECT') && (
+                        <span
+                          style={{
+                            padding: '0.25rem 0.6rem',
+                            borderRadius: '9999px',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            background:
+                              appr.status === 'APPROVED'
+                                ? 'var(--status-success-container)'
+                                : appr.status === 'PENDING'
+                                  ? 'var(--status-warning-container)'
+                                  : 'var(--status-danger-container)',
+                            color:
+                              appr.status === 'APPROVED'
+                                ? 'var(--status-success)'
+                                : appr.status === 'PENDING'
+                                  ? 'var(--status-warning)'
+                                  : 'var(--status-danger)',
+                          }}
+                        >
+                          {appr.status}
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          margin: '0.75rem 0',
+                          padding: '0.75rem',
+                          borderRadius: '16px',
+                          background: 'var(--m3-surface-container-low)',
+                        }}
+                      >
+                        <strong>Proposed Value: </strong>
+                        <span>{appr.proposedValue || 'None'}</span>
+                      </div>
+
+                      {appr.status === 'NEEDS_USER_RECONFIRMATION' && (
+                        <div
+                          style={{
+                            margin: '0.5rem 0',
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: '16px',
+                            background: 'var(--status-warning-container)',
+                            border: '1px solid var(--status-warning-border)',
+                            color: 'var(--status-warning)',
+                            fontSize: '0.85rem',
+                          }}
+                        >
+                          <Icon name="warning" />{' '}
+                          <strong>Candidate Reconfirmation Required:</strong> Quarantined by safety
+                          policy.
+                        </div>
+                      )}
+
+                      {(appr.status === 'PENDING' ||
+                        appr.status === 'NEEDS_USER_RECONFIRMATION') && (
+                        <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
+                          <Button
+                            className="button button-primary"
+                            onClick={() => handleApprove(appr.id)}
+                            disabled={actionLoading}
+                          >
+                            {appr.status === 'NEEDS_USER_RECONFIRMATION' ? (
+                              <>
+                                <Icon name="check" size={20} /> Reconfirm &amp; Approve
+                              </>
+                            ) : (
+                              <>
+                                <Icon name="check" size={20} /> Approve
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            className="button button-secondary"
+                            onClick={async () => {
+                              const val = await prompt(
+                                'Edit value before approval:',
+                                appr.proposedValue || '',
+                              );
+                              if (val !== null) handleApprove(appr.id, val);
+                            }}
+                            disabled={actionLoading}
+                          >
+                            <Icon name="edit" size={20} /> Edit & Approve
+                          </Button>
+                          <Button
+                            className="button button-secondary"
+                            style={{ color: 'var(--danger)' }}
+                            onClick={() => handleReject(appr.id)}
+                            disabled={actionLoading}
+                          >
+                            <Icon name="close" size={20} /> Reject
+                          </Button>
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 6: EVIDENCE & CHANGES */}
+          {activeTab === 'evidence' && (
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+              className="layout-group"
+            >
+              <Card className="card">
+                <h3>Change Explanation</h3>
+                <ul style={{ paddingLeft: '1.25rem', marginTop: '0.75rem', lineHeight: 1.6 }}>
+                  {version?.changeSummary.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </Card>
+            </div>
+          )}
+
+          {/* MODAL: EDIT CV SUMMARY */}
+          {showEditSummaryModal && (
+            <ModalSurface className="modal-backdrop">
+              <div className="modal-card" style={{ maxWidth: '600px', width: '100%' }}>
+                <h3>Edit Professional Summary</h3>
+                <Textarea
+                  className="input"
+                  rows={6}
+                  value={summaryDraft}
+                  onChange={(e) => setSummaryDraft(e.target.value)}
+                  style={{ width: '100%', marginTop: '0.75rem' }}
+                />
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: '0.5rem',
+                    marginTop: '1rem',
+                  }}
+                  className="layout-group"
+                >
+                  <Button
+                    className="button button-secondary"
+                    onClick={() => setShowEditSummaryModal(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="button button-primary"
+                    onClick={handleSaveSummary}
+                    disabled={actionLoading}
+                  >
+                    Save & Regenerate DOCX
+                  </Button>
+                </div>
+              </div>
+            </ModalSurface>
+          )}
+
+          {/* MODAL: EDIT COVER LETTER */}
+          {showEditCoverLetterModal && (
+            <ModalSurface className="modal-backdrop">
+              <div className="modal-card" style={{ maxWidth: '650px', width: '100%' }}>
+                <h3>Edit Cover Letter</h3>
+                <Textarea
+                  className="input"
+                  rows={12}
+                  value={coverLetterDraft}
+                  onChange={(e) => setCoverLetterDraft(e.target.value)}
+                  style={{ width: '100%', marginTop: '0.75rem' }}
+                />
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: '0.5rem',
+                    marginTop: '1rem',
+                  }}
+                  className="layout-group"
+                >
+                  <Button
+                    className="button button-secondary"
+                    onClick={() => setShowEditCoverLetterModal(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="button button-primary"
+                    onClick={handleSaveCoverLetter}
+                    disabled={actionLoading}
+                  >
+                    Save & Regenerate DOCX
+                  </Button>
+                </div>
+              </div>
+            </ModalSurface>
+          )}
+
+          {/* MODAL: ADD QUESTION */}
+          {showAddQuestionModal && (
+            <ModalSurface className="modal-backdrop">
+              <div className="modal-card" style={{ maxWidth: '550px', width: '100%' }}>
+                <h3>Add Application Question</h3>
+                <form
+                  onSubmit={handleAddQuestion}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.75rem',
+                    marginTop: '0.75rem',
+                  }}
+                >
                   <div>
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                      Options (one per line)
-                    </label>
-                    <Textarea
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Question Text</label>
+                    <Input
                       className="input"
-                      rows={3}
-                      value={newQuestionOptions}
-                      onChange={(e) => setNewQuestionOptions(e.target.value)}
-                      placeholder="Yes&#10;No"
+                      value={newQuestionText}
+                      onChange={(e) => setNewQuestionText(e.target.value)}
+                      placeholder="e.g. What is your notice period?"
+                      required
                     />
                   </div>
-                )}
 
-                <div
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                  className="layout-group"
-                >
+                  <div
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}
+                    className="layout-group"
+                  >
+                    <div>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Category</label>
+                      <Select
+                        className="input"
+                        value={newQuestionCategory}
+                        onChange={(e) => setNewQuestionCategory(e.target.value as QuestionCategory)}
+                      >
+                        <option value="GENERAL">General</option>
+                        <option value="WORK_AUTHORIZATION">Work Authorization</option>
+                        <option value="SPONSORSHIP">Sponsorship</option>
+                        <option value="SALARY">Salary</option>
+                        <option value="AVAILABILITY">Availability</option>
+                        <option value="EXPERIENCE_YEARS">Experience Years</option>
+                      </Select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Question Type</label>
+                      <Select
+                        className="input"
+                        value={newQuestionType}
+                        onChange={(e) => setNewQuestionType(e.target.value as QuestionType)}
+                      >
+                        <option value="TEXT">Text</option>
+                        <option value="TEXTAREA">Textarea</option>
+                        <option value="BOOLEAN">Boolean</option>
+                        <option value="SINGLE_SELECT">Single Select</option>
+                        <option value="MULTI_SELECT">Multi Select</option>
+                        <option value="NUMBER">Number</option>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {(newQuestionType === 'SINGLE_SELECT' || newQuestionType === 'MULTI_SELECT') && (
+                    <div>
+                      <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                        Options (one per line)
+                      </label>
+                      <Textarea
+                        className="input"
+                        rows={3}
+                        value={newQuestionOptions}
+                        onChange={(e) => setNewQuestionOptions(e.target.value)}
+                        placeholder="Yes&#10;No"
+                      />
+                    </div>
+                  )}
+
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                    className="layout-group"
+                  >
+                    <Input
+                      type="checkbox"
+                      id="reqCheck"
+                      checked={newQuestionRequired}
+                      onChange={(e) => setNewQuestionRequired(e.target.checked)}
+                    />
+                    <label htmlFor="reqCheck" style={{ fontSize: '0.85rem' }}>
+                      Required Question
+                    </label>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      gap: '0.5rem',
+                      marginTop: '0.75rem',
+                    }}
+                    className="layout-group"
+                  >
+                    <Button
+                      type="button"
+                      className="button button-secondary"
+                      onClick={() => setShowAddQuestionModal(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="button button-primary"
+                      disabled={actionLoading}
+                    >
+                      Add Question
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </ModalSurface>
+          )}
+
+          {/* MODAL: ANSWER QUESTION */}
+          {selectedQuestionForAnswer && (
+            <ModalSurface className="modal-backdrop">
+              <div className="modal-card" style={{ maxWidth: '500px', width: '100%' }}>
+                <h3>Answer Question</h3>
+                <p style={{ fontWeight: 600, marginTop: '0.5rem' }}>
+                  {selectedQuestionForAnswer.questionText}
+                </p>
+
+                {selectedQuestionForAnswer.options &&
+                selectedQuestionForAnswer.options.length > 0 ? (
+                  <Select
+                    className="input"
+                    value={answerDraft}
+                    onChange={(e) => setAnswerDraft(e.target.value)}
+                    style={{ width: '100%', marginTop: '0.75rem' }}
+                  >
+                    <option value="">-- Select an option --</option>
+                    {selectedQuestionForAnswer.options.map((opt: string) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </Select>
+                ) : (
                   <Input
-                    type="checkbox"
-                    id="reqCheck"
-                    checked={newQuestionRequired}
-                    onChange={(e) => setNewQuestionRequired(e.target.checked)}
+                    className="input"
+                    value={answerDraft}
+                    onChange={(e) => setAnswerDraft(e.target.value)}
+                    style={{ width: '100%', marginTop: '0.75rem' }}
+                    placeholder="Enter answer..."
                   />
-                  <label htmlFor="reqCheck" style={{ fontSize: '0.85rem' }}>
-                    Required Question
-                  </label>
-                </div>
+                )}
 
                 <div
                   style={{
                     display: 'flex',
                     justifyContent: 'flex-end',
                     gap: '0.5rem',
-                    marginTop: '0.75rem',
+                    marginTop: '1rem',
                   }}
                   className="layout-group"
                 >
                   <Button
-                    type="button"
                     className="button button-secondary"
-                    onClick={() => setShowAddQuestionModal(false)}
+                    onClick={() => setSelectedQuestionForAnswer(null)}
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" className="button button-primary" disabled={actionLoading}>
-                    Add Question
+                  <Button
+                    className="button button-primary"
+                    onClick={handleAnswerQuestion}
+                    disabled={actionLoading}
+                  >
+                    Save & Approve
                   </Button>
                 </div>
-              </form>
-            </div>
-          </ModalSurface>
-        )}
+              </div>
+            </ModalSurface>
+          )}
 
-        {/* MODAL: ANSWER QUESTION */}
-        {selectedQuestionForAnswer && (
-          <ModalSurface className="modal-backdrop">
-            <div className="modal-card" style={{ maxWidth: '500px', width: '100%' }}>
-              <h3>Answer Question</h3>
-              <p style={{ fontWeight: 600, marginTop: '0.5rem' }}>
-                {selectedQuestionForAnswer.questionText}
-              </p>
-
-              {selectedQuestionForAnswer.options && selectedQuestionForAnswer.options.length > 0 ? (
-                <Select
-                  className="input"
-                  value={answerDraft}
-                  onChange={(e) => setAnswerDraft(e.target.value)}
-                  style={{ width: '100%', marginTop: '0.75rem' }}
+          {/* MODAL: OVERRIDE BLOCKER */}
+          {showOverrideModal && (
+            <ModalSurface className="modal-backdrop">
+              <div className="modal-card" style={{ maxWidth: '500px', width: '100%' }}>
+                <h3 style={{ color: 'var(--status-danger)' }}>Override Policy Blocker</h3>
+                <p
+                  style={{
+                    fontSize: '0.85rem',
+                    color: 'var(--text-secondary)',
+                    marginTop: '0.25rem',
+                  }}
                 >
-                  <option value="">-- Select an option --</option>
-                  {selectedQuestionForAnswer.options.map((opt: string) => (
-                    <option key={opt} value={opt}>
-                      {opt}
-                    </option>
-                  ))}
-                </Select>
-              ) : (
-                <Input
+                  Please provide an auditable justification explaining why this hard policy
+                  restriction is being waived.
+                </p>
+                <Textarea
                   className="input"
-                  value={answerDraft}
-                  onChange={(e) => setAnswerDraft(e.target.value)}
+                  rows={4}
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  placeholder="e.g. Candidate confirmed willing to relocate or accept terms for this specific position..."
                   style={{ width: '100%', marginTop: '0.75rem' }}
-                  placeholder="Enter answer..."
                 />
-              )}
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.5rem',
-                  marginTop: '1rem',
-                }}
-                className="layout-group"
-              >
-                <Button
-                  className="button button-secondary"
-                  onClick={() => setSelectedQuestionForAnswer(null)}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: '0.5rem',
+                    marginTop: '1rem',
+                  }}
+                  className="layout-group"
                 >
-                  Cancel
-                </Button>
-                <Button
-                  className="button button-primary"
-                  onClick={handleAnswerQuestion}
-                  disabled={actionLoading}
-                >
-                  Save & Approve
-                </Button>
+                  <Button
+                    className="button button-secondary"
+                    onClick={() => setShowOverrideModal(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="button button-primary"
+                    onClick={handleOverrideBlocker}
+                    disabled={actionLoading || overrideReason.trim().length < 5}
+                  >
+                    Confirm Override
+                  </Button>
+                </div>
               </div>
-            </div>
-          </ModalSurface>
-        )}
-
-        {/* MODAL: OVERRIDE BLOCKER */}
-        {showOverrideModal && (
-          <ModalSurface className="modal-backdrop">
-            <div className="modal-card" style={{ maxWidth: '500px', width: '100%' }}>
-              <h3 style={{ color: 'var(--status-danger)' }}>Override Policy Blocker</h3>
-              <p
-                style={{
-                  fontSize: '0.85rem',
-                  color: 'var(--text-secondary)',
-                  marginTop: '0.25rem',
-                }}
-              >
-                Please provide an auditable justification explaining why this hard policy
-                restriction is being waived.
-              </p>
-              <Textarea
-                className="input"
-                rows={4}
-                value={overrideReason}
-                onChange={(e) => setOverrideReason(e.target.value)}
-                placeholder="e.g. Candidate confirmed willing to relocate or accept terms for this specific position..."
-                style={{ width: '100%', marginTop: '0.75rem' }}
-              />
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.5rem',
-                  marginTop: '1rem',
-                }}
-                className="layout-group"
-              >
-                <Button
-                  className="button button-secondary"
-                  onClick={() => setShowOverrideModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="button button-primary"
-                  onClick={handleOverrideBlocker}
-                  disabled={actionLoading || overrideReason.trim().length < 5}
-                >
-                  Confirm Override
-                </Button>
-              </div>
-            </div>
-          </ModalSurface>
-        )}
-      </section>
+            </ModalSurface>
+          )}
+        </section>{' '}
+      </MaterialTools>
     </div>
   );
 }

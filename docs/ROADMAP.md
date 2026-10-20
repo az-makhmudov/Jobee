@@ -257,3 +257,11 @@ This document defines the authoritative macro-task roadmap for **Jobee** (former
 ## JOB-UI-MIGRATION-01 — Desktop design system migration
 
 Status: **DEPLOYED / LIVE VERIFIED**. Codex completed the visual migration, eight-destination navigation and inline document preview. All 25 mapped components and 18 closure groups have implementation evidence. Quality gates passed: 586 tests, 25 browser checks, typecheck/build/lint/format and isolated database checks. Owner approved applying locally and deploying live. Main checkout is integrated; Railway API and worker successfully deployed `7b6b85d`. Live themes, exact assets, health/readiness and access protection verified. Platform-specific visual references address cloud font rendering differences without relaxing thresholds. See `docs/UI_MIGRATION.md`.
+
+## JOB-UI-MIGRATION-01 — Student UX continuation
+
+Status: **LOCAL IMPLEMENTATION VERIFIED — RELEASE PENDING**. Following explicit owner approval of the full Figma adaptation, implement the four primary destinations and contextual application workflow in `codex/jobee-student-ux`. Preserve the complete feature-access map, existing data/authorization rules, both themes and narrow-screen access. See `docs/STUDENT_UX.md` for scope and current preview. All eight required gates, 606 tests and 32 browser checks pass locally; reviewed Light/Dark renders and the implementation report are available. The implementation checkpoint is recorded in the autonomous state; review the local preview. Linux Home references, merge/release review and production authorization remain separate pending steps. Prior releases above remain historical.
+
+## JOB-PRODUCT-EVOLUTION-01 — IN PROGRESS
+
+20 October 2026: owner authorized implementation and deployment of the product-evolution plan. Deliver employer confirmation evidence, student UX release, broader public discovery, durable preparation/review batches, reviewed selected submissions and daily assistance as one coherent program. Human usability/relevance pilot targets remain measurements to collect; fixture verification does not establish them.

@@ -1,5 +1,7 @@
 # JOB-UI-MIGRATION-01 — Source and Figma reconciliation
 
+> Current student UX destinations and source frames are in [STUDENT_UX.md](STUDENT_UX.md) and [student-ux-figma.json](student-ux-figma.json). The original 25-component and 18-group inventory below remains the feature-preservation baseline; historical destination labels do not override the approved four-destination flow.
+
 Baseline: `9c1b206`. The table maps all 25 existing UI components, including 17 main views, to their approved destination and editable Figma source. Implementations remain in `apps/web/src/components/`; shared primitives, icon names, semantic tokens and appearance live in `apps/web/src/ui/`.
 
 | Current frontend component  | Approved destination               | Editable source                                                                        | Closure coverage                     |

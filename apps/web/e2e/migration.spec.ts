@@ -1,5 +1,42 @@
 import { test, expect } from '@playwright/test';
 
+const webOrigin = `http://127.0.0.1:${process.env.UI_TEST_WEB_PORT || '5179'}`;
+
+async function go(page: import('@playwright/test').Page, name: string) {
+  const legacy: Record<string, string> = {
+    Jobs: 'Find jobs',
+    Applications: 'My applications',
+    'My Profile': 'My profile',
+  };
+  if (['Approvals', 'Interviews', 'Messages'].includes(name)) {
+    await page
+      .getByRole('navigation', { name: 'Main navigation' })
+      .getByRole('button', { name: 'My applications', exact: true })
+      .click();
+    await page
+      .getByRole('tablist', { name: 'Application views' })
+      .getByRole('tab', { name: name === 'Approvals' ? 'Needs review' : name, exact: true })
+      .click();
+  } else {
+    await page
+      .locator('.sidebar')
+      .getByRole('button', { name: legacy[name] || name, exact: true })
+      .click();
+  }
+}
+async function showDetails(page: import('@playwright/test').Page, label: string) {
+  const details = page
+    .locator('details')
+    .filter({ has: page.locator(':scope > summary', { hasText: label }) })
+    .first();
+  if (!(await details.evaluate((node) => (node as HTMLDetailsElement).open)))
+    await details.locator(':scope > summary').click();
+}
+async function preparedMaterials(page: import('@playwright/test').Page) {
+  await showDetails(page, 'More tools');
+  await page.getByRole('button', { name: 'Prepared materials', exact: true }).click();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.route('**/*', (route) => {
     const url = new URL(route.request().url());
@@ -9,7 +46,7 @@ test.beforeEach(async ({ page }) => {
       : route.abort('blockedbyclient');
   });
   const response = await page.request.post('/api/auth/sign-in/email', {
-    headers: { Origin: 'http://127.0.0.1:5179' },
+    headers: { Origin: webOrigin },
     data: { email: 'alex.morgan@example.test', password: 'JobeePreview123!' },
   });
   expect(response.ok()).toBeTruthy();
@@ -21,10 +58,10 @@ test('desktop shell and Home use real synthetic local records', async ({ page })
   await expect(page.getByRole('heading', { name: 'Welcome back, Alex' })).toBeVisible();
   await expect(
     page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button'),
-  ).toHaveCount(6);
+  ).toHaveCount(4);
   await expect(
     page.getByRole('navigation', { name: 'Profile and settings' }).getByRole('button'),
-  ).toHaveCount(2);
+  ).toHaveCount(1);
   await expect(page.getByRole('button', { name: 'Review approvals', exact: true })).toBeVisible();
   await page.screenshot({ path: 'output/playwright/home-light.png', fullPage: true });
   expect(
@@ -34,21 +71,24 @@ test('desktop shell and Home use real synthetic local records', async ({ page })
 });
 test('grouped Profile and Settings destinations preserve the original views', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'My Profile', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'My Profile', exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Alex Morgan', exact: true })).toBeVisible();
+  await go(page, 'My Profile');
+  await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();
+  await expect(page.getByText('Alex Morgan', { exact: true }).last()).toBeVisible();
   await page.getByRole('tab', { name: 'CV & Documents', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Uploaded Documents', exact: true }),
   ).toBeVisible();
   await page.getByRole('tab', { name: 'Saved Answers', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Saved Answers', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByLabel('Color theme').selectOption('dark');
+  await go(page, 'Settings');
+  await page
+    .getByRole('group', { name: 'Color theme' })
+    .getByRole('button', { name: 'Dark', exact: true })
+    .click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await go(page, 'Settings');
   await page.getByRole('tab', { name: 'System activity', exact: true }).click();
   await expect(page.getByRole('tab', { name: 'System activity', exact: true })).toHaveAttribute(
     'aria-selected',
@@ -58,7 +98,7 @@ test('grouped Profile and Settings destinations preserve the original views', as
 });
 test('document selection, TXT preview, zoom and close', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'My Profile', exact: true }).click();
+  await go(page, 'My Profile');
   await page.getByRole('tab', { name: 'CV & Documents', exact: true }).click();
   await page.getByRole('button', { name: 'Master Student CV', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Preview of preview-cv.txt' })).toBeVisible();
@@ -70,23 +110,25 @@ test('document selection, TXT preview, zoom and close', async ({ page }) => {
 });
 test('Jobs and CRM load real records in both themes without root overflow', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Jobs', exact: true }).click();
+  await go(page, 'Jobs');
   await expect(
     page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
   ).toBeVisible();
   await page.screenshot({ path: 'output/playwright/jobs-light.png', fullPage: true });
-  await page.getByRole('button', { name: 'Applications', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
-  await expect(page.getByText('Software Engineering Intern', { exact: true })).toBeVisible();
+  await go(page, 'Applications');
+  await expect(page.getByRole('heading', { name: 'My applications', exact: true })).toBeVisible();
+  await expect(page.locator('main')).toContainText('Software Engineering Intern');
+  await page.getByRole('button', { name: 'Board', exact: true }).click();
   await page.screenshot({ path: 'output/playwright/applications-board-light.png', fullPage: true });
   await page.evaluate(() => {
     localStorage.setItem('jobee.theme', 'dark');
   });
   await page.reload();
-  await page.getByRole('button', { name: 'Applications', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
-  await expect(page.getByText('Software Engineering Intern', { exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
+  await go(page, 'Applications');
+  await expect(page.getByRole('heading', { name: 'My applications', exact: true })).toBeVisible();
+  await expect(page.locator('main')).toContainText('Software Engineering Intern');
+  await expect(page.getByRole('heading', { name: 'My applications', exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Board', exact: true }).click();
   await page.screenshot({ path: 'output/playwright/applications-board-dark.png', fullPage: true });
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
@@ -111,8 +153,10 @@ test('existing mobile navigation remains usable', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
-  await page.getByRole('button', { name: 'Jobs', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Jobs', exact: true })).toBeVisible();
+  await go(page, 'Jobs');
+  await expect(
+    page.getByRole('heading', { name: 'Find your next opportunity', exact: true }),
+  ).toBeVisible();
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBeTruthy();
@@ -121,18 +165,34 @@ test('existing mobile navigation remains usable', async ({ page }) => {
 
 async function openDocuments(page: import('@playwright/test').Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'My Profile', exact: true }).click();
+  await go(page, 'My Profile');
   await page.getByRole('tab', { name: 'CV & Documents', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Master Student CV', exact: true })).toBeVisible();
 }
 async function openApplication(page: import('@playwright/test').Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Applications', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
-  await page.getByText('Frontend Developer Intern', { exact: true }).click();
+  await go(page, 'Applications');
+  await expect(page.getByRole('heading', { name: 'My applications', exact: true })).toBeVisible();
+  await page
+    .locator('.application-list .action-row')
+    .filter({ hasText: 'Frontend Developer Intern' })
+    .getByRole('button', { name: 'Open application', exact: true })
+    .click();
   await expect(
-    page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
+    page.getByRole('heading', { name: 'Frontend Developer Intern · Northstar', exact: true }),
   ).toBeVisible();
+  await page.getByRole('button', { name: 'Open detailed record', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Application progress', exact: true }),
+  ).toBeVisible();
+  for (const label of [
+    'Update status & manage application',
+    'Notes',
+    'Recruiter contacts',
+    'Offer & compensation',
+    'Browser assistance & run history',
+  ])
+    await showDetails(page, label);
 }
 
 test('PDF and sandboxed DOCX render locally; document paper stays light in dark mode', async ({
@@ -161,7 +221,7 @@ test('PDF and sandboxed DOCX render locally; document paper stays light in dark 
     localStorage.setItem('jobee.theme', 'dark');
   });
   await page.reload();
-  await page.getByRole('button', { name: 'My Profile', exact: true }).click();
+  await go(page, 'My Profile');
   await page.getByRole('tab', { name: 'CV & Documents', exact: true }).click();
   await page.getByRole('button', { name: 'PDF preview example', exact: true }).click();
   await expect(page.locator('canvas')).toBeVisible();
@@ -205,8 +265,11 @@ test('System follows device changes while explicit preferences stay remembered',
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.emulateMedia({ colorScheme: 'light' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
-  await page.getByLabel('Color theme').selectOption('dark');
+  await go(page, 'Settings');
+  await page
+    .getByRole('group', { name: 'Color theme' })
+    .getByRole('button', { name: 'Dark', exact: true })
+    .click();
   await page.emulateMedia({ colorScheme: 'light' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await page.reload();
@@ -233,7 +296,7 @@ test('all supporting workspaces load and remain usable at 1280px and 1920px', as
         'My Profile',
         'Settings',
       ]) {
-        await page.getByRole('button', { name, exact: true }).click();
+        await go(page, name);
         await expect(page.locator('main').getByRole('heading').first()).toBeVisible();
         expect(
           await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
@@ -248,8 +311,8 @@ test('profile skill create, validation, cancel and confirmed delete retain behav
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'My Profile', exact: true }).click();
-  await page.getByRole('tab', { name: 'Your details', exact: true }).click();
+  await go(page, 'My Profile');
+  await page.getByRole('button', { name: 'More profile details', exact: true }).click();
   await page.getByRole('tab', { name: /^Skills/ }).click();
   await page.getByRole('button', { name: '+ Add Skill', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -293,29 +356,41 @@ test('application details preserve note editing and cancellation of browser subm
   expect(calls).toEqual([]);
   await page.screenshot({ path: 'output/playwright/application-detail-light.png', fullPage: true });
 });
-test('Studio tabs retain editing, readiness blockers and job navigation', async ({ page }) => {
+test('application workspace retains document editors, questions, independent blockers and job navigation', async ({
+  page,
+}) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Applications', exact: true }).click();
-  await page.getByRole('tab', { name: 'Prepared materials', exact: true }).click();
+  await go(page, 'Applications');
+  await preparedMaterials(page);
   await page
     .getByRole('button', { name: /Open Application Studio/ })
     .first()
     .click();
   await expect(
-    page.getByRole('heading', { name: 'Readiness Inspection', exact: true }),
+    page.getByRole('heading', { name: 'Your application documents', exact: true }),
   ).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Final review', exact: true })).toBeDisabled();
+  await page.getByRole('button', { name: 'Document versions', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Document version history', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText('Loading versions…')).toHaveCount(0);
+  await page.getByRole('button', { name: 'View CV', exact: true }).click();
+  await expect(page.locator('#studio-panel')).toBeVisible();
+  await page.getByRole('tab', { name: 'Cover letter', exact: true }).click();
+  await page
+    .getByRole('tablist', { name: 'Application workspace' })
+    .getByRole('tab', { name: 'Questions', exact: true })
+    .click();
+  await expect(page.locator('#studio-panel')).toBeVisible();
+  await page.getByRole('button', { name: /Review pending decisions/ }).click();
+  await expect(page.getByRole('tab', { name: 'Final review', exact: true })).toBeDisabled();
+  await page
+    .getByRole('tablist', { name: 'Application workspace' })
+    .getByRole('tab', { name: 'Documents', exact: true })
+    .click();
+  await page.getByRole('button', { name: 'Document details & downloads', exact: true }).click();
   await expect(page.getByText(/required application question\(s\) are unresolved/)).toBeVisible();
-  for (const name of [
-    /^CV \(/,
-    /^Cover letter$/,
-    /^Questions \(/,
-    /^Approvals \(/,
-    /^Sources & changes$/,
-    /^Overview$/,
-  ]) {
-    await page.getByRole('tab', { name }).click();
-    await expect(page.locator('#studio-panel')).toBeVisible();
-  }
   await page.screenshot({ path: 'output/playwright/studio-light.png', fullPage: true });
   await page.getByRole('button', { name: 'View Job & Requirements', exact: true }).click();
   await expect(
@@ -323,11 +398,11 @@ test('Studio tabs retain editing, readiness blockers and job navigation', async 
   ).toBeVisible();
   await page.getByRole('tab', { name: /^Requirements/ }).click();
   await expect(page.getByRole('heading', { name: /Extracted Requirements/ })).toBeVisible();
-  await page.screenshot({ path: 'output/playwright/job-detail-light.png', fullPage: true });
 });
 test('cancelled answer editing preserves independent authorization blockers', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Approvals', exact: true }).click();
+  await go(page, 'Approvals');
+  await showDetails(page, 'Review individual decisions');
   const edit = page.getByRole('button', { name: 'Edit & Approve', exact: true }).first();
   await edit.click();
   await page
@@ -338,17 +413,24 @@ test('cancelled answer editing preserves independent authorization blockers', as
   await expect(edit).toBeVisible();
   await page.screenshot({ path: 'output/playwright/approvals-light.png', fullPage: true });
   // Cancel leaves the queue and readiness untouched. Existing service tests cover approval/override independence.
+  await page.getByRole('button', { name: 'Open application', exact: true }).first().click();
   await page
-    .getByRole('button', { name: /Open Studio/ })
-    .first()
+    .getByRole('tablist', { name: 'Application workspace' })
+    .getByRole('tab', { name: 'Documents', exact: true })
     .click();
+  await page.getByRole('button', { name: 'Document details & downloads', exact: true }).click();
   await expect(page.getByText(/pending approval request\(s\) require human review/)).toBeVisible();
+  await page.getByRole('button', { name: 'Back to my applications', exact: false }).first().click();
+  await expect(page.getByRole('tab', { name: 'Needs review', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
 });
 test('interview dialogs and calendar tabs remain accessible without external connections', async ({
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Interviews', exact: true }).click();
+  await go(page, 'Interviews');
   await expect(page.getByText('Panel conversation', { exact: true })).toBeVisible();
   await page
     .getByRole('button', { name: /Record Debrief/ })
@@ -374,7 +456,7 @@ test('signed out state opens an accessible sign-in dialog and invitation deep li
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.goto('/?invite=invalid-local-preview-invite');
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page).toHaveURL('http://127.0.0.1:5179/');
+  await expect(page).toHaveURL(`${webOrigin}/`);
 });
 
 test('analytics, invitations, notifications and Smart Import dialogs retain their controls in both themes', async ({
@@ -384,7 +466,8 @@ test('analytics, invitations, notifications and Smart Import dialogs retain thei
     await page.goto('/');
     await page.evaluate((theme) => localStorage.setItem('jobee.theme', theme), theme);
     await page.reload();
-    await page.getByRole('button', { name: 'Applications', exact: true }).click();
+    await go(page, 'Applications');
+    await showDetails(page, 'More tools');
     await page.getByRole('button', { name: 'Analytics', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(page.getByRole('dialog')).toContainText(/Funnel|Conversion/);
@@ -403,9 +486,10 @@ test('analytics, invitations, notifications and Smart Import dialogs retain thei
       fullPage: true,
     });
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'My Profile', exact: true }).click();
+    await go(page, 'My Profile');
     await page.getByRole('tab', { name: 'CV & Documents', exact: true }).click();
-    await page.getByRole('button', { name: 'Smart Import & Extract', exact: true }).click();
+    await page.getByRole('button', { name: 'Add document', exact: true }).click();
+    await page.getByRole('button', { name: 'Choose a CV', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.screenshot({ path: `output/playwright/smart-import-${theme}.png`, fullPage: true });
     await page.keyboard.press('Escape');
@@ -416,8 +500,8 @@ test('all direct profile editors render labelled fields and cancel without mutat
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'My Profile', exact: true }).click();
-  await page.getByRole('tab', { name: 'Your details', exact: true }).click();
+  await go(page, 'My Profile');
+  await page.getByRole('button', { name: 'More profile details', exact: true }).click();
   for (const [tab, button] of [
     [/^Experience/, '+ Add Experience'],
     [/^Education/, '+ Add Education'],
@@ -466,7 +550,7 @@ test('Saved Answers, Preferences and Career Intelligence retain the grouped flow
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'My Profile', exact: true }).click();
+  await go(page, 'My Profile');
   await page.getByRole('tab', { name: 'Saved Answers', exact: true }).click();
   await page.getByRole('button', { name: '+ Add Answer', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -478,7 +562,8 @@ test('Saved Answers, Preferences and Career Intelligence retain the grouped flow
   await expect(page.getByRole('heading', { name: 'Preferences', exact: true })).toBeVisible();
   await page.screenshot({ path: 'output/playwright/preferences-light.png', fullPage: true });
   await page.getByRole('tab', { name: 'Profile', exact: true }).click();
-  await page.getByRole('tab', { name: 'Review & suggestions', exact: true }).click();
+  await page.getByRole('tab', { name: 'Profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Review suggestions', exact: true }).click();
   await expect(
     page.getByRole('heading', { name: 'Review & suggestions', exact: true }),
   ).toBeVisible();
@@ -491,8 +576,8 @@ test('Jobs add, edit and archive dialogs retain cancellation and job detail tabs
   page,
 }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Jobs', exact: true }).click();
-  await page.getByRole('button', { name: 'Add job', exact: true }).click();
+  await go(page, 'Jobs');
+  await page.getByRole('button', { name: 'Add a job link', exact: true }).click();
   await expect(page.getByRole('dialog').getByLabel('Job Posting Public URL')).toBeVisible();
   await page.keyboard.press('Escape');
   await page
@@ -551,13 +636,14 @@ test('complete desktop render inventory in Light and Dark', async ({ page }) => 
     await shot('home', theme);
     await page.getByRole('button', { name: 'Progress & activity', exact: true }).click();
     await shot('home-progress', theme);
-    await page.getByRole('button', { name: 'My Profile', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Alex Morgan', exact: true })).toBeVisible();
+    await go(page, 'My Profile');
+    await expect(page.getByText('Alex Morgan', { exact: true }).last()).toBeVisible();
     await shot('profile-overview', theme);
-    await page.getByRole('tab', { name: 'Your details', exact: true }).click();
+    await page.getByRole('button', { name: 'More profile details', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Your details', exact: true })).toBeVisible();
     await shot('profile', theme);
-    await page.getByRole('tab', { name: 'Review & suggestions', exact: true }).click();
+    await page.getByRole('tab', { name: 'Profile', exact: true }).click();
+    await page.getByRole('button', { name: 'Review suggestions', exact: true }).click();
     await expect(
       page.getByRole('heading', { name: 'Review & suggestions', exact: true }),
     ).toBeVisible();
@@ -573,7 +659,7 @@ test('complete desktop render inventory in Light and Dark', async ({ page }) => 
     await page.getByRole('tab', { name: 'Preferences', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Preferences', exact: true })).toBeVisible();
     await shot('preferences', theme);
-    await page.getByRole('button', { name: 'Jobs', exact: true }).click();
+    await go(page, 'Jobs');
     await expect(
       page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
     ).toBeVisible();
@@ -587,20 +673,25 @@ test('complete desktop render inventory in Light and Dark', async ({ page }) => 
       .click();
     await expect(page.getByRole('tab', { name: /^Requirements/ })).toBeVisible();
     await shot('job-detail', theme);
-    await page.getByRole('button', { name: 'Applications', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
-    await expect(page.getByText('Frontend Developer Intern', { exact: true })).toBeVisible();
+    await go(page, 'Applications');
+    await expect(page.getByRole('heading', { name: 'My applications', exact: true })).toBeVisible();
+    await expect(page.locator('main')).toContainText('Frontend Developer Intern');
+    await page.getByRole('button', { name: 'Board', exact: true }).click();
     await shot('applications-board', theme);
     await page.getByRole('button', { name: 'List', exact: true }).click();
-    await expect(page.locator('table')).toBeVisible();
+    await expect(page.locator('.application-list')).toBeVisible();
     await shot('applications-list', theme);
-    await page.getByText('Frontend Developer Intern', { exact: true }).click();
+    await page
+      .locator('.application-list .action-row')
+      .filter({ hasText: 'Frontend Developer Intern' })
+      .getByRole('button', { name: 'Open application', exact: true })
+      .click();
     await expect(
-      page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
+      page.getByRole('heading', { name: 'Frontend Developer Intern · Northstar', exact: true }),
     ).toBeVisible();
     await shot('application-detail', theme);
-    await page.getByRole('button', { name: 'Applications', exact: true }).click();
-    await page.getByRole('tab', { name: 'Prepared materials', exact: true }).click();
+    await go(page, 'Applications');
+    await preparedMaterials(page);
     await expect(
       page.getByRole('button', { name: /Open Application Studio/ }).first(),
     ).toBeVisible();
@@ -610,20 +701,22 @@ test('complete desktop render inventory in Light and Dark', async ({ page }) => 
       .first()
       .click();
     await expect(
-      page.getByRole('heading', { name: 'Readiness Inspection', exact: true }),
+      page.getByRole('heading', { name: 'Your application documents', exact: true }),
     ).toBeVisible();
     await shot('studio', theme);
-    await page.getByRole('button', { name: 'Approvals', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Approvals', exact: true })).toBeVisible();
+    await go(page, 'Approvals');
+    await expect(
+      page.getByRole('heading', { name: 'Review what needs your decision', exact: true }),
+    ).toBeVisible();
     await shot('approvals', theme);
-    await page.getByRole('button', { name: 'Messages', exact: true }).click();
+    await go(page, 'Messages');
     await expect(page.getByRole('heading', { name: 'Messages', exact: true })).toBeVisible();
     await shot('messages', theme);
-    await page.getByRole('button', { name: 'Interviews', exact: true }).click();
+    await go(page, 'Interviews');
     await expect(page.getByText('Panel conversation', { exact: true })).toBeVisible();
     await shot('interviews', theme);
-    await page.getByRole('button', { name: 'Settings', exact: true }).click();
-    await expect(page.getByLabel('Color theme')).toBeVisible();
+    await go(page, 'Settings');
+    await expect(page.getByRole('group', { name: 'Color theme' })).toBeVisible();
     await shot('settings', theme);
     await page.getByRole('tab', { name: 'System activity', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'System activity', exact: true })).toBeVisible();
@@ -637,7 +730,8 @@ test('all 17 lifecycle choices and eight browser-run states remain represented',
 }) => {
   const { ApplicationLifecycleStatus, BrowserRunStatus } = await import('@job-agent/shared');
   await page.goto('/');
-  await page.getByRole('button', { name: 'Applications', exact: true }).click();
+  await go(page, 'Applications');
+  await showDetails(page, 'Filters');
   await expect(page.getByLabel('Application status').locator('option')).toHaveCount(18);
   expect(
     await page
@@ -688,9 +782,9 @@ test('a second local user cannot retrieve another user’s document or access ad
 }) => {
   const docs = await (await page.request.get('/api/candidate/documents')).json();
   const target = docs.data[0].id;
-  const isolated = await playwright.request.newContext({ baseURL: 'http://127.0.0.1:5179' });
+  const isolated = await playwright.request.newContext({ baseURL: webOrigin });
   const signup = await isolated.post('/api/auth/sign-up/email', {
-    headers: { Origin: 'http://127.0.0.1:5179' },
+    headers: { Origin: webOrigin },
     data: {
       name: 'Jordan Preview',
       email: `jordan-${Date.now()}@example.test`,
@@ -715,7 +809,10 @@ test('Home visual regression reference in both themes', async ({ page }) => {
       page
         .getByRole('region', { name: 'Home overview' })
         .getByRole('button', { name: 'Open', exact: true }),
-    ).toHaveCount(3);
+    ).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Retry profile suggestions' })).toHaveCount(0);
+    await expect(page.getByText('Checking your next steps…')).toHaveCount(0);
+    await expect(page.getByText('3 application items to review', { exact: true })).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
     await expect(page).toHaveScreenshot('home-' + theme + '.png', {
       fullPage: true,
@@ -723,4 +820,205 @@ test('Home visual regression reference in both themes', async ({ page }) => {
       maxDiffPixelRatio: 0.01,
     });
   }
+});
+
+test('student defaults reduce empty work without changing review permissions', async ({ page }) => {
+  await page.goto('/');
+  await go(page, 'Applications');
+  await expect(page.getByRole('button', { name: 'List', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('button', { name: 'Board', exact: true }).click();
+  await go(page, 'Home');
+  await go(page, 'Applications');
+  await expect(page.getByRole('button', { name: 'Board', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await go(page, 'Messages');
+  await expect(page.getByRole('tab', { name: /^Messages \(/ })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await go(page, 'My Profile');
+  await page.getByRole('tab', { name: 'Profile', exact: true }).click();
+  await page.getByRole('button', { name: 'Review suggestions', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Needs verification', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Unverify', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: /^All \(/ }).click();
+  await expect(page.getByRole('button', { name: 'Unverify', exact: true }).first()).toBeVisible();
+});
+
+test('document purpose is explicit and opening either path does not upload or extract', async ({
+  page,
+}) => {
+  await openDocuments(page);
+  const writes: string[] = [];
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && /documents|smart-import/.test(request.url()))
+      writes.push(request.url());
+  });
+  const add = page.getByRole('button', { name: 'Add document', exact: true });
+  await add.click();
+  await expect(page.getByRole('dialog')).toContainText('This does not extract profile details.');
+  await page.getByRole('button', { name: 'Upload file', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('Upload Candidate Document');
+  await page.keyboard.press('Escape');
+  await expect(add).toBeFocused();
+  await add.click();
+  await page.getByRole('button', { name: 'Choose a CV', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(add).toBeFocused();
+  expect(writes).toEqual([]);
+});
+
+test('progress drafts survive workspace tabs and final-review navigation skips unresolved readiness', async ({
+  page,
+}) => {
+  await openApplication(page);
+  const card = page
+    .locator('.card')
+    .filter({ has: page.getByRole('heading', { name: 'Next Action & Follow-up', exact: true }) });
+  await card.getByRole('button', { name: 'Edit', exact: true }).click();
+  await page.getByLabel('Next action', { exact: true }).fill('Unsaved student follow-up draft');
+  const tabs = page.getByRole('tablist', { name: 'Application workspace' });
+  await tabs.getByRole('tab', { name: 'Questions', exact: true }).click();
+  await expect(tabs.getByRole('tab', { name: 'Final review', exact: true })).toBeDisabled();
+  await page.keyboard.press('ArrowRight');
+  await expect(tabs.getByRole('tab', { name: 'Progress & details', exact: true })).toBeFocused();
+  await expect(page.getByLabel('Next action', { exact: true })).toHaveValue(
+    'Unsaved student follow-up draft',
+  );
+  await card.getByRole('button', { name: 'Cancel', exact: true }).click();
+});
+
+test('returning through the sidebar opens the tracker after prepared materials', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await go(page, 'Applications');
+  await preparedMaterials(page);
+  await expect(page.getByRole('button', { name: /Open Application Studio/ }).first()).toBeVisible();
+  await go(page, 'Home');
+  await go(page, 'Applications');
+  await expect(page.locator('.application-list')).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'All applications', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+});
+
+test('a fully reviewed application exposes final review while sending still requires explicit confirmation', async ({
+  page,
+}) => {
+  // Browser-only synthetic readiness state; no approval or application data is mutated.
+  await page.route(/\/api\/application-packages\/[a-f0-9-]{36}$/i, async (route) => {
+    const response = await route.fetch();
+    const json = await response.json();
+    const data = json.data;
+    data.package = { ...data.package, status: 'READY', isStale: false, hasPolicyBlocker: false };
+    data.readiness = {
+      ...data.readiness,
+      isReady: true,
+      status: 'READY',
+      blockingIssues: [],
+      reasons: ['Synthetic reviewed documents and answers'],
+    };
+    data.questions = data.questions.map((item: Record<string, unknown>) => ({
+      ...item,
+      approvalState: 'APPROVED',
+      finalAnswer: 'Explicit synthetic preview answer',
+    }));
+    data.approvals = data.approvals.map((item: Record<string, unknown>) => ({
+      ...item,
+      status: 'APPROVED',
+    }));
+    if (data.currentVersion) data.currentVersion.coverLetterApproved = true;
+    await route.fulfill({ response, json });
+  });
+  const writes: string[] = [];
+  await page.route(
+    /\/api\/applications\/[^/]+\/(browser-runs|submission-authorization)$/,
+    (route) => {
+      if (route.request().method() === 'POST') {
+        writes.push(route.request().url());
+        return route.abort();
+      }
+      return route.continue();
+    },
+  );
+  for (const theme of ['light', 'dark']) {
+    await page.goto('/');
+    await page.evaluate((value) => localStorage.setItem('jobee.theme', value), theme);
+    await page.reload();
+    await openApplication(page);
+    await page.locator('.browser-assistance > summary').click();
+    await page.getByRole('tab', { name: 'Final review', exact: true }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Choose how to apply', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Continue on employer website', exact: true }),
+    ).toHaveAttribute('href', /^https?:\/\//);
+    await page.screenshot({
+      path: `output/playwright/screens/final-review-${theme}.png`,
+      fullPage: true,
+    });
+    await showDetails(page, 'Browser assistance & run history');
+    await page.getByRole('button', { name: 'Submit via Browser Worker', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Human Authorization Required');
+    await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click();
+  }
+  expect(writes).toEqual([]);
+});
+
+test('review lookup failures remain visible before expanding individual decisions and can be retried', async ({
+  page,
+}) => {
+  await page.route('**/api/approvals?*', (route) =>
+    route.fulfill({
+      status: 503,
+      json: { error: { message: 'Synthetic unavailable review queue' } },
+    }),
+  );
+  await page.goto('/');
+  await go(page, 'Approvals');
+  await expect(page.getByRole('alert')).toContainText('Could not load review items');
+  await expect(
+    page.locator('details').filter({
+      has: page.locator(':scope > summary', { hasText: 'Review individual decisions' }),
+    }),
+  ).not.toHaveAttribute('open', '');
+  await page.unroute('**/api/approvals?*');
+  await page.getByRole('button', { name: 'Retry review items', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Applications to review', exact: true }),
+  ).toBeVisible();
+});
+
+test('a failed application refresh is visible from the summary and preserves a retry path', async ({
+  page,
+}) => {
+  await openApplication(page);
+  const url = /\/api\/applications\/[a-f0-9-]{36}$/i;
+  await page.route(url, (route) =>
+    route.fulfill({
+      status: 503,
+      json: { error: { message: 'Synthetic application refresh failure' } },
+    }),
+  );
+  const tabs = page.getByRole('tablist', { name: 'Application workspace' });
+  await tabs.getByRole('tab', { name: 'Questions', exact: true }).click();
+  await tabs.getByRole('tab', { name: 'Progress & details', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText(
+    'The latest application details could not be refreshed.',
+  );
+  await page.unroute(url);
+  await page.getByRole('button', { name: 'Retry application details', exact: true }).click();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Application progress', exact: true }),
+  ).toBeVisible();
 });

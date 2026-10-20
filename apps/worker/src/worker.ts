@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { and, lt } from 'drizzle-orm';
 import type { AppConfig } from '@job-agent/config';
 import {
   Logger,
@@ -81,7 +82,12 @@ export class WorkerService {
       const runningBrowserRuns = await db
         .select()
         .from(browserApplicationRuns)
-        .where(eq(browserApplicationRuns.status, BrowserRunStatus.RUNNING));
+        .where(
+          and(
+            eq(browserApplicationRuns.status, BrowserRunStatus.RUNNING),
+            lt(browserApplicationRuns.updatedAt, new Date(Date.now() - 15 * 60_000)),
+          ),
+        );
 
       for (const run of runningBrowserRuns) {
         const isSubmitMode = run.mode === BrowserRunMode.SUBMIT;
@@ -180,7 +186,12 @@ export class WorkerService {
           completedAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(eq(orchestrationRuns.status, OrchestrationRunStatuses.RUNNING))
+        .where(
+          and(
+            eq(orchestrationRuns.status, OrchestrationRunStatuses.RUNNING),
+            lt(orchestrationRuns.updatedAt, new Date(Date.now() - 15 * 60_000)),
+          ),
+        )
         .returning();
 
       if (orphanedOrchRuns.length > 0) {
@@ -223,6 +234,7 @@ export class WorkerService {
       }
     }
 
+    await this.recoverOrphanedRuns();
     // 1. Process pending browser application runs
     try {
       const pendingRuns = await this.db

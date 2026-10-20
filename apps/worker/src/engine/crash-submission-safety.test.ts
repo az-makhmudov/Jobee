@@ -24,6 +24,7 @@ describe('Crash and Duplicate-Submission Safety Invariant', () => {
       github: 'https://github.com/alexmorgan',
     },
     resumeFileName: 'alex-morgan-resume.pdf',
+    resumeBuffer: Buffer.from('test fixture CV').toString('base64'),
     coverLetterText: 'I am excited to apply for this engineering role.',
     answers: {
       work_authorization: {
@@ -85,7 +86,7 @@ describe('Crash and Duplicate-Submission Safety Invariant', () => {
     });
 
     expect(result.status).toBe(BrowserRunStatus.SUBMISSION_UNCERTAIN);
-    expect(result.errorMessage).toContain('Submission uncertain');
+    expect(result.errorMessage).toContain('Confirmation needed');
     expect(result.stepLogs.some((l) => l.step === 'SUBMISSION_UNCERTAIN')).toBe(true);
   });
 

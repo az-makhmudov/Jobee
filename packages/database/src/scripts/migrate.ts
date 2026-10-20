@@ -12,10 +12,13 @@ async function run() {
   process.stdout.write('Running database migrations...\n');
   try {
     await runDatabaseMigrations(config.DATABASE_URL);
-    const { getDb } = await import('../client.js');
-    const { getOrCreatePrimaryUser } = await import('../user.js');
-    const db = getDb(config.DATABASE_URL);
-    await getOrCreatePrimaryUser(db);
+    // Production identity is owned by Better Auth; schema migration must never seed a legacy candidate.
+    if (config.NODE_ENV !== 'production') {
+      const { getDb } = await import('../client.js');
+      const { getOrCreatePrimaryUser } = await import('../user.js');
+      const db = getDb(config.DATABASE_URL);
+      await getOrCreatePrimaryUser(db);
+    }
     process.stdout.write('Migrations applied successfully.\n');
   } catch (err) {
     process.stderr.write(`Migration failed: ${err instanceof Error ? err.message : String(err)}\n`);

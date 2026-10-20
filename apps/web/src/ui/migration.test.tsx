@@ -41,7 +41,7 @@ describe('appearance preferences', () => {
       </ThemeProvider>,
     );
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe('dark'));
-    fireEvent.change(screen.getByLabelText('Color theme'), { target: { value: 'light' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Light' }));
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe('light'));
     expect(localStorage.getItem('jobee.theme')).toBe('light');
   });
@@ -119,7 +119,8 @@ describe('navigation compatibility', () => {
     for (const section of ['profile', 'career-intelligence', 'documents', 'answers', 'preferences'])
       expect(destinationFor(section)).toBe('profile');
     expect(destinationFor('activity')).toBe('settings');
-    expect(destinationFor('applications')).toBe('applications');
+    for (const section of ['applications', 'approvals', 'interviews', 'emails'])
+      expect(destinationFor(section)).toBe('applications');
   });
 });
 describe('authenticated document preview retrieval', () => {
