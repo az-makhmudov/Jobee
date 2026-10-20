@@ -1,3 +1,5 @@
+> Historical scope and evidence (pre-Jobee 2.0). Retained functionality and results remain useful, but navigation, delivery roles, autonomous continuation and completion labels here do not define current scope. See MASTER_CONTEXT.md, ROADMAP.md and JOBEE_2_ASSESSMENT.md. New work requires the current owner approval boundary.
+
 # JOB-UI-MIGRATION-01 — Source and Figma reconciliation
 
 > Current student UX destinations and source frames are in [STUDENT_UX.md](STUDENT_UX.md) and [student-ux-figma.json](student-ux-figma.json). The original 25-component and 18-group inventory below remains the feature-preservation baseline; historical destination labels do not override the approved four-destination flow.

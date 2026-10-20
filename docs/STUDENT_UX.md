@@ -1,3 +1,5 @@
+> Historical scope and evidence (pre-Jobee 2.0). Retained functionality and results remain useful, but navigation, delivery roles, autonomous continuation and completion labels here do not define current scope. See MASTER_CONTEXT.md, ROADMAP.md and JOBEE_2_ASSESSMENT.md. New work requires the current owner approval boundary.
+
 # Student UX — approved application implementation
 
 Parent milestone: **JOB-UI-MIGRATION-01**, student UX continuation, 19 October 2026.

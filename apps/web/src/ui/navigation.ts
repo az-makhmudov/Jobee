@@ -1,20 +1,60 @@
-// Legacy section identifiers remain the navigation contract for record links and notifications.
-export type Destination = 'dashboard' | 'jobs' | 'applications' | 'profile' | 'settings';
+// Legacy section identifiers remain compatible with record links and notifications.
+export type Destination = 'jobs' | 'applications' | 'profile';
+export type NavSection =
+  | 'profile'
+  | 'career-intelligence'
+  | 'documents'
+  | 'answers'
+  | 'preferences'
+  | 'activity'
+  | 'jobs'
+  | 'applications'
+  | 'approvals'
+  | 'emails'
+  | 'interviews'
+  | 'settings';
+
+const sections: readonly string[] = [
+  'profile',
+  'career-intelligence',
+  'documents',
+  'answers',
+  'preferences',
+  'activity',
+  'jobs',
+  'applications',
+  'approvals',
+  'emails',
+  'interviews',
+  'settings',
+];
+
+/** Retired Home links and unknown destinations return to Explore; stored record IDs stay intact. */
+export function resolveSection(section: string): NavSection {
+  return sections.includes(section) ? (section as NavSection) : 'jobs';
+}
+
 export function destinationFor(section: string): Destination {
-  if (['profile', 'career-intelligence', 'documents', 'answers', 'preferences'].includes(section))
+  if (
+    [
+      'profile',
+      'career-intelligence',
+      'documents',
+      'answers',
+      'preferences',
+      'settings',
+      'activity',
+    ].includes(section)
+  )
     return 'profile';
   if (['applications', 'approvals', 'interviews', 'emails'].includes(section))
     return 'applications';
-  if (section === 'activity') return 'settings';
-  if (section === 'jobs' || section === 'settings') return section;
-  return 'dashboard';
+  return 'jobs';
 }
 export const destinations = [
-  { id: 'dashboard', label: 'Home', icon: 'home' },
-  { id: 'jobs', label: 'Find jobs', icon: 'jobs' },
-  { id: 'applications', label: 'My applications', icon: 'applications' },
-  { id: 'profile', label: 'My profile', icon: 'profile' },
-  { id: 'settings', label: 'Settings', icon: 'settings' },
+  { id: 'jobs', label: 'Explore', icon: 'jobs' },
+  { id: 'applications', label: 'Applications', icon: 'applications' },
+  { id: 'profile', label: 'Profile', icon: 'profile' },
 ] as const;
 export const applicationViews = [
   { id: 'applications', label: 'All applications' },

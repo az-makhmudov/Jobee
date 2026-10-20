@@ -1,3 +1,5 @@
+> Historical scope and evidence (pre-Jobee 2.0). Retained functionality and results remain useful, but navigation, delivery roles, autonomous continuation and completion labels here do not define current scope. See MASTER_CONTEXT.md, ROADMAP.md and JOBEE_2_ASSESSMENT.md. New work requires the current owner approval boundary.
+
 # Jobee — Real Job Discovery Acceptance Dataset
 
 **Execution Date:** 2026-10-18T03:58:58.951Z  

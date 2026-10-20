@@ -149,7 +149,7 @@ export function JobInboxView({ onSelectJob, onOpenPackage }: Props) {
         className="layout-group"
       >
         <div>
-          <h1 className="page-title">Find your next opportunity</h1>
+          <h1 className="page-title">Explore</h1>
           <p className="page-subtitle">Explore roles, check your fit and prepare an application.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }} className="layout-group">

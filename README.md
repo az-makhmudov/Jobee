@@ -8,11 +8,11 @@ Originally developed under the working title **AI Job Agent**, the project was o
 
 ## Delivery Workflow & Key Documents
 
-The project is developed using a collaborative agentic workflow:
+Jobee 2.0 prioritizes **One-click Apply**, followed by **Autopilot**, within **Explore**, **Applications** and **Profile**. This is the target experience; the complete revised workflow is not yet accepted. Existing discovery, candidate intelligence, preparation, tracking and execution infrastructure will be reused.
 
-- **ChatGPT**: Requirements planning, architecture discussions, macro-task decomposition, and review.
-- **Antigravity 2.0**: Repository inspection, implementation, migrations, tests, quality gates, and documentation updates.
-- **User**: Strategic oversight, external credentials, and authorization for real-world side effects.
+**Codex** owns planning, architecture, implementation, tests and documentation. The user owns product approval, credentials and authorization of consequential external actions. Antigravity handoffs are discontinued. The owner approved phase-by-phase local implementation on 2026-10-20; external side effects remain separately authorized.
+
+See [`docs/JOBEE_2_ASSESSMENT.md`](docs/JOBEE_2_ASSESSMENT.md) for repository evidence, gaps and baseline checks.
 
 ### Authoritative Documentation
 

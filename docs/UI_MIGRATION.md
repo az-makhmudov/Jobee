@@ -1,3 +1,5 @@
+> Historical scope and evidence (pre-Jobee 2.0). Retained functionality and results remain useful, but navigation, delivery roles, autonomous continuation and completion labels here do not define current scope. See MASTER_CONTEXT.md, ROADMAP.md and JOBEE_2_ASSESSMENT.md. New work requires the current owner approval boundary.
+
 # JOB-UI-MIGRATION-01 — Jobee design system migration
 
 Status: **DEPLOYED / LIVE VERIFIED**. Lead implementation: Codex, explicitly assigned by the product owner. The owner approved applying the migration to the main checkout and deploying live on 18 October 2026.

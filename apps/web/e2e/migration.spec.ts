@@ -4,14 +4,18 @@ const webOrigin = `http://127.0.0.1:${process.env.UI_TEST_WEB_PORT || '5179'}`;
 
 async function go(page: import('@playwright/test').Page, name: string) {
   const legacy: Record<string, string> = {
-    Jobs: 'Find jobs',
-    Applications: 'My applications',
-    'My Profile': 'My profile',
+    Jobs: 'Explore',
+    Home: 'Explore',
+    Applications: 'Applications',
+    'My Profile': 'Profile',
   };
-  if (['Approvals', 'Interviews', 'Messages'].includes(name)) {
+  if (name === 'Settings') {
+    await go(page, 'My Profile');
+    await page.getByRole('tab', { name: 'Account & connections', exact: true }).click();
+  } else if (['Approvals', 'Interviews', 'Messages'].includes(name)) {
     await page
       .getByRole('navigation', { name: 'Main navigation' })
-      .getByRole('button', { name: 'My applications', exact: true })
+      .getByRole('button', { name: 'Applications', exact: true })
       .click();
     await page
       .getByRole('tablist', { name: 'Application views' })
@@ -51,19 +55,33 @@ test.beforeEach(async ({ page }) => {
   });
   expect(response.ok()).toBeTruthy();
 });
-test('desktop shell and Home use real synthetic local records', async ({ page }) => {
+test('three-section shell opens Explore with real synthetic local records', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: 'Welcome back, Alex' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Explore', exact: true })).toBeVisible();
   await expect(
     page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button'),
-  ).toHaveCount(4);
+  ).toHaveCount(3);
+  for (const name of ['Explore', 'Applications', 'Profile'])
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Main navigation' })
+        .getByRole('button', { name, exact: true }),
+    ).toBeVisible();
   await expect(
-    page.getByRole('navigation', { name: 'Profile and settings' }).getByRole('button'),
-  ).toHaveCount(1);
-  await expect(page.getByRole('button', { name: 'Review approvals', exact: true })).toBeVisible();
-  await page.screenshot({ path: 'output/playwright/home-light.png', fullPage: true });
+    page.locator('.sidebar').getByRole('button', { name: 'Home', exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator('.sidebar').getByRole('button', { name: 'Settings', exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  const settings = await page.request.get('/api/job-search/settings');
+  expect(settings.ok()).toBeTruthy();
+  await page.screenshot({ path: 'output/playwright/explore-light.png', fullPage: true });
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
   ).toBeTruthy();
@@ -72,7 +90,7 @@ test('desktop shell and Home use real synthetic local records', async ({ page })
 test('grouped Profile and Settings destinations preserve the original views', async ({ page }) => {
   await page.goto('/');
   await go(page, 'My Profile');
-  await expect(page.getByRole('heading', { name: 'My profile', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Profile', exact: true })).toBeVisible();
   await expect(page.getByText('Alex Morgan', { exact: true }).last()).toBeVisible();
   await page.getByRole('tab', { name: 'CV & Documents', exact: true }).click();
   await expect(
@@ -116,7 +134,7 @@ test('Jobs and CRM load real records in both themes without root overflow', asyn
   ).toBeVisible();
   await page.screenshot({ path: 'output/playwright/jobs-light.png', fullPage: true });
   await go(page, 'Applications');
-  await expect(page.getByRole('heading', { name: 'My applications', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
   await expect(page.locator('main')).toContainText('Software Engineering Intern');
   await page.getByRole('button', { name: 'Board', exact: true }).click();
   await page.screenshot({ path: 'output/playwright/applications-board-light.png', fullPage: true });
@@ -125,9 +143,9 @@ test('Jobs and CRM load real records in both themes without root overflow', asyn
   });
   await page.reload();
   await go(page, 'Applications');
-  await expect(page.getByRole('heading', { name: 'My applications', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
   await expect(page.locator('main')).toContainText('Software Engineering Intern');
-  await expect(page.getByRole('heading', { name: 'My applications', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Board', exact: true }).click();
   await page.screenshot({ path: 'output/playwright/applications-board-dark.png', fullPage: true });
   expect(
@@ -153,10 +171,13 @@ test('existing mobile navigation remains usable', async ({ page }) => {
   await page.setViewportSize({ width: 393, height: 852 });
   await page.goto('/');
   await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
-  await go(page, 'Jobs');
-  await expect(
-    page.getByRole('heading', { name: 'Find your next opportunity', exact: true }),
-  ).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Open navigation', exact: true })).toBeFocused();
+  await page.getByRole('button', { name: 'Open navigation', exact: true }).click();
+  await go(page, 'My Profile');
+  await expect(page.getByRole('heading', { name: 'Profile', exact: true })).toBeVisible();
+  await expect(page.locator('#main-content')).toBeFocused();
+  await expect(page.locator('.sidebar')).toHaveAttribute('aria-hidden', 'true');
   expect(
     await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
   ).toBeTruthy();
@@ -172,7 +193,7 @@ async function openDocuments(page: import('@playwright/test').Page) {
 async function openApplication(page: import('@playwright/test').Page) {
   await page.goto('/');
   await go(page, 'Applications');
-  await expect(page.getByRole('heading', { name: 'My applications', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
   await page
     .locator('.application-list .action-row')
     .filter({ hasText: 'Frontend Developer Intern' })
@@ -448,7 +469,18 @@ test('signed out state opens an accessible sign-in dialog and invitation deep li
   page,
 }) => {
   await page.context().clearCookies();
+  const privateRequests: string[] = [];
+  page.on('request', (request) => {
+    if (
+      /^\/api\/(candidate|jobs|applications|notifications)(?:[/?]|$)/.test(
+        new URL(request.url()).pathname,
+      )
+    )
+      privateRequests.push(request.url());
+  });
   await page.goto('/');
+  await expect(page.getByRole('heading', { name: 'Welcome to Jobee', exact: true })).toBeVisible();
+  expect(privateRequests).toEqual([]);
   await page.getByRole('button', { name: 'Sign in / Join pilot', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog').getByLabel(/Email/)).toBeVisible();
@@ -631,11 +663,9 @@ test('complete desktop render inventory in Light and Dark', async ({ page }) => 
     await page.goto('/');
     await page.evaluate((theme) => localStorage.setItem('jobee.theme', theme), theme);
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Welcome back, Alex' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Explore', exact: true })).toBeVisible();
     pending.clear();
-    await shot('home', theme);
-    await page.getByRole('button', { name: 'Progress & activity', exact: true }).click();
-    await shot('home-progress', theme);
+    await shot('explore-default', theme);
     await go(page, 'My Profile');
     await expect(page.getByText('Alex Morgan', { exact: true }).last()).toBeVisible();
     await shot('profile-overview', theme);
@@ -674,7 +704,7 @@ test('complete desktop render inventory in Light and Dark', async ({ page }) => 
     await expect(page.getByRole('tab', { name: /^Requirements/ })).toBeVisible();
     await shot('job-detail', theme);
     await go(page, 'Applications');
-    await expect(page.getByRole('heading', { name: 'My applications', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible();
     await expect(page.locator('main')).toContainText('Frontend Developer Intern');
     await page.getByRole('button', { name: 'Board', exact: true }).click();
     await shot('applications-board', theme);
@@ -799,26 +829,30 @@ test('a second local user cannot retrieve another user’s document or access ad
   await isolated.dispose();
 });
 
-test('Home visual regression reference in both themes', async ({ page }) => {
+test('Explore remains usable in both themes with three navigation destinations', async ({
+  page,
+}) => {
   for (const theme of ['light', 'dark']) {
     await page.goto('/');
     await page.evaluate((theme) => localStorage.setItem('jobee.theme', theme), theme);
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Welcome back, Alex' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Explore', exact: true })).toBeVisible();
     await expect(
-      page
-        .getByRole('region', { name: 'Home overview' })
-        .getByRole('button', { name: 'Open', exact: true }),
-    ).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Retry profile suggestions' })).toHaveCount(0);
-    await expect(page.getByText('Checking your next steps…')).toHaveCount(0);
-    await expect(page.getByText('3 application items to review', { exact: true })).toBeVisible();
+      page.getByRole('navigation', { name: 'Main navigation' }).getByRole('button'),
+    ).toHaveCount(3);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+    await expect(
+      page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
+    ).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
-    await expect(page).toHaveScreenshot('home-' + theme + '.png', {
+    await page.screenshot({
+      path: `output/playwright/screens/explore-${theme}.png`,
       fullPage: true,
       animations: 'disabled',
-      maxDiffPixelRatio: 0.01,
     });
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBeTruthy();
   }
 });
 

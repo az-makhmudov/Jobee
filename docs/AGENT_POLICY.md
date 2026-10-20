@@ -1,32 +1,11 @@
-# Jobee — Autonomous Agent Policy
+# Jobee 2.0 — Agent Policy
 
-This policy governs the behavior, responsibilities, and operational bounds of AI coding agents (such as Antigravity) working on the codebase, as well as runtime AI models evaluating jobs.
+Updated 2026-10-20. Codex owns all engineering. MASTER_CONTEXT.md, ROADMAP.md and the current owner request govern scope. Antigravity handoffs and old automatic continuation mandates are superseded.
 
----
+AI interprets jobs, grounds content in verified candidate data and selects tools; deterministic rules authorize actions and enforce eligibility, duplicates, quotas, state transitions and recovery. Unknown material facts must produce user action, never invented answers. Use structured, traceable model outputs without logging secrets or unnecessary candidate data.
 
-## 1. Prime Invariant
+Retain a single workflow with specialized tools within the existing API/worker topology. Do not create one independent AI service per responsibility. Reuse current schema and tested components; add migrations only for demonstrated gaps. Preserve authentication/tenant isolation even though new SaaS administration is outside MVP scope.
 
-> **AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable.**
+Engineering work uses canonical macro stamps and required checks in AGENTS.md. Review authorization, fact grounding, cryptographic envelopes, validation, concurrency and process boundaries before completion. Preserve user edits and data. Reports distinguish inspected code, local tests, historical claims and owner-approved live proof.
 
-### Rule Implications:
-
-1. **Never Invent Candidate Facts**: The system and any assisting AI must NEVER fabricate qualifications, degrees, companies, job titles, start/end dates, skills, certifications, work authorization/visas, or salary history.
-2. **Deterministic Authorization Over Autonomous Discretion**: Autonomous agents cannot decide on their own to dispatch an application to an employer. A deterministic policy configured and verified by the human user must explicitly allow the action.
-3. **Escalate Material Uncertainty**: If a form field or requirement cannot be resolved with certainty from the Candidate Brain, halt and request human clarification.
-4. **Audit Everything**: Any AI output that affects candidate representation or application submission must be preserved in structured audit logs with the prompt/context used.
-
----
-
-## 2. Rules for Coding Agents Working on This Repository
-
-1. **Preserve Official Macro-Task Stamps**: Always operate under canonical macro-task stamps (e.g. `JOB-P1-T01`, `JOB-P1-T02`). Do not fragment official roadmap tasks into dozens of tiny, confusing sub-tasks.
-2. **Inspect Before Modifying**: Read master context, existing code, and git state before writing or refactoring.
-3. **Additive, Reviewable Migrations**: Database schemas must evolve through clean, forward-compatible Drizzle migrations. Never modify existing production database state destructively.
-4. **No Premature Architecture**: Do not implement unrequested components (e.g., full LLM chains, multi-tenant auth, Redis queues) until the roadmap task calls for them. Keep abstractions lean and focused.
-5. **Zero Secrets in Git**: Never place real API tokens, database connection strings, or personal data into committed files or git history.
-6. **Mandatory Verification**: Every task completion must run and verify:
-   - `npm run lint`
-   - `npm run typecheck`
-   - `npm run test`
-   - `npm run build`
-7. **CRM Lifecycle & Provenance Invariants**: Never mutate application lifecycle status or submission provenance arbitrarily; adhere strictly to deterministic state machine rules, frozen submission provenance, and append-only lifecycle event logging.
+The owner approved phase-by-phase local implementation on 2026-10-20. Follow the revised dependency order, verifying each macro task and maintaining durable state. Runtime One-click and Autopilot permissions do not authorize coding-agent external actions. See APPLICATION_POLICY.md for the runtime contract and OWNER_ACTIONS_REQUIRED.md for consequential actions.

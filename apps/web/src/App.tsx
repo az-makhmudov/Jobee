@@ -1,13 +1,18 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
-import { DashboardView } from './components/DashboardView.js';
 import { NotificationCenterModal } from './components/NotificationCenterModal.js';
 import { NotificationClient } from './api/notification-client.js';
 import { authClient } from './api/auth-client.js';
 import { AuthModal } from './components/AuthModal.js';
 import { PilotInvitationsModal } from './components/PilotInvitationsModal.js';
 
-import { Icon, Button, Tabs } from './ui/Primitives.js';
-import { destinations, destinationFor, applicationViews } from './ui/navigation.js';
+import { Icon, Button, Card, Tabs } from './ui/Primitives.js';
+import {
+  destinations,
+  destinationFor,
+  resolveSection,
+  applicationViews,
+  type NavSection,
+} from './ui/navigation.js';
 import { brandDot } from './ui/icons.js';
 import { AppearanceSettings } from './ui/Theme.js';
 import { ProfileOverview } from './components/ProfileOverview.js';
@@ -75,23 +80,8 @@ const InterviewWorkspaceView = lazy(() =>
   })),
 );
 
-export type NavSection =
-  | 'dashboard'
-  | 'profile'
-  | 'career-intelligence'
-  | 'documents'
-  | 'answers'
-  | 'preferences'
-  | 'activity'
-  | 'jobs'
-  | 'applications'
-  | 'approvals'
-  | 'emails'
-  | 'interviews'
-  | 'settings';
-
 export default function App() {
-  const [currentSection, setCurrentSection] = useState<NavSection>('dashboard');
+  const [currentSection, setCurrentSection] = useState<NavSection>('jobs');
   const [profileTab, setProfileTab] = useState<string | undefined>(undefined);
   const [applicationOrigin, setApplicationOrigin] = useState<NavSection>('applications');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -123,7 +113,7 @@ export default function App() {
     const key = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsMobileMenuOpen(false);
-        menuRef.current?.focus();
+        requestAnimationFrame(() => menuRef.current?.focus());
       }
       if (event.key === 'Tab') {
         const nodes = Array.from(
@@ -156,9 +146,15 @@ export default function App() {
   };
 
   useEffect(() => {
+    setUnreadNotifsCount(0);
+    if (!session?.user.id) return;
     fetchUnread();
     const interval = setInterval(fetchUnread, 15000);
 
+    return () => clearInterval(interval);
+  }, [session?.user.id]);
+
+  useEffect(() => {
     // Deep-link invite query parameter support (?invite=...)
     try {
       const params = new URLSearchParams(window.location.search);
@@ -172,8 +168,6 @@ export default function App() {
     } catch {
       // Safe fallback
     }
-
-    return () => clearInterval(interval);
   }, []);
 
   const handleNavigate = (section: string, tabOrId?: string) => {
@@ -183,7 +177,7 @@ export default function App() {
           ? currentSection
           : 'applications',
       );
-    setCurrentSection(section as NavSection);
+    setCurrentSection(resolveSection(section));
     if (section === 'settings') {
       setSettingsTab('basics');
       setConnectionTab(null);
@@ -205,9 +199,9 @@ export default function App() {
   };
 
   const destination = destinationFor(currentSection);
-  const destinationLabel = destinations.find((item) => item.id === destination)?.label || 'Home';
+  const destinationLabel = destinations.find((item) => item.id === destination)?.label || 'Explore';
   const profileGroup = destination === 'profile';
-  const settingsGroup = destination === 'settings';
+  const settingsGroup = currentSection === 'settings' || currentSection === 'activity';
   const role = (session?.user as { role?: string } | undefined)?.role;
   const navigate = (section: string, tabOrId?: string) => {
     handleNavigate(section, tabOrId);
@@ -242,8 +236,8 @@ export default function App() {
           <a
             href="#main-content"
             className="wordmark"
-            onClick={() => selectDestination('dashboard')}
-            aria-label="Jobee Home"
+            onClick={() => selectDestination('jobs')}
+            aria-label="Jobee Explore"
           >
             jobee
             <span
@@ -257,7 +251,7 @@ export default function App() {
             aria-label="Close navigation"
             onClick={() => {
               setIsMobileMenuOpen(false);
-              menuRef.current?.focus();
+              requestAnimationFrame(() => menuRef.current?.focus());
             }}
           >
             <Icon name="close" />
@@ -265,24 +259,7 @@ export default function App() {
         </div>
         <nav aria-label="Main navigation">
           <ul className="nav-list">
-            {destinations.slice(0, 4).map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  className={`nav-button ${destination === item.id ? 'active' : ''}`}
-                  aria-current={destination === item.id ? 'page' : undefined}
-                  onClick={() => selectDestination(item.id)}
-                >
-                  <Icon name={item.icon} />
-                  {item.label}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <nav aria-label="Profile and settings" className="sidebar-utilities">
-          <ul className="nav-list">
-            {destinations.slice(4).map((item) => (
+            {destinations.map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
@@ -351,6 +328,7 @@ export default function App() {
           </div>
           <button
             className="notification-button"
+            disabled={!session?.user}
             aria-label={`Notifications${unreadNotifsCount ? `, ${unreadNotifsCount} unread` : ''}`}
             onClick={() => setIsNotifModalOpen(true)}
           >
@@ -365,337 +343,365 @@ export default function App() {
           tabIndex={-1}
           className={`main-content ${profileGroup || settingsGroup || destination === 'applications' ? 'grouped-view' : ''}`}
         >
-          {profileGroup && (
-            <>
-              <header className="group-heading">
-                <h1 className="page-title">My profile</h1>
-                <p className="page-subtitle">
-                  Your studies, skills and documents. Add more when it is useful.
-                </p>
-              </header>
-              <Tabs
-                variant="pill"
-                label="My Profile"
-                value={
-                  ['documents', 'answers', 'preferences'].includes(currentSection)
-                    ? currentSection
-                    : 'profile'
-                }
-                items={[
-                  { id: 'profile', label: 'Profile' },
-                  { id: 'documents', label: 'CV & Documents' },
-                  { id: 'answers', label: 'Saved Answers' },
-                  { id: 'preferences', label: 'Preferences' },
-                ]}
-                onChange={navigate}
-              />
-              {(currentSection === 'career-intelligence' ||
-                (currentSection === 'profile' && profileTab !== undefined)) && (
-                <Button className="btn-ghost" onClick={() => navigate('profile')}>
-                  ← Back to profile overview
-                </Button>
+          {isSessionPending ? (
+            <Card role="status">Checking your account…</Card>
+          ) : !session?.user ? (
+            <Card className="welcome-card">
+              <h1 className="page-title">Welcome to Jobee</h1>
+              <p className="page-subtitle">
+                Find the right jobs. Apply intelligently. Track everything.
+              </p>
+              <p>
+                Sign in to explore opportunities and manage your candidate profile and applications.
+              </p>
+              <Button className="btn-primary" onClick={() => setIsAuthModalOpen(true)}>
+                Sign in to get started
+              </Button>
+            </Card>
+          ) : (
+            <div key={session.user.id}>
+              {profileGroup && (
+                <>
+                  <header className="group-heading">
+                    <h1 className="page-title">Profile</h1>
+                    <p className="page-subtitle">
+                      Your verified details, documents, preferences and connected accounts.
+                    </p>
+                  </header>
+                  <Tabs
+                    variant="pill"
+                    label="Profile sections"
+                    value={
+                      settingsGroup
+                        ? 'settings'
+                        : ['documents', 'answers', 'preferences'].includes(currentSection)
+                          ? currentSection
+                          : 'profile'
+                    }
+                    items={[
+                      { id: 'profile', label: 'Profile' },
+                      { id: 'documents', label: 'CV & Documents' },
+                      { id: 'answers', label: 'Saved Answers' },
+                      { id: 'preferences', label: 'Preferences' },
+                      { id: 'settings', label: 'Account & connections' },
+                    ]}
+                    onChange={navigate}
+                  />
+                  {(currentSection === 'career-intelligence' ||
+                    (currentSection === 'profile' && profileTab !== undefined)) && (
+                    <Button className="btn-ghost" onClick={() => navigate('profile')}>
+                      ← Back to profile overview
+                    </Button>
+                  )}
+                  {currentSection === 'profile' && profileTab === undefined && (
+                    <ProfileOverview onNavigate={navigate} />
+                  )}
+                </>
               )}
-              {currentSection === 'profile' && profileTab === undefined && (
-                <ProfileOverview onNavigate={navigate} />
+              {settingsGroup && (
+                <>
+                  <header className="group-heading">
+                    <h2>Account & connections</h2>
+                    <p className="page-subtitle">
+                      Your appearance, connections and privacy choices.
+                    </p>
+                  </header>
+                  <Tabs
+                    variant="pill"
+                    label="Settings"
+                    value={
+                      currentSection === 'activity'
+                        ? 'activity'
+                        : connectionTab
+                          ? 'connections'
+                          : settingsTab
+                    }
+                    items={[
+                      { id: 'basics', label: 'Account basics' },
+                      { id: 'connections', label: 'Connected accounts' },
+                      { id: 'advanced', label: 'Advanced settings' },
+                      { id: 'activity', label: 'System activity' },
+                    ]}
+                    onChange={(id) => {
+                      if (id === 'activity') navigate('activity');
+                      else {
+                        setCurrentSection('settings');
+                        setSettingsTab(id === 'advanced' ? 'advanced' : 'basics');
+                        setConnectionTab(id === 'connections' ? 'email' : null);
+                      }
+                    }}
+                  />
+                </>
               )}
-            </>
-          )}
-          {settingsGroup && (
-            <>
-              <header className="group-heading">
-                <h1>Settings</h1>
-                <p className="page-subtitle">Your appearance, connections and privacy choices.</p>
-              </header>
-              <Tabs
-                variant="pill"
-                label="Settings"
-                value={
-                  currentSection === 'activity'
-                    ? 'activity'
-                    : connectionTab
-                      ? 'connections'
-                      : settingsTab
-                }
-                items={[
-                  { id: 'basics', label: 'Account basics' },
-                  { id: 'connections', label: 'Connected accounts' },
-                  { id: 'advanced', label: 'Advanced settings' },
-                  { id: 'activity', label: 'System activity' },
-                ]}
-                onChange={(id) => {
-                  if (id === 'activity') navigate('activity');
-                  else {
-                    setCurrentSection('settings');
-                    setSettingsTab(id === 'advanced' ? 'advanced' : 'basics');
-                    setConnectionTab(id === 'connections' ? 'email' : null);
-                  }
-                }}
-              />
-            </>
-          )}
-          {destination === 'applications' && (
-            <>
-              {!(
-                currentSection === 'applications' &&
-                (selectedApplicationId || selectedPackageId)
-              ) && (
-                <header className="group-heading">
-                  <h1 className="page-title">My applications</h1>
-                  <p className="page-subtitle">
-                    See where each application stands and what to do next.
-                  </p>
-                </header>
-              )}
-              {!(
-                currentSection === 'applications' &&
-                (selectedApplicationId || selectedPackageId)
-              ) && (
-                <Tabs
-                  variant="pill"
-                  label="Application views"
-                  value={currentSection}
-                  items={applicationViews}
-                  onChange={navigate}
-                />
-              )}
-              {currentSection === 'applications' &&
-                !selectedApplicationId &&
-                !selectedPackageId &&
-                applicationsSubView === 'packages' && (
-                  <Button className="btn-ghost" onClick={() => setApplicationsSubView('crm')}>
-                    ← Back to all applications
-                  </Button>
-                )}
-            </>
-          )}
-          <Suspense
-            key={session?.user.id ?? 'guest'}
-            fallback={
-              <div className="card" role="status">
-                Loading your workspace…
-              </div>
-            }
-          >
-            {currentSection === 'dashboard' && (
-              <DashboardView
-                onNavigate={handleNavigate}
-                onOpenAuth={() => setIsAuthModalOpen(true)}
-              />
-            )}
-
-            {currentSection === 'profile' && profileTab !== undefined && (
-              <ProfileView
-                key={profileTab}
-                initialTab={profileTab}
-                onUpdate={() => setRefreshKey((k) => k + 1)}
-              />
-            )}
-
-            {currentSection === 'career-intelligence' && <CareerIntelligenceView />}
-
-            {currentSection === 'documents' && (
-              <DocumentsView onUpdate={() => setRefreshKey((k) => k + 1)} />
-            )}
-
-            {currentSection === 'answers' && (
-              <AnswerLibraryView onUpdate={() => setRefreshKey((k) => k + 1)} />
-            )}
-
-            {currentSection === 'preferences' && (
-              <PreferencesView onUpdate={() => setRefreshKey((k) => k + 1)} />
-            )}
-
-            {currentSection === 'activity' && <ActivityView />}
-
-            {/* Phase 2: Job Inbox and Detail */}
-            {currentSection === 'jobs' &&
-              (selectedJobId ? (
-                <JobDetailView
-                  jobId={selectedJobId}
-                  onBack={() => setSelectedJobId(null)}
-                  onJobUpdated={() => setRefreshKey((k) => k + 1)}
-                  onPrepareApplication={(pkgId) => {
-                    setApplicationOrigin('applications');
-                    setSelectedPackageId(pkgId);
-                    setSelectedApplicationId(null);
-                    setCurrentSection('applications');
-                  }}
-                  onViewApplicationInCrm={(appId) => {
-                    setApplicationOrigin('applications');
-                    setSelectedApplicationId(appId);
-                    setSelectedPackageId(null);
-                    setCurrentSection('applications');
-                  }}
-                />
-              ) : (
-                <JobInboxView
-                  onSelectJob={(id) => setSelectedJobId(id)}
-                  onOpenPackage={(id) => {
-                    setApplicationOrigin('jobs');
-                    setSelectedPackageId(id);
-                    setSelectedApplicationId(null);
-                    setCurrentSection('applications');
-                  }}
-                />
-              ))}
-
-            {/* Phase 3: Application CRM & Studio */}
-            {currentSection === 'applications' &&
-              (selectedApplicationId || selectedPackageId ? (
-                <ApplicationWorkspaceView
-                  key={selectedApplicationId || selectedPackageId}
-                  applicationId={selectedApplicationId}
-                  initialPanel={applicationOrigin === 'approvals' ? 'questions' : undefined}
-                  packageId={selectedPackageId}
-                  onBack={() => {
-                    setSelectedApplicationId(null);
-                    setSelectedPackageId(null);
-                    setCurrentSection(applicationOrigin);
-                  }}
-                  onNavigateToJob={(id) => navigate('jobs', id)}
-                  onNavigateToProfile={() => navigate('profile')}
-                />
-              ) : applicationsSubView === 'packages' ? (
-                <ApplicationPackagesListView
-                  onOpenPackage={(pkgId) => {
-                    setApplicationOrigin('applications');
-                    setSelectedPackageId(pkgId);
-                  }}
-                  onNavigateToJobs={() => setCurrentSection('jobs')}
-                  onNavigateToCrm={() => setApplicationsSubView('crm')}
-                />
-              ) : (
-                <ApplicationsCrmView
-                  onSelectApplication={(id) => {
-                    setApplicationOrigin('applications');
-                    setSelectedApplicationId(id);
-                  }}
-                  onOpenStudio={(pkgId) => {
-                    setApplicationOrigin('applications');
-                    setSelectedPackageId(pkgId);
-                  }}
-                  onNavigateToStudioList={() => setApplicationsSubView('packages')}
-                />
-              ))}
-
-            {/* Phase 3: Approvals Inbox */}
-            {currentSection === 'approvals' && (
-              <ApprovalsInboxView
-                onOpenPackage={(pkgId) => {
-                  setApplicationOrigin('approvals');
-                  setSelectedPackageId(pkgId);
-                  setSelectedApplicationId(null);
-                  setCurrentSection('applications');
-                }}
-              />
-            )}
-
-            {/* Phase 4: Email Intelligence & Status Sync */}
-            {currentSection === 'emails' && <EmailIntelligenceView />}
-
-            {currentSection === 'settings' && (
-              <>
-                {connectionTab ? (
-                  <>
+              {destination === 'applications' && (
+                <>
+                  {!(
+                    currentSection === 'applications' &&
+                    (selectedApplicationId || selectedPackageId)
+                  ) && (
+                    <header className="group-heading">
+                      <h1 className="page-title">Applications</h1>
+                      <p className="page-subtitle">
+                        See where each application stands and what to do next.
+                      </p>
+                    </header>
+                  )}
+                  {!(
+                    currentSection === 'applications' &&
+                    (selectedApplicationId || selectedPackageId)
+                  ) && (
                     <Tabs
                       variant="pill"
-                      label="Connected accounts"
-                      value={connectionTab}
-                      items={[
-                        { id: 'email', label: 'Email' },
-                        { id: 'calendar', label: 'Calendar' },
-                      ]}
-                      onChange={(id) => setConnectionTab(id as 'email' | 'calendar')}
+                      label="Application views"
+                      value={currentSection}
+                      items={applicationViews}
+                      onChange={navigate}
                     />
-                    {connectionTab === 'email' ? (
-                      <EmailIntelligenceView initialTab="accounts" />
+                  )}
+                  {currentSection === 'applications' &&
+                    !selectedApplicationId &&
+                    !selectedPackageId &&
+                    applicationsSubView === 'packages' && (
+                      <Button className="btn-ghost" onClick={() => setApplicationsSubView('crm')}>
+                        ← Back to all applications
+                      </Button>
+                    )}
+                </>
+              )}
+              <Suspense
+                key={session?.user.id ?? 'guest'}
+                fallback={
+                  <div className="card" role="status">
+                    Loading your workspace…
+                  </div>
+                }
+              >
+                {currentSection === 'profile' && profileTab !== undefined && (
+                  <ProfileView
+                    key={profileTab}
+                    initialTab={profileTab}
+                    onUpdate={() => setRefreshKey((k) => k + 1)}
+                  />
+                )}
+
+                {currentSection === 'career-intelligence' && <CareerIntelligenceView />}
+
+                {currentSection === 'documents' && (
+                  <DocumentsView onUpdate={() => setRefreshKey((k) => k + 1)} />
+                )}
+
+                {currentSection === 'answers' && (
+                  <AnswerLibraryView onUpdate={() => setRefreshKey((k) => k + 1)} />
+                )}
+
+                {currentSection === 'preferences' && (
+                  <PreferencesView onUpdate={() => setRefreshKey((k) => k + 1)} />
+                )}
+
+                {currentSection === 'activity' && <ActivityView />}
+
+                {/* Phase 2: Job Inbox and Detail */}
+                {currentSection === 'jobs' &&
+                  (selectedJobId ? (
+                    <JobDetailView
+                      jobId={selectedJobId}
+                      onBack={() => setSelectedJobId(null)}
+                      onJobUpdated={() => setRefreshKey((k) => k + 1)}
+                      onPrepareApplication={(pkgId) => {
+                        setApplicationOrigin('applications');
+                        setSelectedPackageId(pkgId);
+                        setSelectedApplicationId(null);
+                        setCurrentSection('applications');
+                      }}
+                      onViewApplicationInCrm={(appId) => {
+                        setApplicationOrigin('applications');
+                        setSelectedApplicationId(appId);
+                        setSelectedPackageId(null);
+                        setCurrentSection('applications');
+                      }}
+                    />
+                  ) : (
+                    <JobInboxView
+                      onSelectJob={(id) => setSelectedJobId(id)}
+                      onOpenPackage={(id) => {
+                        setApplicationOrigin('jobs');
+                        setSelectedPackageId(id);
+                        setSelectedApplicationId(null);
+                        setCurrentSection('applications');
+                      }}
+                    />
+                  ))}
+
+                {/* Phase 3: Application CRM & Studio */}
+                {currentSection === 'applications' &&
+                  (selectedApplicationId || selectedPackageId ? (
+                    <ApplicationWorkspaceView
+                      key={selectedApplicationId || selectedPackageId}
+                      applicationId={selectedApplicationId}
+                      initialPanel={applicationOrigin === 'approvals' ? 'questions' : undefined}
+                      packageId={selectedPackageId}
+                      onBack={() => {
+                        setSelectedApplicationId(null);
+                        setSelectedPackageId(null);
+                        setCurrentSection(applicationOrigin);
+                      }}
+                      onNavigateToJob={(id) => navigate('jobs', id)}
+                      onNavigateToProfile={() => navigate('profile')}
+                    />
+                  ) : applicationsSubView === 'packages' ? (
+                    <ApplicationPackagesListView
+                      onOpenPackage={(pkgId) => {
+                        setApplicationOrigin('applications');
+                        setSelectedPackageId(pkgId);
+                      }}
+                      onNavigateToJobs={() => setCurrentSection('jobs')}
+                      onNavigateToCrm={() => setApplicationsSubView('crm')}
+                    />
+                  ) : (
+                    <ApplicationsCrmView
+                      onSelectApplication={(id) => {
+                        setApplicationOrigin('applications');
+                        setSelectedApplicationId(id);
+                      }}
+                      onOpenStudio={(pkgId) => {
+                        setApplicationOrigin('applications');
+                        setSelectedPackageId(pkgId);
+                      }}
+                      onNavigateToStudioList={() => setApplicationsSubView('packages')}
+                    />
+                  ))}
+
+                {/* Phase 3: Approvals Inbox */}
+                {currentSection === 'approvals' && (
+                  <ApprovalsInboxView
+                    onOpenPackage={(pkgId) => {
+                      setApplicationOrigin('approvals');
+                      setSelectedPackageId(pkgId);
+                      setSelectedApplicationId(null);
+                      setCurrentSection('applications');
+                    }}
+                  />
+                )}
+
+                {/* Phase 4: Email Intelligence & Status Sync */}
+                {currentSection === 'emails' && <EmailIntelligenceView />}
+
+                {currentSection === 'settings' && (
+                  <>
+                    {connectionTab ? (
+                      <>
+                        <Tabs
+                          variant="pill"
+                          label="Connected accounts"
+                          value={connectionTab}
+                          items={[
+                            { id: 'email', label: 'Email' },
+                            { id: 'calendar', label: 'Calendar' },
+                          ]}
+                          onChange={(id) => setConnectionTab(id as 'email' | 'calendar')}
+                        />
+                        {connectionTab === 'email' ? (
+                          <EmailIntelligenceView initialTab="accounts" />
+                        ) : (
+                          <InterviewWorkspaceView
+                            initialTab="accounts"
+                            onNavigateToApplication={(id) => navigate('applications', id)}
+                          />
+                        )}
+                      </>
+                    ) : settingsTab === 'advanced' ? (
+                      <SettingsView />
                     ) : (
-                      <InterviewWorkspaceView
-                        initialTab="accounts"
-                        onNavigateToApplication={(id) => navigate('applications', id)}
-                      />
+                      <div className="student-stack">
+                        <AppearanceSettings />
+                        <section className="card">
+                          <h2 className="card-title">Connected accounts</h2>
+                          <div className="action-row">
+                            <div>
+                              <strong>Email</strong>
+                              <p>Connect Gmail when you want to follow recruiter updates here.</p>
+                            </div>
+                            <Button
+                              className="btn-outline"
+                              onClick={() => setConnectionTab('email')}
+                            >
+                              Manage email
+                            </Button>
+                          </div>
+                          <div className="action-row">
+                            <div>
+                              <strong>Calendar</strong>
+                              <p>Connect your calendar when you need interview scheduling.</p>
+                            </div>
+                            <Button
+                              className="btn-outline"
+                              onClick={() => setConnectionTab('calendar')}
+                            >
+                              Manage calendar
+                            </Button>
+                          </div>
+                        </section>
+                        <section className="card">
+                          <h2 className="card-title">Privacy & advanced tools</h2>
+                          <p>Control external AI processing and permission to use saved details.</p>
+                          <div className="account-actions">
+                            <Button
+                              className="btn-outline"
+                              onClick={() => navigate('career-intelligence')}
+                            >
+                              AI permissions
+                            </Button>
+                            <Button
+                              className="btn-outline"
+                              onClick={() => setSettingsTab('advanced')}
+                            >
+                              Advanced settings
+                            </Button>
+                            <Button className="btn-outline" onClick={() => navigate('activity')}>
+                              System activity
+                            </Button>
+                          </div>
+                        </section>
+                      </div>
                     )}
                   </>
-                ) : settingsTab === 'advanced' ? (
-                  <SettingsView />
-                ) : (
-                  <div className="student-stack">
-                    <AppearanceSettings />
-                    <section className="card">
-                      <h2 className="card-title">Connected accounts</h2>
-                      <div className="action-row">
-                        <div>
-                          <strong>Email</strong>
-                          <p>Connect Gmail when you want to follow recruiter updates here.</p>
-                        </div>
-                        <Button className="btn-outline" onClick={() => setConnectionTab('email')}>
-                          Manage email
-                        </Button>
-                      </div>
-                      <div className="action-row">
-                        <div>
-                          <strong>Calendar</strong>
-                          <p>Connect your calendar when you need interview scheduling.</p>
-                        </div>
-                        <Button
-                          className="btn-outline"
-                          onClick={() => setConnectionTab('calendar')}
-                        >
-                          Manage calendar
-                        </Button>
-                      </div>
-                    </section>
-                    <section className="card">
-                      <h2 className="card-title">Privacy & advanced tools</h2>
-                      <p>Control external AI processing and permission to use saved details.</p>
-                      <div className="account-actions">
-                        <Button
-                          className="btn-outline"
-                          onClick={() => navigate('career-intelligence')}
-                        >
-                          AI permissions
-                        </Button>
-                        <Button className="btn-outline" onClick={() => setSettingsTab('advanced')}>
-                          Advanced settings
-                        </Button>
-                        <Button className="btn-outline" onClick={() => navigate('activity')}>
-                          System activity
-                        </Button>
-                      </div>
-                    </section>
-                  </div>
                 )}
-              </>
-            )}
 
-            {currentSection === 'interviews' && (
-              <InterviewWorkspaceView
-                onNavigateToApplication={(appId) => {
-                  setApplicationOrigin('interviews');
-                  setSelectedApplicationId(appId);
-                  setSelectedPackageId(null);
-                  setCurrentSection('applications');
-                }}
-              />
-            )}
-          </Suspense>
+                {currentSection === 'interviews' && (
+                  <InterviewWorkspaceView
+                    onNavigateToApplication={(appId) => {
+                      setApplicationOrigin('interviews');
+                      setSelectedApplicationId(appId);
+                      setSelectedPackageId(null);
+                      setCurrentSection('applications');
+                    }}
+                  />
+                )}
+              </Suspense>
+            </div>
+          )}
         </main>
       </div>
       {/* Phase 5: Notification Center Modal */}
       <NotificationCenterModal
-        isOpen={isNotifModalOpen}
+        key={`notifications-${session?.user.id ?? 'guest'}`}
+        isOpen={Boolean(session?.user) && isNotifModalOpen}
         onClose={() => {
           setIsNotifModalOpen(false);
           fetchUnread();
         }}
-        onNavigate={handleNavigate}
+        onNavigate={navigate}
       />
 
       {/* Better Auth: Sign In & Private Pilot Registration Modal */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
 
       {/* Admin: Pilot Invitations Management Modal */}
-      <PilotInvitationsModal isOpen={isPilotModalOpen} onClose={() => setIsPilotModalOpen(false)} />
+      <PilotInvitationsModal
+        key={`invitations-${session?.user.id ?? 'guest'}`}
+        isOpen={role === 'admin' && isPilotModalOpen}
+        onClose={() => setIsPilotModalOpen(false)}
+      />
     </div>
   );
 }

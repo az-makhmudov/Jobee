@@ -1,3 +1,5 @@
+> Current direction: [ADR 0008](0008-jobee-2-transition.md). Older decisions are historical; ADR 0005's single-user strategy has been superseded by the implemented Better Auth/tenant isolation. Accepted historical status does not override current code or the Jobee 2.0 owner approval boundary.
+
 # Architecture Decision Records (ADRs)
 
 This directory contains the immutable record of significant architectural decisions made throughout the Jobee engineering lifecycle.

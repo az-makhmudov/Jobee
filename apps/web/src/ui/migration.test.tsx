@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { ThemeProvider, AppearanceSettings, readThemePreference } from './Theme.js';
 import { FeedbackProvider, useFeedback } from './Feedback.js';
-import { destinationFor } from './navigation.js';
+import { destinationFor, resolveSection } from './navigation.js';
 import { candidateApi } from '../api/candidate-client.js';
 
 beforeEach(() => {
@@ -115,10 +115,26 @@ describe('shared decision dialogs', () => {
   });
 });
 describe('navigation compatibility', () => {
+  it('redirects retired or unknown destinations while preserving existing workspace targets', () => {
+    expect(resolveSection('dashboard')).toBe('jobs');
+    expect(resolveSection('unknown')).toBe('jobs');
+    for (const section of [
+      'jobs',
+      'applications',
+      'approvals',
+      'emails',
+      'interviews',
+      'settings',
+      'activity',
+    ])
+      expect(resolveSection(section)).toBe(section);
+  });
   it('groups existing section callbacks without replacing their identifiers', () => {
     for (const section of ['profile', 'career-intelligence', 'documents', 'answers', 'preferences'])
       expect(destinationFor(section)).toBe('profile');
-    expect(destinationFor('activity')).toBe('settings');
+    expect(destinationFor('activity')).toBe('profile');
+    expect(destinationFor('settings')).toBe('profile');
+    expect(destinationFor('dashboard')).toBe('jobs');
     for (const section of ['applications', 'approvals', 'interviews', 'emails'])
       expect(destinationFor(section)).toBe('applications');
   });

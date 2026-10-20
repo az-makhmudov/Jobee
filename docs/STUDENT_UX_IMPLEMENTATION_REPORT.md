@@ -1,3 +1,5 @@
+> Historical scope and evidence (pre-Jobee 2.0). Retained functionality and results remain useful, but navigation, delivery roles, autonomous continuation and completion labels here do not define current scope. See MASTER_CONTEXT.md, ROADMAP.md and JOBEE_2_ASSESSMENT.md. New work requires the current owner approval boundary.
+
 # JOB-UI-MIGRATION-01 — Student UX implementation report
 
 Current release: **DEPLOYED AND VERIFIED on 20 October 2026**, code `f6d6286`, PR #1. Both production services and live public/auth boundaries are verified. Full release validation: 634 tests and 32 Linux browser checks, with reviewed Linux references accepted by CI. No student-study result or employer submission is claimed.

@@ -1,13 +1,13 @@
-# Jobee — Antigravity & AI Coding Agent Guidelines
+# Jobee 2.0 — AI Coding Agent Guidelines
 
-This document provides mandatory operational instructions for Antigravity, Antigravity 2.0, and any AI coding agents working on the **Jobee** codebase (originally developed under the working name AI Job Agent).
+This document provides mandatory operational instructions for agents working on **Jobee 2.0**. Codex owns all engineering. The owner approved phase-by-phase local implementation on 2026-10-20; execute verified macro tasks in roadmap dependency order. Product specifications do not independently authorize external actions.
 
 ---
 
 ## 0. Collaborative Delivery Workflow & Roles
 
-- **ChatGPT**: Requirements planning, architecture discussions, macro-task decomposition, prompt generation, and completion report review.
-- **Antigravity 2.0**: Repository inspection, coding, migrations, tests, lint/typecheck/build, documentation updates, and implementation reports.
+- **Codex**: Responsible for all development: requirements planning, architecture, repository inspection, coding, migrations, testing, verification, documentation and completion reports.
+- **Other agents**: No required handoffs. Use only when explicitly requested or otherwise authorized by applicable instructions.
 - **User**: Strategic oversight, external account permissions/credentials, and authorizing external actions.
 
 ---
@@ -72,9 +72,9 @@ Canonical project context lives in `docs/` and root mirrors:
 
 ## 4. Autonomous Milestone Execution
 
-1. **Choosing Work**: Inspect `docs/ROADMAP.md` and `docs/AUTONOMOUS_STATE.md`. Pick the earliest milestone marked `PENDING` or `IN PROGRESS`. Never skip uncompleted earlier milestones.
+1. **Choosing Work**: Inspect `docs/ROADMAP.md` and `docs/AUTONOMOUS_STATE.md`. Follow the revised dependency order, including `PARTIAL` deltas. Historical completion does not establish Jobee 2.0 acceptance; `JOB-P5-T01` intentionally precedes later CRM/Autopilot completion and email/calendar expansion.
 2. **Autonomous Delivery**: Own the entire vertical slice without prompting the Product Owner for routine development steps. Deliver database changes, backend logic, external provider abstractions/fixtures, REST endpoints, React views, and automated tests.
-3. **Continuity**: Once a milestone is verified and committed, immediately update durable state and proceed to the next milestone in sequence.
+3. **Continuity**: Once a milestone is verified and committed, update durable state and continue only within approved scope. The owner approved phase-by-phase implementation on 2026-10-20; continue local tasks after verification within the revised roadmap.
 
 ---
 
@@ -93,7 +93,7 @@ npm run db:check
 npm run db:migrate
 ```
 
-Run dedicated end-to-end integration verification scripts (e.g. `scripts/verify-*.ts`) against real local services with isolated test fixtures. Never delete real user data.
+Run dedicated end-to-end integration verification scripts (e.g. `scripts/verify-*.ts`) against real local services with isolated test fixtures after inspecting their side effects. Run migration gates only on positively identified isolated local/test databases; never on production as routine verification. Never delete real user data.
 
 ---
 
@@ -154,4 +154,4 @@ When starting in an existing or interrupted session:
 2. Inspect `git status` and `git diff --stat` to detect uncommitted work.
 3. Check database health (`npm run db:check`) and applied migrations.
 4. Run `npm run typecheck` and `npm run test` to evaluate codebase health.
-5. Resume implementation directly from the identified boundary without restarting completed subsystems.
+5. Resume from the identified boundary within current authorization without restarting completed subsystems. For this transition, resume approved local phase-by-phase implementation from the durable milestone state.
