@@ -15,9 +15,13 @@ export class ManualTextExtractor {
     let extractedTitle = extra.title;
     let extractedCompany = extra.company;
     let extractedLocation: string | undefined;
+    let workplaceRaw: string | undefined;
+    let commitmentRaw: string | undefined;
 
     // Look for explicit prefix labels
     for (const line of lines) {
+      workplaceRaw ??= line.match(/^(?:work arrangement|workplace):\s*(.+)$/i)?.[1]?.trim();
+      commitmentRaw ??= line.match(/^(?:employment|employment type):\s*(.+)$/i)?.[1]?.trim();
       if (!extractedTitle) {
         const titleMatch = line.match(/^(?:job\s+title|title|role|position):\s*(.+)$/i);
         if (titleMatch?.[1]) extractedTitle = titleMatch[1].trim();
@@ -139,6 +143,7 @@ export class ManualTextExtractor {
 
     return {
       provider: 'MANUAL',
+      rawMetadata: { workplaceRaw, commitmentRaw },
       title: extractedTitle || 'Pasted Job',
       company: extractedCompany || 'Unknown Company',
       location: extractedLocation,

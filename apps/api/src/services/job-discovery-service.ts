@@ -1,11 +1,5 @@
 import type { Database } from '@job-agent/database';
-import {
-  jobPreferences,
-  candidateProfiles,
-  jobSearchSettings,
-  jobs,
-  jobMatchAnalyses,
-} from '@job-agent/database';
+import { jobPreferences, candidateProfiles, jobSearchSettings, jobs } from '@job-agent/database';
 import { eq, and, isNull, lt, or } from 'drizzle-orm';
 import type { JobService } from './job-service.js';
 import {
@@ -14,9 +8,9 @@ import {
   type Logger,
   type DiscoverySource,
   type SearchBoard,
+  stripHtmlToText,
 } from '@job-agent/shared';
 import { JobSearchSettingsService } from './job-search-settings-service.js';
-import * as cheerio from 'cheerio';
 export interface DiscoveryOptions {
   limit?: number;
   sources?: DiscoverySource[];
@@ -49,12 +43,7 @@ export interface PublicPosting {
   employmentType?: string;
   salary?: string;
 }
-const plain = (value: unknown) =>
-  cheerio
-    .load(String(value ?? ''))
-    .text()
-    .replace(/\s+/g, ' ')
-    .trim();
+const plain = (value: unknown) => stripHtmlToText(String(value ?? ''));
 /** Public listing retrieval only. Discovery never authorizes employer submissions. */
 export class JobDiscoveryService {
   private readonly logger: Logger;
@@ -201,30 +190,20 @@ export class JobDiscoveryService {
                 sourceExternalId: item.externalId ?? null,
                 sourceCompanyId: item.board ?? null,
                 applicationUrl: item.url,
-                ...(item.remote ? { workplaceType: 'REMOTE' } : {}),
+                ...(item.remote && !result.job.manualEditFields.includes('workplaceType')
+                  ? { workplaceType: 'REMOTE' }
+                  : {}),
               })
               .where(and(eq(jobs.id, result.job.id), eq(jobs.userId, userId)));
-            // Canonical duplicate URLs can contain changed descriptions; preserve the new source snapshot and invalidate old analysis.
-            if (
-              result.isDuplicate &&
-              result.job.description !== item.description &&
-              result.job.provider === q.source &&
-              !result.job.manualEditFields.includes('description')
-            ) {
-              await this.db
-                .update(jobs)
-                .set({ description: item.description, updatedAt: new Date() })
-                .where(eq(jobs.id, result.job.id));
-              await this.db
-                .update(jobMatchAnalyses)
-                .set({ isStale: true })
-                .where(
-                  and(
-                    eq(jobMatchAnalyses.jobId, result.job.id),
-                    eq(jobMatchAnalyses.userId, userId),
-                  ),
-                );
-            }
+            if (result.isDuplicate)
+              await this.jobService.refreshPublicPosting(userId, result.job.id, {
+                title: item.title,
+                company: item.company,
+                url: item.url,
+                text: fullText,
+                provider: q.source,
+                remote: item.remote,
+              });
           } catch {
             q.summary.errors.push(`Could not import a listing from ${q.key}.`);
           }

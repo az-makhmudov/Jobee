@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, integer, boolean, index } from 'drizzle-orm/pg-core';
 import { users } from './users.js';
 import { jobs } from './jobs.js';
 
@@ -16,6 +16,7 @@ export const jobSections = pgTable(
     title: text('title').notNull(),
     content: text('content').notNull(),
     displayOrder: integer('display_order').default(0).notNull(),
+    isCurrent: boolean('is_current').default(true).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   },
   (table) => [

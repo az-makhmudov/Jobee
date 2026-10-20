@@ -38,6 +38,8 @@ import { ExtractorRegistry } from '../extractors/extractor-registry.js';
 import { JobNormalizerService } from './job-normalizer-service.js';
 import type { RawExtractedJob } from '../extractors/types.js';
 
+type JobTransaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+
 export class JobService {
   private readonly retrievalService: HttpRetrievalService;
   private readonly extractorRegistry: ExtractorRegistry;
@@ -581,7 +583,12 @@ export class JobService {
         ? await this.db
             .select({ jobId: jobRequirements.jobId, val: count() })
             .from(jobRequirements)
-            .where(inArray(jobRequirements.jobId, paginatedIds))
+            .where(
+              and(
+                inArray(jobRequirements.jobId, paginatedIds),
+                eq(jobRequirements.isCurrent, true),
+              ),
+            )
             .groupBy(jobRequirements.jobId)
         : [];
     const reqCountMap = new Map(reqCounts.map((rc) => [rc.jobId, Number(rc.val)]));
@@ -643,12 +650,12 @@ export class JobService {
     if (!job) throw AppError.notFound(`Job ${id} not found`);
 
     const reqs = await this.db.query.jobRequirements.findMany({
-      where: eq(jobRequirements.jobId, id),
+      where: and(eq(jobRequirements.jobId, id), eq(jobRequirements.isCurrent, true)),
       orderBy: [jobRequirements.displayOrder],
     });
 
     const secs = await this.db.query.jobSections.findMany({
-      where: eq(jobSections.jobId, id),
+      where: and(eq(jobSections.jobId, id), eq(jobSections.isCurrent, true)),
       orderBy: [jobSections.displayOrder],
     });
 
@@ -755,6 +762,146 @@ export class JobService {
     };
   }
 
+  /** Refresh an existing public posting using the same extractor as ingestion.
+   * Preserve job IDs, manual corrections and historical extracted evidence.
+   */
+  public async refreshPublicPosting(
+    userId: string,
+    id: string,
+    request: IngestJobTextRequest & { provider: JobProvider; remote?: boolean },
+  ): Promise<void> {
+    const raw = this.extractorRegistry.getManualExtractor().extract(request.text, request);
+    const normalized = this.normalizerService.normalize(raw);
+    await this.db.transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(jobs)
+        .where(and(eq(jobs.id, id), eq(jobs.userId, userId)))
+        .for('update');
+      if (!existing || existing.provider !== request.provider) return;
+      const candidate: Partial<NewJob> = {
+        title: normalized.title,
+        company: normalized.company,
+        description: raw.descriptionText,
+        descriptionHtml: this.plainDescriptionHtml(raw.descriptionText),
+        locationText: normalized.locationText,
+        city: normalized.city,
+        region: normalized.region,
+        country: normalized.country,
+        workplaceType: request.remote ? 'REMOTE' : normalized.workplaceType,
+        employmentType: normalized.employmentType,
+        seniority: normalized.seniority,
+        minSalary: normalized.minSalary,
+        maxSalary: normalized.maxSalary,
+        currency: normalized.currency,
+        payPeriod: normalized.payPeriod,
+        compensationRaw: normalized.compensationRaw,
+      };
+      const updates: Partial<NewJob> = {};
+      for (const field of Object.keys(candidate) as Array<keyof NewJob>) {
+        if (
+          existing.manualEditFields.includes(field) ||
+          (field === 'descriptionHtml' && existing.manualEditFields.includes('description'))
+        )
+          continue;
+        if (candidate[field] !== existing[field])
+          Object.assign(updates, { [field]: candidate[field] });
+      }
+      // HTML is derived from the authoritative text, never refreshed independently.
+      if (!('description' in updates)) delete updates.descriptionHtml;
+      if (!Object.keys(updates).length) return;
+      await tx
+        .update(jobs)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(jobs.id, id));
+      if ('description' in updates) {
+        const [source] = await tx
+          .select({ id: jobSources.id })
+          .from(jobSources)
+          .where(
+            and(
+              eq(jobSources.jobId, id),
+              eq(jobSources.userId, userId),
+              eq(jobSources.rawDescription, raw.descriptionText),
+            ),
+          )
+          .orderBy(desc(jobSources.retrievedAt))
+          .limit(1);
+        await this.replaceCurrentExtraction(tx, userId, id, raw, source?.id ?? null);
+      }
+      await tx
+        .update(jobMatchAnalyses)
+        .set({ isStale: true })
+        .where(and(eq(jobMatchAnalyses.jobId, id), eq(jobMatchAnalyses.userId, userId)));
+      await tx.insert(jobEvents).values({
+        userId,
+        jobId: id,
+        eventType: 'JOB_UPDATED',
+        changedFields: Object.keys(updates),
+        metadata: { sourceRefresh: true, provider: request.provider },
+      });
+    });
+  }
+
+  private plainDescriptionHtml(text: string): string {
+    return sanitizeJobHtml(
+      `<p>${text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('\n', '<br/>')}</p>`,
+    );
+  }
+
+  private async replaceCurrentExtraction(
+    tx: JobTransaction,
+    userId: string,
+    jobId: string,
+    raw: RawExtractedJob,
+    sourceId: string | null,
+  ): Promise<void> {
+    await tx
+      .update(jobRequirements)
+      .set({ isCurrent: false })
+      .where(
+        and(
+          eq(jobRequirements.jobId, jobId),
+          eq(jobRequirements.userId, userId),
+          eq(jobRequirements.isCurrent, true),
+        ),
+      );
+    await tx
+      .update(jobSections)
+      .set({ isCurrent: false })
+      .where(
+        and(
+          eq(jobSections.jobId, jobId),
+          eq(jobSections.userId, userId),
+          eq(jobSections.isCurrent, true),
+        ),
+      );
+    if (raw.requirements?.length)
+      await tx.insert(jobRequirements).values(
+        raw.requirements.map((requirement, index) => ({
+          jobId,
+          userId,
+          sourceId,
+          sourceSection: requirement.sourceSection ?? null,
+          rawText: requirement.rawText,
+          category: requirement.category ?? 'OTHER',
+          requirementStrength: requirement.strength ?? 'UNKNOWN',
+          displayOrder: index,
+        })),
+      );
+    if (raw.sections?.length)
+      await tx.insert(jobSections).values(
+        raw.sections.map((section, index) => ({
+          jobId,
+          userId,
+          sectionType: section.type,
+          title: section.title,
+          content: section.content,
+          displayOrder: index,
+        })),
+      );
+  }
+
   // --- Manual Edit / Update ---
   public async updateJob(userId: string, id: string, updates: UpdateJobRequest): Promise<JobDto> {
     const existing = await this.db.query.jobs.findFirst({
@@ -774,22 +921,25 @@ export class JobService {
       updatedAt: new Date(),
     };
 
-    if (updates.description) {
-      updateData.descriptionHtml = sanitizeJobHtml(
-        `<p>${updates.description.replace(/\n/g, '<br/>')}</p>`,
-      );
-    }
-
-    await this.db
-      .update(jobs)
-      .set(updateData)
-      .where(and(eq(jobs.id, id), eq(jobs.userId, userId)));
-
-    // Invalidate match analysis if job content changed
-    await this.db
-      .update(jobMatchAnalyses)
-      .set({ isStale: true })
-      .where(and(eq(jobMatchAnalyses.jobId, id), eq(jobMatchAnalyses.userId, userId)));
+    if (updates.description !== undefined)
+      updateData.descriptionHtml = this.plainDescriptionHtml(updates.description);
+    await this.db.transaction(async (tx) => {
+      await tx
+        .update(jobs)
+        .set(updateData)
+        .where(and(eq(jobs.id, id), eq(jobs.userId, userId)));
+      if (updates.description !== undefined) {
+        const raw = this.extractorRegistry.getManualExtractor().extract(updates.description, {
+          title: updates.title ?? existing.title,
+          company: updates.company ?? existing.company,
+        });
+        await this.replaceCurrentExtraction(tx, userId, id, raw, null);
+      }
+      await tx
+        .update(jobMatchAnalyses)
+        .set({ isStale: true })
+        .where(and(eq(jobMatchAnalyses.jobId, id), eq(jobMatchAnalyses.userId, userId)));
+    });
 
     await this.recordJobEvent(userId, id, 'JOB_UPDATED', changedKeys as string[], {
       manualEdit: true,

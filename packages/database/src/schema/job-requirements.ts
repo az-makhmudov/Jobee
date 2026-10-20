@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, integer, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, integer, boolean, index } from 'drizzle-orm/pg-core';
 import { users } from './users.js';
 import { jobs } from './jobs.js';
 import { jobSources } from './job-sources.js';
@@ -20,6 +20,7 @@ export const jobRequirements = pgTable(
     category: text('category').default('OTHER').notNull(), // 'EXPERIENCE' | 'SKILL' | 'EDUCATION' | 'LANGUAGE' | 'LOCATION' | 'WORK_AUTHORIZATION' | 'CERTIFICATION' | 'RESPONSIBILITY' | 'OTHER'
     requirementStrength: text('requirement_strength').default('UNKNOWN').notNull(), // 'MANDATORY' | 'PREFERRED' | 'UNKNOWN'
     displayOrder: integer('display_order').default(0).notNull(),
+    isCurrent: boolean('is_current').default(true).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   },
   (table) => [

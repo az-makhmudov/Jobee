@@ -201,7 +201,7 @@ export function JobDetailView({
         <h3 style={{ color: 'var(--danger)', marginBottom: '0.5rem' }}>Failed to Load Job</h3>
         <p>{error || 'Job not found'}</p>
         <Button className="btn btn-secondary btn-sm" onClick={onBack} style={{ marginTop: '1rem' }}>
-          ← Back to Inbox
+          ← Back to results
         </Button>
       </Card>
     );
@@ -219,7 +219,7 @@ export function JobDetailView({
         }}
       >
         <Button className="btn btn-secondary btn-sm" onClick={onBack}>
-          ← Back to Job Inbox
+          ← Back to results
         </Button>
         <div
           style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
@@ -231,16 +231,16 @@ export function JobDetailView({
               onClick={() => onViewApplicationInCrm?.(crmApp.id)}
               style={{ fontWeight: 600, borderColor: 'var(--color-primary)' }}
             >
-              <Icon name="list" /> View in CRM ({crmApp.status}) →
+              <Icon name="list" /> View application ({crmApp.status}) →
             </Button>
           ) : (
             job.state !== 'ARCHIVED' && (
               <Button
                 className="btn btn-secondary btn-sm"
                 onClick={handleTrackInCrm}
-                title="Track this job in Application CRM pipeline"
+                title="Track this job in Applications"
               >
-                + Track in CRM
+                Track application
               </Button>
             )
           )}
@@ -257,7 +257,7 @@ export function JobDetailView({
                 </>
               ) : (
                 <>
-                  <Icon name="play" size={20} /> Prepare Studio Package
+                  <Icon name="play" size={20} /> Prepare application
                 </>
               )}
             </Button>
@@ -350,7 +350,7 @@ export function JobDetailView({
               }}
               className="layout-group"
             >
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{job.title}</h1>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{job.title}</h2>
               <span
                 className={`status-badge ${job.state === 'INGESTED' ? 'ok' : job.state === 'ARCHIVED' ? 'disconnected' : 'degraded'}`}
               >
@@ -387,7 +387,7 @@ export function JobDetailView({
               <span className="nav-tag">Seniority: {job.seniority}</span>
               {(job.minSalary || job.maxSalary) && (
                 <span className="nav-tag" style={{ color: 'var(--status-success)' }}>
-                  <Icon name="info" size={20} /> {job.currency || '$'}
+                  <Icon name="info" size={20} /> {job.currency || 'Currency unspecified '}
                   {job.minSalary?.toLocaleString()}
                   {job.maxSalary && ` – ${job.maxSalary?.toLocaleString()}`}
                   {job.payPeriod ? ` / ${job.payPeriod.toLowerCase()}` : ''}

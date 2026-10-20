@@ -90,7 +90,7 @@ export default function App() {
   const [settingsTab, setSettingsTab] = useState<'basics' | 'advanced'>('basics');
   const [connectionTab, setConnectionTab] = useState<'email' | 'calendar' | null>(null);
   const [applicationsSubView, setApplicationsSubView] = useState<'crm' | 'packages'>('crm');
-  const [, setRefreshKey] = useState<number>(0);
+  const [refreshKey, setRefreshKey] = useState<number>(0);
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
   const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -501,36 +501,41 @@ export default function App() {
                 {currentSection === 'activity' && <ActivityView />}
 
                 {/* Phase 2: Job Inbox and Detail */}
-                {currentSection === 'jobs' &&
-                  (selectedJobId ? (
-                    <JobDetailView
-                      jobId={selectedJobId}
-                      onBack={() => setSelectedJobId(null)}
-                      onJobUpdated={() => setRefreshKey((k) => k + 1)}
-                      onPrepareApplication={(pkgId) => {
-                        setApplicationOrigin('applications');
-                        setSelectedPackageId(pkgId);
-                        setSelectedApplicationId(null);
-                        setCurrentSection('applications');
-                      }}
-                      onViewApplicationInCrm={(appId) => {
-                        setApplicationOrigin('applications');
-                        setSelectedApplicationId(appId);
-                        setSelectedPackageId(null);
-                        setCurrentSection('applications');
-                      }}
-                    />
-                  ) : (
-                    <JobInboxView
-                      onSelectJob={(id) => setSelectedJobId(id)}
-                      onOpenPackage={(id) => {
-                        setApplicationOrigin('jobs');
-                        setSelectedPackageId(id);
-                        setSelectedApplicationId(null);
-                        setCurrentSection('applications');
-                      }}
-                    />
-                  ))}
+                {currentSection === 'jobs' && (
+                  <JobInboxView
+                    selectedJobId={selectedJobId}
+                    refreshKey={refreshKey}
+                    onSelectJob={setSelectedJobId}
+                    onOpenPackage={(id) => {
+                      setApplicationOrigin('jobs');
+                      setSelectedPackageId(id);
+                      setSelectedApplicationId(null);
+                      setCurrentSection('applications');
+                    }}
+                    detail={
+                      selectedJobId ? (
+                        <JobDetailView
+                          key={selectedJobId}
+                          jobId={selectedJobId}
+                          onBack={() => setSelectedJobId(null)}
+                          onJobUpdated={() => setRefreshKey((k) => k + 1)}
+                          onPrepareApplication={(pkgId) => {
+                            setApplicationOrigin('applications');
+                            setSelectedPackageId(pkgId);
+                            setSelectedApplicationId(null);
+                            setCurrentSection('applications');
+                          }}
+                          onViewApplicationInCrm={(appId) => {
+                            setApplicationOrigin('applications');
+                            setSelectedApplicationId(appId);
+                            setSelectedPackageId(null);
+                            setCurrentSection('applications');
+                          }}
+                        />
+                      ) : null
+                    }
+                  />
+                )}
 
                 {/* Phase 3: Application CRM & Studio */}
                 {currentSection === 'applications' &&

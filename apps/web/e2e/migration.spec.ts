@@ -415,7 +415,9 @@ test('application workspace retains document editors, questions, independent blo
   await page.screenshot({ path: 'output/playwright/studio-light.png', fullPage: true });
   await page.getByRole('button', { name: 'View Job & Requirements', exact: true }).click();
   await expect(
-    page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
+    page
+      .getByRole('region', { name: 'Selected job', exact: true })
+      .getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
   ).toBeVisible();
   await page.getByRole('tab', { name: /^Requirements/ }).click();
   await expect(page.getByRole('heading', { name: /Extracted Requirements/ })).toBeVisible();
@@ -1171,5 +1173,51 @@ test('saved answers require explicit verification and edits clear that confirmat
     );
     if (saved)
       expect((await page.request.delete(`/api/candidate/answers/${saved.id}`)).ok()).toBeTruthy();
+  }
+});
+
+test('Explore preserves search and selection across desktop panes and mobile back navigation', async ({
+  page,
+}) => {
+  for (const viewport of [
+    { width: 1440, height: 1080 },
+    { width: 390, height: 844 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/');
+    await page.getByLabel('Search jobs', { exact: true }).fill('Frontend Developer');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    const role = page.locator('.job-card').filter({
+      has: page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
+    });
+    const open = role.getByRole('button', { name: 'View job', exact: true });
+    await open.click();
+    const detail = page.getByRole('region', { name: 'Selected job', exact: true });
+    await expect(
+      detail.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole('tab', { name: /^Requirements/ })).toBeVisible();
+    if (viewport.width > 1100) {
+      await expect(role).toBeVisible();
+      const left = await role.boundingBox(),
+        right = await detail.boundingBox();
+      expect(left!.x + left!.width).toBeLessThanOrEqual(right!.x);
+      await expect(open).toHaveAttribute('aria-current', 'true');
+    } else {
+      await expect(role).toBeHidden();
+      await expect(page.getByLabel('Search jobs', { exact: true })).toBeHidden();
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBeTruthy();
+    await page.screenshot({
+      path: `output/playwright/explore-detail-${viewport.width}.png`,
+      fullPage: true,
+    });
+    await page.getByRole('button', { name: /Back to results/ }).click();
+    await expect(page.getByLabel('Search jobs', { exact: true })).toHaveValue('Frontend Developer');
+    await expect(open).toBeFocused();
+    await page.getByRole('button', { name: 'Clear filters', exact: true }).click();
+    await expect(page.getByLabel('Search jobs', { exact: true })).toHaveValue('');
   }
 });

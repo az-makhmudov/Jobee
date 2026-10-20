@@ -66,7 +66,11 @@ export class MatchService {
     }
 
     const requirements = await this.db.query.jobRequirements.findMany({
-      where: and(eq(jobRequirements.jobId, jobId), eq(jobRequirements.userId, userId)),
+      where: and(
+        eq(jobRequirements.jobId, jobId),
+        eq(jobRequirements.userId, userId),
+        eq(jobRequirements.isCurrent, true),
+      ),
       orderBy: (reqs, { asc }) => [asc(reqs.displayOrder)],
     });
 
@@ -261,7 +265,11 @@ export class MatchService {
 
     if (job) {
       const requirements = await this.db.query.jobRequirements.findMany({
-        where: and(eq(jobRequirements.jobId, jobId), eq(jobRequirements.userId, userId)),
+        where: and(
+          eq(jobRequirements.jobId, jobId),
+          eq(jobRequirements.userId, userId),
+          eq(jobRequirements.isCurrent, true),
+        ),
       });
       const context = await this.contextBuilder.buildContext(userId);
       const isVersionMismatch = analysis.algorithmVersion !== MATCH_ALGORITHM_VERSION;

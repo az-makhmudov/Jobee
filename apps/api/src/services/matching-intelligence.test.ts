@@ -226,6 +226,7 @@ describe('Matching Intelligence Unit Tests (JOB-P2-T02)', () => {
 
   const createMockRequirement = (overrides?: Partial<JobRequirement>): JobRequirement => ({
     id: 'req-1',
+    isCurrent: true,
     jobId: 'job-test-1',
     sourceId: null,
     sourceSection: null,

@@ -2184,3 +2184,13 @@ Production schema migration 0022 is applied and its schema-only command complete
 **Security/preservation:** Candidate facts are never guessed; new eligibility has no invented defaults. API scoping, encryption, existing manifests, duplicate safeguards and uncertainty handling are preserved. No new model/provider, dependency, schema change, real application, outbound message, calendar operation, paid activation or production change. Existing changed-source preparations may need regeneration, preserving their records and artifacts.
 
 **Git/report:** Local branch codex/jobee-2-foundation; JOB-P1-T01 checkpoint 098f816. JOB-P1-T02 verified source checkpoint: c2a388b5d20f9209c16baff7b8524ad828ba7613. Full report: JOBEE_2_IMPLEMENTATION.md. Continue with the revised discovery/matching phase under the existing stamps.
+
+## 2026-10-20 — JOB-P2-T01 — Explore and source freshness
+
+**Status:** COMPLETED locally; release not claimed. Codex implemented persistent desktop list/detail panes, mobile return/focus restoration, existing workplace/employment/sort queries, stable submitted search and request ordering, retryable failures and partial-source notices. Existing import, correction/archive, tracking and preparation remain available. Batch tooling is progressively disclosed.
+
+Migration 0023 adds current extraction flags, preserving historical requirements/sections and evaluation references. Changed public source text/HTML and current extraction refresh transactionally; manual descriptions use the same extraction revision mechanism. Manual corrections, job IDs and source snapshots remain.
+
+**Verification:** format:write, lint, typecheck, test, build, format, db:check, db:migrate pass; 658 tests / 74 files; 0 lint errors / 693 existing warnings. All 36 Chromium scenarios pass; inspected Light/Dark desktop and mobile layouts. `scripts/verify-job-p2.ts` passes isolated offline and read-only public-feed scenarios with scoped fixture cleanup. Public adapter payload smoke: Arbeitnow 300, Greenhouse/stripe 725, Lever/spotify 81 listings with valid samples at verification time. New migration applied only to the two explicit isolated localhost test databases. No real application, outbound communication, paid API, production change or deployment.
+
+**Next:** JOB-P2-T02 shared grounded evaluation and deterministic eligibility. Full one-click and Autopilot acceptance remain subsequent dependencies.

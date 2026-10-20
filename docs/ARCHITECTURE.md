@@ -11,10 +11,12 @@ Updated 2026-10-20. Owner: Codex. Scope: JOB-P0-T01 repository reconciliation; t
 | Web                 | React/TypeScript/Vite; App.tsx; navigation.ts; contextual application workspace and profile tools           | Three primary destinations implemented locally: Explore, Applications, Profile; preserve record links |
 | API                 | Fastify; candidate, discovery, matching, package, CRM, email, calendar, browser-run and orchestrator routes | Retain API; add one durable application entry point through existing services                         |
 | Worker              | Separate Node/Playwright process; persistent browser runs, adapters, orphan recovery and notifications      | Retain isolation; connect preparation and execution with durable checkpoints                          |
-| Persistence         | PostgreSQL/Drizzle; 23 journal entries 0000–0022                                                            | Additive changes only after model mapping; retain historical tables/IDs                               |
+| Persistence         | PostgreSQL/Drizzle; 24 journal entries 0000–0023                                                            | Additive changes only after model mapping; retain historical tables/IDs                               |
 | Storage             | Shared local and S3-compatible providers; document artifacts and protected browser evidence                 | Retain R2-compatible abstraction and retention controls                                               |
 | AI                  | Dynamic provider interface; Gemini/OpenAI/disabled/mock implementations; structured validation              | Reuse grounded analysis and generation; deterministic authorization remains independent               |
 | Identity/deployment | Better Auth, tenant-scoped records, Railway API and worker configuration                                    | Preserve existing security boundaries; no infrastructure replacement                                  |
+
+Explore now retains list/search context alongside selected detail (desktop) or behind detail (mobile). Public source refresh versions extracted requirements/sections with migration 0023, preserves historical evaluations and manual corrections, and refreshes canonical text/HTML transactionally. See JOBEE_2_IMPLEMENTATION.md for source and browser verification.
 
 ## Current workflow gaps
 

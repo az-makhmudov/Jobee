@@ -162,6 +162,13 @@
       "when": 1792450000000,
       "tag": "0022_product_evolution",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792482221679,
+      "tag": "0023_current_job_extraction",
+      "breakpoints": true
     }
   ]
 }

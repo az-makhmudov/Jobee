@@ -165,7 +165,7 @@ export class InterviewPreparationService {
     const reqRows = await this.db
       .select()
       .from(jobRequirements)
-      .where(eq(jobRequirements.jobId, job.id));
+      .where(and(eq(jobRequirements.jobId, job.id), eq(jobRequirements.isCurrent, true)));
 
     const [matchAnalysis] = await this.db
       .select()

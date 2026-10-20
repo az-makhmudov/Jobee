@@ -3,6 +3,9 @@ import {
   getDb,
   users,
   jobs,
+  jobRequirements,
+  jobMatchAnalyses,
+  jobRequirementEvaluations,
   jobPreferences,
   jobSearchSettings,
   eq,
@@ -66,6 +69,92 @@ describe('Public discovery traversal', () => {
     const saved = await db.select().from(jobs).where(eq(jobs.userId, userId));
     expect(saved[0]?.lastCheckedDate).toBeTruthy();
     expect(saved[0]?.workplaceType).toBe('REMOTE');
+  });
+  it('refreshes checked provenance and changed text without replacing IDs or manual corrections', async () => {
+    let description = 'Requirements:\n• Must have TypeScript experience.';
+    const fetchFn = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            jobs: [
+              {
+                ...rows(1)[0],
+                content: `<p>${description}</p>`,
+              },
+            ],
+          }),
+        ),
+    ) as unknown as typeof fetch;
+    const jobsService = new JobService(db);
+    const service = new JobDiscoveryService(db, jobsService, { fetchFn });
+    const options = { sources: ['GREENHOUSE' as const], companies: ['fixture'] };
+    await service.discoverForCandidate(userId, options);
+    const [original] = await db.select().from(jobs).where(eq(jobs.userId, userId));
+    const unchanged = await service.discoverForCandidate(userId, options);
+    expect(unchanged.duplicatesSkipped).toBe(1);
+    const [checked] = await db.select().from(jobs).where(eq(jobs.userId, userId));
+    expect(checked!.description).toBe(original!.description);
+    const [oldRequirement] = await db
+      .select()
+      .from(jobRequirements)
+      .where(eq(jobRequirements.jobId, original!.id));
+    expect(oldRequirement!.rawText).toContain('TypeScript');
+    const [oldAnalysis] = await db
+      .insert(jobMatchAnalyses)
+      .values({
+        userId,
+        jobId: original!.id,
+        overallScore: 90,
+        confidenceScore: 90,
+        decision: 'MATCH',
+        analysisMode: 'DETERMINISTIC_ONLY',
+        algorithmVersion: 'fixture',
+        inputFingerprint: 'fixture',
+        summaryExplanation: 'Historical fixture',
+      })
+      .returning();
+    await db.insert(jobRequirementEvaluations).values({
+      analysisId: oldAnalysis!.id,
+      jobRequirementId: oldRequirement!.id,
+      jobId: original!.id,
+      userId,
+      status: 'MET',
+      source: 'DETERMINISTIC',
+      reason: 'Original requirement',
+      confidence: 90,
+    });
+    description = 'Requirements:\n• Must have Python experience.';
+    await service.discoverForCandidate(userId, options);
+    const refreshed = await jobsService.getJobById(userId, original!.id);
+    expect(refreshed.description).toContain(description);
+    expect(refreshed.descriptionHtml).toContain('Must have Python experience.');
+    expect(refreshed.requirements?.map((r) => r.rawText)).toEqual(['Must have Python experience.']);
+    const history = await db
+      .select()
+      .from(jobRequirements)
+      .where(eq(jobRequirements.jobId, original!.id));
+    expect(history.find((r) => r.id === oldRequirement!.id)?.isCurrent).toBe(false);
+    expect(
+      await db
+        .select()
+        .from(jobRequirementEvaluations)
+        .where(eq(jobRequirementEvaluations.analysisId, oldAnalysis!.id)),
+    ).toHaveLength(1);
+    expect(
+      (await db.select().from(jobMatchAnalyses).where(eq(jobMatchAnalyses.id, oldAnalysis!.id)))[0]!
+        .isStale,
+    ).toBe(true);
+    expect(refreshed.sources).toHaveLength(3);
+    expect(refreshed.lastCheckedDate).toBeTruthy();
+    await jobsService.updateJob(userId, original!.id, {
+      description: 'Candidate corrected description remains authoritative.',
+    });
+    description = 'Different employer source content that remains in provenance.';
+    await service.discoverForCandidate(userId, options);
+    const manual = await jobsService.getJobById(userId, original!.id);
+    expect(manual.description).toBe('Candidate corrected description remains authoritative.');
+    expect(manual.sources).toHaveLength(4);
+    expect(await db.select().from(jobs).where(eq(jobs.userId, userId))).toHaveLength(1);
   });
   it('advances past the first three matches and duplicates over repeated full-board searches', async () => {
     const fetchFn = vi.fn(

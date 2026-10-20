@@ -10,6 +10,7 @@ import type {
   JobMatchAnalysisDto,
   BatchAnalysisRequest,
   BatchAnalysisResultDto,
+  DiscoverySource,
 } from '@job-agent/shared';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -157,10 +158,10 @@ export const jobApi = {
     });
   },
 
-  // Discover public opportunities (Arbeitnow & Greenhouse)
+  // Discover opportunities from configured public sources
   discoverJobs: async (options?: {
     limit?: number;
-    sources?: ('ARBEITNOW' | 'GREENHOUSE')[];
+    sources?: DiscoverySource[];
     companies?: string[];
     queryKeywords?: string[];
   }): Promise<{

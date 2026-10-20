@@ -6,7 +6,7 @@ Updated: 2026-10-20. Engineering owner: Codex. Branch: codex/jobee-2-foundation.
 
 The owner approved the assessment and requested phase-by-phase implementation on 2026-10-20. JOB-P0-T01 foundation reconciliation, JOB-P1-T01 platform adaptation and JOB-P1-T02 candidate context are **COMPLETED locally**. Phase 1 is verified; no release is claimed.
 
-**Next canonical task: JOB-P2-T01 — Explore/discovery adaptation**, followed by JOB-P2-T02 grounded matching convergence. Those tasks have substantial historical implementations and remain PARTIAL against 2.0 acceptance. Continue from their actual code/deltas; do not restart completed subsystems. No further owner approval is needed for routine local roadmap work. Real applications, outbound communication/calendar actions, paid services and production operations require separate explicit authorization.
+**JOB-P2-T01 — Explore/discovery adaptation is COMPLETED locally**. Next: JOB-P2-T02 grounded matching convergence. Those tasks have substantial historical implementations and remain PARTIAL against 2.0 acceptance. Continue from their actual code/deltas; do not restart completed subsystems. No further owner approval is needed for routine local roadmap work. Real applications, outbound communication/calendar actions, paid services and production operations require separate explicit authorization.
 
 ## Verified functionality
 
@@ -30,4 +30,8 @@ Test configuration: explicit localhost/jobee_test_isolated as DATABASE_URL and T
 
 ## Remaining product gaps
 
-Explore still needs the revised discovery/detail experience. Matching must consistently consume verified candidate context and distinguish relevance, blockers and unknowns across execution paths. One shared durable application-intent/consent pipeline, automatic routine preparation, end-to-end provider acceptance, safe interruption/resume and versioned Autopilot policy remain later work. Existing reviewed submissions remain protected; neither full One-click Apply nor Autopilot is claimed complete. Complex saved-answer conditions still require human review rather than a new rules language. Public-launch privacy/retention review, live ATS validation and production release remain separately scoped.
+Explore discovery/detail adaptation is verified locally. Matching must consistently consume verified candidate context and distinguish relevance, blockers and unknowns across execution paths. One shared durable application-intent/consent pipeline, automatic routine preparation, end-to-end provider acceptance, safe interruption/resume and versioned Autopilot policy remain later work. Existing reviewed submissions remain protected; neither full One-click Apply nor Autopilot is claimed complete. Complex saved-answer conditions still require human review rather than a new rules language. Public-launch privacy/retention review, live ATS validation and production release remain separately scoped.
+
+## JOB-P2-T01 checkpoint
+
+Persistent desktop panes/mobile back navigation, essential filters, superseded-request protection, retryable errors and truthful partial-source notices are implemented. Migration 0023 preserves extraction history and old evaluation references while current detail/matching use refreshed requirements. All eight gates pass, 658 tests / 74 files and 36 browser scenarios pass; source acceptance passes offline and against read-only public listings. Only localhost/jobee_test_isolated and localhost/jobee2_ui_test_isolated were migrated. Next task is JOB-P2-T02; the shared application pipeline and Autopilot remain later dependencies.
