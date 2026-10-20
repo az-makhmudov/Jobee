@@ -1,86 +1,35 @@
-# Jobee 2.0 — AI Coding Agent Guidelines
+# Jobee — coding agent instructions
 
-This document provides mandatory operational instructions for agents working on **Jobee 2.0**. Codex owns all engineering. The owner approved phase-by-phase local implementation on 2026-10-20; execute verified macro tasks in roadmap dependency order. Product specifications do not independently authorize external actions.
-
----
-
-## 0. Collaborative Delivery Workflow & Roles
-
-- **Codex**: Responsible for all development: requirements planning, architecture, repository inspection, coding, migrations, testing, verification, documentation and completion reports.
-- **Other agents**: No required handoffs. Use only when explicitly requested or otherwise authorized by applicable instructions.
-- **User**: Strategic oversight, external account permissions/credentials, and authorizing external actions.
-
----
-
-## 1. Prime Directive & Core Invariant
+Applies to Codex, Antigravity and any other coding agent working in this repository. Codex currently owns engineering; no agent handoff is required. The owner approved phase-by-phase local roadmap implementation on 2026-10-20. The current request determines the active scope: complete that scope before continuing unrelated feature work.
 
 > **AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable.**
 
-- **NEVER invent candidate facts**: Never hallucinate qualifications, past employers, degrees, dates, skills, citizenship, salary requirements, or answers.
-- **Deterministic authorization over AI discretion**: Auto-applying or mutating external systems requires explicit, deterministic rule authorization.
-- **Escalate uncertainty**: Ambiguous answers or missing candidate fields must produce human review items, not AI guesses.
-- **Full audit trail**: All generative suggestions, evaluations, and submissions must be logged with timestamped context.
+Never invent candidate facts, qualifications, employers, degrees, dates, skills, citizenship, salary expectations, metrics or answers. Runtime safeguards are defined in [policies](docs/POLICIES.md); a product specification is never permission for the coding agent to act on a real external account.
 
----
+## Start with local evidence
 
-## 2. Agent Workflow & Execution Rules
+1. Read [master context](docs/MASTER_CONTEXT.md) and [status](docs/STATUS.md). Load other documents only for the area being changed. [Roadmap](docs/ROADMAP.md) owns remaining milestones and dependency order.
+2. Identify repository root, branch, HEAD, working-tree changes and relevant local instructions. Inspect implementation, contracts, tests, schema and configuration before editing. Local code takes precedence over historical documentation claims about behavior.
+3. Preserve uncommitted work, user records, identifiers and existing verified features. Do not assume another branch or GitHub main matches this checkout. Do not restart completed subsystems.
+4. Reconcile scope and dependencies before choosing a task. Use the canonical macro-task stamp throughout. Do not invent micro-task identifiers or ask for routine implementation approval already granted.
 
-1. **Read Master Context**: Before commencing work on any feature or macro-task, inspect `docs/MASTER_CONTEXT.md` and related documents in `docs/`.
-2. **Follow Official Roadmap**: Execute work aligned with the canonical roadmap; never skip uncompleted dependencies.
-3. **Preserve Official Task Stamps**: Keep all work unified under the canonical macro-task stamp (e.g. `JOB-P0-T01`, `JOB-P1-T01`). Do not invent or fragment work into micro-task identifiers.
-4. **Inspect Existing Architecture Before Editing**: Always inspect the existing workspace files, types, and git status before writing code.
-5. **Prefer Coherent Macro-Task Implementations**: Own the entire vertical slice without gratuitous micro-commits or premature completion declarations.
-6. **Avoid Unnecessary Dependencies**: Use existing workspace libraries and dependencies; do not introduce redundant packages.
-7. **Never Fabricate Candidate Information**: Strict zero-tolerance invariant on hallucinating facts, metrics, or answers.
-8. **Keep AI Recommendations Separate from Authorization**: Rules authorize; AI only suggests and drafts.
-9. **Maintain Security and Privacy**: Ensure candidate data and tokens are protected with cryptographic envelopes and least privilege.
-10. **Zero Secrets in Git**:
-    - Never commit `.env` files, API keys, or OAuth credentials.
-    - Ensure new configuration variables are documented in `.env.example` and validated via Zod in `packages/config/src/env.ts`.
-11. **Run Mandatory Quality Gates Before Task Completion**:
-    Every task must be verified with:
-    ```bash
-    npm run lint
-    npm run typecheck
-    npm run test
-    npm run build
-    ```
-12. **Update Documentation After Implementation**: When architecture or data models change, update corresponding documents in `docs/` and log the milestone in `docs/TASK_LOG.md`.
-13. **Produce Structured Completion Reports**: After each task, output a structured report detailing scope, status, verification, and next steps.
+## Implementation
 
----
+Own coherent vertical slices: model/contracts, domain behavior, provider fixtures, routes, UI, verification and focused documentation as needed. Reuse workspace libraries and existing boundaries; avoid redundant packages and unnecessary new services.
 
-## 3. Canonical Project Context & Documentation
+- Shared contracts belong in `packages/shared`; configuration belongs in `packages/config`; schema/migrations and shared backend matching/submission live in `packages/database`.
+- API and worker remain independent processes. The worker must not import API implementation. Do not expose server secrets through frontend imports or Vite variables.
+- Validate API input with Zod, enforce authenticated ownership on each private resource, use structured errors, and redact sensitive logs.
+- Document new configuration in `.env.example` and validate it in `packages/config/src/env.ts`. Never add real secrets, credentials, candidate exports or `.env` files to Git.
+- Preserve verification/provenance, immutable package versions, tenant scoping, manifest checks, duplicate/quota controls and uncertain submission recovery. Simplifying the interface must not remove these checks.
+- Use additive migrations after mapping existing entities. Never infer a migration requirement from conceptual product entity names alone.
+- Keep fixtures deterministic and offline. Missing facts or unclear authority become review items, not guesses or silent permission expansion.
 
-Canonical project context lives in `docs/` and root mirrors:
+## Verification before completion
 
-- `docs/MASTER_CONTEXT.md`: The authoritative product specification, principles, and roadmap definitions. (Root files `JOBEE_MASTER_CONTEXT.md` and legacy `AI_JOB_AGENT_MASTER_CONTEXT.md` are identical mirrors).
-- `docs/ROADMAP.md`: Official milestone status tracker.
-- `docs/RENAME_LOG.md`: Official record of project rebranding to Jobee on 2026-10-11.
-- `docs/ARCHITECTURE.md`: High-level system architecture, boundaries, and tech stack.
-- `docs/DATA_MODEL.md`: Schema, entity definitions, and relationship maps.
-- `docs/SECURITY.md`: Security controls, encryption envelopes, and threat models.
-- `docs/APPLICATION_POLICY.md` & `docs/AGENT_POLICY.md`: Policy engine and agent behavior limits.
-- `docs/PRODUCT_COMPLETION_DIRECTIVE.md`: The authoritative enduring product completion directive, autonomy boundaries, and acceptance criteria.
-- `docs/AUTONOMOUS_OPERATING_PLAN.md`: Autonomous development methodology and operating procedures.
-- `docs/AUTONOMOUS_STATE.md`: Real-time durable progress, blocker, and execution state tracker.
-- `docs/IMPLEMENTATION_BACKLOG.md`: Internal engineering backlog prioritized and maintained by the agent.
-- `docs/OWNER_ACTIONS_REQUIRED.md`: Consolidated external dependencies and required human approvals.
-- `docs/TASK_LOG.md`: Chronological milestone delivery audit and verification logs.
+Inspect scripts and test setup for side effects before executing them. Set an explicit isolated database target for mutation-capable tests; inspect `packages/database/src/safety.ts` and do not bypass safety guards. Use disposable test users and cleanup scoped to those users/IDs; never delete real user data.
 
----
-
-## 4. Autonomous Milestone Execution
-
-1. **Choosing Work**: Inspect `docs/ROADMAP.md` and `docs/AUTONOMOUS_STATE.md`. Follow the revised dependency order, including `PARTIAL` deltas. Historical completion does not establish Jobee 2.0 acceptance; `JOB-P5-T01` intentionally precedes later CRM/Autopilot completion and email/calendar expansion.
-2. **Autonomous Delivery**: Own the entire vertical slice without prompting the Product Owner for routine development steps. Deliver database changes, backend logic, external provider abstractions/fixtures, REST endpoints, React views, and automated tests.
-3. **Continuity**: Once a milestone is verified and committed, update durable state and continue only within approved scope. The owner approved phase-by-phase implementation on 2026-10-20; continue local tasks after verification within the revised roadmap.
-
----
-
-## 5. Verification & Quality Gates
-
-Before declaring any milestone complete, execute the full suite of quality gates:
+Required project gates:
 
 ```bash
 npm run format:write
@@ -89,69 +38,44 @@ npm run typecheck
 npm run test
 npm run build
 npm run format
-npm run db:check
-npm run db:migrate
 ```
 
-Run dedicated end-to-end integration verification scripts (e.g. `scripts/verify-*.ts`) against real local services with isolated test fixtures after inspecting their side effects. Run migration gates only on positively identified isolated local/test databases; never on production as routine verification. Never delete real user data.
+Review the formatter diff so unrelated local changes are not swept into the task. Lint currently has warnings; record actual warning counts and failures rather than claiming warning-free results. A passing command with skipped integration tests is not complete integration verification.
 
----
+For schema or database-dependent work, also run `npm run db:check` and `npm run db:migrate` **only on a positively identified isolated local/test database**. Compare the journal and migration files. Documentation-only work does not require migrations; a read-only local journal check can establish migration state. Never migrate production as routine verification.
 
-## 6. Subagent Delegation & Code Review
+Run relevant `scripts/verify-*.ts` and browser scenarios for behavior changes after reviewing their effects. Build shared packages before browser servers start, and avoid rebuilding watched packages while browser tests run. Use fixture email/calendar/browser providers, disabled external AI and local storage. Verify responsive layouts, focus, themes and failure states for UX changes. Do not claim real provider success from fixtures.
 
-When using subagents:
+For documentation changes, verify retained Markdown links, source paths, references to removed files, document responsibility boundaries and policy preservation. Keep exactly the nine core documents listed in README; separate machine-readable assets or framework-required skills need a demonstrated consumer.
 
-- Delegate self-contained research, audits, or isolated component implementations with clear scopes and prompt requirements.
-- Never have multiple agents write concurrently to overlapping files.
-- Before committing, perform an independent review of diffs covering:
-  1. Prime Directive & Truthfulness compliance.
-  2. Security boundaries (zero plaintext tokens, Zod validation, least privilege).
-  3. Clean error handling and structured logging.
-  4. Process boundary integrity.
+## Review and Git
 
----
+Review the final diff independently of implementation reasoning before committing. Check truthfulness, authorization, tenant boundaries, encryption, validation, error/log hygiene, process dependencies and unrelated changes. Subagents are optional only when explicitly requested or otherwise specifically authorized; do not require handoffs. If delegation is authorized, give disjoint write scopes and never let agents edit overlapping files concurrently.
 
-## 7. Durable Progress & State Maintenance
+Commit only the isolated task after required gates pass. Use a conventional message with its official stamp, for example `docs: consolidate current project documentation (JOB-DOC-CONSOLIDATION-01)`. A dirty starting tree requires careful isolation; never stage unrelated work. Do not rewrite Git history, use `git reset --hard`, `git clean -fd` or `git push --force`. Pushes, merges and deployment need separate explicit owner authorization.
 
-Durable state must not rely on conversation memory:
+## Human authorization
 
-- Keep `docs/AUTONOMOUS_STATE.md` updated with the active milestone, last commit, known issues, and next action.
-- Update `docs/TASK_LOG.md` upon completion of each milestone with full verification records.
-- Synchronize `docs/ROADMAP.md` status flags (`COMPLETED`, `IN PROGRESS`, `PENDING`).
+Local inspection, implementation, fixtures, documentation and safe verification are authorized within current scope. Separate explicit approval is required for:
 
----
+- Real employer applications or live ATS submission validation.
+- Outbound recruiter communications or real calendar mutations/invite acceptance.
+- Legal declarations, background checks or other candidate consent.
+- Paid service activation or charges.
+- Production infrastructure/database changes, deployment, publishing or GitHub push/merge.
 
-## 8. Git Checkpoint Standards
+Do not treat a feature flag, credentials already on disk, an old release mandate, a product policy or a high match score as that approval. Continue unaffected local work when external approval is missing; record the specific dependency. Candidate approval inside the product and permission for a coding-agent live test are separate boundaries.
 
-- Commit only after all quality gates pass cleanly.
-- Use conventional commit messages referencing the official task stamp:
-  `feat(subsystem): concise description (JOB-PX-TXX)`
-- Record the commit hash in `docs/AUTONOMOUS_STATE.md`.
-- Never execute destructive Git commands: `git reset --hard`, `git clean -fd`, or `git push --force`.
+## Durable state and recovery
 
----
+Keep [status](docs/STATUS.md) short and current: active task, source checkpoint, verification dates/results, limitations, blockers and next action. Update [roadmap](docs/ROADMAP.md) only when remaining acceptance changes; completed-task history belongs in Git. Update architecture, policies, UX or operations only when their responsibility changes. Do not create perpetual task logs, duplicate master contexts or standalone completion-report documents.
 
-## 9. Human Authorization Boundaries
+On a new or interrupted session:
 
-The agent is authorized for local autonomous development. The agent is **NEVER** authorized to perform real external actions without explicit human approval:
+1. Read status and inspect `git status` plus `git diff --stat`.
+2. Identify unfinished work and its authorization; preserve it and resume at that boundary.
+3. For database work, verify connectivity and applied migrations read-only first. Confirm isolation before mutations.
+4. Run typecheck/tests when evaluating code health; documentation work can run these with final verification. Diagnose environment failures separately from product failures.
+5. Resume without recreating completed systems or implying new external authority.
 
-- Submitting real applications to external ATS platforms.
-- Sending real outbound recruiter emails.
-- Accepting external calendar invites on real accounts.
-- Granting legal/background consents.
-- Incurring paid service charges.
-- Modifying production infrastructure or databases.
-
-Offline simulated providers (such as `FixtureCalendarProvider` and `FixtureEmailProvider`) must be used for automated tests.
-
----
-
-## 10. Crash & Interruption Recovery
-
-When starting in an existing or interrupted session:
-
-1. Read `docs/AUTONOMOUS_STATE.md`.
-2. Inspect `git status` and `git diff --stat` to detect uncommitted work.
-3. Check database health (`npm run db:check`) and applied migrations.
-4. Run `npm run typecheck` and `npm run test` to evaluate codebase health.
-5. Resume from the identified boundary within current authorization without restarting completed subsystems. For this transition, resume approved local phase-by-phase implementation from the durable milestone state.
+Report meaningful progress during work. Finish with scope/status, actual checks and limits, remaining owner dependencies, local commit if created, and final Git state. Keep completion reports in the response. To avoid a self-referential hash, status may identify its own checkpoint by task stamp and record the preceding source HEAD; the final response supplies the new commit hash.

@@ -87,3 +87,6 @@ output/student-ux/
 /.playwright-cli/
 /output/playwright-mac/
 /output/playwright-linux/
+
+# Transient discovery acceptance evidence (may contain candidate context)
+/output/acceptance/

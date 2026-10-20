@@ -489,9 +489,10 @@ async function main() {
       throw new Error('Candidate unverified evidence inflation invariant violated!');
     }
 
-    // 5. Output Structured Report to docs/REAL_JOB_DISCOVERY_ACCEPTANCE.md
-    console.log('\n--- 5. Generating docs/REAL_JOB_DISCOVERY_ACCEPTANCE.md ---');
-    const docPath = path.resolve(process.cwd(), 'docs/REAL_JOB_DISCOVERY_ACCEPTANCE.md');
+    // 5. Write transient acceptance evidence outside canonical documentation.
+    console.log('\n--- 5. Generating transient discovery acceptance evidence ---');
+    const docPath = path.resolve(process.cwd(), 'output/acceptance/real-job-discovery.md');
+    await fs.mkdir(path.dirname(docPath), { recursive: true });
 
     let markdown = `# Jobee — Real Job Discovery Acceptance Dataset\n\n`;
     markdown += `**Execution Date:** ${new Date().toISOString()}  \n`;

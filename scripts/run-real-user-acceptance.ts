@@ -134,7 +134,8 @@ async function main() {
       actual:
         'Revocation confirmed during milestone JOB-SEC-REMEDIATION-01 with PostgreSQL error 28P01. Zero plaintext credentials committed.',
       status: 'PASS',
-      evidence: 'docs/TASK_LOG.md line 1975: Controlled connection test confirmed 28P01 rejection.',
+      evidence:
+        'docs/POLICIES.md#public-repository-and-historical-security-evidence: Historical JOB-SEC-REMEDIATION-01 controlled connection test confirmed 28P01 rejection; not re-executed by this attestation.',
     });
 
     // ------------------------------------------------------------------

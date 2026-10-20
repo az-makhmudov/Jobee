@@ -1,221 +1,76 @@
 # Jobee
 
-**Jobee** is a personal AI-powered job discovery, matching, application preparation, and lifecycle management platform. Built around the core invariant—**"AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable."**—the system uses AI to analyze requirements and draft tailored materials while enforcing strict deterministic authorization and zero tolerance for hallucinated candidate facts.
+Jobee helps candidates find relevant jobs, prepare truthful applications from verified information, and track employer activity. Its three main areas are **Explore**, **Applications**, and **Profile**. It serves students, early-career applicants and other individual job seekers, including people starting without a CV or employment history.
 
-Originally developed under the working title **AI Job Agent**, the project was officially rebranded to **Jobee** on 2026-10-11 (see [`docs/RENAME_LOG.md`](docs/RENAME_LOG.md)).
+The current checkout includes multi-user authentication, public job discovery, grounded matching, persistent preparation and controlled browser submissions. The complete One-click Apply and shared-policy Autopilot experience remains under development. See [current status](docs/STATUS.md) for the distinction between local implementation, fixtures and deployed evidence.
 
----
+## Stack
 
-## Delivery Workflow & Key Documents
+TypeScript across npm workspaces; React 19 and Vite 6; Fastify 5; Better Auth; PostgreSQL with Drizzle ORM and node-postgres; Playwright in a separate worker; local or S3-compatible document storage. The deployment container and CI use Node.js 24. Dependency manifests and `package-lock.json` determine exact installed versions. No Redis or external message broker is required.
 
-Jobee 2.0 prioritizes **One-click Apply**, followed by **Autopilot**, within **Explore**, **Applications** and **Profile**. This is the target experience; the complete revised workflow is not yet accepted. Existing discovery, candidate intelligence, preparation, tracking and execution infrastructure will be reused.
+## Repository
 
-**Codex** owns planning, architecture, implementation, tests and documentation. The user owns product approval, credentials and authorization of consequential external actions. Antigravity handoffs are discontinued. The owner approved phase-by-phase local implementation on 2026-10-20; external side effects remain separately authorized.
+- `apps/web/`: Responsive React interface, document previews and browser tests
+- `apps/api/`: Authentication, REST services, preparation, integrations and SPA hosting
+- `apps/worker/`: Persistent browser execution and scheduled orchestration
+- `packages/shared/`: Contracts, errors, logging, storage and common utilities
+- `packages/config/`: Zod-validated runtime configuration
+- `packages/database/`: Schema, SQL migrations, shared backend matching and submission services
+- `scripts/`: Verification, tooling and asset preparation; inspect side effects before running
+- `docs/`: Seven focused product, engineering and operations references
+- `.github/workflows/`: Quality and browser CI
+- `.railway/railway.ts`, `Dockerfile`: API/SPA and worker deployment configuration
 
-See [`docs/JOBEE_2_ASSESSMENT.md`](docs/JOBEE_2_ASSESSMENT.md) for repository evidence, gaps and baseline checks.
+Internal `@job-agent/*` package names and existing database identifiers are stable technical identifiers.
 
-### Authoritative Documentation
+## Install and develop
 
-- [`docs/MASTER_CONTEXT.md`](docs/MASTER_CONTEXT.md) — **Canonical** source of truth for scope, policies, architecture, and roadmap.
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — Canonical macro-task status tracker (`JOB-P0-T01` through `JOB-P5-T02`).
-- [`docs/TASK_LOG.md`](docs/TASK_LOG.md) — Chronological engineering execution and verification audit.
-- [`docs/RENAME_LOG.md`](docs/RENAME_LOG.md) — Official record of the 2026-10-11 identity change to Jobee.
-- [`AGENTS.md`](AGENTS.md) — Mandatory operational instructions and quality gates for AI coding agents.
-
----
-
-## Repository Structure
-
-```text
-Jobee/
-├── apps/
-│   ├── web/              # React 19 + Vite 8 frontend application shell
-│   ├── api/              # Fastify 5 REST API with Candidate Brain & health endpoints
-│   └── worker/           # Background processing engine (isolated process)
-├── packages/
-│   ├── config/           # Centralized environment validation (Zod)
-│   ├── database/         # PostgreSQL schema, Drizzle ORM & migration engine
-│   └── shared/           # Core DTOs, completeness engine, storage, AppError, logger
-├── docs/                 # Authoritative architecture, data model, decisions, and runbooks
-└── .github/workflows/    # CI quality pipeline
-```
-
----
-
-## Prerequisites
-
-- **Node.js**: v24 LTS or later (verified compatible with v24 / v25)
-- **npm**: v10 or later
-- **PostgreSQL**: v15 or later (local instance or hosted Neon PostgreSQL)
-
----
-
-## Installation & Setup
-
-1. **Clone the repository**:
-
-   ```bash
-   git clone https://github.com/az-makhmudov/Jobee.git
-   cd Jobee
-   ```
-
-2. **Install workspace dependencies**:
-
-   ```bash
-   npm install
-   ```
-
-3. **Configure Environment**:
-   ```bash
-   cp .env.example .env
-   ```
-   Edit `.env` to provide your PostgreSQL connection string (`DATABASE_URL`).
-
----
-
-## Local Development
-
-Run all services concurrently (API, Worker, Web):
+Use Node.js 24, npm and an available PostgreSQL instance. CI exercises PostgreSQL 16. Create separate development and disposable test databases; localhost alone does not make data disposable.
 
 ```bash
-npm run dev
+npm ci
+cp .env.example .env
 ```
 
-Or run individual services:
+Set development `DATABASE_URL` and a separate `TEST_DATABASE_URL` in the ignored `.env`. Generate distinct non-default `BETTER_AUTH_SECRET` and `EMAIL_TOKEN_ENCRYPTION_KEY` values, for example with `openssl rand -hex 32`. Never commit them. Configure `OWNER_EMAIL` for your own environment; do not assume the example identity is yours.
+
+For offline development, leave provider credentials empty, use local storage, and set `ORCHESTRATOR_ENABLED=false`. An AI key can automatically select Gemini even when `AI_PROVIDER=disabled`; the configuration details are in [operations](docs/OPERATIONS.md). Avoid starting the worker against connected real accounts for an offline test.
 
 ```bash
-npm run dev:api     # Backend API on http://127.0.0.1:3000
-npm run dev:worker  # Background processing engine
-npm run dev:web     # React frontend on http://localhost:5173
+npm run build:packages
+npm run db:check
+# Only after confirming DATABASE_URL identifies your intended local development database:
+npm run db:migrate
+npm run dev:api
 ```
 
----
+Run `npm run dev:web` in another terminal. Vite serves the web client on port 5173 and proxies `/api` to port 3000. `npm run dev:worker` starts the worker explicitly; `npm run dev` starts all three processes and may run configured integrations. See [operations](docs/OPERATIONS.md) before enabling it.
 
-## Candidate Brain Architecture (`JOB-P1-T02`)
-
-The Candidate Brain is the authoritative structured truth source that all future job matching and application generation will use:
-
-- **Deterministic Single-User Identity**: Resolves primary candidate deterministically via `system_key: 'default_primary_candidate'` with UUID `00000000-0000-0000-0000-000000000001`.
-- **Structured Profile Entities**: Normalized storage for Candidate Profile, Experience, Education, Projects, Skills, Languages, Certifications, and Professional Links.
-- **Explicit Candidate Facts**: Discrete atomic assertions with verification status and `allowAiUse` boolean permission gate. AI models may never invent facts.
-- **Document Vault**: Local file storage abstraction (`LocalStorageProvider`) supporting Master CV and role variants with strict MIME validation (PDF, DOCX, TXT), 10MB limit, SHA-256 checksums, and Git-excluded storage (`uploads/`).
-- **Answer Library**: Curated responses with automation tiers:
-  - `AUTO`: Safe for automated submission (sensitive answers require explicit `VERIFIED` status to qualify for `AUTO`).
-  - `REVIEW`: Pre-fill but require human confirmation.
-  - `MANUAL`: Never pre-fill; always prompt candidate.
-  - `isSensitive`: Flags sensitive demographic/salary fields requiring manual sign-off.
-- **Job Preferences & Safety Policy**: Structured target roles, locations, work modes (Remote/Hybrid/Onsite), salary ranges, and safety interlocks. Auto-apply is **disabled by default**.
-- **Completeness Engine**: Deterministic 100-point algorithm across 7 weighted profile categories.
-- **Candidate Audit Log**: Immutable, privacy-preserving record of all entity mutations tracking changed field names and safe operational metadata (zero PII snapshots).
-
----
-
-## Job Ingestion, Normalization & Inbox (`JOB-P2-T01`)
-
-The Job Ingestion subsystem provides safe, deterministic ingestion and canonical storage for all prospective job postings:
-
-- **Safe HTTP Retrieval**: Defensive `HttpRetrievalService` with comprehensive SSRF protection (blocks loopback, RFC1918 private subnets, carrier-grade NAT, cloud metadata 169.254.169.254, validates all DNS IPs, manual redirect hop inspection, 8s timeout, 2MB size cap).
-- **Specialized ATS Extractors**: Dedicated extractors for Greenhouse, Lever, Ashby, Schema.org `JobPosting` JSON-LD, and LinkedIn auth-wall recognition, plus unstructured manual text extraction.
-- **Conservative Normalization**: Deterministic URL canonicalization (stripping tracking query tags), workplace mode classification, employment types, seniority levels, locations, and salary ranges.
-- **Requirement Model Hardening**: Strict separation between requirement category (`SKILL`, `EXPERIENCE`, `EDUCATION`, etc.) and requirement strength (`MANDATORY`, `PREFERRED`, `UNKNOWN`). Responsibilities are preserved in structured sections and excluded from mandatory hiring requirements. Each requirement links to its provenance via `source_id` and `source_section`.
-- **Tri-Level Deduplication**: SHA-256 content fingerprinting (`contentHash`), canonical URLs, and provider external IDs. Idempotent re-ingestion appends duplicate provenance records with zero duplicate job proliferation while safely preserving similar-but-distinct positions.
-- **Raw HTML Discard Policy & Provenance**: Raw HTML payloads are discarded (`raw_payload = null`) on successful extraction to minimize attack surface and storage bloat. Normalized `raw_text`, source headers, and parsed sections are immutably archived. Manual corrections update normalized columns while keeping source truth auditable.
-- **Job Inbox & UI**: Responsive Job Inbox with status and provider filters, search, metrics ribbon, Add Job modal (URL import and pasted text), and Job Detail view (with categorized requirements, strength badges, and source section pills).
-
----
-
-## Requirement Analysis, Matching & Policy Decision Engine (`JOB-P2-T02`)
-
-The matching engine provides the intelligence and authorization layer that evaluates job postings against the Candidate Brain:
-
-- **Strict Prime Invariant**: AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable. Zero hallucinated candidate facts are permitted.
-- **Grounded Evidence Resolution**: Maps requirements deterministically to verified candidate skills, language CEFR rankings, cumulative experience durations, degrees, and certifications.
-- **Deterministic Hard Policy Engine**: Enforces mandatory blockers (excluded companies, excluded keywords, prohibited workplace modes, unpaid roles, below-minimum compensation, sponsorship conflicts) with automated `SKIP` decisions, and flags missing sensitive policy data for human `REVIEW`.
-- **Dimensional Scoring Engine (`v1.0.0`)**: Computes fit across 8 dimensions (`ROLE_FIT`, `SKILLS_FIT`, `EXPERIENCE_FIT`, `EDUCATION_FIT`, `LOCATION_FIT`, `LANGUAGE_FIT`, `COMPENSATION_FIT`, `WORK_AUTHORIZATION_FIT`) with dynamic re-weighting for unknown dimensions, mandatory requirement penalties, confidence scoring (0-100), and preliminary auto-apply eligibility (never auto-fires).
-- **Anti-Hallucination AI Provider Abstraction**: Pluggable provider interface (`DisabledAiProvider`, `MockAiProvider`, `GeminiAiProvider`) with a strict validation guard that strips invented evidence IDs and demotes ungrounded claims to `UNKNOWN`.
-- **Reactive Staleness Engine**: SHA-256 input fingerprinting invalidates match analyses whenever candidate credentials or job data change.
-- **Bounded Batch Processing**: Bounded 1-50 batch execution with failure isolation.
-- **User Interface**: Full Match Analysis inspector in `JobDetailView` (KPI ribbon, hard blocker alerts, strengths/gaps/unknowns, dimension cards, grounded requirement table with evidence pills), matching filters and quick analyze in `JobInboxView`, and matching metrics in `DashboardView`.
-
----
-
-## Application Studio, Tailored Materials & Human Approval (`JOB-P3-T01`)
-
-The Application Studio orchestrates the generation, tailoring, screening question resolution, and human sign-off for prospective job applications:
-
-- **Versioned Application Packages**: Full lifecycle package management (`DRAFT`, `NEEDS_REVIEW`, `READY`) with immutable numbered versions (`application_package_versions`) tracking tailored CVs, cover letters, readiness scores, and validation issues.
-- **ATS-Safe Single-Column DOCX Documents**: Programmatic generation of ATS-friendly `.docx` files using the `docx` engine, avoiding complex tables or columns that break applicant tracking parsers. Automatically produces companion plain `.txt` files with SHA-256 checksums.
-- **Truthful CV Tailoring & Metric Safeguards**: Factual history (dates, employers, titles, degrees) is strictly immutable. Relevant bullet points are reordered and highlighted based on match evidence (`evidenceIds`). Quantitative figures and metrics are cross-checked against Candidate Brain achievements to prevent exaggeration.
-- **Grounded Cover Letter Engine**: Concise, professional cover letters composed directly from candidate facts, articulating clear alignment to the job role without synthetic claims.
-- **4-Level Question Resolution Hierarchy**: Application questions resolve through `AUTO` (exact Answer Library match), `REVIEW` (inferred/draft response), `MANUAL` (prompts candidate for input), or `UNRESOLVED` (blocking). Sensitive categories (`WORK_AUTHORIZATION`, `SPONSORSHIP`, `SALARY`) unconditionally require explicit human sign-off.
-- **Human Approvals Queue**: Global approval queue (`/approvals`) allowing candidates to review, edit, or reject sensitive declarations and answers before any package reaches `READY`.
-- **Dynamic Staleness & Version Carry-Forward**: Fingerprint-based staleness invalidates packages when candidate credentials or job data change. Regenerating into Version $N + 1$ carries forward previously approved answers to prevent duplicate human review.
-- **User Interface**: Complete Application Studio (`ApplicationStudioView`) with readiness dashboard, live CV preview, cover letter editor, question manager, approvals tab, and evidence inspector; Global Approvals Inbox (`ApprovalsInboxView`); and Packages List (`ApplicationPackagesListView`).
-
----
-
-## Application CRM, Lifecycle, Audit Timeline & Analytics (`JOB-P3-T02`)
-
-The Application CRM provides the persistent tracking and management layer for the job application lifecycle—achieving the **Personal ATS MVP milestone**:
-
-- **17 Canonical Lifecycle States**: Full stage tracking across discovery (`DISCOVERED`, `ANALYZED`, `MATCHED`, `SKIPPED`), readiness (`READY_TO_APPLY`, `NEEDS_REVIEW`), submission (`APPLYING`, `APPLIED`, `CONFIRMATION_RECEIVED`), active progression (`SCREENING`, `ASSESSMENT`, `INTERVIEW`, `FINAL_INTERVIEW`, `OFFER`), and terminal states (`REJECTED`, `WITHDRAWN`, `EXPIRED`).
-- **Soft Archiving Protection**: Safe deletion pattern via `is_archived` and `archived_at` preserving historical timeline events and frozen submission provenance without accidental data destruction. Hard purge (`DELETE /api/applications/:id/purge`) is reserved for deliberate privacy erasure.
-- **Deterministic State Machine**: Strictly validated transitions with realistic stage progression and skipping (e.g. `APPLIED` → `INTERVIEW`). Terminal states are protected; accidental terminal transitions require controlled correction overrides with mandatory justification (`isCorrection: true`, `correctionReason`).
-- **Frozen Submission Provenance**: When marking an application as `APPLIED`, the exact package version and generated artifact IDs (`submitted_package_version_id`, `submitted_cv_artifact_id`, `submitted_cover_letter_artifact_id`) are frozen onto the record. Historical submissions remain permanently anchored to the exact documents dispatched even if newer package versions are subsequently generated.
-- **Direct & Manual Application Recording**: Fully supports direct tracking of applications submitted outside the system or without an Application Studio package.
-- **CRM Sub-Entities**: Structured management of candidate notes, recruiter contacts (with roles and contact information), interview rounds, assessments, and compensation offers (with status, base, bonus, and equity details).
-- **Immutable Lifecycle Event Timeline**: Every state change, submission, or correction generates an append-only audit event in `application_lifecycle_events` capturing previous and new statuses, actors, triggers, and reason codes.
-- **Application Funnel Analytics Engine**: Computes conversion metrics across funnel stages with zero-denominator safety (`rate: null`), average time-to-stage durations, and source distribution breakdowns.
-- **Personal ATS User Interface**: Interactive Kanban stage board (`ApplicationsCrmView`) with status grouping, search, filters, and quick mark-applied actions; comprehensive Application Detail inspector (`ApplicationDetailView`) with stage transition toolbar, next action reminders, and sub-entity tabs; and Funnel Analytics modal (`ApplicationAnalyticsModal`).
-
----
-
-## Email Intelligence, Job Alerts & Application Status Synchronization (`JOB-P4-T01`)
-
-The Email Intelligence subsystem serves as the platform's external communication and synchronization layer:
-
-- **Provider Abstraction & Offline Fixtures**: Pluggable provider interface (`EmailProvider`) supporting Google OAuth 2.0 (`GmailProvider`) and a complete offline simulator (`FixtureEmailProvider`) covering all 11 recruitment email archetypes.
-- **Cryptographic Token Protection**: Sensitive OAuth access and refresh tokens are encrypted at rest with authenticated AES-256-GCM using versioned envelopes (`v1:primary:<iv>:<tag>:<ciphertext>`) and SHA-256 key derivation with startup entropy validation.
-- **Persistent CSRF & Replay Defense**: Restart-resilient OAuth state verification backed by PostgreSQL table `oauth_states`, featuring atomic consumption queries and HMAC-SHA256 signatures with 15-minute validity windows.
-- **Atomic Sync Concurrency Mutex**: Database-backed concurrency lock on `email_accounts.is_syncing` with 5-minute timeout window rejecting overlapping sync requests with HTTP 409 Conflict.
-- **Safe MIME Sanitization**: Cleans inbound headers, strips quoted thread histories and legal disclaimers, sanitizes HTML to plain text discarding script and tracking elements, and generates deterministic SHA-256 content hashes.
-- **13-Category Classification**: High-precision deterministic regex classifier paired with structured Gemini AI fallback classifying messages into confirmations, rejections, interview invitations, screening requests, assessments, offers, job alerts, and outreach.
-- **Deterministic CRM Synchronization**: Enforces the Prime Directive by auto-transitioning application stages only under high-confidence deterministic rules (`APPLIED` → `CONFIRMATION_RECEIVED`, `SCREENING`, `ASSESSMENT`, `INTERVIEW`) while preserving idempotency.
-- **Conservative Rejection & Human Review Queue**: High-consequence rejections require >= 0.95 confidence and exact entity matches; ambiguous updates or job offers unconditionally route to `email_review_items` for human sign-off.
-- **Job Alert Digest Ingestion**: Automatically extracts discrete opportunities from alert emails and ingests them into canonical `JobService` with deduplication.
-- **Safe Disconnection vs. Hard Purge**: Neutralizes credentials and marks account `DISCONNECTED` while preserving normalized intelligence history unless explicitly purged with `?purge=true`.
-
----
-
-## Database & Migrations
+## Verification
 
 ```bash
-npm run db:generate # Generate SQL migrations from Drizzle schema
-npm run db:migrate  # Apply pending migrations to PostgreSQL
-npm run db:check    # Verify database connectivity and latency
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm run format
 ```
 
----
+Integration tests must use the explicitly isolated test database. For reproducible UI unit tests set `VITE_API_URL=/api` for the test process. Browser verification uses `npm run test:ui` with a separately isolated loopback database. [AGENTS.md](AGENTS.md) defines required engineering checks; [operations](docs/OPERATIONS.md) explains safe database and browser setup.
 
-## Code Quality & Verification
+## Documentation
 
-```bash
-npm run lint        # Run ESLint across all workspaces
-npm run typecheck   # Typecheck TypeScript across all packages and apps
-npm run test        # Run Vitest test suites
-npm run build       # Build all packages and applications
-npm run format      # Check code formatting with Prettier
-```
+New coding sessions normally read only [AGENTS.md](AGENTS.md), [master context](docs/MASTER_CONTEXT.md), and [status](docs/STATUS.md).
 
-## Current Status
+| Document                                 | Responsibility                                                     |
+| ---------------------------------------- | ------------------------------------------------------------------ |
+| [AGENTS.md](AGENTS.md)                   | Engineering workflow, authorization, verification and recovery     |
+| [Master context](docs/MASTER_CONTEXT.md) | Product vision, users, journey, requirements and non-goals         |
+| [Architecture](docs/ARCHITECTURE.md)     | Current components, data relationships and runtime boundaries      |
+| [Policies](docs/POLICIES.md)             | Truthfulness, submission authorization, security and privacy       |
+| [UX](docs/UX.md)                         | Current screens, interaction states and validation requirements    |
+| [Roadmap](docs/ROADMAP.md)               | Remaining milestones in dependency order                           |
+| [Status](docs/STATUS.md)                 | Latest evidence, limitations and continuation checkpoint           |
+| [Operations](docs/OPERATIONS.md)         | Setup, deployment, monitoring, incidents and external dependencies |
 
-- **Identity**: Officially rebranded to **Jobee** on 2026-10-11 (`JOB-P0-T01`).
-- **Milestones Reached**: All roadmap phases (Phases 0 through 5) completed and verified:
-  - Phase 0: Project Foundation & Canonical Master Context (`JOB-P0-T01`)
-  - Phase 1: Core Platform (`JOB-P1-T01`) and Candidate Brain (`JOB-P1-T02`)
-  - Phase 2: Job Ingestion & Normalization (`JOB-P2-T01`) and Match Intelligence (`JOB-P2-T02`)
-  - Phase 3: Application Studio (`JOB-P3-T01`) and Application CRM MVP (`JOB-P3-T02`)
-  - Phase 4: Email Intelligence (`JOB-P4-T01`) and Calendar / Interview Workspace (`JOB-P4-T02`)
-  - Phase 5: Browser Application Worker (`JOB-P5-T01`) and Autonomous Orchestrator (`JOB-P5-T02`)
-  - Stabilization & Remediation: Candidate data integrity, anti-hallucination guardrails, and human authorization boundaries verified.
-- **Canonical Repository**: Private GitHub repository at `https://github.com/az-makhmudov/Jobee`.
+Repository visibility is public, as verified on 2026-10-20. npm's `private: true` prevents package publication; it does not make GitHub private. Keep credentials, candidate records, uploads and operational exports out of Git. Public-launch privacy readiness and current production certification are separate questions from source availability.

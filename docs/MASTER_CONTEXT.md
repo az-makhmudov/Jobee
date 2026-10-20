@@ -1,230 +1,84 @@
-# Jobee 2.0 — Canonical Master Context
+# Jobee — master context
 
-Updated 2026-10-20. Engineering owner: Codex. Canonical task: JOB-P0-T01.
+Updated 2026-10-20. Product source of truth; [status](STATUS.md) records implementation evidence, and [roadmap](ROADMAP.md) records unfinished acceptance. This document describes the intended product and identifies where the core promise is still being completed.
 
-## Authority and current authorization
+## Purpose and users
 
-The owner approved phase-by-phase implementation on 2026-10-20 after reviewing the repository assessment. Codex is authorized to implement and verify local roadmap tasks in dependency order. Attached specifications define the target product; they do not independently authorize external actions. Real applications, outbound messages, calendar mutations, paid services and production changes still require separate explicit authorization.
+**Find the right jobs. Apply intelligently. Track everything.**
 
-Codex owns planning, architecture, coding, tests and documentation. Antigravity handoffs are discontinued. Preserve verified functionality, candidate data, identifiers, authentication and tenant isolation. Keep the invariant: **AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable.** Never invent candidate facts.
+Jobee is an AI-assisted job discovery and application agent for individual candidates. Students and early-career applicants are central users: education, projects, transferable skills and limited work history must be meaningful inputs. Experienced applicants also use the same verified candidate context and tracking model. Starting without a CV or past employer must remain possible.
 
-## Reading order and conflict resolution
+The product reduces repetitive search, truthful document preparation, repeated questions and fragmented application tracking. Suitable opportunities and credible applications matter more than submission volume. It must make a complex technical workflow understandable without exposing infrastructure or requiring users to manage separate AI agents.
 
-- This document defines product direction; ARCHITECTURE.md separates current implementation from target architecture.
-- ROADMAP.md defines dependency order and separate historical/2.0 acceptance states. JOBEE_2_ASSESSMENT.md contains evidence and gaps.
-- DATA_MODEL.md records current schema and incremental mapping. APPLICATION_POLICY.md and SECURITY.md govern runtime safety.
-- AGENTS.md and AGENT_POLICY.md govern engineering. AUTONOMOUS_STATE.md contains the current approval boundary; AUTONOMOUS_OPERATING_PLAN.md describes execution after approval.
-- TASK_LOG.md, archive/jobee-1.0, old UX/evolution documents and older ADRs preserve historical evidence. Historical autonomous continuation and blanket completion labels are superseded for this transition.
-- Root JOBEE_MASTER_CONTEXT.md and AI_JOB_AGENT_MASTER_CONTEXT.md are identical compatibility mirrors of this file. No competing product specification is maintained there.
+The platform already has authenticated multi-user workspaces. Preserving those security boundaries is required; broad SaaS administration, billing and organization management are outside the initial product objective.
 
-The source documents are preserved in specifications/jobee-2.0. Their conceptual entities do not mandate new tables. The three-section navigation is implemented locally under JOB-P1-T01; verified candidate-context gaps were closed under JOB-P1-T02. JOB-P2-T01 and JOB-P2-T02 deliver persistent Explore, source extraction history and shared grounded matching, verified locally. One-click Apply and Autopilot remain later roadmap deliverables. Existing multi-user infrastructure stays although SaaS administration is outside MVP scope.
+## Principles
 
-## Implementation baseline
+> **AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable.**
 
-Audited checkout: main at f4ac34bdc3f816dce9031420a7e31f6baf9baf85. Existing canonical tasks have historical implementations. The revised One-click Apply MVP and Autopilot have not been demonstrated end to end. Do not treat the old completion claims as Jobee 2.0 acceptance. See JOBEE_2_ASSESSMENT.md for the audit baseline and JOBEE_2_IMPLEMENTATION.md for fresh implementation verification and limitations.
+Candidate facts come from the candidate and verified records. AI may interpret evidence, explain fit, propose profile changes and draft materials; it cannot manufacture background, silently verify extracted content, guess legal eligibility or grant submission permission. Review should resolve material uncertainty with the minimum necessary intervention.
 
----
+A recommendation is distinct from eligibility, preparation, authorization, dispatch and employer confirmation. Every one of these can have a different state. A failed, stopped or ambiguous execution must remain visible, with evidence and a safe next action. Never show a simulated success as an employer application.
 
-# JOBEE 2.0 — PRODUCT_SPEC.md
+Prefer permitted public sources and modular provider adapters. Be honest about feed coverage, provider limitations, cost uncertainty and validation scope. Do not depend on unsupported account automation or evading protective challenges.
 
-**Version:** 2.0\
-**Date:** 2026-10-20\
-**Status:** Approved product direction; Phases 1 and 2 implemented and verified locally; remaining acceptance tracked in ROADMAP.md\
-**Canonical product name:** Jobee
+## Core modules
 
-## 1. Product Vision
+| Module          | Product responsibility                                                                  | Current boundary                                                                         |
+| --------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Candidate Brain | Verified professional context, documents, reusable answers, permissions and preferences | Implemented; imported suggestions still require verification                             |
+| Discovery       | Find/import jobs, normalize sources, deduplicate and preserve freshness                 | Public feeds and manual import exist; configured company boards are not a global catalog |
+| Matching        | Grounded fit, eligibility and useful explanations                                       | Shared backend engine implemented across API/daily/worker paths                          |
+| Preparation     | Tailored CV/letter, question resolution, versioned materials and provenance             | Persistent reviewed preparation exists                                                   |
+| Execution       | Authorized form completion, submission, verification and recovery                       | Controlled worker/adapters exist; full one-click acceptance remains open                 |
+| Applications    | Attempts, employer lifecycle, documents, attention, messages and interviews             | Existing CRM/workspaces preserved; simplification and safe-resume convergence remain     |
+| Integrations    | Authorized email enrichment and calendar assistance                                     | Existing implementations/fixtures retained; new live actions need explicit authorization |
+| Autopilot       | Scheduled eligible applications under an explicit bounded policy                        | Legacy orchestration exists; revised shared-engine contract is unfinished                |
 
-Jobee is an AI-powered job discovery and application agent that searches for suitable employment opportunities based on a candidate's verified professional background, evaluates their relevance, prepares truthful and personalized applications, and submits those applications on the candidate's behalf.
+## Candidate journey
 
-The product must make a technically complex process feel simple.
+### 1. Build trustworthy context
 
-**Core promise:** Find the right jobs. Apply intelligently. Track everything.
+The candidate signs in, uploads a CV or enters information manually, reviews import suggestions, verifies material facts and sets preferences. Professional history, education, projects, skills and documents remain editable. Job exploration must not be blocked by an arbitrary completeness percentage or optional sensitive disclosures.
 
-Jobee is an AI agent first, not a conventional applicant tracking system with AI features added afterward.
+Keep document upload, consent to external processing, acceptance of extracted information and permission for later AI use as separate choices. An upload alone grants none of the other permissions. Work authorization is explicit by country; residence, remote work or no sponsorship does not imply worldwide eligibility. Salary requirements need explicit currency and pay period before meaningful comparison.
 
-## 2. Primary Operating Modes
+### 2. Explore relevant roles
 
-### One-click Apply
+Explore is the default destination. Candidates search, filter and compare jobs with concise fit explanations, blockers, unknowns and source details. On desktop the detail sits beside the retained result list; on mobile candidates can return to their search context. Manual URLs/text remain supported when a discovery source is missing or inaccessible.
 
-A user selects a job and clicks **Apply with Jobee**.
+AI interprets relevant evidence; deterministic gates enforce material restrictions. A weak professional fit, a confirmed blocker and missing information must have different explanations. Stale analyses cannot preserve automatic eligibility.
 
-That single action starts a background agentic application workflow, including eligibility verification, tailored document preparation, application form completion, submission, result verification and tracking.
+### 3. Prepare and apply
 
-Users must not be required to navigate separate CV studios, application package screens, analysis pages or multistep application wizards.
+Today, candidates can create persistent selected-job preparation, inspect documents/questions, resolve required approvals, and deliberately authorize controlled submissions. Each selected application retains its own materials and permission. Shared question navigation must never imply shared consent.
 
-If an essential piece of information is unknown, consent is required, or a technical challenge prevents safe submission, the application pauses and requests the minimum necessary user intervention.
+The **One-click Apply target** is one prominent “Apply with Jobee” action that durably authorizes an attempt for that job under accepted terms, then automatically prepares and executes routine work in the background. It must not require a separate studio/package wizard when verified information is sufficient. Missing facts, required sensitive/legal consent, unsupported forms and technical challenges pause the attempt with a direct recovery action.
 
-### Autopilot
+Durable job-scoped intent before preparation and the full provider workflow remain roadmap work. The existing signed material authorization must be retained and extended, not bypassed to make a one-button interface appear complete.
 
-The user enables Autopilot and defines job preferences and authorization boundaries.
+### 4. Track truthful outcomes
 
-Jobee periodically discovers matching jobs, analyzes them, selects eligible opportunities, and initiates applications according to the user's approved rules.
+Applications includes automated attempts and manually tracked applications. Execution progress and employer hiring status remain distinct. Confirmed submission freezes the exact submitted material provenance. Messages, interviews, offers, notes and follow-ups appear in context. A manually tracked application need not have generated materials.
 
-Users can pause Autopilot, change their preferences, and review what Jobee has done.
+Dry run/prefill completion is not Applied. A click without confirmation may be uncertain. Do not infer employer review, rejection or interest from elapsed time. Human corrections and reconciliation must retain their audit trail.
 
-Autopilot must not submit applications outside authorized boundaries.
+### 5. Enable bounded Autopilot
 
-Both modes use the same application engine. The trigger differs, not the underlying application quality or safeguards.
+The **Autopilot target** follows a working One-click engine. The candidate explicitly opts into a versioned or snapshotted policy defining roles, locations, work modes, employment types, eligibility, salary constraints, exclusions, volume/schedule and review conditions. The same engine serves both manual and scheduled triggers.
 
-## 3. Primary Interface
+Users must be able to pause, disable and revise that policy. Revocation is checked before dispatch; already dispatched actions require reconciliation. Existing daily discovery/preparation is useful assistance but never grants submission permission. Legacy `autoApplyEnabled` must not silently expand into broader powers.
 
-Jobee has three main navigation sections.
+## Requirements and non-goals
 
-### Explore
+Essential requirements are progressive onboarding; verified source-aware candidate context; useful discovery and shared matching; durable, idempotent preparation/execution; current authorization at dispatch; safe uncertainty/retry handling; tenant isolation; private documents and tokens; auditable events; accessible responsive interfaces in both themes.
 
-The central job-discovery experience.
+The revised MVP requires one provider completing the authorized prepare/fill/submit/verify/record journey, including failure and recovery cases. Fixture coverage proves local behavior. Real employer-confirmed validation is a separate acceptance step requiring a named owner-approved target and action.
 
-Features include:
+Initial non-goals: universal ATS support, dedicated mobile apps, billing/subscriptions, complex SaaS administration, standalone CV or agent-management dashboards, unrestricted recruiter messaging, automatic salary negotiation, unsupported LinkedIn automation, CAPTCHA bypass and invented qualifications. Existing useful tools remain accessible contextually rather than being deleted to meet a navigation count.
 
-- AI-recommended jobs ranked by suitability.
-- Simple search and essential filters.
-- Two-pane job listing and job-detail layout on desktop.
-- Job description, company, location, employment type and salary when available.
-- Concise match explanation, eligibility warnings and missing information.
-- One prominent **Apply with Jobee** action.
-- Save or dismiss actions where useful.
-- Application state displayed for previously attempted jobs.
+## Measuring success
 
-Advanced matching logic should not clutter the interface.
+Measure recommendation relevance, supported attempts with verified outcomes, unnecessary intervention, duplicates, factual accuracy, failure/recovery rates, user effort and conversion from discovery to verified submission. Hiring outcomes, saved time, model costs and student usability need actual observations. Deployment or fixture counts alone cannot establish those outcomes.
 
-### Applications
-
-The central record of application activity.
-
-Features include:
-
-- All applications, including manually submitted applications.
-- Application progress and employer responses.
-- Agent execution status and errors.
-- Applications waiting for user input.
-- Recruiter messages connected to an application.
-- Interview invitations and upcoming interviews.
-- Clear distinction between submission progress and employment pipeline progress.
-- Essential metrics and search.
-
-A separate Inbox page is not required for the MVP. Relevant communications appear within their application context.
-
-### Profile
-
-The authoritative candidate information and preferences area.
-
-Features include:
-
-- Personal and contact information.
-- Education, employment, projects, skills and qualifications.
-- CV and supporting document management.
-- AI-assisted CV parsing with user verification.
-- Job title, location, work arrangement, seniority and salary preferences.
-- Country-specific work authorization information.
-- Reusable verified application answers.
-- Connected accounts and services.
-- Autopilot settings and permissions.
-
-Sensitive self-identification information must be optional and user-controlled.
-
-## 4. Fundamental User Journeys
-
-### First-time onboarding
-
-1. User creates or accesses an account.
-2. User uploads a CV or provides professional information.
-3. AI extracts candidate facts.
-4. User verifies material information.
-5. User sets job-search preferences.
-6. Jobee begins discovering opportunities.
-
-Onboarding should be progressive. Optional profile fields should not prevent basic job exploration.
-
-### One-click application
-
-1. User opens a suitable job.
-2. User clicks Apply with Jobee.
-3. A background application attempt begins.
-4. AI evaluates the vacancy and prepares truthful materials.
-5. Agent fills the supported employer application.
-6. Authorized application is submitted.
-7. Submission result is verified.
-8. Application appears in Applications.
-
-If intervention becomes necessary, Jobee pauses with a clear reason and a direct action to resolve it.
-
-### Autopilot
-
-1. User defines eligibility, preferences and application limits.
-2. User explicitly enables automatic applications.
-3. Jobee discovers new jobs from supported sources.
-4. AI analyzes suitability and identifies relevant opportunities.
-5. Policy rules determine whether submission is authorized.
-6. Eligible jobs enter the application workflow.
-7. Jobee submits, verifies and records outcomes.
-8. User receives useful notifications and summaries.
-
-## 5. AI Responsibilities
-
-AI should be responsible for understanding candidate experience, interpreting jobs, identifying relevant qualifications, assessing professional fit, creating truthful tailored content, interpreting unfamiliar application questions, selecting appropriate tools and deciding the next workflow step.
-
-AI recommendations must be grounded in verified candidate data.
-
-Deterministic systems remain responsible for explicit authorization boundaries, hard exclusions, duplicate prevention, rate limits, lifecycle transitions, retries and auditable actions.
-
-The goal is not merely to submit as many applications as possible. Jobee should prioritize suitable vacancies and high-quality, credible applications.
-
-## 6. UX Requirements
-
-- One primary application button per job.
-- No mandatory intermediate application-preparation screens.
-- Clear background activity indicators.
-- Minimal navigation and settings.
-- Meaningful information rather than unnecessary dashboards.
-- Clear errors and user-action requests.
-- Responsive layouts and accessible controls.
-- No simulated success messages.
-- No unnecessary exposure of internal agent architecture.
-
-## 7. MVP Definition
-
-The MVP is successful when a user can:
-
-1. Create a verified candidate profile.
-2. Configure job preferences.
-3. Discover or import jobs.
-4. Receive useful AI matching explanations.
-5. Select a supported job.
-6. Click Apply with Jobee once.
-7. Allow the agent to prepare and submit an authorized application.
-8. Receive accurate submission verification or a clearly explained failure/pause.
-9. Track that application in a simple interface.
-
-Real submission through at least one supported application provider is mandatory for this revised MVP.
-
-Autopilot follows the working one-click execution foundation.
-
-## 8. Non-goals for the Initial MVP
-
-- Multi-tenant SaaS administration.
-- Payments and subscriptions.
-- Dedicated mobile applications.
-- Complex analytics dashboards.
-- A standalone CV studio.
-- A standalone AI agent management dashboard.
-- Universal application support across all job websites.
-- Unsupported LinkedIn account automation.
-- CAPTCHA or anti-bot bypass.
-- Automatic fabrication of candidate qualifications.
-- Unrestricted autonomous recruiter messaging.
-- Automatic salary negotiations.
-
-## 9. Product Success Criteria
-
-Evaluate the product using:
-
-- Quality and relevance of recommended jobs.
-- Percentage of supported one-click application attempts successfully verified.
-- Frequency of unnecessary user intervention.
-- Duplicate application rate.
-- Accuracy of submitted candidate information.
-- Agent execution failure and recovery rates.
-- Time spent by users per application.
-- Successful conversion from discovery to verified submission.
-
-Application volume alone is not a sufficient quality measure.
+Use [architecture](ARCHITECTURE.md) for implementation boundaries, [policies](POLICIES.md) for safety, and [UX](UX.md) for current interaction behavior. Engineering procedure belongs only in [AGENTS.md](../AGENTS.md).
