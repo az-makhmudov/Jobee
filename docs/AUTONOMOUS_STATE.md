@@ -31,7 +31,7 @@ The known development target localhost/ai_job_agent_dev is migrated through 0024
 
 - Audit baseline: main at f4ac34bdc3f816dce9031420a7e31f6baf9baf85. Historical release f6d6286c9f12a561609ce1950bd33d26c4f603d0 was not re-certified in production.
 - JOB-P1-T01: 098f816. JOB-P1-T02: c2a388b5d20f9209c16baff7b8524ad828ba7613.
-- JOB-P2-T01: 616b990. The verified JOB-P2-T02 source checkpoint is recorded after its local commit. Documentation-only checkpoint records do not change runtime verification. No push, merge or deployment.
+- JOB-P2-T01: 616b990. JOB-P2-T02: `6b5b07b236e3e4c9056616d65d34115dc02eb719`. Documentation-only checkpoint records do not change runtime verification. No push, merge or deployment.
 - Current delivery report: JOBEE_2_IMPLEMENTATION.md. Status/dependencies: ROADMAP.md. Audit: TASK_LOG.md and JOBEE_2_ASSESSMENT.md. Owner references and historical evidence remain in specifications/jobee-2.0 and archive/jobee-1.0.
 
 ## Remaining product gaps
