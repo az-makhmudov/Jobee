@@ -24,6 +24,8 @@ import { JobSearchSettingsService } from './job-search-settings-service.js';
 import { LocalStorageProvider } from '../storage/local-storage.js';
 import { BrowserRunMode, DEFAULT_SEARCH_SETTINGS } from '@job-agent/shared';
 import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 const db = getDb(process.env.DATABASE_URL);
 let userId: string, otherId: string;
 let ids: string[];
@@ -33,7 +35,7 @@ let directory: string;
 beforeEach(async () => {
   if (!evaluateTestDatabaseSafety(process.env.DATABASE_URL).safe)
     throw new Error('Isolated test database required');
-  directory = await fs.mkdtemp('/private/tmp/jobee-batch-');
+  directory = await fs.mkdtemp(path.join(os.tmpdir(), 'jobee-batch-'));
   const [user, other] = await db
     .insert(users)
     .values([
@@ -72,7 +74,7 @@ beforeEach(async () => {
 afterEach(async () => {
   await db.delete(users).where(eq(users.id, userId));
   await db.delete(users).where(eq(users.id, otherId));
-  await fs.rm(directory, { recursive: true, force: true });
+  if (directory) await fs.rm(directory, { recursive: true, force: true });
 });
 describe('Durable selected preparation', () => {
   it('returns one persistent batch on duplicate clicks, isolates other tenants, and survives service replacement', async () => {
