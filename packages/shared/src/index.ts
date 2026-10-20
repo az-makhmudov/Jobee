@@ -16,3 +16,4 @@ export * from './types/auth.js';
 export * from './types/candidate-import.js';
 export * from './utils/html-sanitizer.js';
 export * from './types/job-search.js';
+export * from './types/application-intent.js';

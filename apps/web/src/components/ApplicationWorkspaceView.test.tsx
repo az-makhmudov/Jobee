@@ -11,6 +11,9 @@ import {
 vi.mock('../api/application-crm-client.js', () => ({
   ApplicationCrmClient: { getApplicationDetail: vi.fn(), getApplicationForJob: vi.fn() },
 }));
+vi.mock('../api/job-search-client.js', () => ({
+  jobSearchApi: { intentForJob: vi.fn().mockResolvedValue(null) },
+}));
 vi.mock('../api/application-package-client.js', () => ({
   applicationPackageClient: { getPackage: vi.fn(), listPackages: vi.fn() },
 }));

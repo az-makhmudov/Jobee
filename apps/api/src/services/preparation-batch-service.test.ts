@@ -95,20 +95,20 @@ describe('Durable selected preparation', () => {
     const batch = await service.create(userId, ids.slice(0, 3));
     const generate = vi.spyOn(packageService, 'createPackage');
     generate.mockRejectedValueOnce(new Error('Fixture generation failure'));
-    await service.processOne();
-    await service.processOne();
-    await service.processOne();
+    await service.processOne(userId);
+    await service.processOne(userId);
+    await service.processOne(userId);
     const result = await service.get(userId, batch.id);
     expect(result.items.filter((i) => i.status === 'FAILED')).toHaveLength(1);
     expect(result.items.filter((i) => i.packageId)).toHaveLength(2);
     const retry = await service.retry(userId, batch.id);
     expect(retry.items).toHaveLength(1);
-    await service.processOne();
+    await service.processOne(userId);
     expect((await service.get(userId, retry.id)).items[0]?.packageId).toBeTruthy();
   });
   it('reuses unchanged completed inputs and refuses stale queued inputs', async () => {
     const first = await service.create(userId, [ids[0]!]);
-    await service.processOne();
+    await service.processOne(userId);
     const completed = await service.get(userId, first.id);
     const packageId = completed.items[0]?.packageId;
     expect(packageId).toBeTruthy();
@@ -119,7 +119,7 @@ describe('Durable selected preparation', () => {
       .update(candidateProfiles)
       .set({ headline: 'Operations Coordinator' })
       .where(eq(candidateProfiles.userId, userId));
-    await service.processOne();
+    await service.processOne(userId);
     expect((await service.get(userId, next.id)).items[0]?.status).toBe('FAILED');
   });
   it('enforces daily preparation budgets before enqueueing', async () => {

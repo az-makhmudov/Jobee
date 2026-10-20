@@ -29,7 +29,7 @@ Use Node.js 24/npm, PostgreSQL (CI uses version 16), and Chromium installed thro
 - **Storage:** `STORAGE_BACKEND`, `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`
 - **Worker:** `WORKER_POLL_INTERVAL_MS` default 5000; `ORCHESTRATOR_ENABLED` default true; orchestrator poll default 15000
 - **Schedules:** discovery/email/reminder interval settings; candidate daily-search settings are independently persisted
-- **Rollout:** `BATCH_PREPARATION_ENABLED`, `SELECTED_SUBMISSIONS_ENABLED` default true
+- **Rollout:** `BATCH_PREPARATION_ENABLED`, `SELECTED_SUBMISSIONS_ENABLED` default true; both gate new one-click preparation, and the worker rechecks selected-submission availability for INTENT runs before dispatch. Job-scoped intent expires after one hour; signed material proofs retain their 15-minute validity.
 - **Logging:** `LOG_LEVEL`; do not use verbose logs to dump candidate content or tokens
 
 Configuration normalization matters:

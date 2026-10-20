@@ -29,8 +29,8 @@ Prefer permitted public sources and modular provider adapters. Be honest about f
 | Candidate Brain | Verified professional context, documents, reusable answers, permissions and preferences | Implemented; imported suggestions still require verification                             |
 | Discovery       | Find/import jobs, normalize sources, deduplicate and preserve freshness                 | Public feeds and manual import exist; configured company boards are not a global catalog |
 | Matching        | Grounded fit, eligibility and useful explanations                                       | Shared backend engine implemented across API/daily/worker paths                          |
-| Preparation     | Tailored CV/letter, question resolution, versioned materials and provenance             | Persistent reviewed preparation exists                                                   |
-| Execution       | Authorized form completion, submission, verification and recovery                       | Controlled worker/adapters exist; full one-click acceptance remains open                 |
+| Preparation     | Tailored CV/letter, question resolution, versioned materials and provenance             | Durable intent drives automatic preparation; reviewed flows remain available             |
+| Execution       | Authorized form completion, submission, verification and recovery                       | One-click fixtures pass; employer-confirmed live acceptance remains open                 |
 | Applications    | Attempts, employer lifecycle, documents, attention, messages and interviews             | Existing CRM/workspaces preserved; simplification and safe-resume convergence remain     |
 | Integrations    | Authorized email enrichment and calendar assistance                                     | Existing implementations/fixtures retained; new live actions need explicit authorization |
 | Autopilot       | Scheduled eligible applications under an explicit bounded policy                        | Legacy orchestration exists; revised shared-engine contract is unfinished                |
@@ -51,11 +51,11 @@ AI interprets relevant evidence; deterministic gates enforce material restrictio
 
 ### 3. Prepare and apply
 
-Today, candidates can create persistent selected-job preparation, inspect documents/questions, resolve required approvals, and deliberately authorize controlled submissions. Each selected application retains its own materials and permission. Shared question navigation must never imply shared consent.
+Candidates can choose **Apply with Jobee** to authorize one job-scoped background workflow for up to one hour. The application and permission persist before preparation. Routine materials and verified answers to actual employer-form questions are prepared automatically; missing facts and sensitive questions pause in application context. Reviewed preparation/submission flows remain available. Each application retains its own materials and permission; shared question navigation never implies shared consent.
 
 The **One-click Apply target** is one prominent “Apply with Jobee” action that durably authorizes an attempt for that job under accepted terms, then automatically prepares and executes routine work in the background. It must not require a separate studio/package wizard when verified information is sufficient. Missing facts, required sensitive/legal consent, unsupported forms and technical challenges pause the attempt with a direct recovery action.
 
-Durable job-scoped intent before preparation and the full provider workflow remain roadmap work. The existing signed material authorization must be retained and extended, not bypassed to make a one-button interface appear complete.
+The local implementation binds signed material authorization to durable intent and rechecks it before dispatch. Deterministic fixture success does not establish live provider coverage or employer-confirmed acceptance; that remaining boundary is recorded in the roadmap.
 
 ### 4. Track truthful outcomes
 

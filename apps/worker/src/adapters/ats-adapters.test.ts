@@ -29,11 +29,13 @@ describe('ATS Adapters & Form Extraction (JOB-P5-T01)', () => {
     coverLetterText: 'I am excited to apply for this engineering role.',
     answers: {
       work_authorization: {
+        approvedQuestionText: 'Are you legally authorized to work in this jurisdiction?',
         answerText: 'Yes',
         isSensitive: false,
         verificationStatus: 'VERIFIED',
       },
       sponsorship: {
+        approvedQuestionText: 'Will you now or in the future require visa sponsorship?',
         answerText: 'No',
         isSensitive: false,
         verificationStatus: 'VERIFIED',

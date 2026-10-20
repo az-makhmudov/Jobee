@@ -9,6 +9,7 @@ import {
   BrowserRunStatus,
   AtsFormFieldType,
   type AtsFormField,
+  type AtsFormSchema,
   type BrowserRunStepLog,
   type ApplicationSubmissionPayload,
   type BrowserApplicationRunDto,
@@ -31,6 +32,7 @@ export interface ExecuteBrowserRunParams {
   payload: ApplicationSubmissionPayload;
   skipDb?: boolean;
   beforeSubmit?: () => Promise<void>;
+  onFormExtracted?: (schema: AtsFormSchema) => Promise<void>;
 }
 
 /**
@@ -188,11 +190,38 @@ export class BrowserApplicationEngine {
       }
 
       // 5. Form Schema Extraction
+      if (
+        await page
+          .locator('input[type="password"], input[autocomplete="one-time-code"], input[name="otp"]')
+          .count()
+      ) {
+        throw new Error(
+          'The employer requires sign-in or identity verification. Continue on the employer website.',
+        );
+      }
       logStep('FORM_EXTRACTION', 'Extracting form schema and interactive fields...');
       const schema = await adapter.extractForm(page);
+      // Hosted forms can change. A required control omitted by an adapter cannot
+      // silently disappear from validation or be treated as a supported form.
+      const requiredControls = await page.$$(
+        'input[required], select[required], textarea[required], input[aria-required="true"], select[aria-required="true"], textarea[aria-required="true"]',
+      );
+      for (const control of requiredControls) {
+        if (!(await control.isVisible()) || (await control.getAttribute('type')) === 'hidden')
+          continue;
+        const id = await control.getAttribute('id'),
+          name = await control.getAttribute('name');
+        if (
+          !schema.fields.some((field) => (id && field.id === id) || (name && field.name === name))
+        )
+          throw new Error(
+            'The employer form has a required field this provider adapter does not support. Continue on the employer website.',
+          );
+      }
       fieldsDetectedCount = schema.fields.length;
       if (!fieldsDetectedCount)
         throw new Error('No supported application form was found. The listing may have closed.');
+      await params.onFormExtracted?.(schema);
       logStep(
         'FORM_EXTRACTION',
         `Discovered ${fieldsDetectedCount} fields across form`,
@@ -386,6 +415,7 @@ export class BrowserApplicationEngine {
           .first();
 
         if ((await submitButton.count()) > 0) {
+          await capture('before-submit');
           await params.beforeSubmit?.();
           logStep(
             'SUBMISSION_DISPATCHING',
@@ -407,7 +437,6 @@ export class BrowserApplicationEngine {
           }
 
           try {
-            await capture('before-submit');
             submissionDispatched = true;
             await submitButton.click();
             submissionObservation = await adapter.observeSubmission(page, originalHtml);

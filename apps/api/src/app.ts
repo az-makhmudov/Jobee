@@ -1,5 +1,7 @@
 import { pruneBrowserEvidence } from './services/browser-evidence-retention.js';
 import { PreparationBatchService } from './services/preparation-batch-service.js';
+import { ApplicationIntentService } from './services/application-intent-service.js';
+import { createApplicationIntentRoutes } from './routes/application-intent-routes.js';
 import { JobSearchSettingsService } from './services/job-search-settings-service.js';
 import { DailySearchService } from './services/daily-search-service.js';
 import { createPreparationBatchRoutes } from './routes/preparation-batch-routes.js';
@@ -258,14 +260,26 @@ export function buildApp(options: AppOptions): FastifyInstance {
     app.register(createApplicationPackageRoutes(packageService, candidateService));
   }
 
-  if (db && packageService && config.BATCH_PREPARATION_ENABLED) {
+  if (db && packageService) {
     const batches = new PreparationBatchService(db, packageService);
+    const intents = matchService
+      ? new ApplicationIntentService(db, batches, packageService, matchService)
+      : null;
+    if (intents)
+      app.register(
+        createApplicationIntentRoutes(
+          intents,
+          config.SELECTED_SUBMISSIONS_ENABLED && config.BATCH_PREPARATION_ENABLED,
+        ),
+        { prefix: '/api' },
+      );
     const searchSettings = new JobSearchSettingsService(db);
-    app.register(
-      createPreparationBatchRoutes(batches, searchSettings, config.SELECTED_SUBMISSIONS_ENABLED),
-      { prefix: '/api' },
-    );
-    if (config.NODE_ENV !== 'test') {
+    if (config.BATCH_PREPARATION_ENABLED)
+      app.register(
+        createPreparationBatchRoutes(batches, searchSettings, config.SELECTED_SUBMISSIONS_ENABLED),
+        { prefix: '/api' },
+      );
+    if (config.NODE_ENV !== 'test' && config.BATCH_PREPARATION_ENABLED) {
       let active: Promise<void> | undefined;
       let timer: ReturnType<typeof setInterval> | undefined;
       let lastDaily = 0;
@@ -274,6 +288,8 @@ export function buildApp(options: AppOptions): FastifyInstance {
           if (active) return;
           active = (async () => {
             await batches.processOne();
+            if (config.SELECTED_SUBMISSIONS_ENABLED && config.BATCH_PREPARATION_ENABLED)
+              await intents?.processPending();
             if (discoveryService && matchService && Date.now() - lastDaily > 60_000) {
               lastDaily = Date.now();
               await pruneBrowserEvidence(db, options.storage ?? createStorageProvider(config));

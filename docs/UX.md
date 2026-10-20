@@ -55,7 +55,7 @@ The [application workspace](../apps/web/src/components/ApplicationWorkspaceView.
 
 Repeated questions may be grouped for navigation. Each application still owns its answer and consent. One approval must not silently approve another job, another question or another material version. The final review enumerates eligible applications, current document versions, approval counts and document access. Only a deliberate final action requests the separate signed permissions used by the present reviewed-submission flow.
 
-A prominent apply/preparation action is not evidence that the revised one-click background pipeline is complete. Until its acceptance passes, keep current review safeguards and describe preparation honestly. The target is automatic routine preparation with minimal intervention; implementation details and roadmap state belong in [architecture](ARCHITECTURE.md) and [roadmap](ROADMAP.md).
+**Apply with Jobee** now explains its job-specific, one-hour permission before the action. The user stays in Explore while background status progresses; reload restores the attempt. The same status and recovery controls appear in the application workspace. Missing information opens actual employer questions in the existing workspace; authorizing resume is a separate deliberate action after resolving them. Unsupported/challenged forms offer an employer-site handoff, and uncertain outcomes cannot offer direct retry. Cancellation before dispatch is distinct from an action already in flight. Local fixtures validate this flow; live provider acceptance remains in [roadmap](ROADMAP.md).
 
 ## Applications and employer activity
 

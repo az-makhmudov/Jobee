@@ -402,7 +402,7 @@ export class PreparationBatchService {
     }
     return [...groups.values()];
   }
-  async processOne(): Promise<boolean> {
+  async processOne(userId?: string): Promise<boolean> {
     // A lost preparation is recoverable, but requires a deliberate retry rather than competing generation processes.
     await this.db
       .update(preparationItems)
@@ -414,6 +414,7 @@ export class PreparationBatchService {
       .where(
         and(
           eq(preparationItems.status, 'PREPARING'),
+          userId ? eq(preparationItems.userId, userId) : undefined,
           lt(preparationItems.updatedAt, new Date(Date.now() - 15 * 60_000)),
         ),
       );
@@ -421,7 +422,12 @@ export class PreparationBatchService {
       const rows = await tx
         .select()
         .from(preparationItems)
-        .where(eq(preparationItems.status, 'QUEUED'))
+        .where(
+          and(
+            eq(preparationItems.status, 'QUEUED'),
+            userId ? eq(preparationItems.userId, userId) : undefined,
+          ),
+        )
         .orderBy(asc(preparationItems.createdAt))
         .limit(1)
         .for('update', { skipLocked: true });

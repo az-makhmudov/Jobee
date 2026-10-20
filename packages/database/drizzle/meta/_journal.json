@@ -176,6 +176,13 @@
       "when": 1792483180852,
       "tag": "0024_salary_pay_period",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1792501378106,
+      "tag": "0025_application_intents",
+      "breakpoints": true
     }
   ]
 }

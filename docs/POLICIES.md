@@ -63,15 +63,19 @@ Source references: [policy schema](../packages/database/src/schema/application-p
 
 ### Current reviewed submissions
 
-Current selected batches prepare materials, expose review and issue an independent short-lived signed authorization for each enumerated ready application. Browser submission requires the signed TOKEN or existing enabled POLICY path. Raw `userConfirmed=true` is insufficient. Unsupported destinations use a manual employer-site handoff.
+Current selected batches prepare materials, expose review and issue an independent short-lived signed authorization for each enumerated ready application. Browser submission requires a signed reviewed TOKEN, intent-bound signed proof or the existing enabled POLICY path. Raw `userConfirmed=true` is insufficient. Unsupported destinations use a manual employer-site handoff.
 
 Preparation, preview, downloading, matching, saved-answer approval, daily discovery and authorizing another application do not grant submission permission for this application. Per-question approval resolves that question; it does not remove unrelated blockers. The signed final material manifest does not authorize arbitrary future document versions.
 
-### One-click Apply target
+### One-click Apply
+
+Current local behavior persists an owned application and intent before generation. Visible terms `jobee-apply-v1` authorize one job/destination for at most one hour; a repeated click cannot renew the permission or duplicate an attempt. Resume is a new deliberate grant using current inputs, and never bypasses required per-question consent. Material preparation uses the existing immutable artifacts and signed manifest service. The worker validates the intent and signed proof at claim and immediately before dispatch; only unchanged verified routine answer sources may expand the form manifest automatically. Unused answer-library edits do not invalidate another application.
+
+Cancellation and final dispatch reservation share an owner lock. Before reservation, revocation blocks submission even if filling has begun. Status and cancellation remain available when rollout switches pause new preparation/submissions. After reservation, the interface reports that dispatch cannot be recalled; interruption remains uncertain until provider observation or explicit reconciliation. Failed generation is not silently retried. Fixture provider confirmation establishes local behavior only.
 
 A deliberate Apply with Jobee action authorizes an attempt for the selected job under accepted terms and rules. Persist that intent before asynchronous preparation. After routine verified materials exist, bind the current execution manifest to the valid intent and recheck scope immediately before submission.
 
-Do not require a mandatory package-review screen merely to represent consent when verified facts and accepted rules suffice. Equally, do not achieve a one-button UI by bypassing readiness, answer verification or cryptographic authorization. Durable intent-before-generation remains unfinished; old permissions must not silently expand when it arrives.
+Do not require a mandatory package-review screen merely to represent consent when verified facts and accepted rules suffice. Equally, do not achieve a one-button UI by bypassing readiness, answer verification or cryptographic authorization. Existing reviewed and policy permissions must not silently expand into job-scoped one-click authority.
 
 ### Autopilot target
 

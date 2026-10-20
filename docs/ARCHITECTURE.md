@@ -1,6 +1,6 @@
 # Jobee — architecture
 
-Verified against local source on 2026-10-20 at `cb15f9ea1e171428564f8e7e88d95a19e80edd3d`. This describes the current implementation. Incomplete behavior is explicitly identified; conceptual product requirements do not imply new tables or services.
+Updated against local source on 2026-10-20 for JOB-P3-T01/JOB-P5-T01 over checkpoint `76789fee39ebacc4a61b15ee9c6bcc19147bd45c`. This describes the current implementation. Incomplete behavior is explicitly identified; conceptual product requirements do not imply new tables or services.
 
 ## Processes and dependencies
 
@@ -51,6 +51,7 @@ Public health/auth/static/settings surfaces are intentionally different from pri
 - **Matching:** analyses bind a candidate/job input fingerprint; dimensions and requirement evaluations reference analysis and grounded requirement/evidence context
 - **Preparation:** batches own items; each item links a job/application/package; versions own artifacts, questions and approvals; package events retain changes
 - **CRM:** one application per `(user_id, job_id)`; lifecycle events, notes, contacts, interviews, assessments and offers enrich that record
+- **Intent:** `application_intents` stores job-scoped permission before generation, selected CV, input/source fingerprints, accepted terms, expiry/revocation, batch/run references, material binding and safe audit events; it reuses existing preparation/execution queues
 - **Browser:** browser runs link owner/application/package version, mode, manifest, logs, observations and evidence references
 - **Email:** accounts own messages and sync runs; thread links/review items associate communications with applications; OAuth state is persisted separately
 - **Calendar:** accounts link interview events, calendar references and preparation briefs
@@ -70,7 +71,7 @@ These are logical relationships; consult schema for actual foreign keys and casc
 
 ### Migrations
 
-The journal has **25 entries, `0000`–`0024`**. Each journal tag has a matching SQL file. Important boundaries:
+The journal has **26 entries, `0000`–`0025`**. Each journal tag has a matching SQL file. Important boundaries:
 
 - `0000`–`0002`: Candidate foundation and metadata-only audit
 - `0003`–`0005`: Job ingestion/requirements and matching
@@ -82,6 +83,7 @@ The journal has **25 entries, `0000`–`0024`**. Each journal tag has a matching
 - `0022`: Search traversal/leases, persistent preparation and submission/evidence evolution
 - `0023`: Current extraction flags preserving historical requirement/section rows
 - `0024`: Nullable salary pay period with allowed-value constraint
+- `0025`: Job-scoped application permission, preparation/run references and audit history
 
 Journal presence is not proof a database is migrated. [Status](STATUS.md) records the inspected local target; [operations](OPERATIONS.md) explains comparison with applied migration records. Existing salary values remain unit-unknown until confirmed; no migration invents a yearly period. Production startup runs migrations; deployment is therefore a database-affecting action.
 
@@ -119,15 +121,19 @@ Material preparation currently uses deterministic grounded tailoring/letter engi
 
 Cache inputs include tenant, verified facts/permissions, documents, preferences, vacancy content, base CV and generation version. Unchanged completed inputs can reuse materials. Changed queued inputs stop for review; changes during generation mark results stale. An expired generation lease becomes a visible failed item; deliberate retry can repair incomplete materials without deleting prior history.
 
-Current flow: select jobs -> persistent preparation -> resolve questions/documents -> enumerate eligible items in review -> issue separate short-lived authorization per application -> queue selected submissions. Grouping repeated questions is navigation only. The complete durable intent-before-generation entry point is still missing; this is not yet the full One-click contract.
+The reviewed flow remains: select jobs -> persistent preparation -> resolve questions/documents -> review -> issue separate short-lived authorization per application -> queue selected submissions. Grouping repeated questions is navigation only.
+
+The one-click flow uses [ApplicationIntentService](../apps/api/src/services/application-intent-service.ts): authenticated job action -> owned application/permission persisted transactionally -> current matching/eligibility -> existing preparation batch -> signed manifest bound to intent -> existing browser queue. Terms `jobee-apply-v1` authorize one job for up to one hour. Repeated clicks return the same intent without extending permission. Only deliberate resume renews it; cancellation and dispatch serialize on the same owner lock. Failed generation requires deliberate retry. Professional score thresholds do not become hard eligibility blockers for a manually selected job.
+
+The worker inspects actual provider questions rather than synthesizing mandatory legal questions for one-click packages. The shared backend question engine resolves exact verified routine answers from the authorization-time source snapshot, persists unknown/sensitive questions and their approvals, and binds an updated signed manifest only when documents/version/inputs remain unchanged. Only used answer sources are rechecked; unrelated edits do not invalidate the intent. Existing reviewed packages retain their questions/consent. Browser runs and preparation items remain authoritative execution records; the new table stores permission, not a second engine.
 
 ## Submission boundary and worker execution
 
 Shared [SubmissionAuthorizationService](../packages/database/src/submission/submission-authorization-service.ts) builds a manifest from owned application/package readiness, immutable version, artifact checksums, question answers/approvals, used answer-library sources and material-input fingerprint. A signed ticket expires after 15 minutes and is bound to a user/application and those materials.
 
-Shared [BrowserWorkerService](../packages/database/src/submission/browser-worker-service.ts) defaults runs to DRY_RUN. SUBMIT requires a valid token or the existing opt-in POLICY path. It rejects unsupported providers, unavailable listings, changed destinations and already submitted/unready applications. In a transaction it locks user/application rows, checks prior SUBMIT attempts and counts today's UTC SUBMIT queue entries against `min(20, configured daily limit or 5)`.
+Shared [BrowserWorkerService](../packages/database/src/submission/browser-worker-service.ts) defaults runs to DRY_RUN. SUBMIT requires a valid reviewed token, an intent-bound signed proof or the existing opt-in POLICY path. It rejects unsupported providers, unavailable listings, changed destinations and already submitted/unready applications. In a transaction it locks user/application rows, checks prior SUBMIT attempts and counts today's UTC SUBMIT queue entries against `min(20, configured daily limit or 5)`.
 
-The worker claims persisted runs, heartbeats and validates the manifest at claim and immediately before dispatch. POLICY runs recheck the current opt-in. It loads actual checksum-verified artifact bytes and maps only allowed answers. Hosted Greenhouse, Lever and Ashby adapters inspect runtime forms; generic forms do not get automatic submission coverage. Custom fields, unsupported layouts, login, CAPTCHA and identity challenges can stop for intervention.
+The worker claims persisted runs, heartbeats and validates the manifest at claim and immediately before dispatch. POLICY runs recheck the current opt-in. INTENT runs recheck feature availability, signed proof, owner/job/destination, expiry, revocation, used answer sources and material fingerprints. The final transaction reserves dispatch; cancellation after reservation reports that the action cannot be recalled. It loads actual checksum-verified artifact bytes and maps only allowed answers. Hosted Greenhouse, Lever and Ashby adapters inspect runtime forms; generic forms do not get automatic submission coverage. Unmapped required controls, unsupported layouts, password/one-time-code forms, CAPTCHA and identity challenges stop for intervention.
 
 The browser engine records dispatch before clicking and observes new provider confirmation, validation rejection or ambiguity. An internal run ID is never represented as an employer reference. A timeout/disconnection after dispatch becomes SUBMISSION_UNCERTAIN; orphaned SUBMIT runs recover conservatively into uncertainty. Reconciliation is explicit and tenant-scoped. Evidence screenshots are private, bounded by ownership/expiry and stored through the common provider.
 

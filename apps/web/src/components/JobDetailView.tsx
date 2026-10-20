@@ -2,7 +2,7 @@ import { useFeedback } from '../ui/Feedback.js';
 import { Tabs, Button, Card, Icon, Input, ModalSurface, Select } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import { jobApi } from '../api/job-client.js';
-import { applicationPackageClient } from '../api/application-package-client.js';
+import { ApplyWithJobee } from './ApplyWithJobee.js';
 import { ApplicationCrmClient } from '../api/application-crm-client.js';
 import { CareerFitBadge } from './CareerFitBadge.js';
 import { JobFeedbackBar } from './JobFeedbackBar.js';
@@ -53,26 +53,6 @@ export function JobDetailView({
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [archiveReason, setArchiveReason] = useState('');
   const [archiving, setArchiving] = useState(false);
-
-  // Application preparation state
-  const [preparingApp, setPreparingApp] = useState(false);
-  const [prepareError, setPrepareError] = useState<string | null>(null);
-
-  const handlePrepareApplication = async () => {
-    if (!job || preparingApp) return;
-    setPreparingApp(true);
-    setPrepareError(null);
-    try {
-      const res = await applicationPackageClient.createPackage(job.id);
-      onPrepareApplication?.(res.package.id);
-    } catch (err) {
-      setPrepareError(
-        err instanceof Error ? err.message : 'Failed to prepare Application Studio package.',
-      );
-    } finally {
-      setPreparingApp(false);
-    }
-  };
 
   const loadJob = async () => {
     setLoading(true);
@@ -245,24 +225,7 @@ export function JobDetailView({
               </Button>
             )
           )}
-          {job.state !== 'ARCHIVED' && onPrepareApplication && (
-            <Button
-              className="btn btn-primary btn-sm"
-              onClick={handlePrepareApplication}
-              disabled={preparingApp}
-              title="Prepare or open Application Studio package with tailored CV & Cover Letter"
-            >
-              {preparingApp ? (
-                <>
-                  <Icon name="schedule" size={20} /> Generating Tailored Documents...
-                </>
-              ) : (
-                <>
-                  <Icon name="play" size={20} /> Prepare application
-                </>
-              )}
-            </Button>
-          )}
+
           <Button
             className="btn btn-secondary btn-sm"
             onClick={() => setIsEditing(true)}
@@ -278,54 +241,18 @@ export function JobDetailView({
         </div>
       </div>
 
-      {/* Prepare Application Error Banner */}
-      {prepareError && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '1.5rem',
-            padding: '1rem 1.25rem',
-            borderRadius: '0.5rem',
-            backgroundColor: 'var(--status-danger-container)',
-            border: '1px solid var(--status-danger-border)',
-            color: 'var(--status-danger)',
-            gap: '1rem',
-          }}
-          className="layout-group"
-        >
-          <div
-            style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
-            className="layout-group"
-          >
-            <span style={{ fontSize: '1.25rem' }}>
-              <Icon name="warning" />
-            </span>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                Application Package Preparation Error
-              </div>
-              <div
-                style={{ fontSize: '0.85rem', color: 'var(--status-danger)', marginTop: '0.15rem' }}
-              >
-                {prepareError}
-              </div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }} className="layout-group">
-            <Button
-              className="btn btn-primary btn-sm"
-              onClick={handlePrepareApplication}
-              disabled={preparingApp}
-            >
-              <Icon name="sync" /> Retry
-            </Button>
-            <Button className="btn btn-secondary btn-sm" onClick={() => setPrepareError(null)}>
-              <Icon name="close" size={20} /> Dismiss
-            </Button>
-          </div>
-        </div>
+      {job.state !== 'ARCHIVED' && (
+        <ApplyWithJobee
+          key={job.id}
+          jobId={job.id}
+          onOpenPackage={onPrepareApplication}
+          onOpenApplication={onViewApplicationInCrm}
+          employerUrl={job.applicationUrl || job.originalUrl}
+          existingOnly={Boolean(
+            crmApp &&
+            (crmApp.appliedAt || !['READY_TO_APPLY', 'NEEDS_REVIEW'].includes(crmApp.status)),
+          )}
+        />
       )}
 
       {/* Job Header Card */}

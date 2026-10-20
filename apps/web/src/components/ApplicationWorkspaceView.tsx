@@ -10,6 +10,7 @@ import {
 import { Button, Card, Tabs } from '../ui/Primitives.js';
 import { ApplicationStudioView } from './ApplicationStudioView.js';
 import { ApplicationDetailView } from './ApplicationDetailView.js';
+import { ApplyWithJobee } from './ApplyWithJobee.js';
 
 export type ApplicationPanel = 'documents' | 'questions' | 'review' | 'progress';
 interface Props {
@@ -137,6 +138,17 @@ export function ApplicationWorkspaceView({
   };
   return (
     <div className="student-stack application-workspace">
+      {jobId && (
+        <ApplyWithJobee
+          key={jobId}
+          jobId={jobId}
+          existingOnly
+          onOpenPackage={() => {
+            setPanel('questions');
+            setAttempt((value) => value + 1);
+          }}
+        />
+      )}
       <header>
         <Button className="btn-ghost" onClick={onBack}>
           ← Back to my applications

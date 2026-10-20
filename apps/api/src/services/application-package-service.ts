@@ -3,6 +3,7 @@ import type { Database, Job } from '@job-agent/database';
 import {
   computePreparationFingerprint,
   applicationPackages,
+  applicationIntents,
   applicationPackageVersions,
   applicationArtifacts,
   applicationQuestions,
@@ -90,7 +91,7 @@ export class ApplicationPackageService {
       .limit(1);
 
     const hasHardBlocker = matchAnalysis
-      ? (matchAnalysis.hardBlockers as string[]).length > 0 || matchAnalysis.decision === 'SKIP'
+      ? (matchAnalysis.hardBlockers as string[]).length > 0
       : false;
 
     // Check if an active package already exists for this job
@@ -576,8 +577,14 @@ export class ApplicationPackageService {
       }
     }
 
-    // Resolve or Populate Standard Questions for this job
-    await this.populateStandardQuestions(pkg.userId, packageId, versionId, job);
+    // One-click forms supply their actual questions at worker inspection. Retain the
+    // existing reviewed flow, but do not invent legal questions for a routine form.
+    const [intent] = await this.db
+      .select()
+      .from(applicationIntents)
+      .where(and(eq(applicationIntents.userId, pkg.userId), eq(applicationIntents.jobId, job.id)))
+      .limit(1);
+    if (!intent) await this.populateStandardQuestions(pkg.userId, packageId, versionId, job);
 
     // Compute Readiness
     await this.refreshPackageReadiness(packageId, versionId);

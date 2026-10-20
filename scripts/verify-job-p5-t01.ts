@@ -1,4 +1,8 @@
 import crypto from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { LocalStorageProvider } from '@job-agent/shared/storage';
 import {
   getDb,
   closeDbPool,
@@ -45,6 +49,11 @@ async function main() {
   assertSafeTestDatabase(testDbUrl);
   let db = getDb(testDbUrl);
   const tag = `live-p5t01-${Date.now()}`;
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'jobee-p5-fixture-'));
+  const storage = new LocalStorageProvider({ baseDir: directory });
+  const resumeBytes = Buffer.from('Synthetic verification resume. No real candidate data.');
+  const resumeKey = `${crypto.randomUUID()}-fixture-resume.txt`;
+  await storage.putFile(resumeKey, resumeBytes, 'text/plain');
 
   // Isolation Guard: ALWAYS create a dedicated disposable test user
   const testUserId = crypto.randomUUID();
@@ -172,10 +181,10 @@ async function main() {
         userId,
         documentType: 'MASTER_CV',
         displayName: 'Jane Hopper Resume',
-        originalFilename: 'jane-hopper-resume.pdf',
-        mimeType: 'application/pdf',
-        sizeBytes: 10240,
-        storageKey: 'vault/resumes/jane-hopper-resume.pdf',
+        originalFilename: 'jane-hopper-resume.txt',
+        mimeType: 'text/plain',
+        sizeBytes: resumeBytes.length,
+        storageKey: resumeKey,
       })
       .returning();
     createdDocIds.push(doc.id);
@@ -242,7 +251,7 @@ async function main() {
     // SECTION 6: DRY_RUN Mode Execution (Engine + PostgreSQL)
     // -------------------------------------------------------------------------
     console.log('\n--- SECTION 6: DRY_RUN Mode Execution & Prime Directive Audit ---');
-    const engine = new BrowserApplicationEngine(controller, registry, db);
+    const engine = new BrowserApplicationEngine(controller, registry, db, storage);
     const dryRunPayload: ApplicationSubmissionPayload = {
       firstName: 'Jane',
       lastName: 'Hopper',
@@ -253,9 +262,11 @@ async function main() {
       urls: {
         linkedin: 'https://linkedin.com/in/janehopper',
       },
-      resumeFileName: 'jane-hopper-resume.pdf',
+      resumeFileName: 'jane-hopper-resume.txt',
+      resumeBuffer: resumeBytes.toString('base64'),
       answers: {
         work_authorization: {
+          approvedQuestionText: 'Are you legally authorized to work in this jurisdiction?',
           answerText: 'yes',
           isSensitive: false,
           verificationStatus: 'VERIFIED',
@@ -371,8 +382,14 @@ async function main() {
       .returning();
     createdRunIds.push(queuedRun.id);
 
+    // Routine worker fixture has no legal declarations; saved legal facts alone are not consent.
+    controller.registerPage(
+      'greenhouse.io',
+      '<form id="application_form"><input id="first_name" name="first_name" required><input id="last_name" name="last_name" required><input id="email" name="email" required><input id="resume" name="resume" type="file" required><button type="submit">Submit</button></form>',
+    );
     // Execute via executePendingBrowserRun
     const processedRun = await executePendingBrowserRun(db, queuedRun.id, {
+      storage,
       controller,
       useFixture: true,
     });
@@ -507,13 +524,14 @@ async function main() {
       console.log('• Cleaned up isolated test user, session, and test profile');
     }
     await closeDbPool();
+    await rm(directory, { recursive: true, force: true });
     console.log('• Database pool closed successfully.');
   }
 }
 
 main()
   .then(() => {
-    process.exit(0);
+    process.exit(process.exitCode || 0);
   })
   .catch((err) => {
     console.error('Fatal unhandled error in verify-job-p5-t01:', err);

@@ -3,6 +3,7 @@ import type { BrowserPage, BrowserLocator } from '../browser/browser-controller.
 import {
   AtsProviderType,
   AtsFormFieldType,
+  requiresApplicationQuestionConsent,
   type AtsFormField,
   type AtsFormSchema,
   type ChallengeDetectionResult,
@@ -168,6 +169,21 @@ export abstract class BaseAtsAdapter {
   ): string | undefined {
     const labelLower = field.label.toLowerCase();
     const nameLower = field.name.toLowerCase();
+    if (requiresApplicationQuestionConsent(field.label, field.type)) {
+      const normalize = (text: string) =>
+        text
+          .replace(/\s*\*\s*$/, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
+      const approved = Object.values(payload.answers).find(
+        (answer) =>
+          answer.verificationStatus === 'VERIFIED' &&
+          answer.approvedQuestionText &&
+          normalize(answer.approvedQuestionText) === normalize(field.label),
+      );
+      return approved?.answerText;
+    }
 
     // 1. Name fields
     if (

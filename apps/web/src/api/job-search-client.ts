@@ -2,7 +2,9 @@ import type {
   JobSearchSettings,
   PreparationBatchDto,
   SubmissionAuthorizationTicketDto,
+  ApplicationIntentDto,
 } from '@job-agent/shared';
+import { APPLICATION_INTENT_TERMS } from '@job-agent/shared';
 const base = import.meta.env.VITE_API_URL || '/api';
 async function request<T>(
   path: string,
@@ -32,6 +34,19 @@ export type QuestionGroup = {
   }>;
 };
 export const jobSearchApi = {
+  intentForJob: (jobId: string) =>
+    request<ApplicationIntentDto | null>(`/jobs/${jobId}/application-intent`),
+  apply: (jobId: string) =>
+    request<ApplicationIntentDto>(`/jobs/${jobId}/apply`, {
+      termsVersion: APPLICATION_INTENT_TERMS,
+    }),
+  intent: (id: string) => request<ApplicationIntentDto>(`/application-intents/${id}`),
+  cancelIntent: (id: string) =>
+    request<ApplicationIntentDto>(`/application-intents/${id}/cancel`, {}),
+  resumeIntent: (id: string) =>
+    request<ApplicationIntentDto>(`/application-intents/${id}/resume`, {
+      termsVersion: APPLICATION_INTENT_TERMS,
+    }),
   settings: () => request<JobSearchSettings>('/job-search/settings'),
   saveSettings: (settings: JobSearchSettings) =>
     request<JobSearchSettings>('/job-search/settings', settings, 'PUT'),

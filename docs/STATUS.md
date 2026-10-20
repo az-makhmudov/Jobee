@@ -4,57 +4,41 @@ Updated 2026-10-20. Durable continuation record; distinguish local source, test 
 
 ## Current task and checkout
 
-**Repository reality audit — COMPLETE within JOB-P0-T01 foundation reconciliation.** Audited source: `/Users/bek/Job Agent`, branch `codex/jobee-2-foundation`, clean starting tree, HEAD `32edca5b331b24df96ac6320d72e8079eb285789`. Compared all three owner-supplied Jobee 2.0 reference documents with the nine core documents, implementation, contracts, schema, migration inventory and tests. Phase 1/2 completion is supported locally; later macro tasks remain partial as recorded in [roadmap](ROADMAP.md). No new feature implementation was requested or started.
+**JOB-P3-T01 — local implementation complete; JOB-P5-T01 — local engineering/fixture acceptance complete, external acceptance open.** Source checkpoint: `76789fee39ebacc4a61b15ee9c6bcc19147bd45c`, branch `codex/jobee-2-foundation`, clean starting tree. This checkpoint is identified by its canonical task stamps; the completion response/Git log supplies its final commit hash.
 
-**JOB-DOC-CONSOLIDATION-01 remains complete.** Exactly nine tracked Markdown files remain; reference attachments are not restored as competing specifications. Runtime behavior and schema are unchanged. This audit includes no push, merge, deployment, production migration, paid operation, real employer submission or external communication.
+One authenticated **Apply with Jobee** action now persists an application and job-scoped permission before generation. Existing preparation batches generate grounded documents; the separate worker inspects actual employer questions, reuses authorized verified routine answers, pauses for material unknowns/consent, and binds signed material proof to still-valid intent. Permission expires after one hour; repeated clicks do not renew it. Explicit resume, cancellation before dispatch, expiry/source checks, atomic queue/quota controls, final dispatch reservation and uncertain-result reconciliation preserve history and prevent duplicate dispatch.
 
-## Release and implementation evidence
+Explore and the application workspace expose persistent status/recovery controls. Existing reviewed preparation, per-question consent and manual application records remain supported. Recommendation score thresholds do not become hard eligibility blockers for a deliberately selected manual application. The shared question engine now lives in the database backend; the worker does not import API implementation.
 
-- **Historical deployed release:** JOB-PRODUCT-EVOLUTION-01, checkpoint `f6d6286c9f12a561609ce1950bd33d26c4f603d0`. Deployment records are historical, not fresh production certification.
-- **Local foundation:** JOB-P1-T01 shell (`098f816`), JOB-P1-T02 verified candidate context (`c2a388b`), JOB-P2-T01 Explore/source refresh (`616b990`), JOB-P2-T02 shared matching (`6b5b07b`).
-- **Current UI:** Explore, Applications, Profile, account isolation, old links, mobile restoration, themes and contextual supporting functions.
-- **Preparation/execution:** persistent reviewed batches, immutable materials, exact-question/source checks, signed submissions, duplicate/quota locks, worker revalidation, private evidence and uncertainty/reconciliation.
-- **Provider evidence:** Greenhouse/Lever/Ashby adapters have fixture coverage; not all live forms or employer outcomes are certified.
-- **Daily assistance:** opt-in discovery/matching/preparation and optional in-app digest; never submission permission.
-- **Unfinished:** intent before automatic preparation, full one-click provider acceptance, lifecycle/safe resume and versioned-policy Autopilot.
-- **Integrations:** identity, Gmail and Calendar implementations retained; live account grants/scopes/health not recertified.
-
-Do not label the local Jobee 2.0 source as deployed. Do not list the already delivered student interface or previous production setup as unfinished coding work. Historical deployment does not establish the revised One-click MVP.
+Migration `0025_application_intents` adds permission records and references to existing applications, preparation batches and browser runs. It does not introduce another execution queue. The generated SQL was narrowed to this additive table, foreign keys and indexes because older snapshot metadata omitted previously installed schema. Only the positively identified isolated localhost test database was migrated.
 
 ## Verification
 
-Fresh audit verification on 2026-10-20 against `32edca5`: typecheck PASS; test PASS (672 tests, 75 files, no skips); lint PASS (0 errors, 693 warnings); build PASS (existing Vite chunk-size warning); format:write / format PASS. Tests used explicitly scoped localhost `jobee_test_isolated`, disabled external AI and local storage. No standalone worker or live integration actions ran. Read-only database identity/journal queries and isolated `db:check` PASS: 25 applied entries, latest timestamp matches `0024`, and 25 matching SQL files. No migration was executed. Exactly nine tracked Markdown files and all 89 local Markdown link targets were verified. Browser E2E, public feeds, production, paid AI and real-account behavior were not rerun; this is a source/readiness audit, not fresh external acceptance.
+Fresh checks on 2026-10-20 use disabled external AI, local storage, disposable synthetic users and `localhost:5432/jobee_test_isolated`. No real employer application, recruiter message, calendar mutation, paid operation, production migration, deployment or push was performed.
 
-The preceding feature checkpoint recorded **672 tests in 75 files**, zero lint errors with 693 warnings, all workspace typechecks/builds/format checks and isolated database gates. It also recorded 37 Chromium scenarios plus three affected render/navigation checks, desktop Light/Dark and 390px mobile inspection, disabled-AI source-to-analysis checks and point-in-time public feed acceptance. Those browser/feed observations belong to that checkpoint; they are not new live results from documentation cleanup.
+| Check                              | Result                                                                                                                     |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Typecheck                          | PASS — all workspaces                                                                                                      |
+| Unit/integration tests             | PASS — 708 tests, 77 files, no skips; 32 one-click API/worker scenarios and four new UI component scenarios                |
+| Standalone JOB-P5-T01 verification | PASS — 10/10 deterministic sections; repaired synthetic CV byte storage and failure exit status                            |
+| Lint                               | PASS — 0 errors, 693 warnings                                                                                              |
+| Build                              | PASS — all workspaces                                                                                                      |
+| Format                             | PASS; final documentation formatting checked before commit                                                                 |
+| Isolated database                  | db:check and db:migrate PASS; 26 journal entries and matching SQL files; repeated migration run is idempotent              |
+| Browser                            | PASS — 37/37 Chromium scenarios; new-flow Light/Dark and 390px visual checks, reload restoration and keyboard cancellation |
 
-Fresh consolidation verification on 2026-10-20: all required project checks pass. Integration tests used explicitly scoped localhost `jobee_test_isolated`, disabled external AI and no live worker/integration actions. An initial 671/672 run used an incorrect test override (`ORCHESTRATOR_ENABLED=false`); restoring the expected test configuration produced 672/672 passes without changing application code.
+An additional network-blocked local form smoke passed through the API, durable preparation and a separate worker process using real Chromium: actual generated file upload/native validation, fixture confirmation and persisted PNG bytes. This is browser/worker evidence, not a real employer submission.
 
-| Consolidation check                                                    | Result                                                                                          |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| lint                                                                   | PASS — 0 errors, 693 pre-existing warnings                                                      |
-| typecheck                                                              | PASS                                                                                            |
-| test                                                                   | PASS — 672 tests, 75 files; no skips                                                            |
-| build                                                                  | PASS — all workspaces; existing Vite chunk-size warning                                         |
-| format:write / format                                                  | PASS                                                                                            |
-| Links, repository paths, deleted references, policy review, final diff | PASS — local links/anchors/paths, removed references, policy preservation and scoped diff       |
-| Migration inventory                                                    | 25 journal entries and matching SQL files, `0000`–`0024`                                        |
-| Isolated applied journal                                               | Read-only query on localhost `jobee_test_isolated`: 25 entries, latest timestamp matches `0024` |
-| Production/database mutation                                           | db:check PASS on isolated local target; no migration executed                                   |
+Preparation tests now claim work for their own disposable user so parallel suites cannot consume each other's queue items. The preceding Phase 2/audit checkpoint remains in Git; local foundation, candidate context, Explore and shared matching are preserved. Exactly nine core Markdown documents remain authoritative; all 86 retained local Markdown link targets exist.
 
-## Blockers and assurance limits
+## Limits and remaining owner dependencies
 
-- No current production health/deployed SHA or owner-approved real employer submission was verified. Existing Railway/Neon/R2 configuration remains historical infrastructure evidence.
-- Live AI provider/model availability, paid-model quality/cost, usability outcomes, active-time savings and interview conversion are unmeasured here.
-- Public-launch retention/deletion/privacy review and complete public-history sensitive-content clearance remain open. GitHub metadata freshly confirmed public visibility. Owner-specific source defaults/candidate-shaped fixtures and historical exposure records warrant a scoped owner review; do not reproduce values or rewrite history.
-- Email synchronization uses 0.85 for some linked events versus the retained 0.90 security baseline; resolve under JOB-P4-T01 before expanded/live validation. Runtime thresholds are unchanged here.
-- Existing stored quota defaults, queue cap and environment fallback differ; [policies](POLICIES.md) records actual semantics. Revised Autopilot policy consistency remains acceptance work.
-- Existing browser uncertainty safeguards are implemented, but full cancellation/resume/dispatch acceptance through one-click remains incomplete.
-- No permanent Markdown archive, parallel specification or task-report file should be restored. Historical evidence is in Git. Browser E2E and live feed checks were not rerun for this documentation-only task.
+- JOB-P5-T01 cannot close its external acceptance until the owner names the provider, target vacancy and exact permitted live action, followed by an observed employer-confirmed result. Greenhouse fixture receipts and local screenshots are not real employer receipts or universal provider certification.
+- Production health/deployed SHA, live AI/model quality/cost, usability/time savings and real-account scopes/health were not recertified. Historical JOB-PRODUCT-EVOLUTION-01 deployment is not evidence that this source is deployed.
+- Public-launch retention/deletion/privacy review and complete public-history sensitive-content clearance remain open. Do not reproduce historical sensitive values or rewrite history.
+- The known email synchronization 0.85 versus required 0.90 threshold gap remains under JOB-P4-T01. Legacy quota/scheduler differences and versioned-policy Autopilot remain under JOB-P5-T02; old flags do not gain new authority.
+- Full Applications convergence, metrics and broader lifecycle presentation remain JOB-P3-T02. No unrelated feature expansion is included here.
 
 ## Continue from here
 
-For the next feature request, load [AGENTS.md](../AGENTS.md), [master context](MASTER_CONTEXT.md) and this file. Inspect the working tree before resuming. The next product dependency is **JOB-P3-T01**, then **JOB-P5-T01**, with scope in [roadmap](ROADMAP.md). Reuse existing preparation/package/authorization services; preserve reviewed flows and data. Do not skip to broader Autopilot or integration expansion.
-
-For JOB-P3-T01, extend `PreparationBatchService`, existing application/package records and shared submission authorization rather than creating a parallel engine. The current detail action creates/opens a package; batch preparation creates the application after generation, and review issues a later signed ticket. The missing boundary is durable job-scoped authorization before preparation, followed by binding the generated manifest to still-valid intent. Keep sensitive/question-specific consent, source revocation, idempotency and uncertain-dispatch handling intact. Map these additions onto the existing schema before deciding whether an additive migration is needed.
-
-Local phase-by-phase engineering remains approved within the owner's active scope. Credentials and old release records grant no new external authority. Audit scope is complete; the next implementation scope is JOB-P3-T01. Inspect Git status before starting it.
+This scope is locally verified. Test servers are stopped, task-created UI fixture users/files were removed with explicit ownership/time/marker checks, and the final diff was reviewed before the local commit. The remaining roadmap is [ROADMAP.md](ROADMAP.md). Obtain separate named authorization before any real employer validation. The next local product scope after this request is JOB-P3-T02; broader Autopilot and integration expansion retain their dependency order. Inspect Git status and current database identity before continuing.

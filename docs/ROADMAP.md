@@ -4,48 +4,32 @@ Updated 2026-10-20. This is a delta roadmap over the current implementation, not
 
 ## Completed foundation
 
-JOB-PRODUCT-EVOLUTION-01 is the historical deployed preparation/discovery/student-interface release. Local Jobee 2.0 work completed JOB-P0-T01, JOB-P1-T01, JOB-P1-T02, JOB-P2-T01 and JOB-P2-T02: reconciled foundation, three-section shell, verified candidate preferences/answers, persistent Explore/source extraction and shared grounded matching. Local completion does not establish deployment or the full revised MVP.
+JOB-PRODUCT-EVOLUTION-01 is the historical deployed preparation/discovery/student-interface release. Local Jobee 2.0 work completed JOB-P0-T01, JOB-P1-T01, JOB-P1-T02, JOB-P2-T01 and JOB-P2-T02: reconciled foundation, three-section shell, verified candidate preferences/answers, persistent Explore/source extraction and shared grounded matching. JOB-P3-T01 now adds durable job-scoped permission and automatic preparation through the existing queues, with actual employer questions and safe pause/resume. Local completion does not establish deployment or the full revised MVP.
 
 JOB-DOC-CONSOLIDATION-01 consolidates current documentation; it is not a feature release. Historical detailed reports and retired specifications remain in Git rather than an archive of competing guidance.
 
 ## Dependency order
 
-All milestones below are **PARTIAL**: useful implementations exist, but listed acceptance remains. Work in this order. JOB-P5-T01 intentionally precedes full CRM/Autopilot convergence; email/calendar expansion does not block One-click Apply.
+JOB-P3-T01 is complete locally. JOB-P5-T01 has local API/worker fixture proof; its external acceptance remains open. Other milestones below remain **PARTIAL**. Work in this order. JOB-P5-T01 intentionally precedes full CRM/Autopilot convergence; email/calendar expansion does not block One-click Apply.
 
-| Priority | Canonical task | Remaining meaningful outcome                                                | Required foundation                              |
-| -------- | -------------- | --------------------------------------------------------------------------- | ------------------------------------------------ |
-| 1        | JOB-P3-T01     | Durable job-scoped intent and automatic routine preparation                 | Existing candidate/discovery/matching foundation |
-| 2        | JOB-P5-T01     | One provider proven through authorized execution, verification and recovery | Durable intent/preparation                       |
-| 3        | JOB-P3-T02     | Unified execution/employer tracking and actionable safe resume              | Proven provider workflow                         |
-| 4        | JOB-P5-T02     | Versioned-policy Autopilot on that same engine                              | Proven manual engine and lifecycle               |
-| 5        | JOB-P4-T01     | Contextual verified communications enrichment                               | Existing Gmail/read-only integration retained    |
-| 6        | JOB-P4-T02     | Contextual authorized calendar/interview workflow                           | Existing calendar/preparation retained           |
-
-### JOB-P3-T01 — durable Apply with Jobee
-
-Reuse existing applications, preparation batches/items, package versions, artifact generation and authorization. Persist scoped intent before asynchronous generation, select valid existing candidate materials, prepare routine answers/documents automatically and pause only for material unknowns/consent or unsupported execution. Retain reviewed flows until replacement acceptance passes.
-
-Acceptance:
-
-- One deliberate job action creates a durable owned intent that survives reload/restart; repeated/concurrent clicks do not duplicate attempts.
-- Candidate, selected CV, saved-answer verification/permission and current job inputs are validated before use. Missing material answers produce a focused intervention, not fabricated defaults.
-- Routine supported preparation does not require a mandatory Studio/package navigation sequence.
-- Cancellation, interruption and safe resume preserve checkpoints/history and do not recall already dispatched actions.
-- Bind the current material manifest after preparation to valid intent; reject revoked/changed sources, expired permission, cross-tenant IDs and materially changed inputs.
-- Isolated integration tests prove these behaviors and existing manual/reviewed workflows remain usable.
+| Priority | Canonical task | Remaining meaningful outcome                                   | Required foundation                           |
+| -------- | -------------- | -------------------------------------------------------------- | --------------------------------------------- |
+| 1        | JOB-P5-T01     | Owner-approved employer-confirmed provider validation          | Locally verified one-click pipeline           |
+| 2        | JOB-P3-T02     | Unified execution/employer tracking and actionable safe resume | Proven provider workflow                      |
+| 3        | JOB-P5-T02     | Versioned-policy Autopilot on that same engine                 | Proven manual engine and lifecycle            |
+| 4        | JOB-P4-T01     | Contextual verified communications enrichment                  | Existing Gmail/read-only integration retained |
+| 5        | JOB-P4-T02     | Contextual authorized calendar/interview workflow              | Existing calendar/preparation retained        |
 
 ### JOB-P5-T01 — provider execution proof
 
-Reuse existing Greenhouse/Lever/Ashby adapters, worker claims, checksum-verified uploads, manifest revalidation, observation/evidence and reconciliation. Prioritize one realistically supportable provider before expanding coverage.
+Local engineering now connects the authenticated one-action entry point, durable permission, automatic preparation, signed material binding and the separate browser worker. Deterministic Greenhouse fixtures prove confirmation, routine answers, material questions/consent, rejection, delayed/missing confirmation, unsupported/changed forms, challenges, concurrent clicks/workers, revocation, connection loss and crash recovery. Existing reviewed workflows and all three adapters remain covered. Fixture receipts are not real employer receipts.
 
-Acceptance:
+Remaining external acceptance:
 
-- Complete the one-action prepare/fill/validate/submit/verify/record journey through the actual API/worker boundary in deterministic fixtures.
-- Correctly handle provider rejection, delayed/missing confirmation, changed form, unsupported fields, CAPTCHA/identity challenge, network interruption and stale authorization.
-- Concurrent clicks/workers and duplicate vacancies cannot produce duplicate submissions. Revocation is checked at the last safe boundary.
-- Post-dispatch crashes/timeouts remain uncertain until reconciled. Retry cannot convert ambiguity into a second employer submission.
-- Persist real artifact/evidence bytes and truthful employer references; prefill/dry-run cannot become Applied.
-- Owner-approved live validation names the provider, target vacancy and exact action. A real employer-confirmed result is required for revised MVP external acceptance; fixture success alone cannot close that requirement. Local engineering can proceed without live permission.
+- Obtain a named owner-approved provider, target vacancy and exact action before any real submission validation.
+- Observe an actual authorized prepare/fill/validate/submit/verify/record journey and employer-confirmed result through at least one provider. Retain real artifact/evidence bytes and truthful references under the existing privacy controls.
+- Validate available failure/recovery behavior on that approved target without intentionally creating duplicate or uncertain real applications. Any uncertainty requires reconciliation before retry.
+- Record observed coverage and limitations rather than certifying all forms on that provider. Fixture success alone cannot close the revised MVP external requirement. No live action is authorized by the local implementation request.
 
 ### JOB-P3-T02 — Applications convergence
 

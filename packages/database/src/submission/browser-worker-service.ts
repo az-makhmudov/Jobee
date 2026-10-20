@@ -7,6 +7,8 @@ import {
   applicationPackageVersions,
   browserApplicationRuns,
   type BrowserApplicationRun,
+  type Database,
+  applicationIntents,
 } from '../index.js';
 import {
   AppError,
@@ -18,6 +20,7 @@ import {
   type StartBrowserRunRequest,
 } from '@job-agent/shared';
 import { SubmissionAuthorizationService } from './submission-authorization-service.js';
+import { assertApplicationIntent } from './application-intent-authorization.js';
 
 export class BrowserWorkerService {
   /**
@@ -34,8 +37,10 @@ export class BrowserWorkerService {
     userId: string,
     applicationId: string,
     input: StartBrowserRunRequest,
+    intentId?: string,
+    dbInstance?: Database,
   ): Promise<BrowserApplicationRunDto> {
-    const db = getDb();
+    const db = dbInstance ?? getDb();
 
     // 1. Verify application ownership and find target URL
     const [appRecord] = await db
@@ -103,7 +108,30 @@ export class BrowserWorkerService {
         .where(eq(applicationPolicy.userId, userId))
         .limit(1);
 
-      if (policy?.autoApplyEnabled && !input.submissionToken) {
+      if (intentId) {
+        await assertApplicationIntent(db, userId, applicationId, intentId);
+        const ticket = await SubmissionAuthorizationService.createSubmissionAuthorizationTicket(
+          userId,
+          applicationId,
+          db,
+          intentId,
+        );
+        const { manifest } = await SubmissionAuthorizationService.buildManifest(
+          userId,
+          applicationId,
+          db,
+        );
+        authorizationManifest = {
+          ...manifest,
+          authorizedAt: Date.now(),
+          authorizationMode: 'INTENT',
+          submissionToken: ticket.submissionToken,
+          intentId,
+          targetUrl,
+        };
+        verifiedManifestChecksum = manifest.manifestChecksum;
+        verifiedVersionId = manifest.packageVersionId;
+      } else if (policy?.autoApplyEnabled && !input.submissionToken) {
         // Mode A: Autonomous auto-apply path (candidate authorized autoApply in settings)
         const { manifest } = await SubmissionAuthorizationService.buildManifest(
           userId,
@@ -180,6 +208,23 @@ export class BrowserWorkerService {
       await tx.execute(sql`SELECT id FROM users WHERE id=${userId} FOR UPDATE`);
       await tx.execute(sql`SELECT id FROM applications WHERE id=${applicationId} FOR UPDATE`);
       if (mode === BrowserRunMode.SUBMIT) {
+        if (intentId) {
+          const intent = await assertApplicationIntent(
+            tx as unknown as Database,
+            userId,
+            applicationId,
+            intentId,
+          );
+          if (intent.runId)
+            throw AppError.badRequest('This application permission already has an attempt.');
+          const { manifest } = await SubmissionAuthorizationService.buildManifest(
+            userId,
+            applicationId,
+            tx as unknown as Database,
+          );
+          if (manifest.manifestChecksum !== verifiedManifestChecksum)
+            throw AppError.badRequest('Application materials changed before queueing.');
+        }
         const previous = await tx
           .select()
           .from(browserApplicationRuns)
@@ -237,6 +282,27 @@ export class BrowserWorkerService {
           startedAt: now,
         })
         .returning();
+      if (intentId) {
+        await tx
+          .update(applications)
+          .set({
+            status: 'APPLYING',
+            nextAction: 'Completing the employer application',
+            nextActionType: 'EXECUTION',
+            updatedAt: now,
+          })
+          .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)));
+        await tx
+          .update(applicationIntents)
+          .set({
+            runId,
+            manifestChecksum: verifiedManifestChecksum,
+            status: 'QUEUED',
+            updatedAt: now,
+            events: sql`${applicationIntents.events} || ${JSON.stringify([{ type: 'QUEUED', at: now.toISOString(), runId }])}::jsonb`,
+          })
+          .where(and(eq(applicationIntents.id, intentId), eq(applicationIntents.userId, userId)));
+      }
       return created;
     });
 

@@ -14,6 +14,12 @@ import {
   applicationPackages,
   SubmissionAuthorizationService,
   applicationPolicy,
+  applicationIntents,
+  applications,
+  assertApplicationIntent,
+  resolveRuntimeQuestions,
+  intentAnswerSources,
+  sql,
   eq,
   and,
 } from '@job-agent/database';
@@ -22,6 +28,7 @@ import {
   BrowserRunStatus,
   type ApplicationSubmissionPayload,
   type BrowserApplicationRunDto,
+  type FileStorageProvider,
 } from '@job-agent/shared';
 import type { BrowserController } from '../browser/browser-controller.js';
 import { FixtureBrowserController } from '../browser/fixture-browser-controller.js';
@@ -32,6 +39,7 @@ import { AtsAdapterRegistry } from '../adapters/ats-adapter-registry.js';
 export interface RunExecutionOptions {
   controller?: BrowserController;
   useFixture?: boolean;
+  storage?: FileStorageProvider;
 }
 
 /**
@@ -165,7 +173,7 @@ export async function executePendingBrowserRun(
       answers,
     };
 
-    const storage = createFileStorage(getConfig());
+    const storage = options.storage ?? createFileStorage(getConfig());
     if (run.packageVersionId) {
       const [version] = await db
         .select()
@@ -199,6 +207,8 @@ export async function executePendingBrowserRun(
           authorizedAt?: number;
           authorizationMode?: string;
           targetUrl?: string;
+          intentId?: string;
+          submissionToken?: string;
         } | null;
         if (
           !snapshot ||
@@ -214,6 +224,25 @@ export async function executePendingBrowserRun(
             .where(eq(applicationPolicy.userId, run.userId));
           if (!policy?.autoApplyEnabled)
             throw new Error('Automatic application permission was disabled.');
+        }
+        if (snapshot.authorizationMode === 'INTENT') {
+          if (
+            !getConfig().SELECTED_SUBMISSIONS_ENABLED ||
+            !snapshot.intentId ||
+            !snapshot.manifestChecksum
+          )
+            throw new Error('Application permission is unavailable.');
+          await assertApplicationIntent(db, run.userId, run.applicationId, snapshot.intentId, {
+            runId: run.id,
+            checksum: snapshot.manifestChecksum,
+          });
+          await SubmissionAuthorizationService.verifySubmissionAuthorization(
+            run.userId,
+            run.applicationId,
+            snapshot.submissionToken ?? '',
+            db,
+            snapshot.intentId,
+          );
         }
         const { manifest, appRecord } = await SubmissionAuthorizationService.buildManifest(
           run.userId,
@@ -293,11 +322,102 @@ export async function executePendingBrowserRun(
         mode: run.mode as BrowserRunMode,
         payload,
         skipDb: false,
+        onFormExtracted: async (schema) => {
+          const snapshot = run.authorizationManifest as {
+            authorizationMode?: string;
+            intentId?: string;
+            manifestChecksum?: string;
+          } | null;
+          if (
+            snapshot?.authorizationMode !== 'INTENT' ||
+            !snapshot.intentId ||
+            !snapshot.manifestChecksum ||
+            !run.packageVersionId
+          )
+            return;
+          const intentId = snapshot.intentId,
+            checksum = snapshot.manifestChecksum;
+          await db.transaction(async (tx) => {
+            await tx.execute(sql`SELECT id FROM users WHERE id=${run.userId} FOR UPDATE`);
+            const intent = await assertApplicationIntent(
+              tx as unknown as Database,
+              run.userId,
+              run.applicationId,
+              intentId,
+              { runId: run.id, checksum },
+            );
+            const { manifest: before } = await SubmissionAuthorizationService.buildManifest(
+              run.userId,
+              run.applicationId,
+              tx as unknown as Database,
+            );
+            if (before.manifestChecksum !== checksum)
+              throw new Error('Application materials changed during form inspection.');
+            const resolved = await resolveRuntimeQuestions(
+              tx as unknown as Database,
+              run.userId,
+              run.applicationId,
+              run.packageVersionId!,
+              schema.fields,
+              intentAnswerSources(intent),
+            );
+            if (resolved.needsReview) return;
+            if (resolved.changed) {
+              const { manifest } = await SubmissionAuthorizationService.buildManifest(
+                run.userId,
+                run.applicationId,
+                tx as unknown as Database,
+              );
+              if (
+                manifest.packageVersionId !== before.packageVersionId ||
+                manifest.inputFingerprint !== before.inputFingerprint ||
+                JSON.stringify(manifest.artifacts) !== JSON.stringify(before.artifacts)
+              )
+                throw new Error('Application documents changed during form inspection.');
+              const rebound = { ...(run.authorizationManifest as object), ...manifest };
+              const ticket =
+                await SubmissionAuthorizationService.createSubmissionAuthorizationTicket(
+                  run.userId,
+                  run.applicationId,
+                  tx as unknown as Database,
+                  intentId,
+                );
+              const signedRebound = { ...rebound, submissionToken: ticket.submissionToken };
+              await tx
+                .update(browserApplicationRuns)
+                .set({ authorizationManifest: signedRebound })
+                .where(eq(browserApplicationRuns.id, run.id));
+              await tx
+                .update(applicationIntents)
+                .set({
+                  manifestChecksum: manifest.manifestChecksum,
+                  events: sql`${applicationIntents.events} || ${JSON.stringify([{ type: 'FORM_ANSWERS_BOUND', at: new Date().toISOString(), runId: run.id }])}::jsonb`,
+                })
+                .where(eq(applicationIntents.id, intentId));
+              run.authorizationManifest = signedRebound;
+            }
+          });
+          const questions = await db
+            .select()
+            .from(applicationQuestions)
+            .where(eq(applicationQuestions.versionId, run.packageVersionId));
+          payload.answers = {};
+          for (const q of questions)
+            if (q.finalAnswer && ['APPROVED', 'RESOLVED'].includes(q.approvalState))
+              payload.answers[q.questionText] = {
+                answerText: q.finalAnswer,
+                isSensitive: q.sensitivity === 'SENSITIVE',
+                verificationStatus: 'VERIFIED',
+                approvedQuestionText: q.questionText,
+              };
+        },
         beforeSubmit: async () => {
           const snapshot = run.authorizationManifest as {
             manifestChecksum?: string;
             authorizedAt?: number;
             authorizationMode?: string;
+            intentId?: string;
+            submissionToken?: string;
           } | null;
           if (!snapshot?.authorizedAt || Date.now() - snapshot.authorizedAt > 15 * 60_000)
             throw new Error('Application authorization expired. Review it again.');
@@ -322,6 +442,56 @@ export async function executePendingBrowserRun(
           }
           if (manifest.manifestChecksum !== snapshot.manifestChecksum)
             throw new Error('Reviewed application changed before dispatch. Review it again.');
+          if (snapshot.authorizationMode === 'INTENT') {
+            if (
+              !getConfig().SELECTED_SUBMISSIONS_ENABLED ||
+              !snapshot.intentId ||
+              !snapshot.manifestChecksum
+            )
+              throw new Error('Application permission is unavailable.');
+            const intentId = snapshot.intentId,
+              checksum = snapshot.manifestChecksum;
+            // Cancellation and dispatch serialize on the same owner lock. After this reservation,
+            // a cancellation must report that the external action may already be in flight.
+            await db.transaction(async (tx) => {
+              await tx.execute(sql`SELECT id FROM users WHERE id=${run.userId} FOR UPDATE`);
+              await tx.execute(
+                sql`SELECT id FROM applications WHERE id=${run.applicationId} FOR UPDATE`,
+              );
+              const intent = await assertApplicationIntent(
+                tx as unknown as Database,
+                run.userId,
+                run.applicationId,
+                intentId,
+                { runId: run.id, checksum },
+              );
+              await SubmissionAuthorizationService.verifySubmissionAuthorization(
+                run.userId,
+                run.applicationId,
+                snapshot.submissionToken ?? '',
+                tx as unknown as Database,
+                intentId,
+              );
+              const { manifest: current } = await SubmissionAuthorizationService.buildManifest(
+                run.userId,
+                run.applicationId,
+                tx as unknown as Database,
+              );
+              if (current.manifestChecksum !== checksum || intent.dispatchStartedAt)
+                throw new Error('Application dispatch is already reserved or materials changed.');
+              await tx
+                .update(applicationIntents)
+                .set({
+                  dispatchStartedAt: new Date(),
+                  updatedAt: new Date(),
+                  events: [
+                    ...intent.events,
+                    { type: 'DISPATCH_RESERVED', at: new Date().toISOString(), runId: run.id },
+                  ],
+                })
+                .where(eq(applicationIntents.id, intent.id));
+            });
+          }
         },
       });
     } finally {
@@ -346,5 +516,30 @@ export async function executePendingBrowserRun(
     throw error;
   } finally {
     clearInterval(heartbeat);
+    const snapshot = run.authorizationManifest as { authorizationMode?: string } | null;
+    if (snapshot?.authorizationMode === 'INTENT') {
+      const [final] = await db
+        .select()
+        .from(browserApplicationRuns)
+        .where(eq(browserApplicationRuns.id, run.id));
+      if (final && !['PENDING', 'RUNNING'].includes(final.status)) {
+        await db
+          .update(applications)
+          .set(
+            final.status === 'SUCCESS'
+              ? { nextAction: null, nextActionType: null, updatedAt: new Date() }
+              : {
+                  status: 'NEEDS_REVIEW',
+                  nextAction:
+                    final.status === 'SUBMISSION_UNCERTAIN'
+                      ? 'Check employer confirmation and reconcile before retrying'
+                      : final.errorMessage || 'Review the employer application',
+                  nextActionType: 'REVIEW',
+                  updatedAt: new Date(),
+                },
+          )
+          .where(and(eq(applications.id, run.applicationId), eq(applications.userId, run.userId)));
+      }
+    }
   }
 }

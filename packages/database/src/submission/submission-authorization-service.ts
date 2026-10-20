@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { computePreparationFingerprint } from './preparation-fingerprint.js';
+import { assertApplicationIntent } from './application-intent-authorization.js';
 import { eq, and, asc } from 'drizzle-orm';
 import {
   getDb,
@@ -45,6 +46,7 @@ export interface SubmissionTokenPayload {
   mHash: string;
   iat: number;
   exp: number;
+  intentId?: string;
 }
 
 export class SubmissionAuthorizationService {
@@ -313,7 +315,10 @@ export class SubmissionAuthorizationService {
     userId: string,
     applicationId: string,
     dbInstance?: Database,
+    intentId?: string,
   ): Promise<SubmissionAuthorizationTicketDto> {
+    if (intentId)
+      await assertApplicationIntent(dbInstance ?? getDb(), userId, applicationId, intentId);
     const { manifest, version, appRecord } = await this.buildManifest(
       userId,
       applicationId,
@@ -331,6 +336,7 @@ export class SubmissionAuthorizationService {
       mHash: manifest.manifestChecksum,
       iat,
       exp,
+      ...(intentId ? { intentId } : {}),
     };
 
     const payloadStr = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -361,6 +367,7 @@ export class SubmissionAuthorizationService {
     applicationId: string,
     token: string,
     dbInstance?: Database,
+    expectedIntentId?: string,
   ): Promise<SubmissionManifest> {
     if (!token || typeof token !== 'string') {
       throw AppError.forbidden('Submission authorization token is missing or invalid');
@@ -406,6 +413,10 @@ export class SubmissionAuthorizationService {
     if (payload.appId !== applicationId) {
       throw AppError.forbidden('Submission token was issued for a different application.');
     }
+    if (expectedIntentId && payload.intentId !== expectedIntentId)
+      throw AppError.forbidden('Submission proof belongs to a different application permission.');
+    if (payload.intentId)
+      await assertApplicationIntent(dbInstance ?? getDb(), userId, applicationId, payload.intentId);
 
     // Rebuild and verify live manifest checksum
     const { manifest } = await this.buildManifest(userId, applicationId, dbInstance);
