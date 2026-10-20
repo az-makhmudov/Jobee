@@ -2183,4 +2183,4 @@ Production schema migration 0022 is applied and its schema-only command complete
 
 **Security/preservation:** Candidate facts are never guessed; new eligibility has no invented defaults. API scoping, encryption, existing manifests, duplicate safeguards and uncertainty handling are preserved. No new model/provider, dependency, schema change, real application, outbound message, calendar operation, paid activation or production change. Existing changed-source preparations may need regeneration, preserving their records and artifacts.
 
-**Git/report:** Local branch codex/jobee-2-foundation; JOB-P1-T01 checkpoint 098f816. JOB-P1-T02 source checkpoint follows this verified record. Full report: JOBEE_2_IMPLEMENTATION.md. Continue with the revised discovery/matching phase under the existing stamps.
+**Git/report:** Local branch codex/jobee-2-foundation; JOB-P1-T01 checkpoint 098f816. JOB-P1-T02 verified source checkpoint: c2a388b5d20f9209c16baff7b8524ad828ba7613. Full report: JOBEE_2_IMPLEMENTATION.md. Continue with the revised discovery/matching phase under the existing stamps.

@@ -31,3 +31,11 @@ Engineering owner: Codex. Implementation approved 2026-10-20. **Phase 1 is compl
 **Verification:** All eight mandatory gates pass; lint has 0 errors and 693 existing warnings. 653 tests / 73 files pass, including preference creation/patch/clear/validation, audit and isolation; explicit verification invalidation; engine answer-reuse boundaries; and revoked-source submission authorization. All 35 Chromium scenarios pass. After visual review, four affected browser scenarios were rerun successfully against the final two-column desktop/one-column mobile layout, followed by a focused mobile drawer-inert/eligibility persistence check. New coverage includes preferences persistence without enabling submission, outage/retry protection and explicit answer verification. Two themes and mobile renders were inspected. Database gates use isolated local fixtures only. See TASK_LOG.md for the verification record.
 
 **Limits/next dependency:** Broader country-specific matching behavior is part of JOB-P2-T02. Automatic preparation and unfamiliar ATS questions remain JOB-P3-T01/JOB-P5-T01; versioned Autopilot permission remains JOB-P5-T02. Complex saved-answer conditions are retained but require review; no new rules language is introduced. Real candidate verification is a user action; existing unverified data was not promoted. Prepared applications that depend on a changed/revoked saved answer may require regeneration; history and materials remain intact. No new AI provider/model, dependency, migration, real application, production deployment or paid operation was introduced. Next dependency: JOB-P2-T01 Explore/discovery adaptation, then JOB-P2-T02 matching convergence.
+
+## Phase 1 Git checkpoints
+
+- JOB-P1-T01: `098f816` — canonical alignment and three-section shell.
+- JOB-P1-T02: `c2a388b5d20f9209c16baff7b8524ad828ba7613` — verified candidate context and source-bound answer reuse.
+- Branch: `codex/jobee-2-foundation`. All changes are local; no merge, push or deployment. Subsequent documentation-only checkpoint records do not change the verified runtime code.
+
+Next implementation phase: JOB-P2-T01, then JOB-P2-T02, using the approved local phase-by-phase authorization.

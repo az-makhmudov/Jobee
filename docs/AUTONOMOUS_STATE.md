@@ -25,7 +25,7 @@ Test configuration: explicit localhost/jobee_test_isolated as DATABASE_URL and T
 
 - Audit baseline: main at f4ac34bdc3f816dce9031420a7e31f6baf9baf85. Historically released runtime: f6d6286c9f12a561609ce1950bd33d26c4f603d0; production was not revalidated.
 - Verified JOB-P1-T01 checkpoint: 098f816. Includes approved canonical reconciliation and the three-section shell.
-- JOB-P1-T02 verified source checkpoint: pending local commit; recorded immediately afterward. No push, merge or deployment.
+- JOB-P1-T02 verified source checkpoint: c2a388b5d20f9209c16baff7b8524ad828ba7613. Documentation-only checkpoint records follow without changing runtime code. No push, merge or deployment.
 - Reports: JOBEE_2_IMPLEMENTATION.md and TASK_LOG.md. Audit evidence: JOBEE_2_ASSESSMENT.md. Historical docs and original owner references remain in archive/jobee-1.0 and specifications/jobee-2.0.
 
 ## Remaining product gaps
