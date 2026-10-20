@@ -14,6 +14,11 @@
       "types": "./dist/schema/index.d.ts",
       "import": "./dist/schema/index.js",
       "default": "./dist/schema/index.js"
+    },
+    "./matching": {
+      "types": "./dist/matching/index.d.ts",
+      "import": "./dist/matching/index.js",
+      "default": "./dist/matching/index.js"
     }
   },
   "scripts": {
@@ -27,7 +32,8 @@
     "@job-agent/config": "*",
     "@job-agent/shared": "*",
     "drizzle-orm": "^0.45.3",
-    "pg": "^8.13.3"
+    "pg": "^8.13.3",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/pg": "^8.11.11",

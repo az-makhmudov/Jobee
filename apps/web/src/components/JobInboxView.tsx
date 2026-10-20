@@ -30,6 +30,7 @@ export function JobInboxView({
   detail,
 }: Props) {
   const requestVersion = useRef(0);
+  const currentLoader = useRef<() => Promise<void>>(async () => {});
   const detailRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const previousSelection = useRef<string | null>(null);
@@ -55,7 +56,7 @@ export function JobInboxView({
   const [staleFilter, setStaleFilter] = useState<string>('');
   const [sortBy, setSortBy] = useState<
     'discoveredDate' | 'score' | 'confidence' | 'title' | 'company'
-  >('discoveredDate');
+  >('score');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -111,6 +112,8 @@ export function JobInboxView({
     sortOrder,
   ]);
 
+  currentLoader.current = loadData;
+
   useEffect(() => {
     void loadData();
     return () => {
@@ -148,7 +151,7 @@ export function JobInboxView({
     setError(null);
     try {
       await jobApi.analyzeJob(jobId, true);
-      await loadData();
+      await currentLoader.current();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to analyze job');
     } finally {
@@ -166,7 +169,7 @@ export function JobInboxView({
       setBatchNotice(
         `Batch complete: ${res.succeeded} analyzed successfully, ${res.failed} failed, ${res.skipped} skipped.`,
       );
-      await loadData();
+      await currentLoader.current();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to run batch analysis');
     } finally {
@@ -189,7 +192,7 @@ export function JobInboxView({
           source.errors.map((message) => `${source.source}: ${message}`),
         ),
       );
-      await loadData();
+      await currentLoader.current();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to discover jobs from public sources');
     } finally {
@@ -554,7 +557,7 @@ export function JobInboxView({
             className="job-results-container"
             style={{ padding: 0, border: 0, background: 'transparent' }}
           >
-            {loading ? (
+            {error ? null : loading ? (
               <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                 Loading job postings...
               </div>
@@ -628,7 +631,7 @@ export function JobInboxView({
                                 : ' · pay period unspecified'}
                             </p>
                           )}
-                          <p>
+                          <div>
                             {job.matchSummary?.isStale ? (
                               'Analysis needs refresh'
                             ) : job.matchSummary?.careerFitCategory ? (
@@ -639,7 +642,17 @@ export function JobInboxView({
                             ) : (
                               job.matchSummary?.decision || 'Analysis not run yet'
                             )}
-                          </p>
+                          </div>
+                          {job.matchSummary && !job.matchSummary.isStale && (
+                            <p className="job-fit-summary">
+                              {job.matchSummary.hardBlockers?.[0] ||
+                                job.matchSummary.summaryExplanation}
+                              {!job.matchSummary.hardBlockers?.length &&
+                              job.matchSummary.unknowns?.[0]
+                                ? ` ${job.matchSummary.unknowns[0]}`
+                                : ''}
+                            </p>
+                          )}
                         </div>
                         <Button
                           className="btn-outline"
@@ -680,6 +693,7 @@ export function JobInboxView({
 
                 {/* Pagination Controls */}
                 <div
+                  className="explore-pagination"
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -738,7 +752,7 @@ export function JobInboxView({
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onJobCreated={(newJob) => {
-          loadData();
+          void currentLoader.current();
           onSelectJob(newJob.id);
         }}
       />

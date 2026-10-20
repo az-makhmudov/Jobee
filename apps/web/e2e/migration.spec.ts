@@ -1221,3 +1221,43 @@ test('Explore preserves search and selection across desktop panes and mobile bac
     await expect(page.getByLabel('Search jobs', { exact: true })).toHaveValue('');
   }
 });
+
+test('Explore explains fit and unresolved eligibility beside the selected role', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const role = page
+    .locator('.job-card')
+    .filter({ has: page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }) });
+  await role.getByRole('button', { name: 'View job', exact: true }).click();
+  const overview = page.locator('.job-fit-overview');
+  await expect(overview.getByRole('heading', { name: 'Your fit', exact: true })).toBeVisible();
+  await overview.getByRole('button', { name: /Check your fit|Refresh your fit/ }).click();
+  await expect(overview).toContainText('Unconfirmed:');
+  await expect(overview.getByRole('alert')).toHaveCount(0);
+  await expect(role.locator('.job-fit-summary')).toContainText(/review|Excluded|Unconfirmed/i);
+  await page.evaluate(() => {
+    (document.activeElement as HTMLElement)?.blur();
+    window.scrollTo(0, 0);
+  });
+  await page.screenshot({
+    path: 'output/playwright/explore-fit-desktop.png',
+    fullPage: true,
+    animations: 'disabled',
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBeTruthy();
+  await expect(overview).toBeVisible();
+  await expect(page.locator('.sidebar')).not.toBeInViewport();
+  await page.evaluate(() => {
+    (document.activeElement as HTMLElement)?.blur();
+    window.scrollTo(0, 0);
+  });
+  await page.screenshot({
+    path: 'output/playwright/explore-fit-mobile.png',
+    fullPage: true,
+    animations: 'disabled',
+  });
+});

@@ -61,6 +61,15 @@ const BADGE_CONFIGS: Record<CareerFitCategory, BadgeConfig> = {
     borderColor: 'var(--status-danger-border)',
     description: 'Excluded by hard policy: work authorization, location, or salary blocker.',
   },
+  LOW_RELEVANCE: {
+    label: 'Lower relevance',
+    icon: 'info',
+    bgColor: 'var(--m3-secondary-container)',
+    textColor: 'var(--m3-on-surface-variant)',
+    borderColor: 'var(--m3-outline-variant)',
+    description:
+      'Professional fit is below the configured threshold; this is separate from legal or policy eligibility.',
+  },
   INSUFFICIENT_INFORMATION: {
     label: 'Needs more info',
     icon: 'info',

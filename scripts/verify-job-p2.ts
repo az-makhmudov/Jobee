@@ -1,3 +1,4 @@
+import { MatchService, DisabledAiProvider } from '@job-agent/database/matching';
 /** JOB-P2-T01 / JOB-P2-T02: isolated source-to-analysis acceptance.
  * Default is offline. --live-public-feeds only reads public listings and never applies.
  */
@@ -81,9 +82,19 @@ async function main() {
       await discovery.discoverForCandidate(user!.id, options);
       assert.match((await jobs.getJobById(user!.id, firstId)).description, /verified delivery/);
     }
+    const analysis = await new MatchService(db, new DisabledAiProvider()).analyzeJob(
+      firstId,
+      user!.id,
+    );
+    assert.equal(
+      analysis.autoApplyEligible,
+      false,
+      'Discovery and matching never grant submission consent',
+    );
+    assert(analysis.summaryExplanation.length > 0, 'Grounded analysis needs an explanation');
     console.log(
       JSON.stringify({
-        task: 'JOB-P2-T01',
+        task: 'JOB-P2-T01 / JOB-P2-T02',
         mode: live ? 'READ_ONLY_PUBLIC_FEED' : 'OFFLINE_FIXTURE',
         source: 'GREENHOUSE',
         newJobs: first.newJobsIngested,

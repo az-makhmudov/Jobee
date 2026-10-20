@@ -1,3 +1,4 @@
+import { MatchService, DisabledAiProvider, type AiProvider } from '@job-agent/database/matching';
 import crypto from 'node:crypto';
 import type { Database } from '@job-agent/database';
 import {
@@ -37,11 +38,14 @@ export interface OrchestratorRunOptions {
 
 export class AutonomousOrchestrator {
   private readonly dispatcher: NotificationDispatcher;
+  private readonly match: MatchService;
 
   constructor(
     private readonly db: Database,
     private readonly logger?: Logger,
+    aiProvider: AiProvider = new DisabledAiProvider(),
   ) {
+    this.match = new MatchService(db, aiProvider);
     this.dispatcher = new NotificationDispatcher(db, logger);
   }
 
@@ -397,76 +401,25 @@ export class AutonomousOrchestrator {
   }> {
     await addStep(
       'MATCHING',
-      'Evaluating newly ingested and discovered opportunities against candidate policy...',
+      'Evaluating current candidate evidence, requirements and deterministic eligibility through the shared matching service',
     );
-
-    const discoveredJobs = await this.db.query.jobs.findMany({
-      where: and(
-        eq(jobs.userId, userId),
-        or(eq(jobs.state, 'DISCOVERED'), eq(jobs.state, 'INGESTED'), eq(jobs.state, 'NEW')),
-      ),
-      limit: 10,
+    const result = await this.match.batchAnalyzeJobs(userId, { limit: 10 });
+    const matched = result.results.filter(
+      (item) => item.success && item.decision === 'MATCH',
+    ).length;
+    const skipped = result.results.filter(
+      (item) => item.success && item.decision === 'SKIP',
+    ).length;
+    await addStep('MATCHING', 'Grounded evaluation completed; ingestion states are preserved', {
+      matched,
+      skipped,
+      review: result.results.filter((item) => item.decision === 'REVIEW').length,
+      failed: result.failed,
     });
-
-    if (discoveredJobs.length === 0) {
-      await addStep('MATCHING', 'No unanalyzed jobs in queue. Matching up to date.');
-      return { processed: 0, succeeded: 0, failed: 0, matched: 0, skipped: 0 };
-    }
-
-    const prefs = await this.db.query.jobPreferences.findFirst({
-      where: eq(jobPreferences.userId, userId),
-    });
-
-    let matched = 0;
-    let skipped = 0;
-
-    for (const job of discoveredJobs) {
-      const excludedCompanies = (prefs?.excludedCompanies as string[]) || [];
-      const isExcludedCompany =
-        job.company &&
-        excludedCompanies.some((c) => job.company.toLowerCase().includes(c.toLowerCase()));
-
-      const excludedKeywords = (prefs?.excludedKeywords as string[]) || [];
-      const hasExcludedKeyword =
-        job.title &&
-        excludedKeywords.some((k) => job.title.toLowerCase().includes(k.toLowerCase()));
-
-      if (isExcludedCompany || hasExcludedKeyword) {
-        await this.db
-          .update(jobs)
-          .set({ state: 'SKIPPED', updatedAt: new Date() })
-          .where(eq(jobs.id, job.id));
-
-        skipped++;
-        await addStep(
-          'MATCHING',
-          `Job ${job.title} at ${job.company} skipped by hard policy exclusion`,
-          {
-            jobId: job.id,
-            reason: isExcludedCompany ? 'excluded_company' : 'excluded_keyword',
-          },
-        );
-      } else {
-        await this.db
-          .update(jobs)
-          .set({ state: 'MATCHED', updatedAt: new Date() })
-          .where(eq(jobs.id, job.id));
-
-        matched++;
-        await addStep(
-          'MATCHING',
-          `Job ${job.title} at ${job.company} passed policy checks -> MATCHED`,
-          {
-            jobId: job.id,
-          },
-        );
-      }
-    }
-
     return {
-      processed: discoveredJobs.length,
-      succeeded: discoveredJobs.length,
-      failed: 0,
+      processed: result.processed,
+      succeeded: result.succeeded,
+      failed: result.failed,
       matched,
       skipped,
     };
@@ -478,10 +431,7 @@ export class AutonomousOrchestrator {
   ): Promise<{ processed: number; succeeded: number; failed: number; prepared: number }> {
     await addStep('PREPARATION', 'Inspecting matched jobs without CRM applications...');
 
-    const matchedJobs = await this.db.query.jobs.findMany({
-      where: and(eq(jobs.userId, userId), eq(jobs.state, 'MATCHED')),
-      limit: 10,
-    });
+    const matchedJobs = await this.match.findMatchedJobs(userId, 10);
 
     let prepared = 0;
 

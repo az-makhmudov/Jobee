@@ -1,3 +1,4 @@
+import { currentMatchingInputs } from '@job-agent/database/matching';
 import { eq, desc, and, or, ilike, count, sql, inArray } from 'drizzle-orm';
 import type { Database } from '@job-agent/database';
 import {
@@ -490,7 +491,12 @@ export class JobService {
     if (query.search && query.search.trim()) {
       const s = `%${query.search.trim()}%`;
       conditions.push(
-        or(ilike(jobs.title, s), ilike(jobs.company, s), ilike(jobs.locationText, s))!,
+        or(
+          ilike(jobs.title, s),
+          ilike(jobs.company, s),
+          ilike(jobs.locationText, s),
+          ilike(jobs.description, s),
+        )!,
       );
     }
 
@@ -502,25 +508,11 @@ export class JobService {
       orderBy: [desc(jobs.discoveredDate)],
     });
 
-    // Fetch latest match analysis for all returned jobs
-    const allJobIds = allMatchingJobs.map((j) => j.id);
-    const analyses =
-      allJobIds.length > 0
-        ? await this.db.query.jobMatchAnalyses.findMany({
-            where: and(
-              eq(jobMatchAnalyses.userId, userId),
-              inArray(jobMatchAnalyses.jobId, allJobIds),
-            ),
-            orderBy: [desc(jobMatchAnalyses.createdAt)],
-          })
-        : [];
-
-    const latestAnalysisMap = new Map<string, (typeof analyses)[0]>();
-    for (const a of analyses) {
-      if (!latestAnalysisMap.has(a.jobId)) {
-        latestAnalysisMap.set(a.jobId, a);
-      }
-    }
+    const { analysesByJob: latestAnalysisMap } = await currentMatchingInputs(
+      this.db,
+      userId,
+      allMatchingJobs,
+    );
 
     // Filter by match intelligence if requested
     const filteredJobs = allMatchingJobs.filter((r) => {
@@ -557,8 +549,12 @@ export class JobService {
     const sortOrder = query.sortOrder === 'asc' ? 1 : -1;
     if (query.sortBy === 'score') {
       filteredJobs.sort((a, b) => {
-        const scoreA = latestAnalysisMap.get(a.id)?.overallScore ?? -1;
-        const scoreB = latestAnalysisMap.get(b.id)?.overallScore ?? -1;
+        const scoreA =
+          (latestAnalysisMap.get(a.id)?.isStale ? -1 : latestAnalysisMap.get(a.id)?.overallScore) ??
+          -1;
+        const scoreB =
+          (latestAnalysisMap.get(b.id)?.isStale ? -1 : latestAnalysisMap.get(b.id)?.overallScore) ??
+          -1;
         return (scoreA - scoreB) * sortOrder;
       });
     } else if (query.sortBy === 'confidence') {
@@ -598,6 +594,10 @@ export class JobService {
       const matchSummary: JobMatchSummaryDto | null = match
         ? {
             overallScore: match.overallScore,
+            careerFitCategory: match.careerFitCategory as JobMatchSummaryDto['careerFitCategory'],
+            summaryExplanation: match.summaryExplanation,
+            hardBlockers: match.hardBlockers,
+            unknowns: match.unknowns,
             confidenceScore: match.confidenceScore,
             decision: match.decision as any,
             isStale: match.isStale,
@@ -998,18 +998,11 @@ export class JobService {
       workplaceCounts[j.workplaceType] = (workplaceCounts[j.workplaceType] || 0) + 1;
     }
 
-    // Query matching metrics
-    const allAnalyses = await this.db.query.jobMatchAnalyses.findMany({
-      where: eq(jobMatchAnalyses.userId, userId),
-      orderBy: [desc(jobMatchAnalyses.createdAt)],
-    });
-
-    const latestAnalysisByJob = new Map<string, (typeof allAnalyses)[0]>();
-    for (const a of allAnalyses) {
-      if (!latestAnalysisByJob.has(a.jobId)) {
-        latestAnalysisByJob.set(a.jobId, a);
-      }
-    }
+    const { analysesByJob: latestAnalysisByJob } = await currentMatchingInputs(
+      this.db,
+      userId,
+      allJobs,
+    );
 
     let totalAnalyzed = 0;
     let matchCount = 0;

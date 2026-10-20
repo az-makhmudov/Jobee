@@ -32,6 +32,8 @@ export function PreferencesView({ onUpdate }: Props) {
   const [minSalary, setMinSalary] = useState<string>('');
   const [maxSalary, setMaxSalary] = useState<string>('');
   const [currency, setCurrency] = useState('USD');
+  const [salaryPayPeriod, setSalaryPayPeriod] =
+    useState<JobPreferencesDto['salaryPayPeriod']>(null);
   const [sponsorship, setSponsorship] = useState<string>('unspecified');
   const [relocate, setRelocate] = useState<string>('unspecified');
   const [excludedCompanies, setExcludedCompanies] = useState('');
@@ -79,6 +81,7 @@ export function PreferencesView({ onUpdate }: Props) {
         setMinSalary(prefsRes.minSalary !== null ? String(prefsRes.minSalary) : '');
         setMaxSalary(prefsRes.maxSalary !== null ? String(prefsRes.maxSalary) : '');
         setCurrency(prefsRes.currency || 'USD');
+        setSalaryPayPeriod(prefsRes.salaryPayPeriod ?? null);
         setSponsorship(
           prefsRes.needsSponsorship === true
             ? 'yes'
@@ -150,6 +153,7 @@ export function PreferencesView({ onUpdate }: Props) {
         minSalary: minSalary ? Number(minSalary) : null,
         maxSalary: maxSalary ? Number(maxSalary) : null,
         currency,
+        salaryPayPeriod,
         needsSponsorship: sponsorship === 'yes' ? true : sponsorship === 'no' ? false : null,
         willingToRelocate: relocate === 'yes' ? true : relocate === 'no' ? false : null,
         excludedCompanies: excludedCompanies
@@ -318,6 +322,27 @@ export function PreferencesView({ onUpdate }: Props) {
               />
             </div>
 
+            <div className="form-group">
+              <label className="form-label">Salary period</label>
+              <Select
+                value={salaryPayPeriod ?? ''}
+                onChange={(e) =>
+                  setSalaryPayPeriod(
+                    (e.target.value || null) as JobPreferencesDto['salaryPayPeriod'],
+                  )
+                }
+              >
+                <option value="">Not specified</option>
+                <option value="YEAR">Per year</option>
+                <option value="MONTH">Per month</option>
+                <option value="WEEK">Per week</option>
+                <option value="DAY">Per day</option>
+                <option value="HOUR">Per hour</option>
+              </Select>
+              <p className="field-help">
+                Salary comparisons require a matching currency and pay period.
+              </p>
+            </div>
             <div className="form-group">
               <label className="form-label">Currency</label>
               <Select

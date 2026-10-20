@@ -169,6 +169,13 @@
       "when": 1792482221679,
       "tag": "0023_current_job_extraction",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792483180852,
+      "tag": "0024_salary_pay_period",
+      "breakpoints": true
     }
   ]
 }

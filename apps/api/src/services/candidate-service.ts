@@ -1395,6 +1395,7 @@ export class CandidateService {
       minSalary?: number | null;
       maxSalary?: number | null;
       currency?: string;
+      salaryPayPeriod?: JobPreferencesDto['salaryPayPeriod'];
       preferredLanguages?: string[];
       excludedCompanies?: string[];
       excludedKeywords?: string[];
@@ -1434,6 +1435,7 @@ export class CandidateService {
           minSalary: data.minSalary ?? null,
           maxSalary: data.maxSalary ?? null,
           currency: data.currency ?? 'USD',
+          salaryPayPeriod: data.salaryPayPeriod ?? null,
           preferredLanguages: data.preferredLanguages ?? [],
           excludedCompanies: data.excludedCompanies ?? [],
           excludedKeywords: data.excludedKeywords ?? [],

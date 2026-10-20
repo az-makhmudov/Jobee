@@ -4,6 +4,10 @@ Implemented in JOB-P1-T02: routine library reuse requires verified exact-questio
 
 Updated 2026-10-20. Target contract; implementation differences are recorded below. Never invent candidate facts. AI recommends and prepares; deterministic rules authorize; humans resolve material uncertainty.
 
+## Grounded eligibility (JOB-P2-T02)
+
+All discovery/manual/daily/worker matching paths use the shared backend engine. Explicit work modes stay binding even when relocation is allowed. Country authorization comes from the candidate’s explicit country list; residence, remote work and no sponsorship do not imply global work rights or citizenship/clearance. Missing jurisdiction or material eligibility requires review, and AI cannot resolve sensitive requirements by guessing. Internship eligibility distinguishes false from unknown. Salary gates require explicitly supplied matching currencies and pay periods; old unitless values remain unknown. Low professional relevance, explicit policy blockers and missing information have separate explanations. A current MATCH is a recommendation, never submission consent. Stale results lose preliminary eligibility, and future execution must still satisfy the existing signed authorization boundary.
+
 ## Product authorization
 
 Apply with Jobee authorizes an attempt for one selected job under explicitly accepted terms and application rules. It should prepare and execute without a mandatory package-review screen when verified facts, approved reusable answers and provider capability suffice. Material unknowns, sensitive answers needing consent, legal/background declarations and challenges pause for minimal user input.

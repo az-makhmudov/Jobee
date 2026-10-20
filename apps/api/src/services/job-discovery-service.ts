@@ -187,6 +187,7 @@ export class JobDiscoveryService {
               .update(jobs)
               .set({
                 lastCheckedDate: new Date(),
+                updatedAt: new Date(result.job.updatedAt),
                 sourceExternalId: item.externalId ?? null,
                 sourceCompanyId: item.board ?? null,
                 applicationUrl: item.url,

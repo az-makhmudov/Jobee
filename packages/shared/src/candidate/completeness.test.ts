@@ -163,6 +163,7 @@ describe('calculateProfileCompleteness', () => {
       employmentTypes: ['full-time'],
       seniorityLevels: ['mid'],
       minSalary: 70000,
+      salaryPayPeriod: null,
       maxSalary: 95000,
       currency: 'EUR',
       preferredLanguages: ['English'],

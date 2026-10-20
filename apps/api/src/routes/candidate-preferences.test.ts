@@ -171,3 +171,16 @@ describe('Verified answer context (JOB-P1-T02)', () => {
     expect(denied.statusCode).toBe(404);
   });
 });
+
+it('preserves unknown salary units until explicitly confirmed and permits clearing them', async () => {
+  expect((await get(otherId)).json().data.salaryPayPeriod).toBeNull();
+  const first = await put(otherId, { minSalary: 50000 });
+  expect(first.json().data.salaryPayPeriod).toBeNull();
+  const confirmed = await put(otherId, { salaryPayPeriod: 'YEAR' });
+  expect(confirmed.json().data.salaryPayPeriod).toBe('YEAR');
+  const unrelated = await put(otherId, { targetTitles: ['Engineer'] });
+  expect(unrelated.json().data.salaryPayPeriod).toBe('YEAR');
+  const invalid = await put(otherId, { salaryPayPeriod: 'ASSUME_ANNUAL' });
+  expect(invalid.statusCode).toBe(400);
+  expect((await put(otherId, { salaryPayPeriod: null })).json().data.salaryPayPeriod).toBeNull();
+});

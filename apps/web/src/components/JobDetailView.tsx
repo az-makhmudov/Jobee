@@ -127,9 +127,10 @@ export function JobDetailView({
     try {
       const data = await jobApi.getJobAnalysis(jobId);
       setAnalysis(data);
-    } catch {
-      // 404 is normal if unanalyzed
+    } catch (err) {
       setAnalysis(null);
+      const message = err instanceof Error ? err.message : 'Match information could not be loaded';
+      if (!message.startsWith('No match analysis found')) setAnalysisError(message);
     } finally {
       setLoadingAnalysis(false);
     }
@@ -421,6 +422,42 @@ export function JobDetailView({
         >
           <JobFeedbackBar jobId={job.id} />
         </div>
+      </Card>
+
+      <Card className="job-fit-overview" style={{ marginBottom: 24 }}>
+        <h3>Your fit</h3>
+        {loadingAnalysis ? (
+          <p>Loading match information…</p>
+        ) : analysis?.isStale ? (
+          <p>
+            Your profile or this posting changed. Refresh the analysis before relying on this
+            result.
+          </p>
+        ) : analysis ? (
+          <>
+            <p>{analysis.summaryExplanation}</p>
+            {!!analysis.hardBlockers.length && (
+              <p>
+                <strong>Blocked:</strong> {analysis.hardBlockers[0]}
+              </p>
+            )}
+            {!!analysis.unknowns.length && (
+              <p>
+                <strong>Unconfirmed:</strong> {analysis.unknowns[0]}
+              </p>
+            )}
+          </>
+        ) : (
+          !analysisError && <p>Check how this role fits your verified information.</p>
+        )}
+        {analysisError && <p role="alert">{analysisError}</p>}
+        <Button
+          className="btn btn-secondary btn-sm"
+          disabled={analyzing || loadingAnalysis}
+          onClick={() => handleRunAnalysis(true)}
+        >
+          {analyzing ? 'Checking fit…' : analysis ? 'Refresh your fit' : 'Check your fit'}
+        </Button>
       </Card>
 
       <Tabs

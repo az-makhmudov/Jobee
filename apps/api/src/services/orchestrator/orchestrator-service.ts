@@ -1,3 +1,4 @@
+import { currentMatchingInputs } from '@job-agent/database/matching';
 import type { Database } from '@job-agent/database';
 import {
   orchestrationRuns,
@@ -128,14 +129,14 @@ export class OrchestratorService {
   }
 
   async getMetrics(userId: string): Promise<SystemMetricsDto> {
-    // 1. Total jobs discovered & matched
-    const [jobsTotal] = await this.db
-      .select({
-        discovered: sql<number>`count(*) filter (where ${jobs.state} = 'DISCOVERED')`,
-        matched: sql<number>`count(*) filter (where ${jobs.state} = 'MATCHED')`,
-      })
-      .from(jobs)
-      .where(eq(jobs.userId, userId));
+    const candidateJobs = await this.db.select().from(jobs).where(eq(jobs.userId, userId));
+    const { analysesByJob } = await currentMatchingInputs(this.db, userId, candidateJobs);
+    const jobsTotal = {
+      discovered: candidateJobs.length,
+      matched: [...analysesByJob.values()].filter(
+        (analysis) => !analysis.isStale && analysis.decision === 'MATCH',
+      ).length,
+    };
 
     // 2. Applications submitted & applications today
     const today = new Date();

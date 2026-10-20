@@ -123,3 +123,28 @@ it('shows a retryable load failure without presenting it as an empty collection'
   await screen.findByText('Current role');
   expect(screen.queryByRole('alert')).toBeNull();
 });
+
+it('refreshes the current filters when a discovery action finishes after the user changes the query', async () => {
+  let finish!: (value: Awaited<ReturnType<typeof jobApi.discoverJobs>>) => void;
+  vi.mocked(jobApi.discoverJobs).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  render(<JobInboxView {...props} />);
+  await screen.findByText('Current role');
+  fireEvent.click(screen.getByRole('button', { name: 'Find jobs' }));
+  fireEvent.change(screen.getByLabelText('Workplace'), { target: { value: 'REMOTE' } });
+  await waitFor(() =>
+    expect(jobApi.getJobs).toHaveBeenLastCalledWith(
+      expect.objectContaining({ workplaceType: 'REMOTE' }),
+    ),
+  );
+  const count = vi.mocked(jobApi.getJobs).mock.calls.length;
+  finish({ newJobsIngested: 0, totalDiscovered: 0, duplicatesSkipped: 0, sourcesSummary: [] });
+  await waitFor(() => expect(jobApi.getJobs).toHaveBeenCalledTimes(count + 1));
+  expect(jobApi.getJobs).toHaveBeenLastCalledWith(
+    expect.objectContaining({ workplaceType: 'REMOTE' }),
+  );
+});

@@ -305,7 +305,7 @@ export type DimensionStatus = 'SCORED' | 'UNKNOWN' | 'NOT_APPLICABLE';
 
 export type MatchAnalysisMode = 'DETERMINISTIC_ONLY' | 'AI_ENRICHED';
 
-export const MATCH_ALGORITHM_VERSION = '1.0.0';
+export const MATCH_ALGORITHM_VERSION = '2.0.0';
 
 export const DIMENSION_DEFAULT_WEIGHTS: Record<DimensionType, number> = {
   ROLE_FIT: 25,
@@ -325,6 +325,7 @@ export const DecisionReasonCodes = {
   EXCLUDED_COMPANY: 'EXCLUDED_COMPANY',
   EXCLUDED_KEYWORD: 'EXCLUDED_KEYWORD',
   EMPLOYMENT_TYPE_NOT_ALLOWED: 'EMPLOYMENT_TYPE_NOT_ALLOWED',
+  INTERNSHIP_NOT_ALLOWED: 'INTERNSHIP_NOT_ALLOWED',
   SALARY_BELOW_MINIMUM: 'SALARY_BELOW_MINIMUM',
   LANGUAGE_REQUIREMENT_NOT_MET: 'LANGUAGE_REQUIREMENT_NOT_MET',
   SPONSORSHIP_CONFLICT: 'SPONSORSHIP_CONFLICT',
@@ -380,6 +381,7 @@ export const CareerFitCategories = {
   TRANSFERABLE_SKILLS_MATCH: 'TRANSFERABLE_SKILLS_MATCH',
   GROWTH_OPPORTUNITY: 'GROWTH_OPPORTUNITY',
   NOT_CURRENTLY_ELIGIBLE: 'NOT_CURRENTLY_ELIGIBLE',
+  LOW_RELEVANCE: 'LOW_RELEVANCE',
   INSUFFICIENT_INFORMATION: 'INSUFFICIENT_INFORMATION',
 } as const;
 
@@ -417,6 +419,9 @@ export interface JobMatchAnalysisDto {
 }
 
 export interface JobMatchSummaryDto {
+  summaryExplanation?: string;
+  hardBlockers?: string[];
+  unknowns?: string[];
   overallScore: number;
   confidenceScore: number;
   decision: MatchDecision;

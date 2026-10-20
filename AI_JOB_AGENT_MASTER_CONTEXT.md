@@ -17,7 +17,7 @@ Codex owns planning, architecture, coding, tests and documentation. Antigravity 
 - TASK_LOG.md, archive/jobee-1.0, old UX/evolution documents and older ADRs preserve historical evidence. Historical autonomous continuation and blanket completion labels are superseded for this transition.
 - Root JOBEE_MASTER_CONTEXT.md and AI_JOB_AGENT_MASTER_CONTEXT.md are identical compatibility mirrors of this file. No competing product specification is maintained there.
 
-The source documents are preserved in specifications/jobee-2.0. Their conceptual entities do not mandate new tables. The three-section navigation is implemented locally under JOB-P1-T01; verified candidate-context gaps were closed under JOB-P1-T02. One-click Apply and Autopilot remain later roadmap deliverables. Existing multi-user infrastructure stays although SaaS administration is outside MVP scope.
+The source documents are preserved in specifications/jobee-2.0. Their conceptual entities do not mandate new tables. The three-section navigation is implemented locally under JOB-P1-T01; verified candidate-context gaps were closed under JOB-P1-T02. JOB-P2-T01 and JOB-P2-T02 deliver persistent Explore, source extraction history and shared grounded matching, verified locally. One-click Apply and Autopilot remain later roadmap deliverables. Existing multi-user infrastructure stays although SaaS administration is outside MVP scope.
 
 ## Implementation baseline
 
@@ -29,7 +29,7 @@ Audited checkout: main at f4ac34bdc3f816dce9031420a7e31f6baf9baf85. Existing can
 
 **Version:** 2.0\
 **Date:** 2026-10-20\
-**Status:** Approved product direction; Phase 1 implemented and verified locally; remaining acceptance tracked in ROADMAP.md\
+**Status:** Approved product direction; Phases 1 and 2 implemented and verified locally; remaining acceptance tracked in ROADMAP.md\
 **Canonical product name:** Jobee
 
 ## 1. Product Vision

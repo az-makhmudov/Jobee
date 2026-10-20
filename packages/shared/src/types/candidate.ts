@@ -277,6 +277,7 @@ export interface JobPreferencesDto {
   seniorityLevels: string[];
   minSalary: number | null;
   maxSalary: number | null;
+  salaryPayPeriod: 'YEAR' | 'MONTH' | 'WEEK' | 'DAY' | 'HOUR' | null;
   currency: string;
   preferredLanguages: string[];
   excludedCompanies: string[];

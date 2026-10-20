@@ -4,34 +4,36 @@ Updated: 2026-10-20. Engineering owner: Codex. Branch: codex/jobee-2-foundation.
 
 ## Current authorization and next action
 
-The owner approved the assessment and requested phase-by-phase implementation on 2026-10-20. JOB-P0-T01 foundation reconciliation, JOB-P1-T01 platform adaptation and JOB-P1-T02 candidate context are **COMPLETED locally**. Phase 1 is verified; no release is claimed.
+The owner approved the assessment and requested phase-by-phase local implementation. JOB-P0-T01, JOB-P1-T01, JOB-P1-T02, JOB-P2-T01 and JOB-P2-T02 are **COMPLETED locally**. Phases 1 and 2 are verified; no release is claimed.
 
-**JOB-P2-T01 — Explore/discovery adaptation is COMPLETED locally**. Next: JOB-P2-T02 grounded matching convergence. Those tasks have substantial historical implementations and remain PARTIAL against 2.0 acceptance. Continue from their actual code/deltas; do not restart completed subsystems. No further owner approval is needed for routine local roadmap work. Real applications, outbound communication/calendar actions, paid services and production operations require separate explicit authorization.
+**Next canonical task: JOB-P3-T01 — durable One-click Apply intent and automatic preparation.** Reuse existing application/preparation/package/version services, persist scoped intent before asynchronous work, handle routine materials automatically and pause only for material unknowns. Verify idempotency, cancellation, safe resume, source revocation and tenant isolation. Then JOB-P5-T01 proves provider execution before full CRM/Autopilot convergence. Do not restart completed subsystems or invent new task stamps.
+
+Routine local roadmap work remains authorized. Real applications, outbound communication/calendar actions, paid services, production operations and live ATS validation require separate explicit authorization. The current delivery closes Phase 2; neither full One-click Apply nor Autopilot is claimed complete.
 
 ## Verified functionality
 
-- Explore opens by default; three primary destinations: Explore, Applications and Profile. Profile contains candidate editors/documents/answers/preferences and account/connections/activity. Legacy callbacks and notification targets retain record access. Session gating, per-user dialogs, mobile focus and /api local proxy are verified.
-- Existing candidate imports, verification/provenance, documents and professional editors remain. Missing authorization-country, internship-eligibility and availability preferences now persist through the normal validated API; partial updates and unknowns are preserved.
-- Saved Answers has explicit verification; material edits clear it unless reconfirmed. Automatic reuse requires a verified, matching routine AUTO answer. Unverified, unrelated, conflicting, manual, sensitive and scoped cases cannot silently receive automatic permission. Submission authorization rechecks used source verification, question/content, update time and required bound human approval; unrelated source edits do not globally stale packages.
-- No new dependency, schema migration, identity change, data deletion or AI provider was introduced. Existing real records/IDs and external integration encryption remain preserved.
+- Three primary sections: Explore, Applications and Profile. Legacy record links, candidate imports, documents, saved answers, preferences, integrations, employer tracking and reviewed preparation/submission remain. Session gating, user isolation, mobile focus and local /api proxy are verified.
+- Candidate eligibility/preferences persist without invented defaults. Reusable answers require explicit verification; material edits clear it unless reconfirmed. Sensitive/scoped/REVIEW answers retain bound human approval, and submission rechecks used source ownership, verification, prompt/content and update time.
+- Explore keeps filters, submitted search, pagination and selection while detail opens beside the list on desktop or replaces it on mobile. Essential filters, fit ranking/explanations, retryable failures and honest partial-source notices use existing services. Async discovery refreshes the current query rather than a captured old filter.
+- Public source refresh preserves job IDs, manual corrections and source snapshots. Migration 0023 versions extracted requirements/sections without deleting rows referenced by historical evaluations; current detail/matching/interview preparation use current extraction.
+- API, batch, daily search and worker matching use the shared backend engine. The worker no longer fabricates MATCHED/SKIPPED ingestion states and prepares only fresh MATCH records. Stable material-input fingerprints, algorithm 2.0 and freshness checks invalidate stale recommendations without deleting history.
+- Explicit work modes remain binding. Country authorization is not inferred from remote work, residence or no sponsorship. Material unknowns require review; confirmed blockers and low professional relevance have distinct explanations. Migration 0024 adds nullable salary pay period: comparisons require matching explicit currencies/units; no annual default or exchange rate is invented. AI receives verified permitted evidence and cannot resolve sensitive uncertainty by guessing. A MATCH is never submission consent.
 
-## Verification
+## Verification and data preservation
 
-Final code gates: format:write, lint, typecheck, test, build, format, db:check and db:migrate PASS. Lint: 0 errors, 693 existing warnings. **653 tests / 73 files pass. 35 Chromium scenarios pass**, with four additional affected-flow/render checks after the preferences layout adjustment and a final mobile drawer-inert/persistence check. Desktop Light/Dark and mobile renders were inspected. Final text-only wording cleanup does not change behavior.
+All eight gates PASS: format:write, lint, typecheck, test, build, format, db:check, db:migrate. **672 tests / 75 files pass; 0 lint errors / 693 pre-existing warnings. 37 Chromium scenarios pass**, followed by three affected render/navigation checks after final pagination/capture polish. Cold-start source imports, desktop Light/Dark and 390px mobile rendering were verified and visually inspected. Offline source-to-analysis acceptance and point-in-time read-only public feed acceptance pass; no paid/live AI model certification is claimed.
 
-Test configuration: explicit localhost/jobee_test_isolated as DATABASE_URL and TEST_DATABASE_URL, VITE_API_URL=/api. Browser fixtures use a separate localhost/jobee2_ui_test_isolated database, disabled AI and local storage. Compile/build packages before browser runs to avoid watched-package server restarts. No development/production migration or real employer action was performed. Existing migration 0022 had already been applied to the isolated test target during assessment; no new migration was authored.
+Tests use explicit localhost/jobee_test_isolated and separate localhost/jobee2_ui_test_isolated browser fixtures, disabled AI and local storage. Build shared packages before browser runs; do not rebuild watched packages while browser servers run. Disposable users and scoped cleanup protect real records.
+
+The known development target localhost/ai_job_agent_dev is migrated through 0024. Only reviewed additive migrations 0022–0024 were applied. Original row counts and original-column fingerprints are unchanged across all 57 pre-existing public tables; existing salary units remain null. No development test fixtures, data deletion, production migration, deployment, paid API action or real employer operation occurred. Existing encrypted integration records and document references remain intact.
 
 ## Git checkpoints and records
 
-- Audit baseline: main at f4ac34bdc3f816dce9031420a7e31f6baf9baf85. Historically released runtime: f6d6286c9f12a561609ce1950bd33d26c4f603d0; production was not revalidated.
-- Verified JOB-P1-T01 checkpoint: 098f816. Includes approved canonical reconciliation and the three-section shell.
-- JOB-P1-T02 verified source checkpoint: c2a388b5d20f9209c16baff7b8524ad828ba7613. Documentation-only checkpoint records follow without changing runtime code. No push, merge or deployment.
-- Reports: JOBEE_2_IMPLEMENTATION.md and TASK_LOG.md. Audit evidence: JOBEE_2_ASSESSMENT.md. Historical docs and original owner references remain in archive/jobee-1.0 and specifications/jobee-2.0.
+- Audit baseline: main at f4ac34bdc3f816dce9031420a7e31f6baf9baf85. Historical release f6d6286c9f12a561609ce1950bd33d26c4f603d0 was not re-certified in production.
+- JOB-P1-T01: 098f816. JOB-P1-T02: c2a388b5d20f9209c16baff7b8524ad828ba7613.
+- JOB-P2-T01: 616b990. The verified JOB-P2-T02 source checkpoint is recorded after its local commit. Documentation-only checkpoint records do not change runtime verification. No push, merge or deployment.
+- Current delivery report: JOBEE_2_IMPLEMENTATION.md. Status/dependencies: ROADMAP.md. Audit: TASK_LOG.md and JOBEE_2_ASSESSMENT.md. Owner references and historical evidence remain in specifications/jobee-2.0 and archive/jobee-1.0.
 
 ## Remaining product gaps
 
-Explore discovery/detail adaptation is verified locally. Matching must consistently consume verified candidate context and distinguish relevance, blockers and unknowns across execution paths. One shared durable application-intent/consent pipeline, automatic routine preparation, end-to-end provider acceptance, safe interruption/resume and versioned Autopilot policy remain later work. Existing reviewed submissions remain protected; neither full One-click Apply nor Autopilot is claimed complete. Complex saved-answer conditions still require human review rather than a new rules language. Public-launch privacy/retention review, live ATS validation and production release remain separately scoped.
-
-## JOB-P2-T01 checkpoint
-
-Persistent desktop panes/mobile back navigation, essential filters, superseded-request protection, retryable errors and truthful partial-source notices are implemented. Migration 0023 preserves extraction history and old evaluation references while current detail/matching use refreshed requirements. All eight gates pass, 658 tests / 74 files and 36 browser scenarios pass; source acceptance passes offline and against read-only public listings. Only localhost/jobee_test_isolated and localhost/jobee2_ui_test_isolated were migrated. Next task is JOB-P2-T02; the shared application pipeline and Autopilot remain later dependencies.
+Durable job-scoped consent before preparation, automatic routine materials, end-to-end provider execution proof, safe attempt interruption/resume and versioned Autopilot policy remain later tasks. Legacy worker discovery and draft-only preparation must converge into that proven pipeline; existing reviewed submission controls remain protected. Complex answer conditions still require human review. Public-launch privacy/retention review, owner-approved live ATS validation and production release remain separately scoped.

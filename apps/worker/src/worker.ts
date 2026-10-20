@@ -1,3 +1,4 @@
+import { DynamicAiProvider } from '@job-agent/database/matching';
 import crypto from 'node:crypto';
 import { and, lt } from 'drizzle-orm';
 import type { AppConfig } from '@job-agent/config';
@@ -227,7 +228,11 @@ export class WorkerService {
     if (!this.db) {
       try {
         this.db = getDb(this.config.DATABASE_URL);
-        this.orchestrator = new AutonomousOrchestrator(this.db, this.logger);
+        this.orchestrator = new AutonomousOrchestrator(
+          this.db,
+          this.logger,
+          new DynamicAiProvider(this.config),
+        );
       } catch (err: any) {
         this.logger.error('Failed to initialize database client in worker', undefined, err);
         return;

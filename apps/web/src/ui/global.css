@@ -1248,3 +1248,7 @@ input[type='radio'] {
     display: none !important;
   }
 }
+.job-fit-summary {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}

@@ -7,7 +7,7 @@ describe('Job Routes Integration Tests', () => {
   const config = getConfig();
   let app: ReturnType<typeof buildApp>;
   let createdJobId: string;
-  const runId = Date.now();
+  const runId = `job-routes-${crypto.randomUUID()}`;
   const testCompany = `CloudScale Enterprise ${runId}`;
 
   beforeAll(async () => {
