@@ -2437,6 +2437,34 @@ export function ApplicationDetailView({
               </div>
             </div>
 
+            {selectedRun.submissionObservation && (
+              <div role="status">
+                <strong>
+                  {selectedRun.submissionObservation.outcome === 'ACCEPTED'
+                    ? 'Employer confirmation observed'
+                    : 'Confirmation needs attention'}
+                </strong>
+                <p>
+                  {selectedRun.submissionObservation.signal} ·{' '}
+                  {new Date(selectedRun.submissionObservation.observedAt).toLocaleString()}
+                </p>
+              </div>
+            )}
+            {!!selectedRun.screenshotPaths.length && (
+              <div className="account-actions">
+                {selectedRun.screenshotPaths.map((_, index) => (
+                  <a
+                    key={index}
+                    href={`/api/browser-runs/${selectedRun.id}/evidence/${index}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View retained evidence {index + 1}
+                  </a>
+                ))}
+                <span>Available for 30 days.</span>
+              </div>
+            )}
             {selectedRun.confirmationReference && (
               <div
                 style={{
@@ -2453,6 +2481,37 @@ export function ApplicationDetailView({
               </div>
             )}
 
+            {selectedRun.status === 'SUBMISSION_UNCERTAIN' && (
+              <p>
+                Check the employer website and your email before attempting this application again.
+                If it was received, update its status in this application record. An uncertain
+                attempt is never retried automatically.
+              </p>
+            )}
+            {selectedRun.status === 'SUBMISSION_UNCERTAIN' && (
+              <Button
+                onClick={async () => {
+                  const accepted = await confirm(
+                    'Confirm that you checked the employer website and your email and this application was not sent. This allows a separately authorized attempt; an incorrect check could create a duplicate application.',
+                  );
+                  if (!accepted) return;
+                  try {
+                    const updated = await BrowserWorkerClient.reconcileNotSent(
+                      selectedRun.id,
+                      'Candidate checked the employer website and email; no application was sent.',
+                    );
+                    setSelectedRun(updated);
+                    await loadDetail(true);
+                  } catch (err) {
+                    setError(
+                      err instanceof Error ? err.message : 'Could not reconcile this attempt.',
+                    );
+                  }
+                }}
+              >
+                I checked: this application was not sent
+              </Button>
+            )}
             {selectedRun.errorMessage && (
               <div
                 style={{

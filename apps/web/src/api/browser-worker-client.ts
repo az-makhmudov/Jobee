@@ -30,6 +30,17 @@ export class BrowserWorkerClient {
     return data.data;
   }
 
+  static async reconcileNotSent(runId: string, note: string): Promise<BrowserApplicationRunDto> {
+    const res = await fetch(`${API_BASE}/browser-runs/${runId}/reconcile-not-sent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ checkedEmployerWebsite: true, note }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error?.message ?? 'Could not reconcile this attempt.');
+    return json.data;
+  }
+
   /**
    * List browser runs for an application.
    */

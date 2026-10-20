@@ -9,6 +9,18 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./storage": {
+      "types": "./dist/storage/index.d.ts",
+      "import": "./dist/storage/index.js"
+    },
+    "./storage/local-storage": {
+      "types": "./dist/storage/local-storage.d.ts",
+      "import": "./dist/storage/local-storage.js"
+    },
+    "./storage/s3-storage": {
+      "types": "./dist/storage/s3-storage.d.ts",
+      "import": "./dist/storage/s3-storage.js"
     }
   },
   "scripts": {

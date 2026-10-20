@@ -1,3 +1,13 @@
+# Active continuation — 20 October 2026
+
+**JOB-PRODUCT-EVOLUTION-01 — LOCAL IMPLEMENTATION VERIFIED; ROLLOUT PENDING.** Owner explicitly authorized implementation and deployment. Branch `codex/jobee-product-evolution`, based on student UX checkpoint `f650fb0` / main `a98ac9f`. Employer observations and protected evidence, broad public source traversal, persistent preparation/review batches, per-item signed selected submissions and opt-in daily assistance are implemented. The student UX release and genuine reviewed Linux references are included.
+
+Verification: 634 passing tests across 72 files; all mandatory formatting, lint (693 warnings, zero errors), typecheck, build and isolated DB connectivity/migration gates pass. All 32 Linux browser checks pass at the unchanged 1% visual tolerance; macOS application checks also pass (one artifact-collision cleanup was rerun independently). Direct synthetic browser preparation produced two retained packages needing review; no employer application was sent. Three batch UI tests enforce separation of preparation, final review and deliberate submission authorization. See PRODUCT_EVOLUTION.md.
+
+Next: commit/push the reviewed change, require PR CI, apply additive migration 0022, deploy worker and API from the tested release, verify both services and public/auth boundaries, then record actual deployment IDs and source commit. No human usability/relevance pilot, paid provider experiment or live employer submission is claimed. Preserve the main checkout's preexisting AGENTS.md edit.
+
+---
+
 # Jobee — Autonomous Execution State
 
 > Active authorized continuation: **JOB-UI-MIGRATION-01 — Student UX simplification**, 19 October 2026. The owner approved the complete Figma flow and explicitly requested application implementation. Four-destination navigation, contextual application workspaces, progressive tools, explicit document intent and simpler profile/settings screens are implemented locally in `codex/jobee-student-ux`. Local verification is complete: 606 tests / 67 files, all eight required gates and 32 Chromium checks pass; 42 desktop renders cover both themes. No merge, push or deployment has occurred. See `docs/STUDENT_UX.md`.

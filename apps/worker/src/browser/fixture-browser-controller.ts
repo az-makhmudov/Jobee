@@ -154,7 +154,10 @@ export class FixtureBrowserPage implements BrowserPage {
   private elementStates = new Map<string, ElementState>();
   private clickHistory: string[] = [];
 
-  constructor(private readonly registeredPages: Map<string, string> = new Map()) {
+  constructor(
+    private readonly registeredPages: Map<string, string> = new Map(),
+    private readonly submissionPages: Map<string, string> = new Map(),
+  ) {
     this.setHtml(this.html);
   }
 
@@ -182,6 +185,12 @@ export class FixtureBrowserPage implements BrowserPage {
 
   public recordClick(selector: string): void {
     this.clickHistory.push(selector);
+    if (selector.includes('submit'))
+      for (const [key, html] of this.submissionPages)
+        if (this.currentUrl.includes(key)) {
+          this.setHtml(html, this.currentUrl);
+          break;
+        }
   }
 
   public getClicks(): string[] {
@@ -269,6 +278,10 @@ export class FixtureBrowserPage implements BrowserPage {
 export class FixtureBrowserController implements BrowserController {
   private registeredPages = new Map<string, string>();
   private activePages: FixtureBrowserPage[] = [];
+  private submissionPages = new Map<string, string>();
+  public registerSubmission(urlSubstring: string, html: string): void {
+    this.submissionPages.set(urlSubstring, html);
+  }
 
   constructor() {
     this.registerDefaultMocks();
@@ -279,7 +292,7 @@ export class FixtureBrowserController implements BrowserController {
   }
 
   async newPage(): Promise<BrowserPage> {
-    const page = new FixtureBrowserPage(this.registeredPages);
+    const page = new FixtureBrowserPage(this.registeredPages, this.submissionPages);
     this.activePages.push(page);
     return page;
   }

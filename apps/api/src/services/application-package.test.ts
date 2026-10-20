@@ -745,7 +745,15 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       const readiness = PackageReadinessEngine.evaluateReadiness({
         pkg: dummyPkg,
         version: dummyVer,
-        artifacts: [validArtifact],
+        artifacts: [
+          validArtifact,
+          {
+            ...validArtifact,
+            id: 'art-letter',
+            artifactType: 'COVER_LETTER',
+            storageKey: 'letter.docx',
+          },
+        ],
         questions: [unresolvedQ],
         approvals: [],
       });
@@ -782,7 +790,15 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       const readiness = PackageReadinessEngine.evaluateReadiness({
         pkg: dummyPkg,
         version: dummyVer,
-        artifacts: [validArtifact],
+        artifacts: [
+          validArtifact,
+          {
+            ...validArtifact,
+            id: 'art-letter',
+            artifactType: 'COVER_LETTER',
+            storageKey: 'letter.docx',
+          },
+        ],
         questions: [],
         approvals: [pendingApproval],
       });
@@ -799,7 +815,15 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       const readiness = PackageReadinessEngine.evaluateReadiness({
         pkg: { ...dummyPkg, isStale: true },
         version: dummyVer,
-        artifacts: [validArtifact],
+        artifacts: [
+          validArtifact,
+          {
+            ...validArtifact,
+            id: 'art-letter',
+            artifactType: 'COVER_LETTER',
+            storageKey: 'letter.docx',
+          },
+        ],
         questions: [],
         approvals: [],
       });
@@ -813,7 +837,15 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       const blocked = PackageReadinessEngine.evaluateReadiness({
         pkg: { ...dummyPkg, hasPolicyBlocker: true, blockerOverridden: false },
         version: dummyVer,
-        artifacts: [validArtifact],
+        artifacts: [
+          validArtifact,
+          {
+            ...validArtifact,
+            id: 'art-letter',
+            artifactType: 'COVER_LETTER',
+            storageKey: 'letter.docx',
+          },
+        ],
         questions: [],
         approvals: [],
       });
@@ -829,7 +861,15 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
           blockerOverrideReason: 'Candidate willing to commute despite location policy',
         },
         version: dummyVer,
-        artifacts: [validArtifact],
+        artifacts: [
+          validArtifact,
+          {
+            ...validArtifact,
+            id: 'art-letter',
+            artifactType: 'COVER_LETTER',
+            storageKey: 'letter.docx',
+          },
+        ],
         questions: [],
         approvals: [],
       });
@@ -861,7 +901,15 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       const readiness = PackageReadinessEngine.evaluateReadiness({
         pkg: dummyPkg,
         version: dummyVer,
-        artifacts: [validArtifact],
+        artifacts: [
+          validArtifact,
+          {
+            ...validArtifact,
+            id: 'art-letter',
+            artifactType: 'COVER_LETTER',
+            storageKey: 'letter.docx',
+          },
+        ],
         questions: [],
         approvals: [rejectedApproval],
       });
@@ -919,7 +967,15 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       const readiness = PackageReadinessEngine.evaluateReadiness({
         pkg: dummyPkg,
         version: dummyVer,
-        artifacts: [validArtifact],
+        artifacts: [
+          validArtifact,
+          {
+            ...validArtifact,
+            id: 'art-letter',
+            artifactType: 'COVER_LETTER',
+            storageKey: 'letter.docx',
+          },
+        ],
         questions: [],
         approvals: [approvedApproval, rejectedApproval],
       });
@@ -978,7 +1034,15 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       const readiness = PackageReadinessEngine.evaluateReadiness({
         pkg: dummyPkg,
         version: dummyVer,
-        artifacts: [validArtifact],
+        artifacts: [
+          validArtifact,
+          {
+            ...validArtifact,
+            id: 'art-letter',
+            artifactType: 'COVER_LETTER',
+            storageKey: 'letter.docx',
+          },
+        ],
         questions: [],
         approvals: [pendingApproval, rejectedApproval],
       });
@@ -1035,7 +1099,15 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       const readiness = PackageReadinessEngine.evaluateReadiness({
         pkg: dummyPkg,
         version: dummyVer,
-        artifacts: [validArtifact],
+        artifacts: [
+          validArtifact,
+          {
+            ...validArtifact,
+            id: 'art-letter',
+            artifactType: 'COVER_LETTER',
+            storageKey: 'letter.docx',
+          },
+        ],
         questions: [],
         approvals: [reconfirmApproval, rejectedApproval],
       });
@@ -1076,7 +1148,15 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       const readiness = PackageReadinessEngine.evaluateReadiness({
         pkg: dummyPkg,
         version: dummyVer,
-        artifacts: [validArtifact],
+        artifacts: [
+          validArtifact,
+          {
+            ...validArtifact,
+            id: 'art-letter',
+            artifactType: 'COVER_LETTER',
+            storageKey: 'letter.docx',
+          },
+        ],
         questions: [approvedQ],
         approvals: [],
       });

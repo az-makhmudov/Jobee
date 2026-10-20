@@ -1,6 +1,7 @@
 import { Button, Card, Icon, Input, Select } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import { jobApi } from '../api/job-client.js';
+import { PreparationBatchPanel } from './PreparationBatchPanel.js';
 import { AddJobModal } from './AddJobModal.js';
 import { CareerFitBadge } from './CareerFitBadge.js';
 import type {
@@ -13,9 +14,11 @@ import type {
 
 interface Props {
   onSelectJob: (jobId: string) => void;
+  onOpenPackage: (id: string) => void;
 }
 
-export function JobInboxView({ onSelectJob }: Props) {
+export function JobInboxView({ onSelectJob, onOpenPackage }: Props) {
+  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
   const [jobs, setJobs] = useState<JobSummaryDto[]>([]);
   const [metrics, setMetrics] = useState<JobDashboardMetricsDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -190,6 +193,12 @@ export function JobInboxView({ onSelectJob }: Props) {
         </Card>
       )}
 
+      <PreparationBatchPanel
+        selectedJobIds={selectedJobIds}
+        onPrepared={() => setSelectedJobIds([])}
+        onOpenPackage={onOpenPackage}
+      />
+
       <details className="student-tools" style={{ marginBottom: 24 }}>
         <summary>Analysis & source details</summary>
         <div className="account-actions">
@@ -239,7 +248,7 @@ export function JobInboxView({ onSelectJob }: Props) {
               <div style={{ fontSize: '1.4rem', fontWeight: 700, color: 'var(--status-success)' }}>
                 {metrics.matchCount ?? 0}
               </div>
-              <div className="status-item-meta">Eligible roles</div>
+              <div className="status-item-meta">Preference matches</div>
             </div>
             <div className="status-item">
               <div className="status-item-label">Review Needed</div>
@@ -441,6 +450,22 @@ export function JobInboxView({ onSelectJob }: Props) {
                 <Card key={job.id} className="job-card">
                   <div className="action-row">
                     <div>
+                      <label className="job-selection">
+                        <Input
+                          type="checkbox"
+                          aria-label={`Select ${job.title} at ${job.company} for preparation`}
+                          checked={selectedJobIds.includes(job.id)}
+                          disabled={!selectedJobIds.includes(job.id) && selectedJobIds.length >= 10}
+                          onChange={(e) =>
+                            setSelectedJobIds(
+                              e.target.checked
+                                ? [...selectedJobIds, job.id]
+                                : selectedJobIds.filter((id) => id !== job.id),
+                            )
+                          }
+                        />{' '}
+                        Select for preparation
+                      </label>
                       <h2>{job.title}</h2>
                       <p>
                         {job.company} · {job.locationText || 'Location not specified'} ·{' '}
@@ -466,7 +491,10 @@ export function JobInboxView({ onSelectJob }: Props) {
                     <summary>Analysis & source</summary>
                     <p>
                       {job.provider} · Added {new Date(job.discoveredDate).toLocaleDateString()} ·{' '}
-                      {job.state} · {job.workplaceType}
+                      {job.state} · {job.workplaceType} ·{' '}
+                      {job.lastCheckedDate
+                        ? `Last checked ${new Date(job.lastCheckedDate).toLocaleDateString()}`
+                        : 'Not checked recently'}
                       {job.department ? ` · ${job.department}` : ''}
                     </p>
                     <p>

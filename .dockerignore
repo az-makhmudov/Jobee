@@ -11,3 +11,10 @@ backups
 docs/archive
 coverage
 .DS_Store
+
+# Local validation artifacts are not part of a release image.
+output/
+work/
+test-results/
+playwright-report/
+.playwright-cli/

@@ -254,6 +254,12 @@ export const envSchema = z
       GOOGLE_CALENDAR_REDIRECT_URI: z
         .string()
         .default('http://127.0.0.1:3000/api/calendar/google/callback'),
+      BATCH_PREPARATION_ENABLED: z
+        .preprocess((v) => (v === undefined ? true : v === 'true' || v === true), z.boolean())
+        .default(true),
+      SELECTED_SUBMISSIONS_ENABLED: z
+        .preprocess((v) => (v === undefined ? true : v === 'true' || v === true), z.boolean())
+        .default(true),
       ORCHESTRATOR_ENABLED: z
         .preprocess((val) => {
           if (typeof val === 'string') {

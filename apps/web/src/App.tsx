@@ -469,6 +469,7 @@ export default function App() {
             </>
           )}
           <Suspense
+            key={session?.user.id ?? 'guest'}
             fallback={
               <div className="card" role="status">
                 Loading your workspace…
@@ -527,7 +528,15 @@ export default function App() {
                   }}
                 />
               ) : (
-                <JobInboxView onSelectJob={(id) => setSelectedJobId(id)} />
+                <JobInboxView
+                  onSelectJob={(id) => setSelectedJobId(id)}
+                  onOpenPackage={(id) => {
+                    setApplicationOrigin('jobs');
+                    setSelectedPackageId(id);
+                    setSelectedApplicationId(null);
+                    setCurrentSection('applications');
+                  }}
+                />
               ))}
 
             {/* Phase 3: Application CRM & Studio */}

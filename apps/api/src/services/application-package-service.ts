@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import type { Database, Job } from '@job-agent/database';
 import {
+  computePreparationFingerprint,
   applicationPackages,
   applicationPackageVersions,
   applicationArtifacts,
@@ -71,7 +72,11 @@ export class ApplicationPackageService {
     manualBaseDocumentId?: string | null,
   ): Promise<{ package: ApplicationPackageDto; version: ApplicationPackageVersionDto }> {
     // 1. Verify Job exists
-    const [job] = await this.db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
+    const [job] = await this.db
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.id, jobId), eq(jobs.userId, userId)))
+      .limit(1);
     if (!job) {
       throw AppError.notFound(`Job with ID ${jobId} not found`);
     }
@@ -308,7 +313,7 @@ export class ApplicationPackageService {
     const coverLetter = CoverLetterEngine.generateCoverLetter(candidateCtx, job, matchAnalysis);
 
     // Fingerprint calculation
-    const inputFingerprint = this.calculatePackageFingerprint(
+    const inputFingerprint = await this.calculatePackageFingerprint(
       candidateCtx,
       job,
       baseSelection.selectedDocumentId,
@@ -890,7 +895,7 @@ export class ApplicationPackageService {
 
     // Check dynamic staleness
     const candidateCtx = await this.loadCandidateContext(userId);
-    const freshFingerprint = this.calculatePackageFingerprint(
+    const freshFingerprint = await this.calculatePackageFingerprint(
       candidateCtx,
       pkg.job,
       currentVer?.baseDocumentId || null,
@@ -1605,28 +1610,17 @@ export class ApplicationPackageService {
     };
   }
 
-  private calculatePackageFingerprint(
+  private async calculatePackageFingerprint(
     candidate: CandidateContext,
     job: Job,
     baseDocumentId?: string | null,
-  ): string {
-    const payload = JSON.stringify({
-      jobId: job.id,
-      jobTitle: job.title,
-      jobDescription: job.description,
-      baseDocumentId: baseDocumentId || null,
-      skills: candidate.skills.map((s) => s.name).sort(),
-      experiences: candidate.experiences.map((e) => ({
-        id: e.id,
-        pos: e.position,
-        org: e.organization,
-        start: e.startDate,
-        end: e.endDate,
-      })),
-      profileUpdated: candidate.profile.updatedAt?.toISOString(),
-    });
-
-    return crypto.createHash('sha256').update(payload).digest('hex');
+  ): Promise<string> {
+    return computePreparationFingerprint(
+      this.db,
+      candidate.profile.userId,
+      job.id,
+      baseDocumentId ?? null,
+    );
   }
 
   private async logEvent(

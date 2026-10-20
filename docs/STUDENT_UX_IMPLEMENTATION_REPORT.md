@@ -25,3 +25,7 @@ Preview: **http://127.0.0.1:5183**, synthetic login `alex.morgan@example.test` /
 The macOS Home references are reviewed intentional updates; the comparison tolerance remains 1%. Linux Home references must be regenerated and reviewed in Linux CI before merge/release. No student usability study has been conducted; the [review protocol](STUDENT_UX_REVIEW.md) is available for future measured feedback. Lint retains the existing warning baseline; build chunk-size warnings remain documented rather than suppressed.
 
 The main checkout and its pre-existing `AGENTS.md` edit are preserved. No merge, push, deployment, production-data mutation, real application submission, recruiter email, calendar mutation or paid provider action was performed.
+
+## Product evolution release continuation — 20 October 2026
+
+The owner authorized implementation and deployment under JOB-PRODUCT-EVOLUTION-01. The pending student UX is included in that release. Genuine Linux Home references were regenerated in an isolated Linux container, visually reviewed in both themes and checked at the unchanged 1% tolerance. The full Linux browser suite passes 32/32. macOS application assertions also pass 32/32 (one report-cleanup collision was rerun independently). Product-evolution implementation and release evidence supersede the earlier local-only release boundary; see PRODUCT_EVOLUTION.md and the active task-log entry. No measured student-study results are claimed.

@@ -261,3 +261,7 @@ Status: **DEPLOYED / LIVE VERIFIED**. Codex completed the visual migration, eigh
 ## JOB-UI-MIGRATION-01 — Student UX continuation
 
 Status: **LOCAL IMPLEMENTATION VERIFIED — RELEASE PENDING**. Following explicit owner approval of the full Figma adaptation, implement the four primary destinations and contextual application workflow in `codex/jobee-student-ux`. Preserve the complete feature-access map, existing data/authorization rules, both themes and narrow-screen access. See `docs/STUDENT_UX.md` for scope and current preview. All eight required gates, 606 tests and 32 browser checks pass locally; reviewed Light/Dark renders and the implementation report are available. The implementation checkpoint is recorded in the autonomous state; review the local preview. Linux Home references, merge/release review and production authorization remain separate pending steps. Prior releases above remain historical.
+
+## JOB-PRODUCT-EVOLUTION-01 — IN PROGRESS
+
+20 October 2026: owner authorized implementation and deployment of the product-evolution plan. Deliver employer confirmation evidence, student UX release, broader public discovery, durable preparation/review batches, reviewed selected submissions and daily assistance as one coherent program. Human usability/relevance pilot targets remain measurements to collect; fixture verification does not establish them.

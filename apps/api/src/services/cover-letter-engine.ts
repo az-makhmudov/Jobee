@@ -11,7 +11,7 @@ export class CoverLetterEngine {
   public static generateCoverLetter(
     candidate: CandidateContext,
     job: Job,
-    matchAnalysis?: JobMatchAnalysis | null,
+    _matchAnalysis?: JobMatchAnalysis | null,
   ): CoverLetterResult {
     const candidateName = candidate.profile.fullName || 'Candidate';
     const company = job.company || 'your team';
@@ -45,7 +45,7 @@ export class CoverLetterEngine {
           );
         expMention = `In my role as ${expRole} at ${expOrg}, I ${verbStart ? desc : 'focused on ' + desc}. `;
       } else {
-        expMention = `In my role as ${expRole} at ${expOrg}, I contributed to key operational and organizational priorities. `;
+        expMention = `I worked as ${expRole} at ${expOrg}. `;
       }
 
       const firstAchievement = achievements[0];
@@ -60,29 +60,22 @@ export class CoverLetterEngine {
     const skillNames = authorizedSkills.slice(0, 4).map((s) => s.name);
     let skillsMention = '';
     if (skillNames.length > 0) {
-      skillsMention = `My core competencies include ${skillNames.join(', ')}, which directly align with the requirements outlined in your posting. `;
+      skillsMention = `My skills include ${skillNames.join(', ')}. `;
       for (const s of authorizedSkills.slice(0, 4)) {
         evidenceIds.push(`candidate_skill:${s.id}`);
       }
     }
 
-    // Match analysis strengths
-    const strengths = (matchAnalysis?.strengths as string[]) || [];
-    let strengthsClause = '';
-    if (strengths.length > 0) {
-      strengthsClause = `I bring a strong background in ${strengths.slice(0, 2).join(' and ')}, allowing me to contribute immediately to your team's objectives.`;
-    }
-
-    const bodyParagraph = `${expMention}${skillsMention}${strengthsClause}`.trim();
+    const bodyParagraph = `${expMention}${skillsMention}`.trim();
 
     const paragraphs: string[] = [
       `Dear Hiring Team at ${company},`,
 
-      `I am writing to express my strong interest in the ${jobTitle} position at ${company}. Having reviewed the requirements and responsibilities, I am confident that my background, proven track record, and verified competencies make me an excellent candidate for this opportunity.`,
+      `I am applying for the ${jobTitle} position at ${company}.`,
 
       bodyParagraph,
 
-      `I am drawn to ${company} because of the opportunity to contribute to meaningful goals and tackle high-impact challenges. I would welcome the opportunity to discuss how my qualifications can support your team's objectives.`,
+      `I would welcome the opportunity to discuss this role and how I could contribute to your team.`,
 
       `Thank you for your time and consideration.\n\nSincerely,\n${candidateName}`,
     ].filter(Boolean);

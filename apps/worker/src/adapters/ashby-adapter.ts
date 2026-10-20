@@ -76,9 +76,14 @@ export class AshbyAdapter extends BaseAtsAdapter {
         } else if (tagName === 'textarea') {
           fieldType = AtsFormFieldType.TEXTAREA;
         } else if (inputType === 'file' || name === 'resume') {
-          fieldType = AtsFormFieldType.FILE_RESUME;
-          mappedConcept = 'resume';
-          hasResumeUpload = true;
+          const purpose = `${name} ${$c.find('label').first().text()}`.toLowerCase();
+          fieldType = /cover.*letter/.test(purpose)
+            ? AtsFormFieldType.FILE_COVER_LETTER
+            : /resume|cv/.test(purpose)
+              ? AtsFormFieldType.FILE_RESUME
+              : AtsFormFieldType.CUSTOM;
+          mappedConcept = fieldType === AtsFormFieldType.FILE_RESUME ? 'resume' : undefined;
+          hasResumeUpload ||= fieldType === AtsFormFieldType.FILE_RESUME;
         } else if (inputType === 'email' || name === 'email') {
           fieldType = AtsFormFieldType.EMAIL;
           mappedConcept = 'email';
@@ -124,9 +129,14 @@ export class AshbyAdapter extends BaseAtsAdapter {
         } else if (tagName === 'textarea') {
           fieldType = AtsFormFieldType.TEXTAREA;
         } else if (inputType === 'file') {
-          fieldType = AtsFormFieldType.FILE_RESUME;
-          hasResumeUpload = true;
-          mappedConcept = 'resume';
+          const purpose = `${name} ${$el.closest('label').text()}`.toLowerCase();
+          fieldType = /cover.*letter/.test(purpose)
+            ? AtsFormFieldType.FILE_COVER_LETTER
+            : /resume|cv/.test(purpose)
+              ? AtsFormFieldType.FILE_RESUME
+              : AtsFormFieldType.CUSTOM;
+          mappedConcept = fieldType === AtsFormFieldType.FILE_RESUME ? 'resume' : undefined;
+          hasResumeUpload ||= fieldType === AtsFormFieldType.FILE_RESUME;
         } else if (inputType === 'email' || name.includes('email')) {
           fieldType = AtsFormFieldType.EMAIL;
           mappedConcept = 'email';

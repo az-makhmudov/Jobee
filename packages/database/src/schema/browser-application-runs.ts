@@ -29,6 +29,8 @@ export const browserApplicationRuns = pgTable(
     stepLogs: jsonb('step_logs').$type<unknown[]>().default([]).notNull(),
     screenshotPaths: jsonb('screenshot_paths').$type<string[]>().default([]).notNull(),
     confirmationReference: text('confirmation_reference'),
+    submissionObservation: jsonb('submission_observation'),
+    authorizationManifest: jsonb('authorization_manifest'),
     errorMessage: text('error_message'),
     startedAt: timestamp('started_at', { withTimezone: true, mode: 'date' }),
     completedAt: timestamp('completed_at', { withTimezone: true, mode: 'date' }),

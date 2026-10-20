@@ -2,7 +2,10 @@ import type { BrowserController, BrowserPage } from '../browser/browser-controll
 import { AtsAdapterRegistry } from '../adapters/ats-adapter-registry.js';
 import {
   AtsProviderType,
+  inferHostedAtsProvider,
   BrowserRunMode,
+  type FileStorageProvider,
+  type SubmissionObservation,
   BrowserRunStatus,
   AtsFormFieldType,
   type AtsFormField,
@@ -27,6 +30,7 @@ export interface ExecuteBrowserRunParams {
   mode?: BrowserRunMode;
   payload: ApplicationSubmissionPayload;
   skipDb?: boolean;
+  beforeSubmit?: () => Promise<void>;
 }
 
 /**
@@ -40,6 +44,7 @@ export class BrowserApplicationEngine {
     private readonly browserController: BrowserController,
     private readonly adapterRegistry: AtsAdapterRegistry = new AtsAdapterRegistry(),
     private readonly db?: Database,
+    private readonly storage?: FileStorageProvider,
   ) {}
 
   async executeRun(params: ExecuteBrowserRunParams): Promise<BrowserApplicationRunDto> {
@@ -72,6 +77,18 @@ export class BrowserApplicationEngine {
     const unmatchedRequiredFields: AtsFormField[] = [];
     let runStatus: BrowserRunStatus = BrowserRunStatus.RUNNING;
     let confirmationReference: string | undefined;
+    let submissionObservation: SubmissionObservation | undefined;
+    const capture = async (label: string) => {
+      if (!page || !this.storage?.putFile) return;
+      try {
+        const buffer = await page.screenshot({ fullPage: false });
+        const key = `browser-${runId}-${label}.png`;
+        await this.storage.putFile(key, buffer, 'image/png');
+        if (await this.storage.exists(key)) screenshotPaths.push(key);
+      } catch {
+        logStep('EVIDENCE', 'Screenshot could not be retained.', 'WARNING');
+      }
+    };
     let errorMessage: string | undefined;
     let submissionDispatched = false;
 
@@ -128,6 +145,15 @@ export class BrowserApplicationEngine {
       atsProvider = adapter.provider;
       logStep('ADAPTER_RESOLUTION', `Resolved ATS provider: ${atsProvider}`);
 
+      if (
+        mode === BrowserRunMode.SUBMIT &&
+        (inferHostedAtsProvider(page.url()) !== atsProvider ||
+          inferHostedAtsProvider(params.targetUrl) !== atsProvider)
+      )
+        throw new Error(
+          'This application requires the employer website. The form or destination is unsupported.',
+        );
+
       // 4. Challenge Detection (Prime Invariant: Stop on Bot Challenges)
       const challenge = await adapter.detectChallenge(page);
       if (challenge.detected) {
@@ -141,8 +167,7 @@ export class BrowserApplicationEngine {
         runStatus = BrowserRunStatus.STOPPED_CAPTCHA;
         errorMessage = challenge.message ?? `Halted due to ${challenge.type}`;
 
-        const screenshotPath = `screenshots/challenge-${runId}.png`;
-        screenshotPaths.push(screenshotPath);
+        await capture('challenge');
 
         return await this.finalizeRun({
           runId,
@@ -157,6 +182,7 @@ export class BrowserApplicationEngine {
           screenshotPaths,
           startedAt: now,
           confirmationReference,
+          submissionObservation,
           errorMessage,
         });
       }
@@ -165,6 +191,8 @@ export class BrowserApplicationEngine {
       logStep('FORM_EXTRACTION', 'Extracting form schema and interactive fields...');
       const schema = await adapter.extractForm(page);
       fieldsDetectedCount = schema.fields.length;
+      if (!fieldsDetectedCount)
+        throw new Error('No supported application form was found. The listing may have closed.');
       logStep(
         'FORM_EXTRACTION',
         `Discovered ${fieldsDetectedCount} fields across form`,
@@ -177,19 +205,24 @@ export class BrowserApplicationEngine {
       const fieldValuesToFill: Array<{ field: AtsFormField; value: string }> = [];
 
       for (const field of schema.fields) {
-        if (field.type === AtsFormFieldType.FILE_RESUME) {
-          const hasResume =
-            params.payload.resumeFilePath ||
-            params.payload.resumeBuffer ||
-            params.payload.resumeFileName;
-          if (hasResume) {
+        if (
+          field.type === AtsFormFieldType.FILE_RESUME ||
+          field.type === AtsFormFieldType.FILE_COVER_LETTER
+        ) {
+          const isLetter = field.type === AtsFormFieldType.FILE_COVER_LETTER;
+          const filePath = isLetter
+            ? params.payload.coverLetterFilePath
+            : params.payload.resumeFilePath;
+          const buffer = isLetter ? params.payload.coverLetterBuffer : params.payload.resumeBuffer;
+          const filename = isLetter
+            ? params.payload.coverLetterFileName
+            : params.payload.resumeFileName;
+          if (filePath || buffer)
             fieldValuesToFill.push({
               field,
-              value: params.payload.resumeFilePath || params.payload.resumeFileName || 'resume.pdf',
+              value: filePath || filename || 'application-document.docx',
             });
-          } else if (field.required) {
-            unmatchedRequiredFields.push(field);
-          }
+          else if (field.required) unmatchedRequiredFields.push(field);
           continue;
         }
 
@@ -213,8 +246,7 @@ export class BrowserApplicationEngine {
         runStatus = BrowserRunStatus.STOPPED_MANUAL_REVIEW;
         errorMessage = `Missing verified answers for required fields: ${missingLabels}`;
 
-        const screenshotPath = `screenshots/missing-fields-${runId}.png`;
-        screenshotPaths.push(screenshotPath);
+        await capture('missing-fields');
 
         return await this.finalizeRun({
           runId,
@@ -229,6 +261,7 @@ export class BrowserApplicationEngine {
           screenshotPaths,
           startedAt: now,
           confirmationReference,
+          submissionObservation,
           errorMessage,
         });
       }
@@ -249,14 +282,32 @@ export class BrowserApplicationEngine {
               `Skipping field '${field.label}' (${field.selector}): selector not found in DOM`,
               'WARNING',
             );
+            if (field.required) unmatchedRequiredFields.push(field);
             continue;
           }
 
-          if (field.type === AtsFormFieldType.FILE_RESUME) {
-            await loc.setInputFiles(value);
+          if (
+            field.type === AtsFormFieldType.FILE_RESUME ||
+            field.type === AtsFormFieldType.FILE_COVER_LETTER
+          ) {
+            const isLetter = field.type === AtsFormFieldType.FILE_COVER_LETTER;
+            const buffer = isLetter
+              ? params.payload.coverLetterBuffer
+              : params.payload.resumeBuffer;
+            if (buffer)
+              await loc.setInputFiles({
+                name:
+                  (isLetter ? params.payload.coverLetterFileName : params.payload.resumeFileName) ||
+                  'application-document.docx',
+                mimeType:
+                  (isLetter ? params.payload.coverLetterMimeType : params.payload.resumeMimeType) ||
+                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                buffer: Buffer.from(buffer, 'base64'),
+              });
+            else await loc.setInputFiles(value);
             logStep(
               'FIELD_FILL',
-              `Uploaded resume to '${field.label}'`,
+              `Uploaded reviewed document to '${field.label}'`,
               'OK',
               undefined,
               field.selector,
@@ -287,6 +338,7 @@ export class BrowserApplicationEngine {
           }
           fieldsFilledCount++;
         } catch (fillErr: any) {
+          if (field.required) unmatchedRequiredFields.push(field);
           logStep(
             'FIELD_FILL',
             `Error filling field '${field.label}' (${field.selector}): ${fillErr.message}`,
@@ -300,6 +352,11 @@ export class BrowserApplicationEngine {
         `Filled ${fieldsFilledCount} of ${fieldsDetectedCount} detected fields.`,
       );
 
+      if (unmatchedRequiredFields.length)
+        throw new Error(
+          'Required fields could not be filled. Review the employer form before applying.',
+        );
+
       // 9. Mode Execution
       if (mode === BrowserRunMode.DRY_RUN) {
         logStep(
@@ -307,8 +364,7 @@ export class BrowserApplicationEngine {
           'DRY_RUN mode active: Form filled and validated without submission.',
           'OK',
         );
-        const screenshotPath = `screenshots/dry-run-${runId}.png`;
-        screenshotPaths.push(screenshotPath);
+        await capture('dry-run');
         runStatus = BrowserRunStatus.SUCCESS;
       } else if (mode === BrowserRunMode.PREFILL_ONLY) {
         logStep(
@@ -316,10 +372,12 @@ export class BrowserApplicationEngine {
           'PREFILL_ONLY mode active: Form prefilled and left active for candidate review.',
           'OK',
         );
-        const screenshotPath = `screenshots/prefilled-${runId}.png`;
-        screenshotPaths.push(screenshotPath);
+        await capture('prefilled');
         runStatus = BrowserRunStatus.SUCCESS;
       } else if (mode === BrowserRunMode.SUBMIT) {
+        if (atsProvider === AtsProviderType.OTHER || atsProvider === AtsProviderType.UNKNOWN)
+          throw new Error('This form supports inspection only. Apply on the employer website.');
+        const originalHtml = await page.content();
         logStep('SUBMISSION', 'SUBMIT mode active: Locating submit control...');
         const submitButton = page
           .locator(
@@ -328,12 +386,12 @@ export class BrowserApplicationEngine {
           .first();
 
         if ((await submitButton.count()) > 0) {
+          await params.beforeSubmit?.();
           logStep(
             'SUBMISSION_DISPATCHING',
             'Dispatching submission action to external provider...',
             'OK',
           );
-          submissionDispatched = true;
 
           // Persist step logs before clicking submit so that an immediate process kill/crash
           // retains durable evidence that the submission action was in-flight
@@ -344,21 +402,38 @@ export class BrowserApplicationEngine {
                 .set({ stepLogs, updatedAt: new Date() })
                 .where(eq(browserApplicationRuns.id, runId));
             } catch {
-              // ignore
+              throw new Error('Could not persist the submission attempt. No application was sent.');
             }
           }
 
           try {
+            await capture('before-submit');
+            submissionDispatched = true;
             await submitButton.click();
-            await page.waitForTimeout(500);
+            submissionObservation = await adapter.observeSubmission(page, originalHtml);
+            logStep(
+              'EMPLOYER_OBSERVATION',
+              submissionObservation.signal,
+              submissionObservation.outcome === 'ACCEPTED' ? 'OK' : 'WARNING',
+              JSON.stringify(submissionObservation),
+            );
+            if (submissionObservation.outcome !== 'ACCEPTED')
+              throw new Error(submissionObservation.signal);
           } catch (clickErr: any) {
             logStep(
               'SUBMISSION_UNCERTAIN',
               `Submission action was dispatched but encountered error/timeout: ${clickErr.message}. Marked SUBMISSION_UNCERTAIN to prevent duplicate external submission.`,
               'ERROR',
             );
-            runStatus = BrowserRunStatus.SUBMISSION_UNCERTAIN;
-            errorMessage = `Submission uncertain: Error occurred during or immediately after external submission action (${clickErr.message})`;
+            runStatus =
+              submissionObservation?.outcome === 'REJECTED'
+                ? BrowserRunStatus.VALIDATION_FAILED
+                : BrowserRunStatus.SUBMISSION_UNCERTAIN;
+            errorMessage =
+              submissionObservation?.outcome === 'REJECTED'
+                ? 'The employer form rejected the application. Correct the highlighted fields.'
+                : `Confirmation needed: ${clickErr.message}`;
+            await capture('confirmation-needed');
 
             if (this.db && !params.skipDb) {
               try {
@@ -408,14 +483,15 @@ export class BrowserApplicationEngine {
               screenshotPaths,
               startedAt: now,
               confirmationReference,
+              submissionObservation,
               errorMessage,
             });
           }
 
-          confirmationReference = `SUBMITTED-${new Date().toISOString().slice(0, 10)}-${runId.slice(0, 8)}`;
+          confirmationReference = submissionObservation?.employerReference;
           logStep(
             'SUBMISSION',
-            `Form submission executed. Confirmation reference: ${confirmationReference}`,
+            `Employer confirmation observed. Internal attempt ID: ${runId}`,
             'OK',
           );
 
@@ -427,6 +503,7 @@ export class BrowserApplicationEngine {
                 .set({
                   status: 'APPLIED',
                   appliedAt: new Date(),
+                  submittedPackageVersionId: params.packageVersionId ?? null,
                   submissionMethod: atsProvider,
                   externalReferenceId: confirmationReference,
                   updatedAt: new Date(),
@@ -445,6 +522,7 @@ export class BrowserApplicationEngine {
                 safeMetadata: {
                   runId,
                   confirmationReference,
+                  submissionObservation,
                   atsProvider,
                   mode,
                 },
@@ -458,8 +536,7 @@ export class BrowserApplicationEngine {
             }
           }
 
-          const screenshotPath = `screenshots/submitted-${runId}.png`;
-          screenshotPaths.push(screenshotPath);
+          await capture('submitted');
           runStatus = BrowserRunStatus.SUCCESS;
         } else {
           logStep('SUBMISSION', 'Submit button not located in DOM', 'ERROR');
@@ -513,6 +590,7 @@ export class BrowserApplicationEngine {
       screenshotPaths,
       startedAt: now,
       confirmationReference,
+      submissionObservation,
       errorMessage,
     });
   }
@@ -530,6 +608,7 @@ export class BrowserApplicationEngine {
     screenshotPaths: string[];
     startedAt: Date;
     confirmationReference?: string;
+    submissionObservation?: SubmissionObservation;
     errorMessage?: string;
   }): Promise<BrowserApplicationRunDto> {
     const completedAt = new Date();
@@ -548,6 +627,7 @@ export class BrowserApplicationEngine {
             stepLogs: data.stepLogs,
             screenshotPaths: data.screenshotPaths,
             confirmationReference: data.confirmationReference ?? null,
+            submissionObservation: data.submissionObservation ?? null,
             errorMessage: data.errorMessage ?? null,
             completedAt,
           })
@@ -577,6 +657,7 @@ export class BrowserApplicationEngine {
       stepLogs: data.stepLogs,
       screenshotPaths: data.screenshotPaths,
       confirmationReference: data.confirmationReference ?? null,
+      submissionObservation: data.submissionObservation ?? null,
       errorMessage: data.errorMessage ?? null,
       startedAt: data.startedAt.toISOString(),
       completedAt: completedAt.toISOString(),

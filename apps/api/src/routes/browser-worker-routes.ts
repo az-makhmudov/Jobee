@@ -2,6 +2,9 @@ import type { FastifyPluginAsync } from 'fastify';
 import type { CandidateService } from '../services/candidate-service.js';
 import { BrowserWorkerService } from '../services/browser-worker/browser-worker-service.js';
 import { SubmissionAuthorizationService } from '../services/browser-worker/submission-authorization-service.js';
+import { getConfig } from '@job-agent/config';
+import { createStorageProvider } from '../storage/index.js';
+import { z } from 'zod';
 import { AppError } from '@job-agent/shared';
 import {
   startBrowserRunSchema,
@@ -53,6 +56,42 @@ export function createBrowserWorkerRoutes(
         data: run,
         timestamp: new Date().toISOString(),
       };
+    });
+
+    app.post('/browser-runs/:runId/reconcile-not-sent', async (req) => {
+      const { runId } = browserRunParamsSchema.parse(req.params);
+      const body = z
+        .object({
+          checkedEmployerWebsite: z.literal(true),
+          note: z.string().trim().min(10).max(1000),
+        })
+        .strict()
+        .parse(req.body);
+      const run = await BrowserWorkerService.reconcileNotSent(
+        requireCurrentUserId(req),
+        runId,
+        body.note,
+      );
+      return { status: 'ok', data: run, timestamp: new Date().toISOString() };
+    });
+
+    app.get('/browser-runs/:runId/evidence/:index', async (req, reply) => {
+      const input = z
+        .object({ runId: z.string().uuid(), index: z.coerce.number().int().min(0).max(20) })
+        .parse(req.params);
+      const run = await BrowserWorkerService.getBrowserRun(requireCurrentUserId(req), input.runId);
+      if (Date.now() - new Date(run.createdAt).getTime() > 30 * 24 * 60 * 60_000)
+        throw AppError.notFound('Evidence retention period has ended.');
+      const key = run.screenshotPaths[input.index];
+      if (!key) throw AppError.notFound('Evidence is unavailable.');
+      const storage = createStorageProvider(getConfig());
+      if (!(await storage.exists(key))) throw AppError.notFound('Evidence is unavailable.');
+      const file = await storage.getFile(key);
+      return reply
+        .header('Cache-Control', 'private, no-store')
+        .header('X-Content-Type-Options', 'nosniff')
+        .type('image/png')
+        .send(file.buffer);
     });
 
     // 4. Request cryptographic submission authorization ticket

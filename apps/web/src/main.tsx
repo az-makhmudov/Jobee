@@ -4,6 +4,7 @@ import App from './App.js';
 import { ThemeProvider } from './ui/Theme.js';
 import { FeedbackProvider } from './ui/Feedback.js';
 import './index.css';
+import './styles.css';
 
 const rootElement = document.getElementById('root');
 if (rootElement) {

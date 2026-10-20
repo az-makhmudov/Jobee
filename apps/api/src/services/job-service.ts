@@ -618,6 +618,7 @@ export class JobService {
         payPeriod: r.payPeriod as PayPeriod | null,
         originalUrl: r.originalUrl,
         discoveredDate: r.discoveredDate.toISOString(),
+        lastCheckedDate: r.lastCheckedDate?.toISOString() ?? null,
         isDuplicate: r.isDuplicate,
         hasManualEdits: r.hasManualEdits,
         requirementCount: reqCountMap.get(r.id) ?? 0,
