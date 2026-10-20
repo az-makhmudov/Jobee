@@ -1,26 +1,33 @@
 # Jobee 2.0 — Durable Engineering State
 
-Updated: 2026-10-20. Engineering owner: Codex.
+Updated: 2026-10-20. Engineering owner: Codex. Branch: codex/jobee-2-foundation.
 
 ## Current authorization and next action
 
-The owner approved the assessment and requested phase-by-phase implementation on 2026-10-20. **JOB-P0-T01 foundation reconciliation is COMPLETED. JOB-P1-T01 three-section platform adaptation is COMPLETED locally; JOB-P1-T02 is the next active dependency.** Continue verified local macro tasks in revised roadmap dependency order; do not require approval for routine local work. Real external applications, production/paid operations and outbound integrations remain separately gated.
+The owner approved the assessment and requested phase-by-phase implementation on 2026-10-20. JOB-P0-T01 foundation reconciliation, JOB-P1-T01 platform adaptation and JOB-P1-T02 candidate context are **COMPLETED locally**. Phase 1 is verified; no release is claimed.
 
-Verified JOB-P1-T01: Explore default, three primary destinations, Profile-contained settings, legacy section compatibility, signed-out/session boundaries and 32 browser regression checks. Implementation branch: codex/jobee-2-foundation. No schema changes were required for the shell. Next dependency after verification: JOB-P1-T02 verified candidate context and unified Profile.
+**Next canonical task: JOB-P2-T01 — Explore/discovery adaptation**, followed by JOB-P2-T02 grounded matching convergence. Those tasks have substantial historical implementations and remain PARTIAL against 2.0 acceptance. Continue from their actual code/deltas; do not restart completed subsystems. No further owner approval is needed for routine local roadmap work. Real applications, outbound communication/calendar actions, paid services and production operations require separate explicit authorization.
 
-## Git checkpoint and scope
+## Verified functionality
 
-- Assessed checkout: main at f4ac34bdc3f816dce9031420a7e31f6baf9baf85.
-- Latest historically released runtime code: f6d6286c9f12a561609ce1950bd33d26c4f603d0. Production verification in prior logs was not repeated.
-- Current run: approved local implementation in progress; assessment docs and shell changes are uncommitted until all gates pass. Pre-existing AGENTS.md role edits were respected and updated to the owner's new Codex-only engineering assignment. Source changes are limited to the application shell, navigation, local proxy and regression checks. No schema changes, merge, push or deployment.
-- Prior canonical docs, including old durable state and release details, are preserved in archive/jobee-1.0; history remains in TASK_LOG.md/Git. Owner source references are in specifications/jobee-2.0.
+- Explore opens by default; three primary destinations: Explore, Applications and Profile. Profile contains candidate editors/documents/answers/preferences and account/connections/activity. Legacy callbacks and notification targets retain record access. Session gating, per-user dialogs, mobile focus and /api local proxy are verified.
+- Existing candidate imports, verification/provenance, documents and professional editors remain. Missing authorization-country, internship-eligibility and availability preferences now persist through the normal validated API; partial updates and unknowns are preserved.
+- Saved Answers has explicit verification; material edits clear it unless reconfirmed. Automatic reuse requires a verified, matching routine AUTO answer. Unverified, unrelated, conflicting, manual, sensitive and scoped cases cannot silently receive automatic permission. Submission authorization rechecks used source verification, question/content, update time and required bound human approval; unrelated source edits do not globally stale packages.
+- No new dependency, schema migration, identity change, data deletion or AI provider was introduced. Existing real records/IDs and external integration encryption remain preserved.
 
-## Fresh baseline
+## Verification
 
-Lint passes (693 existing warnings, zero errors), typecheck/build pass, final shell tests pass: **635 tests / 72 files**, plus all 32 Chromium scenarios. Initial sandbox socket errors and stale isolated-test schema/configuration were resolved without code changes. Explicit localhost/jobee_test_isolated plus TEST_DATABASE_URL and VITE_API_URL=/api were required for the final suite. Existing migration 0022 applied to that isolated target only; database checks passed. Formatting and documentation integrity checks pass; final records in TASK_LOG.md.
+Final code gates: format:write, lint, typecheck, test, build, format, db:check and db:migrate PASS. Lint: 0 errors, 693 existing warnings. **653 tests / 73 files pass. 35 Chromium scenarios pass**, with four additional affected-flow/render checks after the preferences layout adjustment and a final mobile drawer-inert/persistence check. Desktop Light/Dark and mobile renders were inspected. Final text-only wording cleanup does not change behavior.
 
-No active source defect was established by the final baseline. Main product gaps remain: three-section UX, shared durable application intent/consent, automatic routine preparation, consistent AI matching across schedulers, versioned full-scope Autopilot policy, safe interruption/resume, and end-to-end provider acceptance evidence. Browser/live provider and production readiness were not revalidated.
+Test configuration: explicit localhost/jobee_test_isolated as DATABASE_URL and TEST_DATABASE_URL, VITE_API_URL=/api. Browser fixtures use a separate localhost/jobee2_ui_test_isolated database, disabled AI and local storage. Compile/build packages before browser runs to avoid watched-package server restarts. No development/production migration or real employer action was performed. Existing migration 0022 had already been applied to the isolated test target during assessment; no new migration was authored.
 
-## Safety and preservation
+## Git checkpoints and records
 
-Preserve candidate verification, documents, IDs, application/event histories, tenant isolation, encrypted tokens, manifest authorization, duplicate prevention and uncertain-result handling. No development/production migration or real external application/email/calendar action occurred. Product One-click/Autopilot design does not grant Codex operational permission for live side effects.
+- Audit baseline: main at f4ac34bdc3f816dce9031420a7e31f6baf9baf85. Historically released runtime: f6d6286c9f12a561609ce1950bd33d26c4f603d0; production was not revalidated.
+- Verified JOB-P1-T01 checkpoint: 098f816. Includes approved canonical reconciliation and the three-section shell.
+- JOB-P1-T02 verified source checkpoint: pending local commit; recorded immediately afterward. No push, merge or deployment.
+- Reports: JOBEE_2_IMPLEMENTATION.md and TASK_LOG.md. Audit evidence: JOBEE_2_ASSESSMENT.md. Historical docs and original owner references remain in archive/jobee-1.0 and specifications/jobee-2.0.
+
+## Remaining product gaps
+
+Explore still needs the revised discovery/detail experience. Matching must consistently consume verified candidate context and distinguish relevance, blockers and unknowns across execution paths. One shared durable application-intent/consent pipeline, automatic routine preparation, end-to-end provider acceptance, safe interruption/resume and versioned Autopilot policy remain later work. Existing reviewed submissions remain protected; neither full One-click Apply nor Autopilot is claimed complete. Complex saved-answer conditions still require human review rather than a new rules language. Public-launch privacy/retention review, live ATS validation and production release remain separately scoped.

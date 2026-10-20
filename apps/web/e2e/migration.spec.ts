@@ -1056,3 +1056,120 @@ test('a failed application refresh is visible from the summary and preserves a r
     page.getByRole('heading', { name: 'Application progress', exact: true }),
   ).toBeVisible();
 });
+
+test('candidate preferences preserve confirmed eligibility and do not enable application permissions', async ({
+  page,
+}) => {
+  const original = (await (await page.request.get('/api/candidate/preferences')).json()).data;
+  const policy = (await (await page.request.get('/api/candidate/policy')).json()).data;
+  try {
+    await page.goto('/');
+    await go(page, 'My Profile');
+    await page.getByRole('tab', { name: 'Preferences', exact: true }).click();
+    await page
+      .getByLabel('Countries Where You Are Authorized to Work', { exact: true })
+      .fill('Poland, Germany');
+    await page.getByLabel('Internship Eligibility', { exact: true }).selectOption('yes');
+    await page
+      .getByLabel('Availability or Notice Period', { exact: true })
+      .fill('Four weeks notice');
+    await page
+      .getByRole('group', { name: 'Employment types', exact: true })
+      .getByLabel('Contract', { exact: true })
+      .check();
+    await page.getByRole('button', { name: 'Save Job Preferences', exact: true }).click();
+    await expect(page.getByText('Job search preferences saved', { exact: true })).toBeVisible();
+    await page.reload();
+    await go(page, 'My Profile');
+    await page.getByRole('tab', { name: 'Preferences', exact: true }).click();
+    await expect(
+      page.getByLabel('Countries Where You Are Authorized to Work', { exact: true }),
+    ).toHaveValue('Poland, Germany');
+    await expect(page.getByLabel('Internship Eligibility', { exact: true })).toHaveValue('yes');
+    await expect(page.getByLabel('Availability or Notice Period', { exact: true })).toHaveValue(
+      'Four weeks notice',
+    );
+    await expect(
+      page
+        .getByRole('group', { name: 'Employment types', exact: true })
+        .getByLabel('Contract', { exact: true }),
+    ).toBeChecked();
+    await page.setViewportSize({ width: 393, height: 852 });
+    await expect(page.locator('.sidebar')).toHaveAttribute('aria-hidden', 'true');
+    await expect(page.locator('.sidebar')).toHaveJSProperty('inert', true);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBeTruthy();
+    await expect(
+      page.getByLabel('Countries Where You Are Authorized to Work', { exact: true }),
+    ).toBeVisible();
+    await page.screenshot({
+      path: 'output/playwright/screens/preferences-mobile.png',
+      fullPage: true,
+      animations: 'disabled',
+    });
+    const currentPolicy = (await (await page.request.get('/api/candidate/policy')).json()).data;
+    expect(currentPolicy.autoApplyEnabled).toBe(policy.autoApplyEnabled);
+  } finally {
+    expect(
+      (await page.request.put('/api/candidate/preferences', { data: original })).ok(),
+    ).toBeTruthy();
+  }
+});
+
+test('unavailable preferences cannot be overwritten with defaults and can be retried', async ({
+  page,
+}) => {
+  await page.route('**/api/candidate/preferences', (route) =>
+    route.fulfill({ status: 503, json: { error: { message: 'Synthetic preference outage' } } }),
+  );
+  await page.goto('/');
+  await go(page, 'My Profile');
+  await page.getByRole('tab', { name: 'Preferences', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('Could not load your preferences');
+  await expect(page.getByRole('button', { name: 'Save Job Preferences', exact: true })).toHaveCount(
+    0,
+  );
+  await page.unroute('**/api/candidate/preferences');
+  await page.getByRole('button', { name: 'Retry preferences', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: 'Save Job Preferences', exact: true }),
+  ).toBeVisible();
+});
+
+test('saved answers require explicit verification and edits clear that confirmation', async ({
+  page,
+}) => {
+  const question = `Synthetic reusable answer ${Date.now()}`;
+  try {
+    await page.goto('/');
+    await go(page, 'My Profile');
+    await page.getByRole('tab', { name: 'Saved Answers', exact: true }).click();
+    await page.getByRole('button', { name: '+ Add Answer', exact: true }).click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('Question / Application Prompt', { exact: true }).fill(question);
+    await dialog
+      .getByLabel('Approved Answer Text', { exact: true })
+      .fill('Confirmed synthetic answer');
+    const verified = dialog.getByLabel('I confirm this answer is accurate', { exact: true });
+    await verified.check();
+    await dialog
+      .getByLabel('Approved Answer Text', { exact: true })
+      .fill('Updated synthetic answer');
+    await expect(verified).not.toBeChecked();
+    await verified.check();
+    await dialog.getByRole('button', { name: /Save/ }).click();
+    await expect(dialog).toHaveCount(0);
+    const saved = (await (await page.request.get('/api/candidate/answers')).json()).data.find(
+      (entry: { question: string }) => entry.question === question,
+    );
+    expect(saved?.verificationStatus).toBe('VERIFIED');
+    expect(saved?.automationLevel).toBe('REVIEW');
+  } finally {
+    const saved = (await (await page.request.get('/api/candidate/answers')).json()).data.find(
+      (entry: { question: string }) => entry.question === question,
+    );
+    if (saved)
+      expect((await page.request.delete(`/api/candidate/answers/${saved.id}`)).ok()).toBeTruthy();
+  }
+});

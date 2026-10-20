@@ -546,6 +546,92 @@ describe('Application Studio Unit Tests (JOB-P3-T01)', () => {
       expect(res.needsApproval).toBe(false);
     });
 
+    it.each(['UNVERIFIED', 'REJECTED'])('does not reuse a %s AUTO answer', (verificationStatus) => {
+      const result = ApplicationQuestionEngine.resolveQuestion(
+        {
+          questionText: 'Are you open to remote work?',
+          category: 'GENERAL',
+          questionType: 'TEXT',
+          options: [],
+          sensitivity: 'STANDARD',
+          isRequired: true,
+        },
+        {
+          candidate: candidateContext,
+          answerLibrary: [{ ...verifiedAnswers[0]!, verificationStatus }],
+          candidateFacts: [],
+        },
+      );
+      expect(result.proposedAnswer).toBeNull();
+      expect(result.needsApproval).toBe(true);
+    });
+
+    it.each([
+      'Are you not open to remote work?',
+      'Are you open to remote work? Explain your restrictions.',
+      'What is your favorite programming language?',
+    ])('does not reuse a different or category-only question: %s', (questionText) => {
+      const result = ApplicationQuestionEngine.resolveQuestion(
+        {
+          questionText,
+          category: 'GENERAL',
+          questionType: 'TEXT',
+          options: [],
+          sensitivity: 'STANDARD',
+          isRequired: true,
+        },
+        { candidate: candidateContext, answerLibrary: verifiedAnswers, candidateFacts: [] },
+      );
+      expect(result.proposedAnswer).toBeNull();
+      expect(result.needsApproval).toBe(true);
+    });
+
+    it.each([
+      { isSensitive: true },
+      { conditions: { country: 'Poland' } },
+      { automationLevel: 'REVIEW' },
+    ])('requires review for a saved answer with additional restrictions: %o', (restriction) => {
+      const result = ApplicationQuestionEngine.resolveQuestion(
+        {
+          questionText: 'Are you open to remote work?',
+          category: 'GENERAL',
+          questionType: 'TEXT',
+          options: [],
+          sensitivity: 'STANDARD',
+          isRequired: true,
+        },
+        {
+          candidate: candidateContext,
+          answerLibrary: [{ ...verifiedAnswers[0]!, ...restriction }],
+          candidateFacts: [],
+        },
+      );
+      expect(result.proposedAnswer).toBe(verifiedAnswers[0]!.answer);
+      expect(result.needsApproval).toBe(true);
+      expect(result.approvalState).toBe('PENDING');
+    });
+
+    it('pauses for conflicting verified answers and MANUAL entries without selecting an arbitrary value', () => {
+      for (const answerLibrary of [
+        [verifiedAnswers[0]!, { ...verifiedAnswers[0]!, id: 'conflicting-answer', answer: 'No' }],
+        [{ ...verifiedAnswers[0]!, automationLevel: 'MANUAL' }],
+      ]) {
+        const result = ApplicationQuestionEngine.resolveQuestion(
+          {
+            questionText: 'Are you open to remote work?',
+            category: 'GENERAL',
+            questionType: 'TEXT',
+            options: [],
+            sensitivity: 'STANDARD',
+            isRequired: true,
+          },
+          { candidate: candidateContext, answerLibrary, candidateFacts: [] },
+        );
+        expect(result.proposedAnswer).toBeNull();
+        expect(result.needsApproval).toBe(true);
+      }
+    });
+
     it('Level 1: resolves REVIEW answer with pending approval required', () => {
       const res = ApplicationQuestionEngine.resolveQuestion(
         {

@@ -1,6 +1,6 @@
 # Jobee 2.0 — Phase Implementation Report
 
-Engineering owner: Codex. Implementation approved 2026-10-20. Existing task stamps and dependency order remain canonical; this report records local delivery, not a production release.
+Engineering owner: Codex. Implementation approved 2026-10-20. **Phase 1 is completed and verified locally: JOB-P1-T01 and JOB-P1-T02.** Existing task stamps and dependency order remain canonical; this report records local delivery, not a production release.
 
 ## JOB-P1-T01 — Three-section platform adaptation
 
@@ -17,3 +17,17 @@ Engineering owner: Codex. Implementation approved 2026-10-20. Existing task stam
 **Preservation and limits:** No existing records or documents were migrated/deleted, no application was submitted, no account was connected, and no production or paid operation occurred. The existing preparation/review journey stays until JOB-P3-T01/JOB-P5-T01 introduce the shared authorized engine. This task does not claim One-click Apply or Autopilot completion. Backend auth and tenant protections remain in place.
 
 **Next dependency:** JOB-P1-T02 — close verified candidate context and preferences gaps using existing data structures; no new official microtask identifiers.
+
+## JOB-P1-T02 — Verified candidate context and unified Profile
+
+**Scope:** Complete missing preference persistence and candidate-facing controls using existing tables; make reusable answers trustworthy at generation and submission time. Candidate import, CV management, facts/provenance, personal and professional editors and integrations remain reused rather than rebuilt.
+
+**Frontend:** Profile preferences include employment type, seniority, confirmed work-authorization countries, internship eligibility, availability, preferred languages, unpaid-position preference and maximum salary. Empty eligibility stays unknown; work arrangement is not preselected for a new profile. Existing saved currencies remain selectable. Ordinary search preferences precede collapsed existing application permissions, with clear separation from future Jobee 2.0 Autopilot. A failed preferences load shows a retry and prevents overwriting server values with defaults. Saved Answers exposes independent verification status and an explicit accuracy confirmation; editing the question or answer clears that confirmation.
+
+**Backend/data:** The normal validated preferences API now persists existing workAuthorizationCountries, internshipEligible and availability columns on first creation and later updates. Partial changes preserve unrelated fields and explicit null/empty values; all reads/writes remain user scoped and audited. No new table or migration. Answer edits lose verification unless the request explicitly reconfirms it.
+
+**Grounding and permissions:** Automatic library reuse requires a verified answer to the same normalized question, AUTO tier, no sensitivity and no unevaluated conditions. Category-only, substring and negated-question matches cannot select unrelated claims. Conflicting or MANUAL entries require input. Sensitive, scoped and REVIEW answers require review. Submission manifests revalidate only library entries actually used: owner, verification, exact prompt/content, source update time and any required question-specific human approval. Revoked or changed sources block existing submission tickets; changes to unrelated library entries do not invalidate other packages. This does not introduce broader submission permission.
+
+**Verification:** All eight mandatory gates pass; lint has 0 errors and 693 existing warnings. 653 tests / 73 files pass, including preference creation/patch/clear/validation, audit and isolation; explicit verification invalidation; engine answer-reuse boundaries; and revoked-source submission authorization. All 35 Chromium scenarios pass. After visual review, four affected browser scenarios were rerun successfully against the final two-column desktop/one-column mobile layout, followed by a focused mobile drawer-inert/eligibility persistence check. New coverage includes preferences persistence without enabling submission, outage/retry protection and explicit answer verification. Two themes and mobile renders were inspected. Database gates use isolated local fixtures only. See TASK_LOG.md for the verification record.
+
+**Limits/next dependency:** Broader country-specific matching behavior is part of JOB-P2-T02. Automatic preparation and unfamiliar ATS questions remain JOB-P3-T01/JOB-P5-T01; versioned Autopilot permission remains JOB-P5-T02. Complex saved-answer conditions are retained but require review; no new rules language is introduced. Real candidate verification is a user action; existing unverified data was not promoted. Prepared applications that depend on a changed/revoked saved answer may require regeneration; history and materials remain intact. No new AI provider/model, dependency, migration, real application, production deployment or paid operation was introduced. Next dependency: JOB-P2-T01 Explore/discovery adaptation, then JOB-P2-T02 matching convergence.

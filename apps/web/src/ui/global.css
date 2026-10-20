@@ -1167,3 +1167,13 @@ input[type='radio'] {
 .application-workspace .application-studio-container > .card {
   background: var(--m3-surface-container-lowest);
 }
+
+/* Keep candidate settings readable as the preference list grows. */
+.form-grid.candidate-preferences-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (max-width: 767px) {
+  .form-grid.candidate-preferences-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

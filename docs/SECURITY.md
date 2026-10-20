@@ -1,5 +1,7 @@
 # Jobee 2.0 — Security Direction and Evidence Boundary
 
+JOB-P1-T02 strengthens saved-answer trust: material edits clear verification unless explicitly reconfirmed; automatic reuse cannot rely on unverified, category-only or substring matches. Submission authorization rechecks the used source owner, verification, content/prompt, update time and required question-specific human approval. Unrelated library edits do not invalidate other packages. Preferences remain user-scoped and unknown eligibility is preserved. No new external permission is granted.
+
 Updated 2026-10-20 under JOB-P0-T01. Existing technical controls and incident history below are retained; historical completion, account-health and release claims are not fresh security certification. Current authorization semantics are defined in APPLICATION_POLICY.md; engineering authority is limited by AUTONOMOUS_STATE.md and the current owner request.
 
 Preserve encrypted OAuth tokens, least-privilege integration scopes, tenant-scoped access, protected documents/evidence, SSRF protections, fact verification, manifest-bound dispatch, duplicate protection and uncertain-result recovery. Existing multi-user isolation stays even though SaaS administration is outside the revised MVP.

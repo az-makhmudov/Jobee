@@ -246,6 +246,9 @@ export const upsertPreferencesSchema = z.object({
   acceptUnpaid: z.boolean().optional(),
   willingToRelocate: z.boolean().optional().nullable(),
   needsSponsorship: z.boolean().optional().nullable(),
+  workAuthorizationCountries: z.array(z.string().trim().min(1).max(100)).max(100).optional(),
+  internshipEligible: z.boolean().optional().nullable(),
+  availability: z.string().trim().max(200).optional().nullable(),
   customPreferences: z.unknown().optional(),
 });
 

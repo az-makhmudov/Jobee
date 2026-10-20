@@ -1,5 +1,7 @@
 # Jobee 2.0 — Application Authorization Policy
 
+Implemented in JOB-P1-T02: routine library reuse requires verified exact-question AUTO answers without sensitivity or unevaluated scope conditions. Material answer edits clear verification unless explicitly reconfirmed. Sensitive/scoped/REVIEW answers retain question-bound human approval, and MANUAL/conflicting answers request input. Before issuing or using submission permission, validate used source ownership, verification, prompt/content and update time; unrelated library edits do not invalidate other packages.
+
 Updated 2026-10-20. Target contract; implementation differences are recorded below. Never invent candidate facts. AI recommends and prepares; deterministic rules authorize; humans resolve material uncertainty.
 
 ## Product authorization

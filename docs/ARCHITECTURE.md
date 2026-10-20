@@ -1,5 +1,7 @@
 # Jobee 2.0 — System Architecture
 
+JOB-P1-T02 reuses existing candidate tables to complete preference persistence and explicit saved-answer verification. Generation uses verified exact-question library matches; submission authorization revalidates the used sources and requires bound human approval for sensitive/scoped/review answers. No unrelated-answer global fingerprint invalidation or new service is introduced. See JOBEE_2_IMPLEMENTATION.md.
+
 Updated 2026-10-20. Owner: Codex. Scope: JOB-P0-T01 repository reconciliation; target changes await owner approval.
 
 ## Observed implementation
@@ -32,7 +34,7 @@ The following owner specification defines the target, subject to the observed ma
 
 **Version:** 2.0\
 **Date:** 2026-10-20\
-**Status:** Target architecture; actual repository structure must be inspected before implementation
+**Status:** Target architecture; observed implementation mapped above, with remaining deltas tracked in ROADMAP.md
 
 ## 1. Architectural Objective
 

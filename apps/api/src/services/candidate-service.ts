@@ -1307,7 +1307,11 @@ export class CandidateService {
 
     const effectiveSensitive = data.isSensitive ?? existing.isSensitive;
     const effectiveLevel = data.automationLevel ?? existing.automationLevel;
-    const effectiveStatus = data.verificationStatus ?? existing.verificationStatus;
+    const answerChanged =
+      (data.answer !== undefined && data.answer !== existing.answer) ||
+      (data.question !== undefined && data.question !== existing.question);
+    const effectiveStatus =
+      data.verificationStatus ?? (answerChanged ? 'UNVERIFIED' : existing.verificationStatus);
 
     if (effectiveSensitive && effectiveLevel === 'AUTO' && effectiveStatus !== 'VERIFIED') {
       throw AppError.badRequest(
@@ -1319,6 +1323,7 @@ export class CandidateService {
       .update(answerLibrary)
       .set({
         ...data,
+        verificationStatus: effectiveStatus,
         updatedAt: new Date(),
       })
       .where(and(eq(answerLibrary.id, id), eq(answerLibrary.userId, userId)))
@@ -1329,11 +1334,17 @@ export class CandidateService {
       entityType: 'ANSWER',
       entityId: id,
       action: 'UPDATE',
-      changedFields: Object.keys(data),
+      changedFields: [
+        ...new Set([
+          ...Object.keys(data),
+          ...(effectiveStatus !== existing.verificationStatus ? ['verificationStatus'] : []),
+        ]),
+      ],
       metadata: {
         category: row!.category,
         automationLevel: row!.automationLevel,
         isSensitive: row!.isSensitive,
+        verificationStatus: row!.verificationStatus,
       },
     });
 
@@ -1390,6 +1401,9 @@ export class CandidateService {
       acceptUnpaid?: boolean;
       willingToRelocate?: boolean | null;
       needsSponsorship?: boolean | null;
+      workAuthorizationCountries?: string[];
+      internshipEligible?: boolean | null;
+      availability?: string | null;
       customPreferences?: unknown;
     },
   ): Promise<JobPreferencesDto> {
@@ -1426,6 +1440,9 @@ export class CandidateService {
           acceptUnpaid: data.acceptUnpaid ?? false,
           willingToRelocate: data.willingToRelocate ?? null,
           needsSponsorship: data.needsSponsorship ?? null,
+          workAuthorizationCountries: data.workAuthorizationCountries ?? [],
+          internshipEligible: data.internshipEligible ?? null,
+          availability: data.availability ?? null,
           customPreferences: data.customPreferences ?? null,
         })
         .returning();

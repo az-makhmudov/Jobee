@@ -10,6 +10,7 @@ import {
   applicationArtifacts,
   applicationQuestions,
   approvalRequests,
+  answerLibrary,
   type Database,
 } from '../index.js';
 import { AppError, type SubmissionAuthorizationTicketDto } from '@job-agent/shared';
@@ -190,6 +191,56 @@ export class SubmissionAuthorizationService {
       .from(applicationQuestions)
       .where(eq(applicationQuestions.versionId, version.id))
       .orderBy(asc(applicationQuestions.id));
+
+    // Revalidate only reused sources. Updating an unrelated saved answer must not stale every package.
+    const reusedQuestions = questions.filter(
+      (q) =>
+        q.answerSource === 'ANSWER_LIBRARY' && ['APPROVED', 'RESOLVED'].includes(q.approvalState),
+    );
+    if (reusedQuestions.length) {
+      const savedAnswers = await db
+        .select()
+        .from(answerLibrary)
+        .where(eq(answerLibrary.userId, userId));
+      const normalize = (value: string) =>
+        value
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, ' ')
+          .replace(/[?!.]+$/, '')
+          .trim();
+      for (const question of reusedQuestions) {
+        const source = savedAnswers.find((answer) => answer.id === question.sourceEntityId);
+        const explicitApproval = pkgApprovals.some(
+          (approval) =>
+            approval.questionId === question.id &&
+            approval.resolvedBy === 'USER' &&
+            ['APPROVED', 'RESOLVED'].includes(approval.status),
+        );
+        const hasScope =
+          source?.conditions != null &&
+          (typeof source.conditions !== 'object' || Object.keys(source.conditions).length > 0);
+        const requiresReview =
+          source?.automationLevel !== 'AUTO' ||
+          source?.isSensitive ||
+          hasScope ||
+          question.sensitivity === 'SENSITIVE' ||
+          ['WORK_AUTHORIZATION', 'SPONSORSHIP', 'SALARY'].includes(question.category);
+        if (
+          !source ||
+          source.verificationStatus !== 'VERIFIED' ||
+          normalize(source.question) !== normalize(question.questionText) ||
+          source.updatedAt > question.createdAt ||
+          (question.proposedAnswer ?? '').trim().toLowerCase() !==
+            source.answer.trim().toLowerCase() ||
+          (requiresReview && !explicitApproval)
+        ) {
+          throw AppError.badRequest(
+            'A reused saved answer changed or requires verification. Regenerate the application answers and resolve required review before submitting.',
+          );
+        }
+      }
+    }
 
     if (!cvArtifact) throw AppError.badRequest('The reviewed CV document is missing.');
     if (questions.some((q) => q.isRequired && !['APPROVED', 'RESOLVED'].includes(q.approvalState)))

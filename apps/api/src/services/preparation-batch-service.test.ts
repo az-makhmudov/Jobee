@@ -17,6 +17,7 @@ import {
   SubmissionAuthorizationService,
   browserApplicationRuns,
   computePreparationFingerprint,
+  answerLibrary,
 } from '@job-agent/database';
 import { PreparationBatchService } from './preparation-batch-service.js';
 import { ApplicationPackageService } from './application-package-service.js';
@@ -130,6 +131,89 @@ describe('Durable selected preparation', () => {
     expect(
       await db.select().from(preparationItems).where(eq(preparationItems.userId, userId)),
     ).toHaveLength(0);
+  });
+  it('revalidates used saved answers before issuing or using submission permission without staling unrelated packages', async () => {
+    const [source] = await db
+      .insert(answerLibrary)
+      .values({
+        userId,
+        question: 'Are you open to remote work?',
+        answer: 'Yes',
+        automationLevel: 'AUTO',
+        verificationStatus: 'VERIFIED',
+      })
+      .returning();
+    const [pkg] = await db
+      .insert(applicationPackages)
+      .values({ userId, jobId: ids[0]!, status: 'READY', currentVersionNumber: 1 })
+      .returning();
+    const [version] = await db
+      .insert(applicationPackageVersions)
+      .values({
+        packageId: pkg!.id,
+        versionNumber: 1,
+        status: 'READY',
+        inputFingerprint: await computePreparationFingerprint(db, userId, ids[0]!, null),
+        coverLetterEnabled: false,
+      })
+      .returning();
+    await db.insert(applicationArtifacts).values({
+      packageId: pkg!.id,
+      versionId: version!.id,
+      artifactType: 'TAILORED_CV',
+      filename: 'fixture.docx',
+      storageKey: 'fixture.docx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      sizeBytes: 1,
+      sha256Checksum: 'fixture',
+    });
+    await db.insert(applicationQuestions).values({
+      packageId: pkg!.id,
+      versionId: version!.id,
+      questionText: source!.question,
+      questionType: 'TEXT',
+      category: 'GENERAL',
+      answerSource: 'ANSWER_LIBRARY',
+      sourceEntityId: source!.id,
+      proposedAnswer: 'Yes',
+      finalAnswer: 'Yes',
+      approvalState: 'APPROVED',
+    });
+    const [app] = await db
+      .insert(applications)
+      .values({ userId, jobId: ids[0]!, currentPackageId: pkg!.id, status: 'READY_TO_APPLY' })
+      .returning();
+    const ticket = await SubmissionAuthorizationService.createSubmissionAuthorizationTicket(
+      userId,
+      app!.id,
+      db,
+    );
+    await db.insert(answerLibrary).values({
+      userId,
+      question: 'Unrelated question',
+      answer: 'Unrelated answer',
+      verificationStatus: 'VERIFIED',
+    });
+    await expect(
+      SubmissionAuthorizationService.verifySubmissionAuthorization(
+        userId,
+        app!.id,
+        ticket.submissionToken,
+        db,
+      ),
+    ).resolves.toBeDefined();
+    await db
+      .update(answerLibrary)
+      .set({ verificationStatus: 'REJECTED' })
+      .where(eq(answerLibrary.id, source!.id));
+    await expect(
+      SubmissionAuthorizationService.verifySubmissionAuthorization(
+        userId,
+        app!.id,
+        ticket.submissionToken,
+        db,
+      ),
+    ).rejects.toThrow('reused saved answer');
   });
   it('requires current authorization, prevents duplicate dispatch, and blocks uncertain retries', async () => {
     const [pkg] = await db

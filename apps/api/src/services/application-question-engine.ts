@@ -58,15 +58,41 @@ export class ApplicationQuestionEngine {
     // ========================================================================
     // Level 1: Verified Answer Library
     // ========================================================================
-    const matchingLibraryItem = context.answerLibrary.find((item) => {
-      const promptLower = item.question.toLowerCase().trim();
-      return (
-        promptLower === qTextLower ||
-        qTextLower.includes(promptLower) ||
-        promptLower.includes(qTextLower) ||
-        (item.category && item.category === question.category)
-      );
-    });
+    const normalizedQuestion = this.normalizeQuestion(question.questionText);
+    const matchingItems = context.answerLibrary.filter(
+      (item) =>
+        item.verificationStatus === 'VERIFIED' &&
+        this.normalizeQuestion(item.question) === normalizedQuestion,
+    );
+    const matchingLibraryItem = matchingItems[0];
+    const conflictingAnswers = new Set(matchingItems.map((item) => item.answer.trim())).size > 1;
+    const manualAnswer = matchingItems.some((item) => item.automationLevel === 'MANUAL');
+    if (conflictingAnswers || manualAnswer) {
+      return {
+        proposedAnswer: null,
+        answerSource: 'UNRESOLVED',
+        sourceEntityId: matchingLibraryItem?.id ?? null,
+        approvalState: 'PENDING',
+        needsApproval: true,
+        approvalDetails: {
+          approvalType: isSensitive ? 'SENSITIVE_ANSWER' : 'QUESTION_ANSWER',
+          subject: `Candidate Input Required: "${question.questionText}"`,
+          proposedValue: null,
+          reason: conflictingAnswers
+            ? 'Verified saved answers conflict. Confirm the correct answer before reuse.'
+            : 'This saved answer is marked MANUAL. Enter and approve an answer for this application.',
+          riskLevel: isSensitive ? 'CRITICAL' : 'MEDIUM',
+          evidenceReferences: matchingItems.map((item) => `answer_library:${item.id}`),
+        },
+      };
+    }
+    const librarySensitive = matchingItems.some((item) => item.isSensitive);
+    // Conditions are retained data, not an executable authorization language. Unknown scope requires review.
+    const scopedAnswer = matchingItems.some(
+      (item) =>
+        item.conditions != null &&
+        (typeof item.conditions !== 'object' || Object.keys(item.conditions).length > 0),
+    );
 
     if (matchingLibraryItem) {
       const answerVal = matchingLibraryItem.answer;
@@ -77,7 +103,12 @@ export class ApplicationQuestionEngine {
       );
 
       if (validAnswer) {
-        if (matchingLibraryItem.automationLevel === 'AUTO' && !isSensitive) {
+        if (
+          matchingItems.every((item) => item.automationLevel === 'AUTO') &&
+          !isSensitive &&
+          !librarySensitive &&
+          !scopedAnswer
+        ) {
           return {
             proposedAnswer: validAnswer,
             answerSource: 'ANSWER_LIBRARY',
@@ -95,13 +126,16 @@ export class ApplicationQuestionEngine {
           approvalState: 'PENDING',
           needsApproval: true,
           approvalDetails: {
-            approvalType: isSensitive ? 'SENSITIVE_ANSWER' : 'QUESTION_ANSWER',
+            approvalType: isSensitive || librarySensitive ? 'SENSITIVE_ANSWER' : 'QUESTION_ANSWER',
             subject: `Proposed Answer for: "${question.questionText}"`,
             proposedValue: validAnswer,
-            reason: isSensitive
-              ? 'Sensitive question matched in Answer Library requires human authorization.'
-              : `Answer Library item set to ${matchingLibraryItem.automationLevel} automation requires approval.`,
-            riskLevel: isSensitive ? 'HIGH' : 'LOW',
+            reason:
+              isSensitive || librarySensitive
+                ? 'Sensitive saved answer requires human authorization for this application.'
+                : scopedAnswer
+                  ? 'The saved answer has scope conditions that require confirmation for this application.'
+                  : 'This saved answer requires review before use.',
+            riskLevel: isSensitive || librarySensitive ? 'HIGH' : 'LOW',
             evidenceReferences: [`answer_library:${matchingLibraryItem.id}`],
           },
         };
@@ -314,6 +348,15 @@ export class ApplicationQuestionEngine {
         evidenceReferences: [],
       },
     };
+  }
+
+  private static normalizeQuestion(question: string): string {
+    return question
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .replace(/[?!.]+$/, '')
+      .trim();
   }
 
   private static isCategorySensitive(category: QuestionCategory): boolean {

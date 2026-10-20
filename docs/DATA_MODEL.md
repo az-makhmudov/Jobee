@@ -1,5 +1,7 @@
 # Jobee 2.0 — Data Model Reconciliation
 
+JOB-P1-T02 now exposes the existing work_authorization_countries, internship_eligible and availability preference columns through the normal validated candidate API, including creation, partial updates and explicit clearing. No schema change. Answer content/question edits clear verification unless explicitly reconfirmed; only verified matching saved answers can be reused. See JOBEE_2_IMPLEMENTATION.md.
+
 Updated 2026-10-20 under JOB-P0-T01. No schema changes in this assessment. The detailed 1.x entity reference below remains useful implementation history; actual Drizzle schema/migrations govern discrepancies. Jobee 2.0 conceptual names do not mandate duplicate tables.
 
 | Target concept                                                     | Existing schema / reuse                                                                                                                      | Remaining design delta                                                                                                        |

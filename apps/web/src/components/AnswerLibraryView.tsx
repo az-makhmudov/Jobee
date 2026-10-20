@@ -22,6 +22,10 @@ export function AnswerLibraryView({ onUpdate }: Props) {
   // Modal
   const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
   const [activeItem, setActiveItem] = useState<AnswerLibraryEntryDto | null>(null);
+  const [answerVerified, setAnswerVerified] = useState(false);
+  useEffect(() => {
+    setAnswerVerified(activeItem?.verificationStatus === 'VERIFIED');
+  }, [modalMode, activeItem?.id]);
 
   const showToast = (type: 'ok' | 'error', message: string) => {
     setToast({ type, message });
@@ -86,8 +90,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
       <header className="page-header">
         <h2 className="page-title">Saved Answers</h2>
         <p className="page-subtitle">
-          Curated, verified answers for application screening questions with deterministic
-          automation rules
+          Save answers, confirm their accuracy and choose when they may be reused.
         </p>
       </header>
 
@@ -154,7 +157,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
               onChange={(e) => setLevelFilter(e.target.value)}
             >
               <option value="ALL">All Automation</option>
-              <option value="AUTO">AUTO (Pre-authorized)</option>
+              <option value="AUTO">AUTO (Verified routine answers)</option>
               <option value="REVIEW">REVIEW (Pre-fill & Verify)</option>
               <option value="MANUAL">MANUAL (Candidate Prompt)</option>
             </Select>
@@ -236,6 +239,15 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                         style={{ fontSize: '0.75rem', padding: '0.1rem 0.5rem' }}
                       >
                         {levelBadge.label}
+                      </span>
+                      <span
+                        className={`status-badge ${ans.verificationStatus === 'VERIFIED' ? 'ok' : ans.verificationStatus === 'REJECTED' ? 'error' : 'unconfigured'}`}
+                      >
+                        {ans.verificationStatus === 'VERIFIED'
+                          ? 'Verified'
+                          : ans.verificationStatus === 'REJECTED'
+                            ? 'Rejected'
+                            : 'Needs verification'}
                       </span>
                       {ans.isSensitive && (
                         <span
@@ -338,6 +350,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                   notes: (form.get('notes') as string) || null,
                   automationLevel: form.get('automationLevel') as AutomationLevel,
                   isSensitive: form.get('isSensitive') === 'on',
+                  verificationStatus: answerVerified ? 'VERIFIED' : 'UNVERIFIED',
                 };
 
                 try {
@@ -361,6 +374,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                   <label className="form-label">Question / Application Prompt</label>
                   <Input
                     name="question"
+                    onChange={() => setAnswerVerified(false)}
                     defaultValue={activeItem?.question || ''}
                     placeholder="e.g. Are you legally authorized to work in the United States?"
                     required
@@ -395,7 +409,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                     className="form-input"
                   >
                     <option value="REVIEW">REVIEW (Pre-fill, human confirms)</option>
-                    <option value="AUTO">AUTO (Safe for automatic submit)</option>
+                    <option value="AUTO">AUTO (Reuse verified routine answers)</option>
                     <option value="MANUAL">MANUAL (Prompt candidate each time)</option>
                   </Select>
                 </div>
@@ -404,6 +418,7 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                   <label className="form-label">Approved Answer Text</label>
                   <Textarea
                     name="answer"
+                    onChange={() => setAnswerVerified(false)}
                     defaultValue={activeItem?.answer || ''}
                     placeholder="Exact response to submit..."
                     required
@@ -412,6 +427,21 @@ export function AnswerLibraryView({ onUpdate }: Props) {
                   />
                 </div>
 
+                <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                  <label>
+                    <Input
+                      type="checkbox"
+                      checked={answerVerified}
+                      onChange={(e) => setAnswerVerified(e.target.checked)}
+                    />
+                    I confirm this answer is accurate
+                  </label>
+                  <p className="text-muted">
+                    Automatic reuse requires a verified, non-sensitive answer to the same question.
+                    Scope conditions and sensitive answers still require review. Changing the
+                    question or answer clears verification.
+                  </p>
+                </div>
                 <div className="form-group" style={{ gridColumn: 'span 2' }}>
                   <label
                     style={{
