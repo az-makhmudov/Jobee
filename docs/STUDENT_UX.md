@@ -2,7 +2,7 @@
 
 Parent milestone: **JOB-UI-MIGRATION-01**, student UX continuation, 19 October 2026.
 
-Status: **LOCAL IMPLEMENTATION VERIFIED; RELEASE PENDING**. The owner approved the simplified design and flow, requested adaptation across the existing Figma file, and then explicitly authorized application implementation. This supersedes the earlier prototype-only boundary. No human student usability sessions have been claimed. Production release remains separate from this local implementation.
+Status: **DEPLOYED AND VERIFIED — 20 October 2026**, included in release `f6d6286`. The owner approved the simplified design and flow, requested adaptation across the existing Figma file, and then explicitly authorized application implementation. This supersedes the earlier prototype-only boundary. No human student usability sessions have been claimed. The release includes the broader product-evolution workflow. Historical local verification records remain below.
 
 Baseline: `a98ac9f073f4d2ed5247b28faa97d13d71477500`. Prior verified source checkpoint: `04548142fe3ced25fa76b546cf112cd1c7829df8`. Verified implementation checkpoint: `3c7f82f30182f90a3210297936804603f974a2ab`. Branch: `codex/jobee-student-ux`. Main checkout and its pre-existing `AGENTS.md` edit are preserved.
 

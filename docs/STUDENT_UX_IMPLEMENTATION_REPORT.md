@@ -1,6 +1,8 @@
 # JOB-UI-MIGRATION-01 — Student UX implementation report
 
-Date: 19 October 2026. Status: **LOCAL IMPLEMENTATION VERIFIED; RELEASE PENDING**. Branch: `codex/jobee-student-ux`, based on `a98ac9f`. Verified implementation checkpoint: `3c7f82f30182f90a3210297936804603f974a2ab`. This is the approved student UX continuation, separate from the previous deployed design-system release.
+Current release: **DEPLOYED AND VERIFIED on 20 October 2026**, code `f6d6286`, PR #1. Both production services and live public/auth boundaries are verified. Full release validation: 634 tests and 32 Linux browser checks, with reviewed Linux references accepted by CI. No student-study result or employer submission is claimed.
+
+Original local report dated 19 October 2026. Historical local status: **IMPLEMENTATION VERIFIED ON 19 OCTOBER**. Branch: `codex/jobee-student-ux`, based on `a98ac9f`. Verified implementation checkpoint: `3c7f82f30182f90a3210297936804603f974a2ab`. This is the approved student UX continuation, separate from the previous deployed design-system release.
 
 ## Result
 
@@ -18,7 +20,7 @@ All eight required gates pass locally. The full suite has **606 passing tests ac
 
 The browser inventory covers 1440px Light/Dark screens, 1280px/1920px access, existing narrow-screen navigation, documents, editors, all lifecycle/run states, cancellation, independent blockers, retained drafts, explicit upload intent, theme/device changes and authentication/ownership boundaries. Actual application values replace Figma example names, scores, counts and dates.
 
-## Review and release boundary
+## Historical local review boundary — 19 October 2026
 
 Preview: **http://127.0.0.1:5183**, synthetic login `alex.morgan@example.test` / `JobeePreview123!`. Review images and the browser report are generated under `output/playwright/` and are not runtime UI assets.
 
