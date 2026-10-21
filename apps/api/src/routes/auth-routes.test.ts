@@ -17,7 +17,7 @@ import {
 import { PilotInvitationStatus } from '@job-agent/shared';
 
 describe('Better Auth, Multi-User Isolation & Private Pilot Integration Tests', () => {
-  const config = getConfig();
+  const config = { ...getConfig(), OWNER_EMAIL: 'owner@example.test' };
   let app: ReturnType<typeof buildApp>;
   const db = getDb(config.DATABASE_URL);
 
@@ -351,12 +351,12 @@ describe('Better Auth, Multi-User Isolation & Private Pilot Integration Tests', 
       expect(userCreateBefore).toBeDefined();
 
       // 1. Owner exact email
-      const ownerUser = { email: 'asadbek.mzw@gmail.com' } as any;
+      const ownerUser = { email: config.OWNER_EMAIL } as any;
       await expect(userCreateBefore(ownerUser)).resolves.not.toThrow();
       expect(ownerUser.role).toBe('admin');
 
       // 2. Owner uppercase email (case-insensitive recognition)
-      const ownerUpperUser = { email: 'ASADBEK.MZW@GMAIL.COM' } as any;
+      const ownerUpperUser = { email: config.OWNER_EMAIL.toUpperCase() } as any;
       await expect(userCreateBefore(ownerUpperUser)).resolves.not.toThrow();
       expect(ownerUpperUser.role).toBe('admin');
 
@@ -365,20 +365,20 @@ describe('Better Auth, Multi-User Isolation & Private Pilot Integration Tests', 
       await expect(userCreateBefore(nonOwnerUser)).rejects.toThrow();
     });
 
-    it('verifies owner account uniqueness, seed candidate linking, and multi-tenant data isolation', async () => {
+    it('verifies owner account uniqueness, candidate linking, and multi-tenant data isolation', async () => {
       const { createBetterAuthInstance } = await import('../auth/better-auth-instance.js');
       const auth = createBetterAuthInstance(db, config);
       const userCreateAfter = (auth.options as any).databaseHooks?.user?.create?.after;
       expect(userCreateAfter).toBeDefined();
 
-      const seedUserId = '00000000-0000-0000-0000-000000000001';
-      const { getOrCreatePrimaryUser } = await import('@job-agent/database');
-      await getOrCreatePrimaryUser(db);
+      const seedUserId = adminUserId;
+      const fixtureEmail = `admin_${timestamp}@example.com`;
+      await userCreateAfter({ id: seedUserId, email: fixtureEmail, name: 'Admin Tester' });
 
-      // 1. Verify primary owner user exists in database with admin role
+      // 1. Verify disposable admin user exists in database with admin role
       const [existingOwner] = await db.select().from(users).where(eq(users.id, seedUserId));
       expect(existingOwner).toBeDefined();
-      expect(existingOwner?.email).toBe('asadbek.mzw@gmail.com');
+      expect(existingOwner?.email).toBe(fixtureEmail);
       expect(existingOwner?.role).toBe('admin');
 
       // 2. Verify candidate profile is linked to primary owner
@@ -395,7 +395,7 @@ describe('Better Auth, Multi-User Isolation & Private Pilot Integration Tests', 
         db.insert(users).values({
           id: duplicateOwnerId,
           name: 'Fake Owner',
-          email: 'asadbek.mzw@gmail.com',
+          email: fixtureEmail,
           role: 'user',
           emailVerified: true,
         }),
@@ -413,8 +413,8 @@ describe('Better Auth, Multi-User Isolation & Private Pilot Integration Tests', 
       // 5. Verify owner registration hook execution preserves existing profile
       await userCreateAfter({
         id: seedUserId,
-        email: 'asadbek.mzw@gmail.com',
-        name: 'Asadbek Makhmudov',
+        email: fixtureEmail,
+        name: 'Admin Tester',
       });
 
       const [preservedProfile] = await db

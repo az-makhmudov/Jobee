@@ -298,3 +298,43 @@ describe('Grounded matching across Explore and scheduled execution (JOB-P2-T02)'
     }
   });
 });
+
+// Thirty synthetic student/early-career guard cases. This is not a human relevance benchmark.
+describe('Release matching guard benchmark (30 synthetic vacancies)', () => {
+  const roles = [
+    'Frontend Developer Intern',
+    'Backend Engineer Intern',
+    'Full Stack Developer Intern',
+    'Web Developer Intern',
+    'Platform Engineering Intern',
+    'JavaScript Developer Intern',
+    'TypeScript Developer Intern',
+    'Software Engineering Intern',
+    'API Developer Intern',
+    'Developer Tools Intern',
+  ];
+  const scenarios = roles.flatMap((role) =>
+    ['ready', 'unknown jurisdiction', 'work mode conflict'].map((condition) => ({
+      role,
+      condition,
+    })),
+  );
+  it.each(scenarios)('$role — $condition', async ({ role, condition }) => {
+    await updatePreferences({
+      targetTitles: [role],
+      employmentTypes: ['internship'],
+      internshipEligible: true,
+    });
+    await updateJob({
+      title: role,
+      employmentType: 'INTERNSHIP',
+      ...(condition === 'unknown jurisdiction' ? { country: null } : {}),
+      ...(condition === 'work mode conflict' ? { workplaceType: 'ONSITE' } : {}),
+    });
+    const result = await analyze();
+    expect(result.decision).toBe(
+      condition === 'ready' ? 'MATCH' : condition === 'unknown jurisdiction' ? 'REVIEW' : 'SKIP',
+    );
+    if (condition !== 'ready') expect(result.autoApplyEligible).toBe(false);
+  });
+});

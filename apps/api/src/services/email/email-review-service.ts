@@ -11,7 +11,6 @@ import {
 import {
   AppError,
   EmailProcessingStatus,
-  EmailProposedAction,
   EmailReviewStatus,
   type EmailReviewItemDto,
   type ResolveReviewItemRequest,
@@ -28,7 +27,7 @@ export class EmailReviewService {
 
   public async listReviewItems(
     userId: string,
-    query: { status?: string } = {},
+    query: { status?: string; applicationId?: string } = {},
   ): Promise<EmailReviewItemDto[]> {
     const statusFilter = query.status || EmailReviewStatus.PENDING;
 
@@ -41,10 +40,27 @@ export class EmailReviewService {
         appStatus: applications.status,
       })
       .from(emailReviewItems)
-      .innerJoin(emailMessages, eq(emailReviewItems.messageId, emailMessages.id))
-      .leftJoin(applications, eq(emailReviewItems.proposedApplicationId, applications.id))
-      .leftJoin(jobs, eq(applications.jobId, jobs.id))
-      .where(and(eq(emailReviewItems.userId, userId), eq(emailReviewItems.status, statusFilter)))
+      .innerJoin(
+        emailMessages,
+        and(eq(emailReviewItems.messageId, emailMessages.id), eq(emailMessages.userId, userId)),
+      )
+      .leftJoin(
+        applications,
+        and(
+          eq(emailReviewItems.proposedApplicationId, applications.id),
+          eq(applications.userId, userId),
+        ),
+      )
+      .leftJoin(jobs, and(eq(applications.jobId, jobs.id), eq(jobs.userId, userId)))
+      .where(
+        and(
+          eq(emailReviewItems.userId, userId),
+          eq(emailReviewItems.status, statusFilter),
+          query.applicationId
+            ? eq(emailReviewItems.proposedApplicationId, query.applicationId)
+            : undefined,
+        ),
+      )
       .orderBy(desc(emailReviewItems.createdAt));
 
     return rows.map(({ reviewItem, message, jobTitle, jobCompany, appStatus }) => ({
@@ -81,11 +97,27 @@ export class EmailReviewService {
     resolution: 'APPROVED' | 'DISMISSED' | 'REJECTED',
     req: ResolveReviewItemRequest = {},
   ): Promise<EmailReviewItemDto> {
+    return this.db.transaction((tx) =>
+      new EmailReviewService(tx as unknown as Database).resolveWithinTransaction(
+        userId,
+        reviewItemId,
+        resolution,
+        req,
+      ),
+    );
+  }
+
+  private async resolveWithinTransaction(
+    userId: string,
+    reviewItemId: string,
+    resolution: 'APPROVED' | 'DISMISSED' | 'REJECTED',
+    req: ResolveReviewItemRequest = {},
+  ): Promise<EmailReviewItemDto> {
     const [item] = await this.db
       .select()
       .from(emailReviewItems)
       .where(and(eq(emailReviewItems.id, reviewItemId), eq(emailReviewItems.userId, userId)))
-      .limit(1);
+      .for('update');
 
     if (!item) {
       throw AppError.notFound(`Email review item ${reviewItemId} not found`);
@@ -98,21 +130,56 @@ export class EmailReviewService {
     const [msg] = await this.db
       .select()
       .from(emailMessages)
-      .where(eq(emailMessages.id, item.messageId))
+      .where(and(eq(emailMessages.id, item.messageId), eq(emailMessages.userId, userId)))
       .limit(1);
 
     const targetAppId = req.overrideApplicationId || item.proposedApplicationId;
     const targetStatus = (req.overrideTargetStatus ||
       item.proposedTargetStatus) as ApplicationLifecycleStatus | null;
 
+    const targetApp = targetAppId
+      ? (
+          await this.db
+            .select()
+            .from(applications)
+            .where(and(eq(applications.id, targetAppId), eq(applications.userId, userId)))
+            .limit(1)
+        )[0]
+      : null;
+    if (targetAppId && !targetApp) throw AppError.notFound('Application not found.');
+    if (!msg) throw AppError.notFound('Message not found.');
     if (resolution === 'APPROVED') {
+      if (
+        !['NONE', 'SYNC_STATUS', 'CREATE_ASSESSMENT', 'PROPOSE_INTERVIEW'].includes(
+          item.proposedAction,
+        )
+      )
+        throw AppError.badRequest(
+          'This legacy proposal cannot be executed here. Dismiss it and add the verified job/contact from its editor.',
+        );
+      if (
+        ['SYNC_STATUS', 'CREATE_ASSESSMENT', 'PROPOSE_INTERVIEW'].includes(item.proposedAction) &&
+        (!targetAppId || !targetStatus)
+      )
+        throw AppError.badRequest(
+          'Select an owned application and target status before approving this change.',
+        );
       // Execute the approved action
-      if (item.proposedAction === EmailProposedAction.SYNC_STATUS && targetAppId && targetStatus) {
-        await ApplicationCrmService.transitionStatus(userId, targetAppId, {
-          targetStatus,
-          actor: 'USER',
-          note: req.resolutionNote || item.explanation,
-        });
+      if (
+        ['SYNC_STATUS', 'CREATE_ASSESSMENT', 'PROPOSE_INTERVIEW'].includes(item.proposedAction) &&
+        targetAppId &&
+        targetStatus
+      ) {
+        await ApplicationCrmService.transitionStatus(
+          userId,
+          targetAppId,
+          {
+            targetStatus,
+            actor: 'USER',
+            note: req.resolutionNote || item.explanation,
+          },
+          this.db,
+        );
       }
 
       // If approved and threadId exists, record thread link confirmed by user
@@ -124,7 +191,7 @@ export class EmailReviewService {
             userId,
             providerThreadId: msg.providerThreadId,
             applicationId: targetAppId,
-            jobId: item.proposedJobId,
+            jobId: targetApp?.jobId ?? null,
             confirmedBy: 'USER',
           })
           .onConflictDoUpdate({
@@ -155,12 +222,16 @@ export class EmailReviewService {
       .update(emailMessages)
       .set({
         processingStatus: EmailProcessingStatus.REVIEWED,
-        linkedApplicationId: targetAppId,
+        ...(resolution === 'APPROVED'
+          ? { linkedApplicationId: targetAppId, linkedJobId: targetApp?.jobId ?? null }
+          : {}),
         updatedAt: new Date(),
       })
-      .where(eq(emailMessages.id, item.messageId));
+      .where(and(eq(emailMessages.id, item.messageId), eq(emailMessages.userId, userId)));
 
-    const [fullItem] = await this.listReviewItems(userId, { status: resolution });
+    const fullItem = (await this.listReviewItems(userId, { status: resolution })).find(
+      (value) => value.id === reviewItemId,
+    );
     if (fullItem) {
       return fullItem;
     }

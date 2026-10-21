@@ -279,6 +279,7 @@ async function main() {
         calendarId: 'primary',
         timezone: 'UTC',
         includePreparationNotes: true,
+        userConfirmed: true,
       },
     );
 
@@ -410,7 +411,7 @@ async function main() {
     // SECTION 10: Event Unlinking & Teardown
     // -------------------------------------------------------------------------
     console.log('--- SECTION 10: Event Unlink & Clean Teardown ---');
-    await calendarService.deleteInterviewCalendarEvent(interview.id, userId);
+    await calendarService.deleteInterviewCalendarEvent(interview.id, userId, true);
     const unlinked = await calendarService.getInterviewCalendarLink(interview.id, userId);
     if (unlinked !== null) {
       throw new Error('Expected calendar event to be null after deletion');

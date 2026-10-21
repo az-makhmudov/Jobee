@@ -110,22 +110,41 @@ export class CalendarService {
       exchange.tokens as unknown as Record<string, unknown>,
     );
 
+    if (
+      scopeLevel === 'EVENT_MANAGEMENT' &&
+      !exchange.grantedScopes.includes('https://www.googleapis.com/auth/calendar.events')
+    )
+      throw AppError.forbidden('Calendar event-management scope was not granted.');
     // Fetch user's calendars to establish default selection
     let defaultCalendarId: string | null = null;
     let availableCalendarIds: string[] = [];
     try {
-      const cals = await prov.getCalendars(exchange.tokens);
+      const cals =
+        scopeLevel === 'EVENT_MANAGEMENT' &&
+        (provider === 'FIXTURE' ||
+          exchange.grantedScopes.some((scope) =>
+            [
+              'https://www.googleapis.com/auth/calendar.readonly',
+              'https://www.googleapis.com/auth/calendar',
+              'https://www.googleapis.com/auth/calendar.calendarlist',
+              'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+            ].includes(scope),
+          ))
+          ? await prov.getCalendars(exchange.tokens)
+          : [];
       availableCalendarIds = cals.map((c) => c.id);
       const primaryCal = cals.find((c) => c.primary) || cals[0];
       if (primaryCal) {
         defaultCalendarId = primaryCal.id;
       }
-    } catch (err) {
-      this.logger.warn('Failed to pre-fetch calendars on connect', {
-        error: (err as Error).message,
-      });
+    } catch {
+      this.logger.warn('Failed to pre-fetch calendars on connect', {});
     }
 
+    if (!defaultCalendarId) {
+      defaultCalendarId = 'primary';
+      availableCalendarIds = ['primary'];
+    }
     // Check if account already exists
     const [existing] = await this.db
       .select()
@@ -149,10 +168,13 @@ export class CalendarService {
           status: CalendarAccountStatus.CONNECTED,
           tokenExpiresAt: exchange.tokenExpiresAt ?? null,
           selectedCalendarIds:
-            existing.selectedCalendarIds.length > 0
+            existing.provider === provider && existing.selectedCalendarIds.length > 0
               ? existing.selectedCalendarIds
               : availableCalendarIds,
-          defaultCalendarId: existing.defaultCalendarId || defaultCalendarId,
+          defaultCalendarId:
+            existing.provider === provider
+              ? existing.defaultCalendarId || defaultCalendarId
+              : defaultCalendarId,
           errorMessage: null,
           updatedAt: new Date(),
         })
@@ -165,7 +187,6 @@ export class CalendarService {
 
       this.logger.info('Calendar account reconnected', {
         accountId: updated.id,
-        email: updated.emailAddress,
         provider,
       });
       return this.mapAccountDto(updated);
@@ -194,7 +215,6 @@ export class CalendarService {
 
     this.logger.info('New calendar account connected', {
       accountId: created.id,
-      email: created.emailAddress,
       provider,
     });
     return this.mapAccountDto(created);
@@ -256,6 +276,16 @@ export class CalendarService {
   private async getValidTokens(
     account: CalendarAccount,
   ): Promise<{ tokens: CalendarOAuthTokens; prov: CalendarProvider }> {
+    const [current] = await this.db
+      .select()
+      .from(calendarAccounts)
+      .where(and(eq(calendarAccounts.id, account.id), eq(calendarAccounts.userId, account.userId)));
+    if (
+      !current ||
+      current.status !== CalendarAccountStatus.CONNECTED ||
+      current.encryptedTokens !== account.encryptedTokens
+    )
+      throw AppError.forbidden('Calendar authorization changed. Reconnect before continuing.');
     const prov = this.getProvider(account.provider as CalendarProviderType);
     let tokens: CalendarOAuthTokens;
     try {
@@ -268,7 +298,14 @@ export class CalendarService {
           errorMessage: 'Token decryption failed',
           updatedAt: new Date(),
         })
-        .where(eq(calendarAccounts.id, account.id));
+        .where(
+          and(
+            eq(calendarAccounts.id, account.id),
+            eq(calendarAccounts.userId, account.userId),
+            eq(calendarAccounts.status, 'CONNECTED'),
+            eq(calendarAccounts.encryptedTokens, account.encryptedTokens),
+          ),
+        );
       throw AppError.unauthorized('Calendar credentials require re-authentication');
     }
 
@@ -283,23 +320,40 @@ export class CalendarService {
         const reEncrypted = this.cryptoService.encrypt(
           tokens as unknown as Record<string, unknown>,
         );
-        await this.db
+        const refreshedRows = await this.db
           .update(calendarAccounts)
           .set({
             encryptedTokens: reEncrypted,
             tokenExpiresAt: refreshed.tokenExpiresAt ?? null,
             updatedAt: new Date(),
           })
-          .where(eq(calendarAccounts.id, account.id));
-      } catch (err) {
+          .where(
+            and(
+              eq(calendarAccounts.id, account.id),
+              eq(calendarAccounts.userId, account.userId),
+              eq(calendarAccounts.status, 'CONNECTED'),
+              eq(calendarAccounts.encryptedTokens, account.encryptedTokens),
+            ),
+          )
+          .returning();
+        if (!refreshedRows.length)
+          throw AppError.forbidden('Calendar authorization changed during refresh.');
+      } catch {
         await this.db
           .update(calendarAccounts)
           .set({
             status: CalendarAccountStatus.REAUTH_REQUIRED,
-            errorMessage: `Token refresh failed: ${(err as Error).message}`,
+            errorMessage: 'Calendar authorization expired. Reconnect to continue.',
             updatedAt: new Date(),
           })
-          .where(eq(calendarAccounts.id, account.id));
+          .where(
+            and(
+              eq(calendarAccounts.id, account.id),
+              eq(calendarAccounts.userId, account.userId),
+              eq(calendarAccounts.status, 'CONNECTED'),
+              eq(calendarAccounts.encryptedTokens, account.encryptedTokens),
+            ),
+          );
         throw AppError.unauthorized('Calendar credentials expired; re-authentication required');
       }
     }
@@ -322,6 +376,20 @@ export class CalendarService {
       throw AppError.badRequest(`Calendar account is ${account.status}`);
     }
 
+    if (
+      account.provider === 'GOOGLE' &&
+      !account.grantedScopes.some((scope) =>
+        [
+          'https://www.googleapis.com/auth/calendar.readonly',
+          'https://www.googleapis.com/auth/calendar',
+          'https://www.googleapis.com/auth/calendar.calendarlist',
+          'https://www.googleapis.com/auth/calendar.calendarlist.readonly',
+        ].includes(scope),
+      )
+    )
+      throw AppError.forbidden(
+        'Calendar-list access was not granted. Use the primary calendar or an explicitly selected calendar ID.',
+      );
     const { tokens, prov } = await this.getValidTokens(account);
     return prov.getCalendars(tokens);
   }
@@ -399,10 +467,9 @@ export class CalendarService {
 
         allBusySlots.push(...result.busySlots);
         failedCalendars.push(...result.failedCalendars);
-      } catch (err) {
+      } catch {
         this.logger.warn('Failed to query availability for account', {
           accountId: account.id,
-          error: (err as Error).message,
         });
         failedCalendars.push(account.emailAddress);
       }
@@ -534,12 +601,93 @@ export class CalendarService {
 
   // ─── Interview Calendar Event Booking ──────────────────────────────────
 
+  public async assertInterviewOwnership(
+    userId: string,
+    applicationId: string,
+    interviewId: string,
+  ) {
+    const [row] = await this.db
+      .select({ id: applicationInterviews.id })
+      .from(applicationInterviews)
+      .innerJoin(applications, eq(applicationInterviews.applicationId, applications.id))
+      .where(
+        and(
+          eq(applicationInterviews.id, interviewId),
+          eq(applications.id, applicationId),
+          eq(applications.userId, userId),
+          eq(applicationInterviews.userId, userId),
+        ),
+      );
+    if (!row) throw AppError.notFound('Interview not found in this application.');
+  }
+  private assertCalendarWrite(account: CalendarAccount) {
+    if (
+      account.status !== 'CONNECTED' ||
+      account.scopeLevel !== 'EVENT_MANAGEMENT' ||
+      !account.grantedScopes.includes('https://www.googleapis.com/auth/calendar.events')
+    )
+      throw AppError.forbidden(
+        'Calendar event-management permission is required. Availability access cannot change events.',
+      );
+  }
+  public async reconcileCalendarCreation(
+    userId: string,
+    applicationId: string,
+    interviewId: string,
+    reason: string,
+  ) {
+    if (!reason.trim())
+      throw AppError.badRequest('Record why the calendar was verified before retrying.');
+    await this.assertInterviewOwnership(userId, applicationId, interviewId);
+    await this.db.transaction(async (tx) => {
+      const [interview] = await tx
+        .select()
+        .from(applicationInterviews)
+        .where(eq(applicationInterviews.id, interviewId))
+        .for('update');
+      const [link] = await tx
+        .select()
+        .from(interviewCalendarLinks)
+        .where(eq(interviewCalendarLinks.interviewId, interviewId));
+      if (
+        interview?.schedulingStatus === 'EVENT_PENDING' &&
+        interview.updatedAt.getTime() > Date.now() - 15 * 60_000
+      )
+        throw AppError.conflict(
+          'Calendar write may still be in progress. Wait for the outcome before reconciling.',
+        );
+      if (link || !['EVENT_PENDING', 'EVENT_UNCERTAIN'].includes(interview!.schedulingStatus))
+        throw AppError.conflict(
+          'Only an unlinked uncertain creation can be reconciled as not created.',
+        );
+      await tx
+        .update(applicationInterviews)
+        .set({ schedulingStatus: 'NEEDS_CONFIRMATION', updatedAt: new Date() })
+        .where(eq(applicationInterviews.id, interviewId));
+      await tx.insert(applicationLifecycleEvents).values({
+        userId,
+        applicationId,
+        eventType: 'NOTE_ADDED',
+        actor: 'USER',
+        note: reason,
+        safeMetadata: { interviewId, action: 'CALENDAR_NOT_CREATED_RECONCILED' },
+      });
+    });
+  }
+
   public async createCalendarEventForInterview(
     userId: string,
     applicationId: string,
     interviewId: string,
     req: CreateCalendarEventForInterviewRequest,
   ): Promise<{ link: InterviewCalendarLinkDto; event: CalendarEventDto }> {
+    if (req.userConfirmed !== true)
+      throw AppError.forbidden('Confirm this calendar write before continuing.');
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: req.timezone });
+    } catch {
+      throw AppError.badRequest('Choose a valid IANA timezone.');
+    }
     // 1. Validate application and interview
     const [appRow] = await this.db
       .select({ app: applications, job: jobs })
@@ -578,10 +726,16 @@ export class CalendarService {
       const [account] = await this.db
         .select()
         .from(calendarAccounts)
-        .where(eq(calendarAccounts.id, existingLink.calendarAccountId))
+        .where(
+          and(
+            eq(calendarAccounts.id, existingLink.calendarAccountId),
+            eq(calendarAccounts.userId, userId),
+          ),
+        )
         .limit(1);
 
       if (account) {
+        this.assertCalendarWrite(account);
         const { tokens, prov } = await this.getValidTokens(account);
         const existingEvent = await prov.getEvent(
           tokens,
@@ -607,6 +761,10 @@ export class CalendarService {
       }
     }
 
+    if (existingLink)
+      throw AppError.conflict(
+        'The linked event is unavailable. Verify the calendar before creating another event.',
+      );
     // 3. Find connected account
     const [account] = await this.db
       .select()
@@ -615,6 +773,7 @@ export class CalendarService {
         and(
           eq(calendarAccounts.userId, userId),
           eq(calendarAccounts.status, CalendarAccountStatus.CONNECTED),
+          eq(calendarAccounts.scopeLevel, 'EVENT_MANAGEMENT'),
         ),
       )
       .orderBy(desc(calendarAccounts.createdAt))
@@ -626,6 +785,7 @@ export class CalendarService {
       );
     }
 
+    this.assertCalendarWrite(account);
     const { tokens, prov } = await this.getValidTokens(account);
     const duration = interview.durationMinutes || 60;
     const startIso = interview.scheduledAt.toISOString();
@@ -635,7 +795,7 @@ export class CalendarService {
     if (interview.interviewerName) {
       description += `\nInterviewer: ${interview.interviewerName}`;
     }
-    if (interview.notes) {
+    if (req.includePreparationNotes && interview.notes) {
       description += `\nNotes: ${interview.notes}`;
     }
 
@@ -659,72 +819,126 @@ export class CalendarService {
       timezone: req.timezone || interview.timezone || 'UTC',
       location: interview.locationOrUrl || undefined,
       meetingUrl: interview.meetingUrl || undefined,
-      createConference: !interview.meetingUrl,
+      createConference: req.createConference === true && !interview.meetingUrl,
     };
 
-    const event = await prov.createEvent(tokens, createReq.calendarId, createReq);
+    await this.db.transaction(async (tx) => {
+      const [current] = await tx
+        .select()
+        .from(applicationInterviews)
+        .where(eq(applicationInterviews.id, interviewId))
+        .for('update');
+      const [linked] = await tx
+        .select()
+        .from(interviewCalendarLinks)
+        .where(eq(interviewCalendarLinks.interviewId, interviewId));
+      if (
+        !current ||
+        linked ||
+        ['EVENT_PENDING', 'EVENT_UNCERTAIN'].includes(current.schedulingStatus)
+      )
+        throw AppError.conflict('Calendar outcome requires verification before another write.');
+      if (
+        current.updatedAt.getTime() !== interview.updatedAt.getTime() ||
+        !['SCHEDULED', 'RESCHEDULED'].includes(current.status)
+      )
+        throw AppError.conflict('Interview changed. Review the current details before booking.');
+      const [activeAccount] = await tx
+        .select()
+        .from(calendarAccounts)
+        .where(and(eq(calendarAccounts.id, account.id), eq(calendarAccounts.userId, userId)));
+      if (!activeAccount) throw AppError.notFound('Calendar account not found.');
+      this.assertCalendarWrite(activeAccount);
+      await tx
+        .update(applicationInterviews)
+        .set({ schedulingStatus: 'EVENT_PENDING', updatedAt: new Date() })
+        .where(eq(applicationInterviews.id, interviewId));
+      await tx.insert(applicationLifecycleEvents).values({
+        userId,
+        applicationId,
+        eventType: 'NOTE_ADDED',
+        actor: 'USER',
+        note: 'Authorized private calendar event creation',
+        safeMetadata: {
+          interviewId,
+          calendarAccountId: account.id,
+          calendarId: createReq.calendarId,
+        },
+      });
+    });
+    try {
+      const event = await prov.createEvent(tokens, createReq.calendarId, createReq);
 
-    // Save link
-    const [link] = await this.db
-      .insert(interviewCalendarLinks)
-      .values({
+      // Save link
+      const [link] = await this.db
+        .insert(interviewCalendarLinks)
+        .values({
+          interviewId,
+          calendarAccountId: account.id,
+          calendarId: createReq.calendarId,
+          externalEventId: event.externalEventId,
+          eventUrl: event.eventUrl ?? null,
+          etag: event.etag ?? null,
+        })
+        .returning();
+
+      if (!link) {
+        throw AppError.internal('Failed to create interview calendar link');
+      }
+
+      // Update interview record
+      await this.db
+        .update(applicationInterviews)
+        .set({
+          schedulingStatus: InterviewSchedulingStatus.CONFIRMED,
+          meetingUrl: event.meetingUrl || interview.meetingUrl,
+          updatedAt: new Date(),
+        })
+        .where(eq(applicationInterviews.id, interviewId));
+
+      // Audit log event in application history
+      await this.db.insert(applicationLifecycleEvents).values({
+        applicationId,
+        userId,
+        eventType: 'NOTE_ADDED',
+        actor: 'SYSTEM',
+        note: `Interview synced to calendar (${event.summary})`,
+        safeMetadata: {
+          interviewId,
+          calendarAccountId: account.id,
+          externalEventId: event.externalEventId,
+          eventUrl: event.eventUrl,
+        },
+      });
+
+      this.logger.info('Interview synced to calendar event', {
         interviewId,
-        calendarAccountId: account.id,
-        calendarId: createReq.calendarId,
         externalEventId: event.externalEventId,
-        eventUrl: event.eventUrl ?? null,
-        etag: event.etag ?? null,
-      })
-      .returning();
+      });
 
-    if (!link) {
-      throw AppError.internal('Failed to create interview calendar link');
+      return {
+        link: {
+          id: link.id,
+          interviewId: link.interviewId,
+          calendarAccountId: link.calendarAccountId,
+          calendarId: link.calendarId,
+          externalEventId: link.externalEventId,
+          eventUrl: link.eventUrl,
+          etag: link.etag,
+          lastSyncedAt: link.lastSyncedAt.toISOString(),
+          createdAt: link.createdAt.toISOString(),
+        },
+        event,
+      };
+    } catch {
+      await this.db
+        .update(applicationInterviews)
+        .set({ schedulingStatus: 'EVENT_UNCERTAIN', updatedAt: new Date() })
+        .where(eq(applicationInterviews.id, interviewId));
+      throw AppError.conflict(
+        'Calendar creation may have occurred. Verify the calendar before retrying.',
+      );
     }
-
-    // Update interview record
-    await this.db
-      .update(applicationInterviews)
-      .set({
-        schedulingStatus: InterviewSchedulingStatus.CONFIRMED,
-        meetingUrl: event.meetingUrl || interview.meetingUrl,
-        updatedAt: new Date(),
-      })
-      .where(eq(applicationInterviews.id, interviewId));
-
-    // Audit log event in application history
-    await this.db.insert(applicationLifecycleEvents).values({
-      applicationId,
-      userId,
-      eventType: 'NOTE_ADDED',
-      actor: 'SYSTEM',
-      note: `Interview synced to calendar (${event.summary})`,
-      safeMetadata: {
-        interviewId,
-        calendarAccountId: account.id,
-        externalEventId: event.externalEventId,
-        eventUrl: event.eventUrl,
-      },
-    });
-
-    this.logger.info('Interview synced to calendar event', {
-      interviewId,
-      externalEventId: event.externalEventId,
-    });
-
-    return {
-      link: {
-        id: link.id,
-        interviewId: link.interviewId,
-        calendarAccountId: link.calendarAccountId,
-        calendarId: link.calendarId,
-        externalEventId: link.externalEventId,
-        eventUrl: link.eventUrl,
-        etag: link.etag,
-        lastSyncedAt: link.lastSyncedAt.toISOString(),
-        createdAt: link.createdAt.toISOString(),
-      },
-      event,
-    };
   }
 
   public async getInterviewCalendarLink(
@@ -735,6 +949,11 @@ export class CalendarService {
       .select({ link: interviewCalendarLinks, account: calendarAccounts })
       .from(interviewCalendarLinks)
       .innerJoin(
+        applicationInterviews,
+        eq(applicationInterviews.id, interviewCalendarLinks.interviewId),
+      )
+      .innerJoin(applications, eq(applications.id, applicationInterviews.applicationId))
+      .innerJoin(
         calendarAccounts,
         eq(interviewCalendarLinks.calendarAccountId, calendarAccounts.id),
       )
@@ -742,12 +961,15 @@ export class CalendarService {
         and(
           eq(interviewCalendarLinks.interviewId, interviewId),
           eq(calendarAccounts.userId, userId),
+          eq(applications.userId, userId),
+          eq(applicationInterviews.userId, userId),
         ),
       )
       .limit(1);
 
     if (!row) return null;
 
+    this.assertCalendarWrite(row.account);
     const { tokens, prov } = await this.getValidTokens(row.account);
     const event = await prov.getEvent(tokens, row.link.calendarId, row.link.externalEventId);
     if (!event) return null;
@@ -768,10 +990,21 @@ export class CalendarService {
     };
   }
 
-  public async deleteInterviewCalendarEvent(interviewId: string, userId: string): Promise<void> {
+  public async deleteInterviewCalendarEvent(
+    interviewId: string,
+    userId: string,
+    userConfirmed = false,
+  ): Promise<void> {
+    if (!userConfirmed)
+      throw AppError.forbidden('Confirm this calendar deletion before continuing.');
     const [row] = await this.db
       .select({ link: interviewCalendarLinks, account: calendarAccounts })
       .from(interviewCalendarLinks)
+      .innerJoin(
+        applicationInterviews,
+        eq(applicationInterviews.id, interviewCalendarLinks.interviewId),
+      )
+      .innerJoin(applications, eq(applications.id, applicationInterviews.applicationId))
       .innerJoin(
         calendarAccounts,
         eq(interviewCalendarLinks.calendarAccountId, calendarAccounts.id),
@@ -780,6 +1013,8 @@ export class CalendarService {
         and(
           eq(interviewCalendarLinks.interviewId, interviewId),
           eq(calendarAccounts.userId, userId),
+          eq(applications.userId, userId),
+          eq(applicationInterviews.userId, userId),
         ),
       )
       .limit(1);
@@ -788,6 +1023,7 @@ export class CalendarService {
       throw AppError.notFound(`No calendar link found for interview ${interviewId}`);
     }
 
+    this.assertCalendarWrite(row.account);
     const { tokens, prov } = await this.getValidTokens(row.account);
     await prov.deleteEvent(tokens, row.link.calendarId, row.link.externalEventId);
     await this.db.delete(interviewCalendarLinks).where(eq(interviewCalendarLinks.id, row.link.id));
@@ -919,7 +1155,10 @@ export class CalendarService {
 
   // ─── List Scheduled Interviews Workspace ─────────────────────────────────
 
-  async listInterviews(userId: string): Promise<ScheduledInterviewWorkspaceItemDto[]> {
+  async listInterviews(
+    userId: string,
+    applicationId?: string,
+  ): Promise<ScheduledInterviewWorkspaceItemDto[]> {
     const userApplications = await this.db
       .select({
         id: applications.id,
@@ -929,7 +1168,12 @@ export class CalendarService {
       })
       .from(applications)
       .innerJoin(jobs, eq(applications.jobId, jobs.id))
-      .where(eq(applications.userId, userId));
+      .where(
+        and(
+          eq(applications.userId, userId),
+          applicationId ? eq(applications.id, applicationId) : undefined,
+        ),
+      );
 
     if (userApplications.length === 0) {
       return [];

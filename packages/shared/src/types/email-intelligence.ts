@@ -213,3 +213,38 @@ export interface ResolveReviewItemRequest {
   overrideTargetStatus?: ApplicationLifecycleStatus;
   overrideApplicationId?: string;
 }
+
+/** Classification is not entity certainty. Fuzzy/contact-only associations stay in review. */
+export const EMAIL_AUTOMATIC_CONFIDENCE = 0.9;
+export const EMAIL_REJECTION_CONFIDENCE = 0.95;
+export function canAutomaticallySyncEmail(
+  classification: string,
+  confidence: number,
+  matchMethod: string,
+  entityConfidence: number,
+): boolean {
+  if (
+    ![
+      'APPLICATION_CONFIRMATION',
+      'SCREENING_REQUEST',
+      'ASSESSMENT_REQUEST',
+      'INTERVIEW_REQUEST',
+      'INTERVIEW_CONFIRMATION',
+      'APPLICATION_REJECTION',
+    ].includes(classification)
+  )
+    return false;
+  if (!Number.isFinite(confidence) || !Number.isFinite(entityConfidence)) return false;
+  const allowed =
+    classification === 'APPLICATION_REJECTION'
+      ? ['EXTERNAL_REF', 'COMPANY_AND_ROLE']
+      : ['EXTERNAL_REF', 'COMPANY_AND_ROLE', 'THREAD_MEMORY'];
+  return (
+    allowed.includes(matchMethod) &&
+    entityConfidence >= EMAIL_AUTOMATIC_CONFIDENCE &&
+    confidence >=
+      (classification === 'APPLICATION_REJECTION'
+        ? EMAIL_REJECTION_CONFIDENCE
+        : EMAIL_AUTOMATIC_CONFIDENCE)
+  );
+}

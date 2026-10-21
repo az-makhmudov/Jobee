@@ -38,8 +38,8 @@ export async function getOrCreatePrimaryUser(db: Database): Promise<User> {
         .values({
           id: PRIMARY_USER_ID,
           systemKey: PRIMARY_USER_SYSTEM_KEY,
-          name: 'Asadbek Makhmudov',
-          email: 'asadbek.mzw@gmail.com',
+          name: 'Local Candidate',
+          email: 'candidate@example.test',
           emailVerified: true,
           role: 'admin',
         })
@@ -63,9 +63,9 @@ export async function getOrCreatePrimaryUser(db: Database): Promise<User> {
       .insert(candidateProfiles)
       .values({
         userId: PRIMARY_USER_ID,
-        fullName: 'Asadbek Makhmudov',
-        preferredName: 'Asadbek',
-        email: 'asadbek.mzw@gmail.com',
+        fullName: 'Local Candidate',
+        preferredName: 'Candidate',
+        email: 'candidate@example.test',
         headline: null,
         summary: null,
         city: null,

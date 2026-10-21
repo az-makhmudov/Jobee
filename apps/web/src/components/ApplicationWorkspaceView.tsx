@@ -1,3 +1,4 @@
+import { ApplicationActivity } from './ApplicationActivity.js';
 import { submissionSummary } from '../ui/student-experience.js';
 import { formatStatusLabel } from './ApplicationsCrmView.js';
 import { useCallback, useEffect, useState } from 'react';
@@ -12,7 +13,7 @@ import { ApplicationStudioView } from './ApplicationStudioView.js';
 import { ApplicationDetailView } from './ApplicationDetailView.js';
 import { ApplyWithJobee } from './ApplyWithJobee.js';
 
-export type ApplicationPanel = 'documents' | 'questions' | 'review' | 'progress';
+export type ApplicationPanel = 'documents' | 'questions' | 'review' | 'progress' | 'activity';
 interface Props {
   initialPanel?: ApplicationPanel;
   applicationId: string | null;
@@ -170,30 +171,32 @@ export function ApplicationWorkspaceView({
           { id: 'questions', label: 'Questions' },
           { id: 'review', label: 'Final review', disabled: !ready },
           { id: 'progress', label: 'Progress & details' },
+          { id: 'activity', label: 'Messages & interviews' },
         ]}
         onChange={changePanel}
       />
-      {!ready && panel !== 'progress' && (
+      {!ready && !['progress', 'activity'].includes(panel) && (
         <p className="page-subtitle">
           Final review becomes available after the current document, answer and policy checks are
           resolved. Each decision needs its own review.
         </p>
       )}
       {pkgId ? (
-        <div hidden={panel === 'progress'}>
+        <div hidden={panel === 'progress' || panel === 'activity'}>
           <ApplicationStudioView
             packageId={pkgId}
             onBack={onBack}
             onNavigateToJob={onNavigateToJob}
             onNavigateToApplication={openLinkedApplication}
-            workspacePanel={panel === 'progress' ? 'documents' : panel}
+            workspacePanel={panel === 'progress' || panel === 'activity' ? 'documents' : panel}
             onWorkspacePanel={changePanel}
             onPackageChange={updateMaterials}
             onNavigateToProfile={onNavigateToProfile}
           />
         </div>
       ) : (
-        panel !== 'progress' && (
+        panel !== 'progress' &&
+        panel !== 'activity' && (
           <Card>
             <h2>Your application documents</h2>
             <p>
@@ -207,6 +210,12 @@ export function ApplicationWorkspaceView({
             )}
           </Card>
         )
+      )}
+      {panel === 'activity' && linkedApplicationId && (
+        <ApplicationActivity applicationId={linkedApplicationId} />
+      )}
+      {panel === 'activity' && !linkedApplicationId && (
+        <Card>Track this application first to link messages and interviews.</Card>
       )}
       {panel === 'review' && (
         <Card>

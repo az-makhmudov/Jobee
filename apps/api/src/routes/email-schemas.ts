@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { EmailClassificationType, EmailProcessingStatus } from '@job-agent/shared';
+import {
+  ApplicationLifecycleStatus,
+  EmailClassificationType,
+  EmailProcessingStatus,
+} from '@job-agent/shared';
 
 export const connectUrlSchema = z.object({
   provider: z.enum(['GMAIL', 'FIXTURE']).default('GMAIL'),
@@ -25,6 +29,11 @@ export const listMessagesQuerySchema = z.object({
 export const resolveReviewItemSchema = z.object({
   resolution: z.enum(['APPROVED', 'DISMISSED', 'REJECTED']),
   resolutionNote: z.string().optional(),
-  overrideTargetStatus: z.string().optional(),
+  overrideTargetStatus: z.nativeEnum(ApplicationLifecycleStatus).optional(),
   overrideApplicationId: z.string().uuid().optional(),
+});
+
+export const listReviewItemsQuerySchema = z.object({
+  status: z.enum(['PENDING', 'APPROVED', 'DISMISSED', 'REJECTED']).optional(),
+  applicationId: z.string().uuid().optional(),
 });

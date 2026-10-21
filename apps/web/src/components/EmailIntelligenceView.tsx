@@ -10,7 +10,13 @@ import type {
 } from '@job-agent/shared';
 
 type MessageTab = 'queue' | 'messages' | 'accounts' | 'settings';
-export function EmailIntelligenceView({ initialTab = 'messages' }: { initialTab?: MessageTab }) {
+export function EmailIntelligenceView({
+  initialTab = 'messages',
+  applicationId,
+}: {
+  initialTab?: MessageTab;
+  applicationId?: string;
+}) {
   const { confirm } = useFeedback();
   const [activeTab, setActiveTab] = useState<MessageTab>(initialTab);
   const [stats, setStats] = useState<EmailSyncStatsDto | null>(null);
@@ -32,8 +38,11 @@ export function EmailIntelligenceView({ initialTab = 'messages' }: { initialTab?
       const [statsData, accountsData, reviewData, messagesData] = await Promise.all([
         emailClient.getStats(),
         emailClient.getAccounts(),
-        emailClient.getReviewQueue('PENDING'),
-        emailClient.getMessages({ limit: 50 }),
+        emailClient.getReviewQueue('PENDING', applicationId),
+        emailClient.getMessages({
+          limit: 50,
+          ...(applicationId ? { linkedApplicationId: applicationId } : {}),
+        }),
       ]);
       setStats(statsData);
       setAccounts(accountsData);
@@ -48,7 +57,7 @@ export function EmailIntelligenceView({ initialTab = 'messages' }: { initialTab?
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [applicationId]);
 
   const handleSyncAccount = async (accountId: string) => {
     try {
@@ -71,7 +80,7 @@ export function EmailIntelligenceView({ initialTab = 'messages' }: { initialTab?
     try {
       setLoading(true);
       setError(null);
-      await emailClient.connectFixtureAccount('bek.candidate@example.com');
+      await emailClient.connectFixtureAccount('candidate@example.test');
       setSuccessMessage('Fixture email account connected successfully!');
       await loadData();
     } catch (err) {
@@ -135,7 +144,11 @@ export function EmailIntelligenceView({ initialTab = 'messages' }: { initialTab?
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
       >
         <div>
-          <h1 className="page-title">Messages</h1>
+          {applicationId ? (
+            <h2 className="page-title">Messages</h2>
+          ) : (
+            <h1 className="page-title">Messages</h1>
+          )}
           <p className="page-subtitle">
             Read recruiter updates and review suggested changes to your applications.
           </p>
@@ -499,7 +512,7 @@ export function EmailIntelligenceView({ initialTab = 'messages' }: { initialTab?
                     >
                       <strong>Proposed Action: </strong>
                       <span style={{ color: 'var(--accent)' }}>
-                        {item.proposedAction}{' '}
+                        {item.proposedAction === 'NONE' ? 'Read and review' : item.proposedAction}{' '}
                         {item.proposedTargetStatus ? `➔ ${item.proposedTargetStatus}` : ''}
                       </span>
                       {item.proposedCompanyName && (
@@ -549,7 +562,8 @@ export function EmailIntelligenceView({ initialTab = 'messages' }: { initialTab?
                             'Saving...'
                           ) : (
                             <>
-                              <Icon name="check" size={20} /> Approve Action
+                              <Icon name="check" size={20} />{' '}
+                              {item.proposedAction === 'NONE' ? 'Mark reviewed' : 'Approve change'}
                             </>
                           )}
                         </Button>

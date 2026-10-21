@@ -1,7 +1,15 @@
 import { z } from 'zod';
+const timezone = z.string().refine((value) => {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}, 'Choose a valid IANA timezone');
 
 export const googleAuthUrlSchema = z.object({
-  scopeLevel: z.enum(['AVAILABILITY', 'EVENT_MANAGEMENT']).optional().default('EVENT_MANAGEMENT'),
+  scopeLevel: z.enum(['AVAILABILITY', 'EVENT_MANAGEMENT']).optional().default('AVAILABILITY'),
 });
 
 export const googleCallbackSchema = z.object({
@@ -21,24 +29,33 @@ export const calendarSelectionSchema = z.object({
   defaultCalendarId: z.string().optional(),
 });
 
-export const availabilityQuerySchema = z.object({
-  windowStart: z.string().datetime(),
-  windowEnd: z.string().datetime(),
-  timezone: z.string().default('UTC'),
-  calendarIds: z.array(z.string()).optional(),
-});
+export const availabilityQuerySchema = z
+  .object({
+    windowStart: z.string().datetime(),
+    windowEnd: z.string().datetime(),
+    timezone: timezone.default('UTC'),
+    calendarIds: z.array(z.string()).max(20).optional(),
+  })
+  .refine(
+    (value) =>
+      Date.parse(value.windowEnd) > Date.parse(value.windowStart) &&
+      Date.parse(value.windowEnd) - Date.parse(value.windowStart) <= 31 * 86400_000,
+    'Choose a positive availability window of at most 31 days',
+  );
 
 export const checkConflictSchema = z.object({
   scheduledAt: z.string().datetime(),
   durationMinutes: z.number().int().positive().default(60),
-  timezone: z.string().default('UTC'),
+  timezone: timezone.default('UTC'),
   excludeInterviewId: z.string().uuid().optional(),
 });
 
 export const createCalendarEventSchema = z.object({
+  userConfirmed: z.literal(true),
+  createConference: z.boolean().default(false),
   calendarId: z.string().min(1, 'Calendar ID is required'),
-  timezone: z.string().default('UTC'),
-  includePreparationNotes: z.boolean().default(true),
+  timezone: timezone.default('UTC'),
+  includePreparationNotes: z.boolean().default(false),
 });
 
 export const generatePreparationSchema = z

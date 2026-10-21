@@ -1,6 +1,7 @@
 import { eq, and, desc, asc, ilike, or, isNotNull, count, inArray, lte, sql } from 'drizzle-orm';
 import {
   getDb,
+  type Database,
   applications,
   browserApplicationRuns,
   applicationIntents,
@@ -357,14 +358,18 @@ export class ApplicationCrmService {
     userId: string,
     applicationId: string,
     input: TransitionStatusRequest,
+    dbInstance?: Database,
   ): Promise<ApplicationSummaryDto> {
-    const db = getDb();
+    if (!dbInstance)
+      return getDb().transaction((tx) => this.transitionStatus(userId, applicationId, input, tx));
+    const db = dbInstance;
 
     const [app] = await db
       .select()
       .from(applications)
       .where(and(eq(applications.id, applicationId), eq(applications.userId, userId)))
-      .limit(1);
+      .limit(1)
+      .for('update');
 
     if (!app) {
       throw AppError.notFound(`Application ${applicationId} not found`);
@@ -384,7 +389,7 @@ export class ApplicationCrmService {
     }
 
     if (validation.isNoOp) {
-      return this.getApplicationSummary(userId, applicationId);
+      return this.getApplicationSummary(userId, applicationId, db);
     }
 
     const isTerminal = ApplicationStateMachine.isTerminal(input.targetStatus);
@@ -435,7 +440,7 @@ export class ApplicationCrmService {
       isCorrection: validation.isCorrection,
     });
 
-    return this.getApplicationSummary(userId, applicationId);
+    return this.getApplicationSummary(userId, applicationId, db);
   }
 
   /**
@@ -858,9 +863,10 @@ export class ApplicationCrmService {
   static async getApplicationSummary(
     userId: string,
     applicationId: string,
+    dbInstance?: Database,
   ): Promise<ApplicationSummaryDto> {
     // Fetch directly
-    const db = getDb();
+    const db = dbInstance ?? getDb();
     const [row] = await db
       .select({
         app: applications,

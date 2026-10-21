@@ -1,9 +1,14 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button, ModalSurface, Textarea } from './Primitives.js';
 
+interface PromptLabels {
+  title: string;
+  label: string;
+  submit: string;
+}
 interface Feedback {
   confirm: (message: string) => Promise<boolean>;
-  prompt: (message: string, initial?: string) => Promise<string | null>;
+  prompt: (message: string, initial?: string, labels?: PromptLabels) => Promise<string | null>;
   alert: (message: string) => void;
 }
 const FeedbackContext = createContext<Feedback>({
@@ -15,6 +20,7 @@ interface Request {
   kind: 'confirm' | 'prompt' | 'alert';
   message: string;
   initial?: string;
+  labels?: PromptLabels;
   resolve: (value: string | boolean | null) => void;
 }
 export function FeedbackProvider({ children }: { children: ReactNode }) {
@@ -48,12 +54,13 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
       new Promise<boolean>((resolve) =>
         enqueue({ kind: 'confirm', message, resolve: (value) => resolve(value === true) }),
       ),
-    prompt: (message, initial) =>
+    prompt: (message, initial, labels) =>
       new Promise<string | null>((resolve) =>
         enqueue({
           kind: 'prompt',
           message,
           initial,
+          labels,
           resolve: (value) => resolve(typeof value === 'string' ? value : null),
         }),
       ),
@@ -80,7 +87,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
             <header className="modal-header">
               <h2 className="modal-title">
                 {active.kind === 'prompt'
-                  ? 'Edit answer'
+                  ? active.labels?.title || 'Edit answer'
                   : active.kind === 'confirm'
                     ? 'Please confirm'
                     : 'Something needs attention'}
@@ -89,7 +96,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
             <p style={{ marginBottom: 24 }}>{active.message}</p>
             {active.kind === 'prompt' && (
               <label className="form-group">
-                <span className="form-label">Answer</span>
+                <span className="form-label">{active.labels?.label || 'Answer'}</span>
                 <Textarea
                   value={value}
                   onChange={(event) => setValue(event.target.value)}
@@ -111,7 +118,7 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
                 {active.kind === 'alert'
                   ? 'Close'
                   : active.kind === 'prompt'
-                    ? 'Save & approve'
+                    ? active.labels?.submit || 'Save & approve'
                     : 'Confirm'}
               </Button>
             </footer>

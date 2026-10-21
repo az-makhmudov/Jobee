@@ -313,6 +313,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
 
     const res = await fetch(url, {
       method: 'POST',
+      signal: AbortSignal.timeout(30_000),
       headers: {
         Authorization: `Bearer ${tokens.accessToken}`,
         'Content-Type': 'application/json',

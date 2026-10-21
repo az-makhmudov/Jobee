@@ -11,6 +11,7 @@ import {
   connectUrlSchema,
   fixtureConnectSchema,
   syncAccountSchema,
+  listReviewItemsQuerySchema,
   listMessagesQuerySchema,
   resolveReviewItemSchema,
 } from './email-schemas.js';
@@ -319,8 +320,8 @@ export function createEmailRoutes(options: {
     // 9. List pending email review items
     app.get('/email/review-queue', async (req: any) => {
       const userId = requireCurrentUserId(req);
-      const status = req.query?.status;
-      const items = await emailReviewService.listReviewItems(userId, { status });
+      const query = listReviewItemsQuerySchema.parse(req.query);
+      const items = await emailReviewService.listReviewItems(userId, query);
 
       return {
         status: 'ok',

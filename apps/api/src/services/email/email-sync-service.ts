@@ -12,6 +12,7 @@ import {
 import {
   AppError,
   createLogger,
+  canAutomaticallySyncEmail,
   EmailClassificationType,
   EmailProcessingStatus,
   EmailProposedAction,
@@ -19,6 +20,7 @@ import {
   EmailRiskLevel,
   EmailSyncRunStatus,
   type EmailSyncStatsDto,
+  type ApplicationLifecycleStatus,
 } from '@job-agent/shared';
 import { type EmailProvider } from './email-provider.js';
 import { GmailProvider } from './gmail-provider.js';
@@ -29,6 +31,7 @@ import { EmailClassificationEngine } from './email-classification-engine.js';
 import { EmailEntityResolver } from './email-entity-resolver.js';
 import { JobAlertParser } from './job-alert-parser.js';
 import { JobService } from '../job-service.js';
+import { ApplicationStateMachine } from '../application-state-machine.js';
 import { ApplicationCrmService } from '../application-crm-service.js';
 import type { AppConfig } from '@job-agent/config';
 
@@ -38,8 +41,7 @@ export class EmailSyncService {
   private db: Database;
   private config: AppConfig;
   private cryptoService: TokenCryptoService;
-  private classificationEngine: EmailClassificationEngine;
-  private jobService: JobService;
+  private classificationEngine: Pick<EmailClassificationEngine, 'classifyMessage'>;
   private fixtureProvider: FixtureEmailProvider;
 
   constructor(
@@ -47,13 +49,17 @@ export class EmailSyncService {
     options?: {
       db?: Database;
       fixtureProvider?: FixtureEmailProvider;
+      classificationEngine?: Pick<EmailClassificationEngine, 'classifyMessage'>;
     },
   ) {
     this.config = config;
     this.db = options?.db ?? getDb();
     this.cryptoService = new TokenCryptoService(config.EMAIL_TOKEN_ENCRYPTION_KEY);
-    this.classificationEngine = new EmailClassificationEngine(config.GEMINI_API_KEY);
-    this.jobService = new JobService(this.db);
+    this.classificationEngine =
+      options?.classificationEngine ??
+      new EmailClassificationEngine(
+        config.AI_PROVIDER === 'disabled' ? undefined : config.GEMINI_API_KEY,
+      );
     this.fixtureProvider = options?.fixtureProvider ?? new FixtureEmailProvider();
   }
 
@@ -105,7 +111,8 @@ export class EmailSyncService {
         and(
           eq(emailAccounts.id, accountId),
           eq(emailAccounts.userId, userId),
-          sql`(${emailAccounts.isSyncing} = false OR ${emailAccounts.syncLockedAt} < NOW() - INTERVAL '5 minutes')`,
+          sql`${emailAccounts.status} IN ('CONNECTED','SYNC_ERROR')`,
+          sql`(${emailAccounts.isSyncing} = false OR ${emailAccounts.syncLockedAt} IS NULL OR ${emailAccounts.syncLockedAt} < NOW() - INTERVAL '5 minutes')`,
         ),
       )
       .returning();
@@ -120,6 +127,10 @@ export class EmailSyncService {
       if (!existing) {
         throw AppError.notFound(`Email account ${accountId} not found`);
       }
+      if (existing.status === 'DISCONNECTED')
+        throw AppError.badRequest('Cannot sync disconnected email account');
+      if (existing.status === 'REAUTH_REQUIRED')
+        throw AppError.unauthorized('Email account requires re-authentication before syncing');
       throw AppError.conflict('Email synchronization is already in progress for this account');
     }
 
@@ -127,7 +138,15 @@ export class EmailSyncService {
       await this.db
         .update(emailAccounts)
         .set({ isSyncing: false, syncLockedAt: null })
-        .where(eq(emailAccounts.id, accountId));
+        .where(
+          and(
+            eq(emailAccounts.id, accountId),
+            eq(emailAccounts.userId, userId),
+            eq(emailAccounts.isSyncing, true),
+            eq(emailAccounts.syncLockedAt, lockedAccount.syncLockedAt!),
+            sql`${emailAccounts.status} <> 'DISCONNECTED'`,
+          ),
+        );
       throw AppError.badRequest('Cannot sync disconnected email account');
     }
 
@@ -135,7 +154,15 @@ export class EmailSyncService {
       await this.db
         .update(emailAccounts)
         .set({ isSyncing: false, syncLockedAt: null })
-        .where(eq(emailAccounts.id, accountId));
+        .where(
+          and(
+            eq(emailAccounts.id, accountId),
+            eq(emailAccounts.userId, userId),
+            eq(emailAccounts.isSyncing, true),
+            eq(emailAccounts.syncLockedAt, lockedAccount.syncLockedAt!),
+            sql`${emailAccounts.status} <> 'DISCONNECTED'`,
+          ),
+        );
       throw AppError.unauthorized('Email account requires re-authentication before syncing');
     }
 
@@ -155,7 +182,15 @@ export class EmailSyncService {
       await this.db
         .update(emailAccounts)
         .set({ isSyncing: false, syncLockedAt: null })
-        .where(eq(emailAccounts.id, accountId));
+        .where(
+          and(
+            eq(emailAccounts.id, accountId),
+            eq(emailAccounts.userId, userId),
+            eq(emailAccounts.isSyncing, true),
+            eq(emailAccounts.syncLockedAt, lockedAccount.syncLockedAt!),
+            sql`${emailAccounts.status} <> 'DISCONNECTED'`,
+          ),
+        );
       throw AppError.internal('Failed to create sync run log');
     }
 
@@ -192,7 +227,15 @@ export class EmailSyncService {
               errorMessage: null,
               updatedAt: new Date(),
             })
-            .where(eq(emailAccounts.id, accountId));
+            .where(
+              and(
+                eq(emailAccounts.id, accountId),
+                eq(emailAccounts.userId, userId),
+                eq(emailAccounts.isSyncing, true),
+                eq(emailAccounts.syncLockedAt, lockedAccount.syncLockedAt!),
+                sql`${emailAccounts.status} <> 'DISCONNECTED'`,
+              ),
+            );
         } catch (refreshErr) {
           const errMsg = (refreshErr as Error).message;
           if (errMsg.includes('invalid_grant') || errMsg.includes('revoked')) {
@@ -203,7 +246,15 @@ export class EmailSyncService {
                 errorMessage: 'OAuth refresh token expired or revoked. Please re-authenticate.',
                 updatedAt: new Date(),
               })
-              .where(eq(emailAccounts.id, accountId));
+              .where(
+                and(
+                  eq(emailAccounts.id, accountId),
+                  eq(emailAccounts.userId, userId),
+                  eq(emailAccounts.isSyncing, true),
+                  eq(emailAccounts.syncLockedAt, lockedAccount.syncLockedAt!),
+                  sql`${emailAccounts.status} <> 'DISCONNECTED'`,
+                ),
+              );
             throw AppError.unauthorized(
               'Email account authorization has expired. Re-authentication required.',
             );
@@ -212,6 +263,19 @@ export class EmailSyncService {
         }
       }
 
+      const [current] = await this.db
+        .select()
+        .from(emailAccounts)
+        .where(
+          and(
+            eq(emailAccounts.id, accountId),
+            eq(emailAccounts.userId, userId),
+            eq(emailAccounts.isSyncing, true),
+            eq(emailAccounts.syncLockedAt, lockedAccount.syncLockedAt!),
+            sql`${emailAccounts.status} <> 'DISCONNECTED'`,
+          ),
+        );
+      if (!current) throw AppError.conflict('Email synchronization permission changed.');
       // 4. Fetch messages from provider with bounded lookback
       const DEFAULT_LOOKBACK_DAYS = 30;
       const MAX_LOOKBACK_DAYS = 60;
@@ -235,383 +299,494 @@ export class EmailSyncService {
 
       // 5. Process each message
       for (const msg of fetchResult.messages) {
-        const contentHash = MimeParser.computeContentHash(msg);
-
-        // Check deduplication
-        const [existingMsg] = await this.db
+        const alreadySaved = await this.db
           .select({ id: emailMessages.id })
           .from(emailMessages)
           .where(
             and(
               eq(emailMessages.accountId, accountId),
-              sql`(${emailMessages.providerMessageId} = ${msg.externalId} OR ${emailMessages.contentHash} = ${contentHash})`,
+              eq(emailMessages.userId, userId),
+              sql`(${emailMessages.providerMessageId} = ${msg.externalId} OR ${emailMessages.contentHash} = ${MimeParser.computeContentHash(msg)})`,
             ),
           )
           .limit(1);
-
-        if (existingMsg) {
-          // Already ingested, skip to preserve idempotency
-          continue;
-        }
-
-        messagesIngested++;
-
-        // A. Classify message (deterministic + optional AI fallback)
+        if (alreadySaved.length) continue;
         const classification = await this.classificationEngine.classifyMessage(msg);
+        await this.db.transaction(async (tx) => {
+          const db = tx as unknown as Database;
+          const [currentAccount] = await tx
+            .select()
+            .from(emailAccounts)
+            .where(and(eq(emailAccounts.id, accountId), eq(emailAccounts.userId, userId)))
+            .for('update');
+          if (
+            !currentAccount?.isSyncing ||
+            currentAccount.status === 'DISCONNECTED' ||
+            currentAccount.syncLockedAt?.getTime() !== lockedAccount.syncLockedAt?.getTime()
+          )
+            throw AppError.conflict('Email synchronization permission changed.');
+          const contentHash = MimeParser.computeContentHash(msg);
 
-        // B. Resolve entities against candidate brain and CRM
-        const resolution = await EmailEntityResolver.resolve({
-          userId,
-          accountId,
-          message: msg,
-          classification,
-        });
+          // Check deduplication
+          const [existingMsg] = await db
+            .select({ id: emailMessages.id })
+            .from(emailMessages)
+            .where(
+              and(
+                eq(emailMessages.accountId, accountId),
+                sql`(${emailMessages.providerMessageId} = ${msg.externalId} OR ${emailMessages.contentHash} = ${contentHash})`,
+              ),
+            )
+            .limit(1);
 
-        let processingStatus: EmailProcessingStatus = EmailProcessingStatus.PENDING;
-        const linkedJobId = resolution.jobId || null;
-        const linkedAppId = resolution.applicationId || null;
-        const linkedContactId = resolution.contactId || null;
+          if (existingMsg) {
+            // Already ingested, skip to preserve idempotency
+            return;
+          }
 
-        // C. Record thread link if resolution succeeded
-        if (msg.externalThreadId && (linkedAppId || linkedJobId)) {
-          await this.db
-            .insert(emailThreadLinks)
+          messagesIngested++;
+
+          // A. Classify message (deterministic + optional AI fallback)
+          // B. Resolve entities against candidate brain and CRM
+          const resolution = await EmailEntityResolver.resolve({
+            userId,
+            accountId,
+            message: msg,
+            classification,
+            db,
+          });
+
+          let processingStatus: EmailProcessingStatus = EmailProcessingStatus.PENDING;
+          const linkedJobId = resolution.jobId || null;
+          const linkedAppId = resolution.applicationId || null;
+          const linkedContactId = resolution.contactId || null;
+
+          // C. Record thread link if resolution succeeded
+          if (
+            msg.externalThreadId &&
+            linkedAppId &&
+            canAutomaticallySyncEmail(
+              classification.classification,
+              classification.confidence,
+              resolution.matchMethod,
+              resolution.confidence,
+            )
+          ) {
+            await db
+              .insert(emailThreadLinks)
+              .values({
+                accountId,
+                userId,
+                providerThreadId: msg.externalThreadId,
+                applicationId: linkedAppId,
+                jobId: linkedJobId,
+                company: resolution.matchedCompany || classification.extractedDetails.company,
+                confirmedBy: 'AUTO_VERIFIED',
+              })
+              .onConflictDoNothing();
+          }
+
+          // D. Deterministic Action & CRM State Authorization
+          let createdReviewItem = false;
+
+          switch (classification.classification) {
+            case EmailClassificationType.JOB_ALERT: {
+              const ingestRes = await JobAlertParser.ingestAlertJobs({
+                userId,
+                message: msg,
+                jobService: new JobService(db),
+              });
+              jobsDiscoveredCount += ingestRes.newJobsCount;
+              processingStatus = EmailProcessingStatus.AUTO_SYNCED;
+              break;
+            }
+
+            case EmailClassificationType.APPLICATION_CONFIRMATION: {
+              if (
+                linkedAppId &&
+                canAutomaticallySyncEmail(
+                  classification.classification,
+                  classification.confidence,
+                  resolution.matchMethod,
+                  resolution.confidence,
+                )
+              ) {
+                const [app] = await db
+                  .select()
+                  .from(applications)
+                  .where(eq(applications.id, linkedAppId))
+                  .limit(1);
+
+                if (app && app.status === 'APPLIED') {
+                  await ApplicationCrmService.transitionStatus(
+                    userId,
+                    linkedAppId,
+                    {
+                      targetStatus: 'CONFIRMATION_RECEIVED',
+                      actor: 'SYSTEM',
+                      reason: 'Application confirmation email received',
+                      note: `Confirmation received from ${msg.from.name || msg.from.email}`,
+                    },
+                    db,
+                  );
+
+                  if (
+                    classification.extractedDetails.externalReferenceId &&
+                    !app.externalReferenceId
+                  ) {
+                    await db
+                      .update(applications)
+                      .set({
+                        externalReferenceId: classification.extractedDetails.externalReferenceId,
+                        updatedAt: new Date(),
+                      })
+                      .where(eq(applications.id, linkedAppId));
+                  }
+
+                  autoSyncedCount++;
+                  processingStatus = EmailProcessingStatus.AUTO_SYNCED;
+                } else if (
+                  app &&
+                  [
+                    'CONFIRMATION_RECEIVED',
+                    'SCREENING',
+                    'ASSESSMENT',
+                    'INTERVIEW',
+                    'FINAL_INTERVIEW',
+                    'OFFER',
+                  ].includes(app.status)
+                ) {
+                  // Idempotent: already confirmed or past confirmation
+                  processingStatus = EmailProcessingStatus.AUTO_SYNCED;
+                } else {
+                  createdReviewItem = true;
+                }
+              } else {
+                createdReviewItem = true;
+              }
+              break;
+            }
+
+            case EmailClassificationType.SCREENING_REQUEST: {
+              if (
+                linkedAppId &&
+                canAutomaticallySyncEmail(
+                  classification.classification,
+                  classification.confidence,
+                  resolution.matchMethod,
+                  resolution.confidence,
+                )
+              ) {
+                const [app] = await db
+                  .select()
+                  .from(applications)
+                  .where(eq(applications.id, linkedAppId))
+                  .limit(1);
+
+                if (app && ['APPLIED', 'CONFIRMATION_RECEIVED'].includes(app.status)) {
+                  await ApplicationCrmService.transitionStatus(
+                    userId,
+                    linkedAppId,
+                    {
+                      targetStatus: 'SCREENING',
+                      actor: 'SYSTEM',
+                      reason: 'Recruiter phone screening invitation received via email',
+                      note: `Screening invitation from ${msg.from.name || msg.from.email}`,
+                    },
+                    db,
+                  );
+                  autoSyncedCount++;
+                  processingStatus = EmailProcessingStatus.AUTO_SYNCED;
+                } else if (
+                  app &&
+                  ['SCREENING', 'ASSESSMENT', 'INTERVIEW', 'FINAL_INTERVIEW', 'OFFER'].includes(
+                    app.status,
+                  )
+                ) {
+                  // Idempotent: already at screening or subsequent stage
+                  processingStatus = EmailProcessingStatus.AUTO_SYNCED;
+                } else {
+                  createdReviewItem = true;
+                }
+              } else {
+                createdReviewItem = true;
+              }
+              break;
+            }
+
+            case EmailClassificationType.ASSESSMENT_REQUEST: {
+              if (
+                linkedAppId &&
+                canAutomaticallySyncEmail(
+                  classification.classification,
+                  classification.confidence,
+                  resolution.matchMethod,
+                  resolution.confidence,
+                )
+              ) {
+                const [app] = await db
+                  .select()
+                  .from(applications)
+                  .where(eq(applications.id, linkedAppId))
+                  .limit(1);
+
+                if (app && ['APPLIED', 'CONFIRMATION_RECEIVED', 'SCREENING'].includes(app.status)) {
+                  await ApplicationCrmService.transitionStatus(
+                    userId,
+                    linkedAppId,
+                    {
+                      targetStatus: 'ASSESSMENT',
+                      actor: 'SYSTEM',
+                      reason: 'Technical assessment invitation received via email',
+                      note: `Assessment request from ${msg.from.name || msg.from.email}`,
+                    },
+                    db,
+                  );
+                  autoSyncedCount++;
+                  processingStatus = EmailProcessingStatus.AUTO_SYNCED;
+                } else if (
+                  app &&
+                  ['ASSESSMENT', 'INTERVIEW', 'FINAL_INTERVIEW', 'OFFER'].includes(app.status)
+                ) {
+                  // Idempotent: already at assessment or subsequent stage
+                  processingStatus = EmailProcessingStatus.AUTO_SYNCED;
+                } else {
+                  createdReviewItem = true;
+                }
+              } else {
+                createdReviewItem = true;
+              }
+              break;
+            }
+
+            case EmailClassificationType.INTERVIEW_CONFIRMATION:
+            case EmailClassificationType.INTERVIEW_REQUEST: {
+              if (
+                linkedAppId &&
+                canAutomaticallySyncEmail(
+                  classification.classification,
+                  classification.confidence,
+                  resolution.matchMethod,
+                  resolution.confidence,
+                )
+              ) {
+                const [app] = await db
+                  .select()
+                  .from(applications)
+                  .where(eq(applications.id, linkedAppId))
+                  .limit(1);
+
+                if (
+                  app &&
+                  ['APPLIED', 'CONFIRMATION_RECEIVED', 'SCREENING', 'ASSESSMENT'].includes(
+                    app.status,
+                  )
+                ) {
+                  await ApplicationCrmService.transitionStatus(
+                    userId,
+                    linkedAppId,
+                    {
+                      targetStatus: 'INTERVIEW',
+                      actor: 'SYSTEM',
+                      reason: 'Interview invitation/confirmation received via email',
+                      note: `Interview notice from ${msg.from.name || msg.from.email}`,
+                    },
+                    db,
+                  );
+                  autoSyncedCount++;
+                  processingStatus = EmailProcessingStatus.AUTO_SYNCED;
+                } else if (app && ['INTERVIEW', 'FINAL_INTERVIEW', 'OFFER'].includes(app.status)) {
+                  // Idempotent: already in interview/offer stage
+                  processingStatus = EmailProcessingStatus.AUTO_SYNCED;
+                } else {
+                  createdReviewItem = true;
+                }
+              } else {
+                createdReviewItem = true;
+              }
+              break;
+            }
+
+            case EmailClassificationType.APPLICATION_REJECTION: {
+              // PRIME INVARIANT: Conservative Rejection handling
+              // Only auto-transition if confidence >= 0.95 AND entity match is high certainty
+              const isHighCertaintyMatch =
+                linkedAppId &&
+                canAutomaticallySyncEmail(
+                  classification.classification,
+                  classification.confidence,
+                  resolution.matchMethod,
+                  resolution.confidence,
+                );
+
+              const [currentApp] = linkedAppId
+                ? await db
+                    .select()
+                    .from(applications)
+                    .where(and(eq(applications.id, linkedAppId), eq(applications.userId, userId)))
+                    .limit(1)
+                    .for('update')
+                : [];
+              const transitionAllowed =
+                currentApp &&
+                ApplicationStateMachine.validateTransition(
+                  currentApp.status as ApplicationLifecycleStatus,
+                  'REJECTED',
+                ).allowed;
+              if (isHighCertaintyMatch && transitionAllowed) {
+                await ApplicationCrmService.transitionStatus(
+                  userId,
+                  linkedAppId,
+                  {
+                    targetStatus: 'REJECTED',
+                    actor: 'SYSTEM',
+                    reason: 'APPLICATION_REJECTED',
+                    note: `Rejection notice received from ${msg.from.name || msg.from.email}`,
+                  },
+                  db,
+                );
+                autoSyncedCount++;
+                processingStatus = EmailProcessingStatus.AUTO_SYNCED;
+              } else {
+                // Ambiguous or single-company match: escalate to human review queue
+                createdReviewItem = true;
+              }
+              break;
+            }
+
+            case EmailClassificationType.OFFER_RELATED: {
+              // Offers always require human approval to verify details
+              createdReviewItem = true;
+              break;
+            }
+
+            case EmailClassificationType.RECRUITER_OUTREACH: {
+              createdReviewItem = true;
+              break;
+            }
+
+            case EmailClassificationType.IRRELEVANT: {
+              processingStatus = EmailProcessingStatus.IRRELEVANT;
+              break;
+            }
+
+            default: {
+              // UNKNOWN or ambiguous
+              createdReviewItem = true;
+              break;
+            }
+          }
+
+          // E. Insert message record
+          const [savedMsg] = await db
+            .insert(emailMessages)
             .values({
               accountId,
               userId,
+              providerMessageId: msg.externalId,
               providerThreadId: msg.externalThreadId,
-              applicationId: linkedAppId,
-              jobId: linkedJobId,
-              company: resolution.matchedCompany || classification.extractedDetails.company,
-              confirmedBy: 'AUTO',
-            })
-            .onConflictDoUpdate({
-              target: [emailThreadLinks.accountId, emailThreadLinks.providerThreadId],
-              set: {
-                applicationId: linkedAppId,
-                jobId: linkedJobId,
-                updatedAt: new Date(),
+              senderEmail: msg.from.email,
+              senderName: msg.from.name || null,
+              recipientEmail: msg.to[0] || null,
+              subject: msg.subject,
+              receivedAt: msg.receivedAt,
+              snippet: msg.snippet,
+              bodyText: msg.plainText,
+              classification: classification.classification,
+              confidence: classification.confidence,
+              classificationReason: classification.reason,
+              processingStatus: createdReviewItem
+                ? EmailProcessingStatus.NEEDS_REVIEW
+                : processingStatus,
+              linkedJobId,
+              linkedApplicationId: linkedAppId,
+              linkedContactId,
+              contentHash,
+              rawMetadata: {
+                labels: msg.labels,
+                provider: msg.provider,
+                extractedDetails: classification.extractedDetails,
+                resolutionMethod: resolution.matchMethod,
               },
-            });
-        }
+            })
+            .returning();
 
-        // D. Deterministic Action & CRM State Authorization
-        let createdReviewItem = false;
+          // F. Create Review Item if needed
+          if (createdReviewItem && savedMsg) {
+            reviewItemsCreated++;
 
-        switch (classification.classification) {
-          case EmailClassificationType.JOB_ALERT: {
-            const ingestRes = await JobAlertParser.ingestAlertJobs({
+            let proposedAction: EmailProposedAction = EmailProposedAction.NONE;
+            let proposedTargetStatus: any = null;
+            let riskLevel: EmailRiskLevel = EmailRiskLevel.LOW;
+
+            if (classification.classification === EmailClassificationType.APPLICATION_REJECTION) {
+              proposedAction = EmailProposedAction.SYNC_STATUS;
+              proposedTargetStatus = 'REJECTED';
+              riskLevel = EmailRiskLevel.HIGH;
+            } else if (classification.classification === EmailClassificationType.OFFER_RELATED) {
+              proposedAction = EmailProposedAction.SYNC_STATUS;
+              proposedTargetStatus = 'OFFER';
+              riskLevel = EmailRiskLevel.HIGH;
+            } else if (
+              classification.classification === EmailClassificationType.RECRUITER_OUTREACH
+            ) {
+              // Outreach alone is not a vacancy or authority to create a contact.
+              proposedAction = EmailProposedAction.NONE;
+              riskLevel = EmailRiskLevel.LOW;
+            } else if (
+              classification.classification === EmailClassificationType.INTERVIEW_CONFIRMATION ||
+              classification.classification === EmailClassificationType.INTERVIEW_REQUEST
+            ) {
+              proposedAction = EmailProposedAction.SYNC_STATUS;
+              proposedTargetStatus = 'INTERVIEW';
+              riskLevel = EmailRiskLevel.MEDIUM;
+            } else if (
+              classification.classification === EmailClassificationType.ASSESSMENT_REQUEST
+            ) {
+              proposedAction = EmailProposedAction.SYNC_STATUS;
+              proposedTargetStatus = 'ASSESSMENT';
+              riskLevel = EmailRiskLevel.MEDIUM;
+            } else if (
+              classification.classification === EmailClassificationType.SCREENING_REQUEST
+            ) {
+              proposedAction = EmailProposedAction.SYNC_STATUS;
+              proposedTargetStatus = 'SCREENING';
+              riskLevel = EmailRiskLevel.MEDIUM;
+            } else if (
+              classification.classification === EmailClassificationType.APPLICATION_CONFIRMATION
+            ) {
+              proposedAction = EmailProposedAction.SYNC_STATUS;
+              proposedTargetStatus = 'CONFIRMATION_RECEIVED';
+              riskLevel = EmailRiskLevel.LOW;
+            } else if (
+              classification.classification === EmailClassificationType.APPLICATION_UPDATE ||
+              classification.classification === EmailClassificationType.UNKNOWN
+            ) {
+              proposedAction = EmailProposedAction.NONE;
+              proposedTargetStatus = null;
+              riskLevel = EmailRiskLevel.LOW;
+            }
+
+            await db.insert(emailReviewItems).values({
               userId,
-              message: msg,
-              jobService: this.jobService,
-            });
-            jobsDiscoveredCount += ingestRes.newJobsCount;
-            processingStatus = EmailProcessingStatus.AUTO_SYNCED;
-            break;
-          }
-
-          case EmailClassificationType.APPLICATION_CONFIRMATION: {
-            if (linkedAppId && classification.confidence >= 0.85) {
-              const [app] = await this.db
-                .select()
-                .from(applications)
-                .where(eq(applications.id, linkedAppId))
-                .limit(1);
-
-              if (app && app.status === 'APPLIED') {
-                await ApplicationCrmService.transitionStatus(userId, linkedAppId, {
-                  targetStatus: 'CONFIRMATION_RECEIVED',
-                  actor: 'SYSTEM',
-                  reason: 'Application confirmation email received',
-                  note: `Confirmation received from ${msg.from.name || msg.from.email}`,
-                });
-
-                if (
-                  classification.extractedDetails.externalReferenceId &&
-                  !app.externalReferenceId
-                ) {
-                  await this.db
-                    .update(applications)
-                    .set({
-                      externalReferenceId: classification.extractedDetails.externalReferenceId,
-                      updatedAt: new Date(),
-                    })
-                    .where(eq(applications.id, linkedAppId));
-                }
-
-                autoSyncedCount++;
-                processingStatus = EmailProcessingStatus.AUTO_SYNCED;
-              } else if (
-                app &&
-                [
-                  'CONFIRMATION_RECEIVED',
-                  'SCREENING',
-                  'ASSESSMENT',
-                  'INTERVIEW',
-                  'FINAL_INTERVIEW',
-                  'OFFER',
-                ].includes(app.status)
-              ) {
-                // Idempotent: already confirmed or past confirmation
-                processingStatus = EmailProcessingStatus.AUTO_SYNCED;
-              } else {
-                createdReviewItem = true;
-              }
-            } else {
-              createdReviewItem = true;
-            }
-            break;
-          }
-
-          case EmailClassificationType.SCREENING_REQUEST: {
-            if (linkedAppId && classification.confidence >= 0.85) {
-              const [app] = await this.db
-                .select()
-                .from(applications)
-                .where(eq(applications.id, linkedAppId))
-                .limit(1);
-
-              if (app && ['APPLIED', 'CONFIRMATION_RECEIVED'].includes(app.status)) {
-                await ApplicationCrmService.transitionStatus(userId, linkedAppId, {
-                  targetStatus: 'SCREENING',
-                  actor: 'SYSTEM',
-                  reason: 'Recruiter phone screening invitation received via email',
-                  note: `Screening invitation from ${msg.from.name || msg.from.email}`,
-                });
-                autoSyncedCount++;
-                processingStatus = EmailProcessingStatus.AUTO_SYNCED;
-              } else if (
-                app &&
-                ['SCREENING', 'ASSESSMENT', 'INTERVIEW', 'FINAL_INTERVIEW', 'OFFER'].includes(
-                  app.status,
-                )
-              ) {
-                // Idempotent: already at screening or subsequent stage
-                processingStatus = EmailProcessingStatus.AUTO_SYNCED;
-              } else {
-                createdReviewItem = true;
-              }
-            } else {
-              createdReviewItem = true;
-            }
-            break;
-          }
-
-          case EmailClassificationType.ASSESSMENT_REQUEST: {
-            if (linkedAppId && classification.confidence >= 0.85) {
-              const [app] = await this.db
-                .select()
-                .from(applications)
-                .where(eq(applications.id, linkedAppId))
-                .limit(1);
-
-              if (app && ['APPLIED', 'CONFIRMATION_RECEIVED', 'SCREENING'].includes(app.status)) {
-                await ApplicationCrmService.transitionStatus(userId, linkedAppId, {
-                  targetStatus: 'ASSESSMENT',
-                  actor: 'SYSTEM',
-                  reason: 'Technical assessment invitation received via email',
-                  note: `Assessment request from ${msg.from.name || msg.from.email}`,
-                });
-                autoSyncedCount++;
-                processingStatus = EmailProcessingStatus.AUTO_SYNCED;
-              } else if (
-                app &&
-                ['ASSESSMENT', 'INTERVIEW', 'FINAL_INTERVIEW', 'OFFER'].includes(app.status)
-              ) {
-                // Idempotent: already at assessment or subsequent stage
-                processingStatus = EmailProcessingStatus.AUTO_SYNCED;
-              } else {
-                createdReviewItem = true;
-              }
-            } else {
-              createdReviewItem = true;
-            }
-            break;
-          }
-
-          case EmailClassificationType.INTERVIEW_CONFIRMATION:
-          case EmailClassificationType.INTERVIEW_REQUEST: {
-            if (linkedAppId && classification.confidence >= 0.85) {
-              const [app] = await this.db
-                .select()
-                .from(applications)
-                .where(eq(applications.id, linkedAppId))
-                .limit(1);
-
-              if (
-                app &&
-                ['APPLIED', 'CONFIRMATION_RECEIVED', 'SCREENING', 'ASSESSMENT'].includes(app.status)
-              ) {
-                await ApplicationCrmService.transitionStatus(userId, linkedAppId, {
-                  targetStatus: 'INTERVIEW',
-                  actor: 'SYSTEM',
-                  reason: 'Interview invitation/confirmation received via email',
-                  note: `Interview notice from ${msg.from.name || msg.from.email}`,
-                });
-                autoSyncedCount++;
-                processingStatus = EmailProcessingStatus.AUTO_SYNCED;
-              } else if (app && ['INTERVIEW', 'FINAL_INTERVIEW', 'OFFER'].includes(app.status)) {
-                // Idempotent: already in interview/offer stage
-                processingStatus = EmailProcessingStatus.AUTO_SYNCED;
-              } else {
-                createdReviewItem = true;
-              }
-            } else {
-              createdReviewItem = true;
-            }
-            break;
-          }
-
-          case EmailClassificationType.APPLICATION_REJECTION: {
-            // PRIME INVARIANT: Conservative Rejection handling
-            // Only auto-transition if confidence >= 0.95 AND entity match is high certainty
-            const isHighCertaintyMatch =
-              linkedAppId &&
-              ['EXTERNAL_REF', 'COMPANY_AND_ROLE'].includes(resolution.matchMethod) &&
-              classification.confidence >= 0.95;
-
-            if (isHighCertaintyMatch) {
-              await ApplicationCrmService.transitionStatus(userId, linkedAppId, {
-                targetStatus: 'REJECTED',
-                actor: 'SYSTEM',
-                reason: 'APPLICATION_REJECTED',
-                note: `Rejection notice received from ${msg.from.name || msg.from.email}`,
-              });
-              autoSyncedCount++;
-              processingStatus = EmailProcessingStatus.AUTO_SYNCED;
-            } else {
-              // Ambiguous or single-company match: escalate to human review queue
-              createdReviewItem = true;
-            }
-            break;
-          }
-
-          case EmailClassificationType.OFFER_RELATED: {
-            // Offers always require human approval to verify details
-            createdReviewItem = true;
-            break;
-          }
-
-          case EmailClassificationType.RECRUITER_OUTREACH: {
-            createdReviewItem = true;
-            break;
-          }
-
-          case EmailClassificationType.IRRELEVANT: {
-            processingStatus = EmailProcessingStatus.IRRELEVANT;
-            break;
-          }
-
-          default: {
-            // UNKNOWN or ambiguous
-            createdReviewItem = true;
-            break;
-          }
-        }
-
-        // E. Insert message record
-        const [savedMsg] = await this.db
-          .insert(emailMessages)
-          .values({
-            accountId,
-            userId,
-            providerMessageId: msg.externalId,
-            providerThreadId: msg.externalThreadId,
-            senderEmail: msg.from.email,
-            senderName: msg.from.name || null,
-            recipientEmail: msg.to[0] || null,
-            subject: msg.subject,
-            receivedAt: msg.receivedAt,
-            snippet: msg.snippet,
-            bodyText: msg.plainText,
-            classification: classification.classification,
-            confidence: classification.confidence,
-            classificationReason: classification.reason,
-            processingStatus: createdReviewItem
-              ? EmailProcessingStatus.NEEDS_REVIEW
-              : processingStatus,
-            linkedJobId,
-            linkedApplicationId: linkedAppId,
-            linkedContactId,
-            contentHash,
-            rawMetadata: {
-              labels: msg.labels,
-              provider: msg.provider,
+              messageId: savedMsg.id,
+              classification: classification.classification,
+              confidence: classification.confidence,
+              proposedAction,
+              proposedTargetStatus,
+              proposedApplicationId: linkedAppId,
+              proposedJobId: linkedJobId,
+              explanation: `Email classified as ${classification.classification} (confidence ${(classification.confidence * 100).toFixed(0)}%). Review required to confirm action.`,
               extractedDetails: classification.extractedDetails,
-              resolutionMethod: resolution.matchMethod,
-            },
-          })
-          .returning();
-
-        // F. Create Review Item if needed
-        if (createdReviewItem && savedMsg) {
-          reviewItemsCreated++;
-
-          let proposedAction: EmailProposedAction = EmailProposedAction.NONE;
-          let proposedTargetStatus: any = null;
-          let riskLevel: EmailRiskLevel = EmailRiskLevel.LOW;
-
-          if (classification.classification === EmailClassificationType.APPLICATION_REJECTION) {
-            proposedAction = EmailProposedAction.SYNC_STATUS;
-            proposedTargetStatus = 'REJECTED';
-            riskLevel = EmailRiskLevel.HIGH;
-          } else if (classification.classification === EmailClassificationType.OFFER_RELATED) {
-            proposedAction = EmailProposedAction.SYNC_STATUS;
-            proposedTargetStatus = 'OFFER';
-            riskLevel = EmailRiskLevel.HIGH;
-          } else if (classification.classification === EmailClassificationType.RECRUITER_OUTREACH) {
-            proposedAction = linkedAppId
-              ? EmailProposedAction.LINK_CONTACT
-              : EmailProposedAction.CREATE_JOB;
-            riskLevel = EmailRiskLevel.LOW;
-          } else if (
-            classification.classification === EmailClassificationType.INTERVIEW_CONFIRMATION
-          ) {
-            proposedAction = EmailProposedAction.PROPOSE_INTERVIEW;
-            proposedTargetStatus = 'INTERVIEW';
-            riskLevel = EmailRiskLevel.MEDIUM;
-          } else if (classification.classification === EmailClassificationType.ASSESSMENT_REQUEST) {
-            proposedAction = EmailProposedAction.CREATE_ASSESSMENT;
-            proposedTargetStatus = 'ASSESSMENT';
-            riskLevel = EmailRiskLevel.MEDIUM;
-          } else if (classification.classification === EmailClassificationType.SCREENING_REQUEST) {
-            proposedAction = EmailProposedAction.SYNC_STATUS;
-            proposedTargetStatus = 'SCREENING';
-            riskLevel = EmailRiskLevel.MEDIUM;
-          } else if (
-            classification.classification === EmailClassificationType.APPLICATION_CONFIRMATION
-          ) {
-            proposedAction = EmailProposedAction.SYNC_STATUS;
-            proposedTargetStatus = 'CONFIRMATION_RECEIVED';
-            riskLevel = EmailRiskLevel.LOW;
-          } else if (
-            classification.classification === EmailClassificationType.APPLICATION_UPDATE ||
-            classification.classification === EmailClassificationType.UNKNOWN
-          ) {
-            proposedAction = EmailProposedAction.NONE;
-            proposedTargetStatus = null;
-            riskLevel = EmailRiskLevel.LOW;
+              riskLevel,
+              status: EmailReviewStatus.PENDING,
+            });
           }
-
-          await this.db.insert(emailReviewItems).values({
-            userId,
-            messageId: savedMsg.id,
-            classification: classification.classification,
-            confidence: classification.confidence,
-            proposedAction,
-            proposedTargetStatus,
-            proposedApplicationId: linkedAppId,
-            proposedJobId: linkedJobId,
-            explanation: `Email classified as ${classification.classification} (confidence ${(classification.confidence * 100).toFixed(0)}%). Review required to confirm action.`,
-            extractedDetails: classification.extractedDetails,
-            riskLevel,
-            status: EmailReviewStatus.PENDING,
-          });
-        }
+        });
       }
 
       // 6. Update account sync cursor and lastSyncAt (only after successful processing of batch)
-      await this.db
+      const completedAccounts = await this.db
         .update(emailAccounts)
         .set({
           lastSyncAt: new Date(),
@@ -620,7 +795,18 @@ export class EmailSyncService {
           errorMessage: null,
           updatedAt: new Date(),
         })
-        .where(eq(emailAccounts.id, accountId));
+        .where(
+          and(
+            eq(emailAccounts.id, accountId),
+            eq(emailAccounts.userId, userId),
+            eq(emailAccounts.isSyncing, true),
+            eq(emailAccounts.syncLockedAt, lockedAccount.syncLockedAt!),
+            sql`${emailAccounts.status} <> 'DISCONNECTED'`,
+          ),
+        )
+        .returning({ id: emailAccounts.id });
+      if (!completedAccounts.length)
+        throw AppError.conflict('Email synchronization permission changed.');
 
       // 7. Complete the sync run log
       await this.db
@@ -654,8 +840,9 @@ export class EmailSyncService {
         jobsDiscoveredCount,
       };
     } catch (err) {
-      const errorMessage = (err as Error).message;
-      logger.error('Email sync failed', { accountId, error: errorMessage });
+      const errorMessage =
+        'Email synchronization failed. Reconnect if authorization expired, otherwise retry.';
+      logger.error('Email sync failed', { accountId, syncRunId: syncRun.id });
 
       await this.db
         .update(emailSyncRuns)
@@ -666,11 +853,9 @@ export class EmailSyncService {
         })
         .where(eq(emailSyncRuns.id, syncRun.id));
 
-      const isAuthError =
-        errorMessage.includes('invalid_grant') ||
-        errorMessage.includes('revoked') ||
-        errorMessage.includes('unauthorized') ||
-        errorMessage.includes('401');
+      const isAuthError = /invalid_grant|revoked|unauthorized|401|re-authentication/i.test(
+        err instanceof Error ? err.message : '',
+      );
 
       await this.db
         .update(emailAccounts)
@@ -679,9 +864,20 @@ export class EmailSyncService {
           errorMessage,
           updatedAt: new Date(),
         })
-        .where(eq(emailAccounts.id, accountId));
+        .where(
+          and(
+            eq(emailAccounts.id, accountId),
+            eq(emailAccounts.userId, userId),
+            eq(emailAccounts.isSyncing, true),
+            eq(emailAccounts.syncLockedAt, lockedAccount.syncLockedAt!),
+            sql`${emailAccounts.status} <> 'DISCONNECTED'`,
+          ),
+        );
 
-      throw err;
+      if (isAuthError)
+        throw AppError.unauthorized('Email authorization expired. Reconnect before syncing.');
+      if (err instanceof AppError && err.code === 'CONFLICT') throw err;
+      throw AppError.internal(errorMessage);
     } finally {
       // Always release sync lock atomically
       await this.db
@@ -691,7 +887,15 @@ export class EmailSyncService {
           syncLockedAt: null,
           updatedAt: new Date(),
         })
-        .where(eq(emailAccounts.id, accountId));
+        .where(
+          and(
+            eq(emailAccounts.id, accountId),
+            eq(emailAccounts.userId, userId),
+            eq(emailAccounts.isSyncing, true),
+            eq(emailAccounts.syncLockedAt, lockedAccount.syncLockedAt!),
+            sql`${emailAccounts.status} <> 'DISCONNECTED'`,
+          ),
+        );
     }
   }
 

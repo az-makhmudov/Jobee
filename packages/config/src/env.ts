@@ -294,7 +294,7 @@ export const envSchema = z
       SMTP_USER: z.string().optional(),
       SMTP_PASS: z.string().optional(),
       SMTP_FROM: z.string().default('Jobee <notifications@jobee.local>'),
-      OWNER_EMAIL: z.string().email().default('asadbek.mzw@gmail.com'),
+      OWNER_EMAIL: z.string().email().default('owner@example.test'),
       INVITE_ONLY_REGISTRATION: z
         .preprocess((val) => {
           if (typeof val === 'string') {
@@ -313,6 +313,12 @@ export const envSchema = z
   )
   .superRefine((data, ctx) => {
     if (data.NODE_ENV === 'production') {
+      if (data.OWNER_EMAIL === 'owner@example.test')
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['OWNER_EMAIL'],
+          message: 'Set an explicit operator OWNER_EMAIL in production',
+        });
       if (!data.DATABASE_URL || data.DATABASE_URL.trim() === '') {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,

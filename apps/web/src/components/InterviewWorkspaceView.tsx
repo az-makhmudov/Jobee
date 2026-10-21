@@ -23,15 +23,18 @@ import type {
 } from '@job-agent/shared';
 
 interface Props {
+  applicationId?: string;
   initialTab?: 'interviews' | 'availability' | 'accounts';
   onNavigateToApplication?: (applicationId: string) => void;
 }
 
 export function InterviewWorkspaceView({
+  applicationId,
   onNavigateToApplication,
   initialTab = 'interviews',
 }: Props) {
-  const { confirm } = useFeedback();
+  const { confirm, prompt } = useFeedback();
+  const Heading = applicationId ? 'h2' : 'h1';
   const [activeTab, setActiveTab] = useState<'interviews' | 'availability' | 'accounts'>(
     initialTab,
   );
@@ -76,7 +79,8 @@ export function InterviewWorkspaceView({
   const [bookingTimezone, setBookingTimezone] = useState(
     Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
   );
-  const [includePrepInEvent, setIncludePrepInEvent] = useState(true);
+  const [createConference, setCreateConference] = useState(false);
+  const [includePrepInEvent, setIncludePrepInEvent] = useState(false);
   const [bookingLoading, setBookingLoading] = useState(false);
 
   // Availability & Conflict Inspector State
@@ -107,9 +111,9 @@ export function InterviewWorkspaceView({
       setLoading(true);
       setError(null);
       const [metricsData, interviewsData, accountsData] = await Promise.all([
-        calendarClient.getMetrics().catch(() => null),
-        calendarClient.listInterviews().catch(() => []),
-        calendarClient.getAccounts().catch(() => []),
+        calendarClient.getMetrics(),
+        calendarClient.listInterviews(applicationId),
+        calendarClient.getAccounts(),
       ]);
       setMetrics(metricsData);
       setInterviews(interviewsData);
@@ -119,7 +123,7 @@ export function InterviewWorkspaceView({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [applicationId]);
 
   useEffect(() => {
     loadData();
@@ -156,10 +160,12 @@ export function InterviewWorkspaceView({
     }
   };
 
-  const handleConnectGoogle = async () => {
+  const handleConnectGoogle = async (
+    scopeLevel: 'AVAILABILITY' | 'EVENT_MANAGEMENT' = 'AVAILABILITY',
+  ) => {
     try {
       setError(null);
-      const res = await calendarClient.getGoogleAuthUrl('EVENT_MANAGEMENT');
+      const res = await calendarClient.getGoogleAuthUrl(scopeLevel);
       window.location.href = res.authUrl;
     } catch (err) {
       setError(
@@ -208,6 +214,8 @@ export function InterviewWorkspaceView({
         bookingModalInterview.interview.id,
         {
           calendarId: selectedCalendarId,
+          userConfirmed: true,
+          createConference,
           timezone: bookingTimezone,
           includePreparationNotes: includePrepInEvent,
         },
@@ -407,7 +415,7 @@ export function InterviewWorkspaceView({
         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}
       >
         <div>
-          <h1 className="page-title">Interviews</h1>
+          <Heading className="page-title">Interviews</Heading>
           <p className="page-subtitle">
             See what is next, prepare for the conversation and check your calendar.
           </p>
@@ -593,7 +601,12 @@ export function InterviewWorkspaceView({
               </Button>
             </div>
 
-            {filteredInterviews.length === 0 ? (
+            {error && !interviews.length ? (
+              <Card role="alert">
+                Interview data could not be loaded.{' '}
+                <Button onClick={() => void loadData()}>Retry interviews</Button>
+              </Card>
+            ) : filteredInterviews.length === 0 ? (
               <Card className="card placeholder-view">
                 <h3>No Interviews Found</h3>
                 <p style={{ color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
@@ -611,6 +624,9 @@ export function InterviewWorkspaceView({
                   const isUpcoming =
                     new Date(item.interview.scheduledAt).getTime() >= now.getTime();
                   const isSynced = Boolean(item.calendarLink);
+                  const calendarUncertain = ['EVENT_PENDING', 'EVENT_UNCERTAIN'].includes(
+                    item.interview.schedulingStatus,
+                  );
                   const hasBrief = Boolean(item.preparationBrief);
                   const hasDebrief = Boolean(
                     item.interview.debriefQuestionsAsked || item.interview.debriefObservations,
@@ -694,6 +710,7 @@ export function InterviewWorkspaceView({
                           <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
                             <Icon name="interviews" />{' '}
                             {new Date(item.interview.scheduledAt).toLocaleString(undefined, {
+                              timeZone: item.interview.timezone || 'UTC',
                               weekday: 'short',
                               month: 'short',
                               day: 'numeric',
@@ -703,7 +720,7 @@ export function InterviewWorkspaceView({
                           </div>
                           <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
                             Duration: {item.interview.durationMinutes || 45} mins | TZ:{' '}
-                            {item.interview.timezone || 'UTC'}
+                            {item.interview.timezone || 'UTC (no timezone saved)'}
                           </div>
                         </div>
                       </div>
@@ -744,6 +761,47 @@ export function InterviewWorkspaceView({
                         )}
                       </div>
 
+                      {calendarUncertain && (
+                        <div role="alert">
+                          <p>
+                            Calendar creation may be in flight or may have completed. Check your
+                            calendar before another attempt.
+                          </p>
+                          {!isSynced && (
+                            <Button
+                              className="btn-outline"
+                              onClick={async () => {
+                                const reason = await prompt(
+                                  'After checking the calendar, explain how you verified that no event was created (at least 10 characters).',
+                                  '',
+                                  {
+                                    title: 'Verify calendar outcome',
+                                    label: 'Verification reason',
+                                    submit: 'Record verification',
+                                  },
+                                );
+                                if (!reason) return;
+                                try {
+                                  await calendarClient.reconcileCalendarCreation(
+                                    item.application.id,
+                                    item.interview.id,
+                                    reason,
+                                  );
+                                  await loadData();
+                                } catch (error) {
+                                  setError(
+                                    error instanceof Error
+                                      ? error.message
+                                      : 'Could not reconcile calendar outcome',
+                                  );
+                                }
+                              }}
+                            >
+                              I verified no event was created
+                            </Button>
+                          )}
+                        </div>
+                      )}
                       {/* Status Pills */}
                       <div
                         style={{
@@ -755,7 +813,11 @@ export function InterviewWorkspaceView({
                         className="layout-group"
                       >
                         {/* Calendar Sync Status */}
-                        {isSynced ? (
+                        {calendarUncertain ? (
+                          <span className="status-badge degraded">
+                            Calendar outcome needs verification
+                          </span>
+                        ) : isSynced ? (
                           <span
                             className="status-badge ok"
                             title={`Event ID: ${item.calendarLink?.externalEventId}`}
@@ -822,6 +884,7 @@ export function InterviewWorkspaceView({
                           <Button
                             className="btn btn-secondary btn-sm"
                             onClick={() => handleOpenBookingModal(item)}
+                            disabled={calendarUncertain || !!error}
                           >
                             + Add to Calendar
                           </Button>
@@ -1118,8 +1181,17 @@ export function InterviewWorkspaceView({
                 </p>
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }} className="layout-group">
-                <Button className="btn btn-primary btn-sm" onClick={handleConnectGoogle}>
-                  Connect Google Calendar
+                <Button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => void handleConnectGoogle()}
+                >
+                  Connect Google Calendar (availability)
+                </Button>
+                <Button
+                  className="btn-outline"
+                  onClick={() => void handleConnectGoogle('EVENT_MANAGEMENT')}
+                >
+                  Authorize calendar event management
                 </Button>
                 <Button
                   className="btn btn-secondary btn-sm"
@@ -1147,8 +1219,8 @@ export function InterviewWorkspaceView({
                   }}
                   className="layout-group"
                 >
-                  <Button className="btn btn-primary" onClick={handleConnectGoogle}>
-                    Connect Google Calendar
+                  <Button className="btn btn-primary" onClick={() => void handleConnectGoogle()}>
+                    Connect Google Calendar (availability)
                   </Button>
                   <Button
                     className="btn btn-secondary"
@@ -1706,6 +1778,10 @@ export function InterviewWorkspaceView({
                   <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
                     Sync Interview to Calendar
                   </h2>
+                  <p>
+                    Creates a private reminder. This does not accept or send an employer invitation.
+                    An uncertain result must be checked in your calendar before retrying.
+                  </p>
                   <div
                     style={{
                       color: 'var(--text-secondary)',
@@ -1773,6 +1849,14 @@ export function InterviewWorkspaceView({
                     onChange={(e) => setIncludePrepInEvent(e.target.checked)}
                   />
                   Include company context and preparation summary in calendar event description
+                </label>
+                <label>
+                  <Input
+                    type="checkbox"
+                    checked={createConference}
+                    onChange={(e) => setCreateConference(e.target.checked)}
+                  />
+                  Generate a personal meeting link when no employer link exists
                 </label>
 
                 <div

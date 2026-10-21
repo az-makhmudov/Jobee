@@ -117,8 +117,10 @@ export const calendarClient = {
     return request<InterviewDashboardMetrics>('/calendar/metrics');
   },
 
-  async listInterviews(): Promise<ScheduledInterviewWorkspaceItemDto[]> {
-    return request<ScheduledInterviewWorkspaceItemDto[]>('/calendar/interviews');
+  async listInterviews(applicationId?: string): Promise<ScheduledInterviewWorkspaceItemDto[]> {
+    return request<ScheduledInterviewWorkspaceItemDto[]>(
+      `/calendar/interviews${applicationId ? '?applicationId=' + encodeURIComponent(applicationId) : ''}`,
+    );
   },
 
   // ─── Interview Calendar Event Booking ──────────────────────────────────
@@ -137,6 +139,16 @@ export const calendarClient = {
     );
   },
 
+  async reconcileCalendarCreation(
+    applicationId: string,
+    interviewId: string,
+    reason: string,
+  ): Promise<void> {
+    await request(
+      `/applications/${applicationId}/interviews/${interviewId}/calendar-event/reconcile-not-created`,
+      { method: 'POST', body: JSON.stringify({ reason }) },
+    );
+  },
   async getCalendarEvent(
     applicationId: string,
     interviewId: string,
@@ -149,6 +161,7 @@ export const calendarClient = {
   async deleteCalendarEvent(applicationId: string, interviewId: string): Promise<void> {
     await request<void>(`/applications/${applicationId}/interviews/${interviewId}/calendar-event`, {
       method: 'DELETE',
+      body: JSON.stringify({ userConfirmed: true }),
     });
   },
 

@@ -19,6 +19,7 @@ describe('validateEnv', () => {
     expect(() =>
       validateEnv({
         NODE_ENV: 'production',
+        OWNER_EMAIL: 'operator@example.test',
       }),
     ).toThrow(AppError);
   });
@@ -26,6 +27,7 @@ describe('validateEnv', () => {
   it('succeeds in production when DATABASE_URL and production encryption key are provided', () => {
     const config = validateEnv({
       NODE_ENV: 'production',
+      OWNER_EMAIL: 'operator@example.test',
       DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/testdb',
       EMAIL_TOKEN_ENCRYPTION_KEY:
         'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
@@ -70,6 +72,7 @@ describe('validateEnv', () => {
     expect(() =>
       validateEnv({
         NODE_ENV: 'production',
+        OWNER_EMAIL: 'operator@example.test',
         DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/testdb',
         EMAIL_TOKEN_ENCRYPTION_KEY:
           '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
@@ -82,6 +85,7 @@ describe('validateEnv', () => {
     expect(() =>
       validateEnv({
         NODE_ENV: 'production',
+        OWNER_EMAIL: 'operator@example.test',
         DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/testdb',
         EMAIL_TOKEN_ENCRYPTION_KEY:
           'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
@@ -101,6 +105,7 @@ describe('validateEnv', () => {
   it('auto-detects Railway public domain for Better Auth and Web Origin', () => {
     const config = validateEnv({
       NODE_ENV: 'production',
+      OWNER_EMAIL: 'operator@example.test',
       DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/testdb',
       EMAIL_TOKEN_ENCRYPTION_KEY:
         'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',
@@ -158,19 +163,19 @@ describe('validateEnv', () => {
     const config = validateEnv({
       NODE_ENV: 'development',
       RESEND_API_KEY: 're_test_12345',
-      EMAIL_FROM: 'Jobee <notifications@asadbek.dev>',
+      EMAIL_FROM: 'Jobee <notifications@example.test>',
     });
 
-    expect(config.EMAIL_FROM).toBe('Jobee <notifications@asadbek.dev>');
-    expect(config.SMTP_FROM).toBe('Jobee <notifications@asadbek.dev>');
+    expect(config.EMAIL_FROM).toBe('Jobee <notifications@example.test>');
+    expect(config.SMTP_FROM).toBe('Jobee <notifications@example.test>');
   });
 
-  it('defaults OWNER_EMAIL to asadbek.mzw@gmail.com', () => {
+  it('defaults OWNER_EMAIL to a synthetic local owner', () => {
     const config = validateEnv({
       NODE_ENV: 'development',
     });
 
-    expect(config.OWNER_EMAIL).toBe('asadbek.mzw@gmail.com');
+    expect(config.OWNER_EMAIL).toBe('owner@example.test');
   });
 
   it('accepts valid custom OWNER_EMAIL', () => {
@@ -224,6 +229,7 @@ describe('validateEnv', () => {
   it('automatically configures production OAuth redirect URIs from RAILWAY_PUBLIC_DOMAIN', () => {
     const config = validateEnv({
       NODE_ENV: 'production',
+      OWNER_EMAIL: 'operator@example.test',
       DATABASE_URL: 'postgresql://postgres:secret@localhost:5432/testdb',
       EMAIL_TOKEN_ENCRYPTION_KEY:
         'fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210',

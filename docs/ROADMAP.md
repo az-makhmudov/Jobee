@@ -10,13 +10,13 @@ JOB-DOC-CONSOLIDATION-01 consolidates current documentation; it is not a feature
 
 ## Dependency order
 
-JOB-P3-T01, JOB-P3-T02 and JOB-P5-T02 are complete locally. JOB-P5-T01 has local API/worker fixture proof; its external acceptance remains open. The integration milestones below remain **PARTIAL**. Work in this order. JOB-P5-T01 intentionally precedes full CRM/Autopilot convergence; email/calendar expansion does not block One-click Apply.
+JOB-P3-T01, JOB-P3-T02 and JOB-P5-T02 are complete locally. JOB-P5-T01 has local API/worker fixture proof; its external acceptance remains open. JOB-P4-T01 and JOB-P4-T02 engineering is complete locally; their real-account acceptance remains **PARTIAL**. Work in this order. JOB-P5-T01 intentionally precedes full CRM/Autopilot convergence; email/calendar expansion does not block One-click Apply.
 
-| Priority | Canonical task | Remaining meaningful outcome                                            | Required foundation                           |
-| -------- | -------------- | ----------------------------------------------------------------------- | --------------------------------------------- |
-| 1        | JOB-P5-T01     | Owner-approved employer-confirmed provider validation                   | Locally verified one-click pipeline           |
-| 2        | JOB-P4-T01     | Contextual verified communications enrichment and confidence-policy fix | Existing Gmail/read-only integration retained |
-| 3        | JOB-P4-T02     | Contextual authorized calendar/interview workflow                       | Existing calendar/preparation retained        |
+| Priority | Canonical task | Remaining meaningful outcome                            | Required foundation                           |
+| -------- | -------------- | ------------------------------------------------------- | --------------------------------------------- |
+| 1        | JOB-P5-T01     | Owner-approved employer-confirmed provider validation   | Locally verified one-click pipeline           |
+| 2        | JOB-P4-T01     | Owner-authorized real-account communications validation | Existing Gmail/read-only integration retained |
+| 3        | JOB-P4-T02     | Owner-authorized real-account calendar validation       | Existing calendar/preparation retained        |
 
 ### JOB-P5-T01 — provider execution proof
 
@@ -31,26 +31,26 @@ Remaining external acceptance:
 
 ### JOB-P4-T01 — communications
 
-Retain Gmail OAuth/read-only sync, deterministic/AI classification, entity linking, review queues and conservative lifecycle events. Resolve the documented 0.85 implementation versus 0.90 security-baseline threshold gap before expanded/live communications validation. Validate contextual application enrichment on an explicitly authorized account; fuzzy association, offers and uncertain events stay in review. Do not add outbound recruiter authority or expand scopes implicitly. Email/account disconnect and recovery must retain appropriate history and revoke credentials.
+Local engineering is complete: .90 enrichment/.95 rejection policy, conservative entity/thread linking, atomic message/lifecycle/review persistence, owned review overrides, disconnect fencing and application-scoped messages/review. Existing Gmail read-only scopes remain unchanged. Remaining acceptance: validate contextual enrichment and disconnect/reconnect on an explicitly authorized real account. Fuzzy associations, offers and uncertain events remain review items; no outbound recruiter authority is implied.
 
 ### JOB-P4-T02 — interviews
 
-Retain calendar scope separation, interview records and preparation briefs. Validate contextual event association, timezone presentation, availability versus event-management permission, reconnect/recovery and scoped user-confirmed actions. Calendar writes/acceptance require explicit permission; fixture events are not real-account certification.
+Local engineering is complete: signed scope selection, availability default, actual-grant and parent ownership checks, explicit write confirmation, saved-timezone presentation, contextual preparation, token-refresh fencing and durable uncertain booking/reconciliation. Remaining acceptance: inspect account grants and validate permitted real-account availability/event behavior with named action authorization. Fixture events are not real-account certification.
 
 ## Cross-cutting release acceptance
 
 These are remaining outcomes within the milestones above, not extra micro-task stamps:
 
-| Area                     | Remaining validation or decision                                                                                                                              |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| External execution       | Named, owner-authorized employer-confirmed application and uncertainty/reconciliation observation                                                             |
-| Recommendation quality   | Human relevance benchmark on approximately 30 representative vacancies, including student roles, unknown eligibility, hard exclusions and transferable skills |
-| Human UX                 | 5–8 student sessions; test consent/outcome comprehension and unnecessary intervention, following [UX](UX.md)                                                  |
-| AI quality/cost          | Validate configured model availability, grounding behavior, actual provider usage/cost and latency; no unsupported cost/savings claims                        |
-| Privacy/public readiness | Review candidate/account/evidence retention, deletion/export, public-history exposure and jurisdictional obligations; no implied compliance certification     |
-| Operations               | Owner-approved same-commit API/worker promotion, backup/restore rehearsal, migration compatibility, monitoring and safe rollback                              |
-| Source coverage          | Improve feeds/company coverage only from evidence/demand; unsupported LinkedIn automation and universal ATS support remain non-goals                          |
-| Accessibility            | Keyboard/focus, narrow viewport/zoom, themes, status/error semantics and formal audit as appropriate                                                          |
+| Area                     | Remaining validation or decision                                                                                                                                                                         |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| External execution       | Named, owner-authorized employer-confirmed application and uncertainty/reconciliation observation                                                                                                        |
+| Recommendation quality   | Human relevance benchmark on approximately 30 representative vacancies (30 synthetic matching scenarios now pass), including student roles, unknown eligibility, hard exclusions and transferable skills |
+| Human UX                 | 5–8 student sessions; test consent/outcome comprehension and unnecessary intervention, following [UX](UX.md)                                                                                             |
+| AI quality/cost          | Validate configured model availability, grounding behavior, actual provider usage/cost and latency; no unsupported cost/savings claims                                                                   |
+| Privacy/public readiness | Review candidate/account/evidence retention, deletion/export, public-history exposure and jurisdictional obligations; no implied compliance certification                                                |
+| Operations               | Production backup/PITR/object-store recovery, same-commit API/worker promotion, monitoring and rollback under owner approval; synthetic PostgreSQL restore and local migration replay now pass           |
+| Source coverage          | Improve feeds/company coverage only from evidence/demand; unsupported LinkedIn automation and universal ATS support remain non-goals                                                                     |
+| Accessibility            | Keyboard/focus, narrow viewport/zoom, themes, status/error semantics and formal audit as appropriate                                                                                                     |
 
 Current deployed health, credentials, scopes and account configuration require fresh operational verification before release; historical setup is not an open request to recreate services. Additional university/local feeds or dedicated Indeed support remain research conditioned on demand and permitted access, not committed launch requirements.
 

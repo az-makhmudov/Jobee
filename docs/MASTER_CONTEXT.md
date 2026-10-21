@@ -24,16 +24,16 @@ Prefer permitted public sources and modular provider adapters. Be honest about f
 
 ## Core modules
 
-| Module          | Product responsibility                                                                  | Current boundary                                                                         |
-| --------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Candidate Brain | Verified professional context, documents, reusable answers, permissions and preferences | Implemented; imported suggestions still require verification                             |
-| Discovery       | Find/import jobs, normalize sources, deduplicate and preserve freshness                 | Public feeds and manual import exist; configured company boards are not a global catalog |
-| Matching        | Grounded fit, eligibility and useful explanations                                       | Shared backend engine implemented across API/daily/worker paths                          |
-| Preparation     | Tailored CV/letter, question resolution, versioned materials and provenance             | Durable intent drives automatic preparation; reviewed flows remain available             |
-| Execution       | Authorized form completion, submission, verification and recovery                       | One-click fixtures pass; employer-confirmed live acceptance remains open                 |
-| Applications    | Attempts, employer lifecycle, documents, attention, messages and interviews             | Existing CRM/workspaces preserved; simplification and safe-resume convergence remain     |
-| Integrations    | Authorized email enrichment and calendar assistance                                     | Existing implementations/fixtures retained; new live actions need explicit authorization |
-| Autopilot       | Scheduled eligible applications under an explicit bounded policy                        | Versioned opt-in now uses the shared intent engine locally; rollout defaults off         |
+| Module          | Product responsibility                                                                  | Current boundary                                                                           |
+| --------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Candidate Brain | Verified professional context, documents, reusable answers, permissions and preferences | Implemented; imported suggestions still require verification                               |
+| Discovery       | Find/import jobs, normalize sources, deduplicate and preserve freshness                 | Public feeds and manual import exist; configured company boards are not a global catalog   |
+| Matching        | Grounded fit, eligibility and useful explanations                                       | Shared backend engine implemented across API/daily/worker paths                            |
+| Preparation     | Tailored CV/letter, question resolution, versioned materials and provenance             | Durable intent drives automatic preparation; reviewed flows remain available               |
+| Execution       | Authorized form completion, submission, verification and recovery                       | One-click fixtures pass; employer-confirmed live acceptance remains open                   |
+| Applications    | Attempts, employer lifecycle, documents, attention, messages and interviews             | Attention/recovery and contextual messages/interviews implemented locally                  |
+| Integrations    | Authorized email enrichment and calendar assistance                                     | Contextual read-only email and scoped calendar fixtures pass; live acceptance remains open |
+| Autopilot       | Scheduled eligible applications under an explicit bounded policy                        | Versioned opt-in now uses the shared intent engine locally; rollout defaults off           |
 
 ## Candidate journey
 

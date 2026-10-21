@@ -159,6 +159,8 @@ export interface SchedulingPreferences {
 // ─── Interview Scheduling ────────────────────────────────────────────────
 
 export const InterviewSchedulingStatus = {
+  EVENT_PENDING: 'EVENT_PENDING',
+  EVENT_UNCERTAIN: 'EVENT_UNCERTAIN',
   PROPOSED: 'PROPOSED',
   NEEDS_CONFIRMATION: 'NEEDS_CONFIRMATION',
   CONFIRMED: 'CONFIRMED',
@@ -317,6 +319,8 @@ export interface AvailabilityQueryRequest {
 }
 
 export interface CreateCalendarEventForInterviewRequest {
+  userConfirmed: boolean;
+  createConference?: boolean;
   calendarId: string;
   timezone: string;
   includePreparationNotes?: boolean;

@@ -10,7 +10,7 @@ Use Node.js 24/npm, PostgreSQL (CI uses version 16), and Chromium installed thro
 
 1. Install dependencies and copy `.env.example` to ignored `.env`.
 2. Configure a dedicated development database and a different disposable test database. Verify host/database identity without exposing user/password.
-3. Generate distinct random auth/encryption secrets, such as `openssl rand -hex 32`, and set the actual operator's `OWNER_EMAIL`.
+3. Generate distinct random auth/encryption secrets, such as `openssl rand -hex 32`, and set the actual operator's `OWNER_EMAIL`; production startup rejects the synthetic default `owner@example.test`.
 4. For offline work leave external keys/accounts absent, disable the orchestrator and use local storage. Existing real account grants can cause sync side effects when services run; use an isolated database for tests.
 5. Build packages, check connectivity and review migrations before explicitly migrating the intended local database.
 6. Start API/web; start worker only when its configured side effects are understood.
@@ -82,7 +82,7 @@ Never routinely migrate production for a quality gate. Do not down-migrate or dr
 
 The recorded production database is Neon PostgreSQL accessed through node-postgres. Keep the connection string in platform secrets, configure SSL appropriately for the actual endpoint and confirm API/worker use the same intended environment. Do not infer an isolated test branch from a remote hostname alone. Production credentials and primary development data are forbidden test targets.
 
-Before release, the owner must confirm backup/PITR availability and a tested restore path in an isolated environment. Never publish SQL backups or restore production snapshots into unprotected public fixtures. Provider retention, account health and billing were not revalidated by documentation consolidation.
+Before release, the owner must confirm backup/PITR availability and a tested restore path in an isolated environment. The local-only [recovery verifier](../scripts/verify-isolated-recovery.ts) requires an explicit localhost `DATABASE_URL` ending in `_isolated`, test mode and the configured encryption key. Run with `npx tsx scripts/verify-isolated-recovery.ts` after building workspace packages. It copies public schema only into a newly created fixture database, seeds synthetic rows, backs up/restores into a second fresh database, verifies IDs/checksums/encrypted token decryptability, then removes its databases and archives. PostgreSQL CLI tools and local database-creation privileges are required. This does not validate production PITR, object-store recovery or a release rollback. Never publish SQL backups or restore production snapshots into unprotected public fixtures. Provider retention, account health and billing were not revalidated by documentation consolidation.
 
 ## Tests and local evidence
 
@@ -110,7 +110,7 @@ The shared storage abstraction supports local disk and S3-compatible object stor
 
 Generated artifacts and browser screenshots have database references and checksums. Verify save/get/existence with synthetic bytes in an isolated prefix before an authorized promotion; do not upload a real CV as a smoke test. Ownership-protected API endpoints serve candidate documents/evidence rather than public URLs.
 
-Evidence access expires after 30 days; bounded pruning deletes recognized expired run files. Pruning currently runs in the API preparation tick outside test mode when batch preparation and discovery/matching services are available; disabling that path can also stop deletion, so monitor it independently. Monitor failed deletions and orphaned objects. This does not implement retention for every candidate document, account, message or backup. Retention and deletion/export requirements remain an owner/privacy review item.
+Evidence access expires after 30 days; bounded pruning deletes recognized expired run files. An independent API hourly retention task runs on startup and outside test mode regardless of preparation/discovery flags. Failed deletions and unrecognized keys retain their references for investigation/retry; compare-and-set updates preserve concurrent evidence. Monitor failed deletions and orphaned objects. This does not implement retention for every candidate document, account, message or backup. Retention and deletion/export requirements remain an owner/privacy review item.
 
 Local disk on an ephemeral container is not durable shared storage. Do not solve missing artifacts by re-generating unknown submitted files: preserve exact submission provenance and restore the referenced object if possible.
 

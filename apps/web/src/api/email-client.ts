@@ -104,8 +104,11 @@ export const emailClient = {
     return request<EmailMessageDto[]>(`/email/messages${query}`);
   },
 
-  async getReviewQueue(status?: string): Promise<EmailReviewItemDto[]> {
-    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+  async getReviewQueue(status?: string, applicationId?: string): Promise<EmailReviewItemDto[]> {
+    const params = new URLSearchParams();
+    if (status) params.set('status', status);
+    if (applicationId) params.set('applicationId', applicationId);
+    const query = params.size ? '?' + params : '';
     return request<EmailReviewItemDto[]>(`/email/review-queue${query}`);
   },
 

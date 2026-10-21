@@ -356,8 +356,10 @@ On Thu, Oct 8, 2026 at 10:00 AM Bek wrote:
     if (!['CONFIRMATION_RECEIVED', 'INTERVIEW'].includes(appAcmeRow!.status)) {
       throw new Error(`Expected Acme app to advance, got ${appAcmeRow?.status}`);
     }
-    if (appWayneRow?.status !== 'SCREENING') {
-      throw new Error(`Expected Wayne app to be SCREENING, got ${appWayneRow?.status}`);
+    if (appWayneRow?.status !== 'APPLIED') {
+      throw new Error(
+        `Expected ambiguous Wayne screening to remain APPLIED for review, got ${appWayneRow?.status}`,
+      );
     }
     if (appStarkRow?.status !== 'ASSESSMENT') {
       throw new Error(`Expected Stark app to be ASSESSMENT, got ${appStarkRow?.status}`);
@@ -365,7 +367,9 @@ On Thu, Oct 8, 2026 at 10:00 AM Bek wrote:
     if (appCyberRow?.status !== 'REJECTED') {
       throw new Error(`Expected Cyberdyne app to be REJECTED, got ${appCyberRow?.status}`);
     }
-    console.log('✓ All 4 applications transitioned to deterministic canonical statuses');
+    console.log(
+      '✓ Strongly linked applications advanced; uncertain Wayne association remains for review',
+    );
 
     // -------------------------------------------------------------------------
     // SECTION 6: Sync Concurrency Lock & Idempotent Resync

@@ -141,7 +141,7 @@ export function createBetterAuthInstance(
         create: {
           before: async (user: any) => {
             // Check Private Pilot invitation requirement
-            const ownerEmail = (config.OWNER_EMAIL || 'asadbek.mzw@gmail.com').trim().toLowerCase();
+            const ownerEmail = (config.OWNER_EMAIL || 'owner@example.test').trim().toLowerCase();
             const userEmail = (user.email || '').trim().toLowerCase();
             const isOwnerEmail = Boolean(userEmail && userEmail === ownerEmail);
 
@@ -179,9 +179,7 @@ export function createBetterAuthInstance(
           },
           after: async (user: any) => {
             try {
-              const ownerEmail = (config.OWNER_EMAIL || 'asadbek.mzw@gmail.com')
-                .trim()
-                .toLowerCase();
+              const ownerEmail = (config.OWNER_EMAIL || 'owner@example.test').trim().toLowerCase();
               const userEmail = (user.email || '').trim().toLowerCase();
               const isOwnerEmail = Boolean(userEmail && userEmail === ownerEmail);
 

@@ -8,6 +8,7 @@ interface StateData {
   nonce: string;
   expiresAt: number;
   provider?: string;
+  scopeLevel?: 'AVAILABILITY' | 'EVENT_MANAGEMENT';
 }
 
 export class OAuthStateService {
@@ -29,10 +30,17 @@ export class OAuthStateService {
     userId: string,
     provider = 'GMAIL',
     ttlMs = 15 * 60 * 1000,
+    scopeLevel?: 'AVAILABILITY' | 'EVENT_MANAGEMENT',
   ): Promise<string> {
     const nonce = crypto.randomBytes(16).toString('hex');
     const expiresAt = Date.now() + ttlMs;
-    const payload: StateData = { userId, nonce, expiresAt, provider };
+    const payload: StateData = {
+      userId,
+      nonce,
+      expiresAt,
+      provider,
+      ...(scopeLevel ? { scopeLevel } : {}),
+    };
     const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url');
 
     const signature = crypto
@@ -60,7 +68,7 @@ export class OAuthStateService {
   public async verifyAndConsumeState(
     state: string,
     expectedProvider = 'GMAIL',
-  ): Promise<{ userId: string }> {
+  ): Promise<{ userId: string; scopeLevel?: 'AVAILABILITY' | 'EVENT_MANAGEMENT' }> {
     const parts = state.split('.');
     if (parts.length !== 2) {
       throw AppError.badRequest('Invalid OAuth state parameter format');
@@ -118,7 +126,12 @@ export class OAuthStateService {
       .returning();
 
     if (consumed) {
-      return { userId: consumed.userId };
+      return {
+        userId: consumed.userId,
+        ...(['AVAILABILITY', 'EVENT_MANAGEMENT'].includes(data.scopeLevel || '')
+          ? { scopeLevel: data.scopeLevel }
+          : {}),
+      };
     }
 
     // Inspect reason for failure to provide accurate error response

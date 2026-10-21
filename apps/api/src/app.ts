@@ -262,6 +262,27 @@ export function buildApp(options: AppOptions): FastifyInstance {
     app.register(createApplicationPackageRoutes(packageService, candidateService));
   }
 
+  if (db && config.NODE_ENV !== 'test') {
+    let retentionTimer: ReturnType<typeof setInterval> | undefined;
+    let retentionWork: Promise<unknown> | undefined;
+    app.addHook('onReady', async () => {
+      const prune = () => {
+        if (retentionWork) return;
+        retentionWork = pruneBrowserEvidence(db, options.storage ?? createStorageProvider(config))
+          .catch(() => logger.error('Evidence retention failed'))
+          .finally(() => {
+            retentionWork = undefined;
+          });
+      };
+      retentionTimer = setInterval(prune, 60 * 60_000);
+      retentionTimer.unref();
+      prune();
+    });
+    app.addHook('onClose', async () => {
+      if (retentionTimer) clearInterval(retentionTimer);
+      await retentionWork;
+    });
+  }
   if (db && packageService) {
     const batches = new PreparationBatchService(db, packageService);
     const intents = matchService
@@ -308,7 +329,6 @@ export function buildApp(options: AppOptions): FastifyInstance {
             if (discoveryService && matchService && Date.now() - lastDaily > 60_000) {
               lastDaily = Date.now();
               await autopilot?.runDue();
-              await pruneBrowserEvidence(db, options.storage ?? createStorageProvider(config));
               await new DailySearchService(db, discoveryService, batches, matchService).runDue();
             }
           })()

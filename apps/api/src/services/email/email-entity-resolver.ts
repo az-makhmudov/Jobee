@@ -1,6 +1,7 @@
 import { eq, and, ilike } from 'drizzle-orm';
 import {
   getDb,
+  type Database,
   applications,
   jobs,
   applicationContacts,
@@ -28,9 +29,10 @@ export class EmailEntityResolver {
     accountId: string;
     message: NormalizedEmailMessage;
     classification: ClassificationResult;
+    db?: Database;
   }): Promise<EntityResolutionResult> {
     const { userId, accountId, message, classification } = options;
-    const db = getDb();
+    const db = options.db ?? getDb();
     const extracted = classification.extractedDetails;
 
     // 1. External Reference ID match (Highest confidence: 1.0)
@@ -50,9 +52,9 @@ export class EmailEntityResolver {
             eq(applications.externalReferenceId, extracted.externalReferenceId),
           ),
         )
-        .limit(1);
+        .limit(2);
 
-      if (matchedApps.length > 0 && matchedApps[0]) {
+      if (matchedApps.length === 1 && matchedApps[0]) {
         return {
           applicationId: matchedApps[0].id,
           jobId: matchedApps[0].jobId,
@@ -72,6 +74,7 @@ export class EmailEntityResolver {
         .where(
           and(
             eq(emailThreadLinks.accountId, accountId),
+            eq(emailThreadLinks.userId, userId),
             eq(emailThreadLinks.providerThreadId, message.externalThreadId),
           ),
         )
@@ -79,7 +82,14 @@ export class EmailEntityResolver {
 
       if (threadLink.length > 0 && threadLink[0]) {
         const link = threadLink[0];
-        if (link.applicationId || link.jobId) {
+        const owned = link.applicationId
+          ? await db
+              .select({ id: applications.id })
+              .from(applications)
+              .where(and(eq(applications.id, link.applicationId), eq(applications.userId, userId)))
+              .limit(1)
+          : [];
+        if (owned.length && ['USER', 'AUTO_VERIFIED'].includes(link.confirmedBy)) {
           return {
             applicationId: link.applicationId || undefined,
             jobId: link.jobId || undefined,
@@ -106,9 +116,9 @@ export class EmailEntityResolver {
             ilike(applicationContacts.email, message.from.email.toLowerCase()),
           ),
         )
-        .limit(1);
+        .limit(2);
 
-      if (contactMatches.length > 0 && contactMatches[0]) {
+      if (contactMatches.length === 1 && contactMatches[0]) {
         const c = contactMatches[0];
         return {
           applicationId: c.applicationId,
@@ -133,7 +143,11 @@ export class EmailEntityResolver {
       .innerJoin(jobs, eq(applications.jobId, jobs.id))
       .where(eq(applications.userId, userId));
 
-    const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normalize = (str: string) =>
+      str
+        .normalize('NFKC')
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]/gu, '');
 
     const companyCandidate = extracted.company || '';
     const roleCandidate = extracted.role || '';
@@ -145,7 +159,9 @@ export class EmailEntityResolver {
       const matchingCompanyApps = activeApps.filter((a) => {
         const appNormCompany = normalize(a.company);
         return (
-          appNormCompany.includes(normalizedCompany) || normalizedCompany.includes(appNormCompany)
+          !!normalizedCompany &&
+          !!appNormCompany &&
+          (appNormCompany.includes(normalizedCompany) || normalizedCompany.includes(appNormCompany))
         );
       });
 
@@ -153,16 +169,18 @@ export class EmailEntityResolver {
         // If role also matches, we have high confidence match
         if (roleCandidate) {
           const normalizedRole = normalize(roleCandidate);
-          const bothMatch = matchingCompanyApps.find((a) => {
-            const appNormTitle = normalize(a.title);
-            return appNormTitle.includes(normalizedRole) || normalizedRole.includes(appNormTitle);
-          });
-
+          const exactMatches = matchingCompanyApps.filter(
+            (a) =>
+              !!normalizedRole &&
+              normalize(a.company) === normalizedCompany &&
+              normalize(a.title) === normalizedRole,
+          );
+          const bothMatch = exactMatches.length === 1 ? exactMatches[0] : undefined;
           if (bothMatch) {
             return {
               applicationId: bothMatch.id,
               jobId: bothMatch.jobId,
-              confidence: 0.88,
+              confidence: 0.95,
               matchMethod: 'COMPANY_AND_ROLE',
               matchedCompany: bothMatch.company,
               matchedRole: bothMatch.title,

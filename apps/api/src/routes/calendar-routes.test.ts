@@ -1,10 +1,13 @@
+import type { InjectOptions } from 'fastify';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { buildApp } from '../app.js';
 import { getConfig } from '@job-agent/config';
 import {
   closeDbPool,
   getDb,
-  getOrCreatePrimaryUser,
+  users,
+  assertSafeTestDatabase,
+  assertSafeTestUser,
   jobs,
   jobRequirements,
   applications,
@@ -26,14 +29,24 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   let testAppId: string;
   let testInterviewId: string;
   let connectedAccountId: string;
+  const inject = (options: InjectOptions) =>
+    app.inject({ ...options, headers: { ...options.headers, 'x-test-user-id': userId } });
 
   beforeAll(async () => {
     app = buildApp({ config });
     await app.ready();
 
     db = getDb(config.DATABASE_URL);
-    const user = await getOrCreatePrimaryUser(db);
-    userId = user.id;
+    assertSafeTestDatabase(config.DATABASE_URL);
+    const [user] = await db
+      .insert(users)
+      .values({
+        name: 'Calendar route fixture',
+        email: `calendar-route-${crypto.randomUUID()}@example.test`,
+      })
+      .returning();
+    userId = user!.id;
+    assertSafeTestUser(userId);
 
     // Create Job
     const [job] = await db
@@ -110,12 +123,13 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
       await db.delete(jobs).where(eq(jobs.id, testJobId));
     }
 
+    if (userId) await db.delete(users).where(eq(users.id, userId));
     await app.close();
     await closeDbPool();
   });
 
   it('1. GET /api/calendar/accounts returns account list', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'GET',
       url: '/api/calendar/accounts',
     });
@@ -127,7 +141,7 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('2. POST /api/calendar/accounts/fixture/connect connects fixture account', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'POST',
       url: '/api/calendar/accounts/fixture/connect',
       payload: {
@@ -145,7 +159,7 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('3. GET /api/calendar/accounts/:id/calendars lists calendars for connected account', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'GET',
       url: `/api/calendar/accounts/${connectedAccountId}/calendars`,
     });
@@ -158,7 +172,7 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('4. PATCH /api/calendar/accounts/:id/selection updates selected calendars', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'PATCH',
       url: `/api/calendar/accounts/${connectedAccountId}/selection`,
       payload: {
@@ -174,7 +188,7 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('5. POST /api/calendar/availability queries combined free/busy slots', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'POST',
       url: '/api/calendar/availability',
       payload: {
@@ -191,7 +205,7 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('6. POST /api/calendar/check-conflict detects conflict for overlapping slot', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'POST',
       url: '/api/calendar/check-conflict',
       payload: {
@@ -209,7 +223,7 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('7. GET /api/calendar/metrics returns interview and calendar summary metrics', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'GET',
       url: '/api/calendar/metrics',
     });
@@ -222,13 +236,14 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('8. POST /api/applications/:appId/interviews/:interviewId/calendar-event books event', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'POST',
       url: `/api/applications/${testAppId}/interviews/${testInterviewId}/calendar-event`,
       payload: {
         calendarId: 'primary',
         timezone: 'UTC',
         includePreparationNotes: true,
+        userConfirmed: true,
       },
     });
 
@@ -237,11 +252,11 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
     expect(json.status).toBe('ok');
     expect(json.data.link.interviewId).toBe(testInterviewId);
     expect(json.data.event.externalEventId).toBeDefined();
-    expect(json.data.event.meetingUrl).toBeDefined();
+    expect(json.data.event.meetingUrl).toBeUndefined();
   });
 
   it('9. GET /api/applications/:appId/interviews/:interviewId/calendar-event fetches event link', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'GET',
       url: `/api/applications/${testAppId}/interviews/${testInterviewId}/calendar-event`,
     });
@@ -253,7 +268,7 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('10. POST /api/applications/:appId/interviews/:interviewId/preparation-brief generates brief', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'POST',
       url: `/api/applications/${testAppId}/interviews/${testInterviewId}/preparation-brief`,
       payload: {
@@ -270,7 +285,7 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('11. PATCH /api/applications/:appId/interviews/:interviewId/preparation-brief updates notes', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'PATCH',
       url: `/api/applications/${testAppId}/interviews/${testInterviewId}/preparation-brief`,
       payload: {
@@ -287,14 +302,14 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('12. PATCH /api/applications/:appId/interviews/:interviewId/checklist updates checklist', async () => {
-    const briefRes = await app.inject({
+    const briefRes = await inject({
       method: 'GET',
       url: `/api/applications/${testAppId}/interviews/${testInterviewId}/preparation-brief`,
     });
     const currentChecklist = briefRes.json().data.preparationChecklist;
     currentChecklist[0].isCompleted = true;
 
-    const res = await app.inject({
+    const res = await inject({
       method: 'PATCH',
       url: `/api/applications/${testAppId}/interviews/${testInterviewId}/checklist`,
       payload: {
@@ -309,7 +324,7 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('13. PATCH /api/applications/:appId/interviews/:interviewId/debrief records post-interview debrief', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'PATCH',
       url: `/api/applications/${testAppId}/interviews/${testInterviewId}/debrief`,
       payload: {
@@ -329,8 +344,9 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('14. DELETE /api/applications/:appId/interviews/:interviewId/calendar-event unlinks event', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'DELETE',
+      payload: { userConfirmed: true },
       url: `/api/applications/${testAppId}/interviews/${testInterviewId}/calendar-event`,
     });
 
@@ -340,7 +356,7 @@ describe('Calendar and Interview Routes Integration Tests (JOB-P4-T02)', () => {
   });
 
   it('15. GET /api/calendar/interviews lists scheduled workspace interviews', async () => {
-    const res = await app.inject({
+    const res = await inject({
       method: 'GET',
       url: '/api/calendar/interviews',
     });

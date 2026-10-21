@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { FastifyPluginAsync } from 'fastify';
 import { CalendarProviderType, AppError } from '@job-agent/shared';
 import type { CandidateService } from '../services/candidate-service.js';
@@ -30,6 +31,19 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
   const { calendarService, prepService, oauthStateService } = options;
 
   return async (app) => {
+    app.addHook('preHandler', async (req) => {
+      const params = req.params as { applicationId?: string; interviewId?: string };
+      if (params.applicationId || params.interviewId) {
+        const ids = z
+          .object({ applicationId: z.string().uuid(), interviewId: z.string().uuid() })
+          .parse(params);
+        await calendarService.assertInterviewOwnership(
+          requireCurrentUserId(req),
+          ids.applicationId,
+          ids.interviewId,
+        );
+      }
+    });
     // 1. List connected calendar accounts
     app.get('/calendar/accounts', async (req: any) => {
       const userId = requireCurrentUserId(req);
@@ -53,7 +67,12 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
     app.get('/calendar/google/auth-url', async (req) => {
       const userId = requireCurrentUserId(req);
       const query = googleAuthUrlSchema.parse(req.query);
-      const state = await oauthStateService.generateState(userId, 'CALENDAR_OAUTH');
+      const state = await oauthStateService.generateState(
+        userId,
+        'CALENDAR_OAUTH',
+        15 * 60_000,
+        query.scopeLevel,
+      );
       const authUrl = calendarService.getAuthorizationUrl(
         CalendarProviderType.GOOGLE,
         state,
@@ -65,7 +84,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
     // 4. Handle Google Calendar OAuth callback
     app.get('/calendar/google/callback', async (req, reply) => {
       const query = googleCallbackSchema.parse(req.query);
-      const { userId: verifiedUserId } = await oauthStateService.verifyAndConsumeState(
+      const { userId: verifiedUserId, scopeLevel } = await oauthStateService.verifyAndConsumeState(
         query.state,
         'CALENDAR_OAUTH',
       );
@@ -74,6 +93,7 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
         verifiedUserId,
         CalendarProviderType.GOOGLE,
         query.code,
+        scopeLevel ?? 'AVAILABILITY',
       );
 
       return reply.send({
@@ -151,7 +171,8 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
     // 11b. List all scheduled interviews with calendar and brief status
     app.get('/calendar/interviews', async (req: any) => {
       const userId = requireCurrentUserId(req);
-      const items = await calendarService.listInterviews(userId);
+      const query = z.object({ applicationId: z.string().uuid().optional() }).parse(req.query);
+      const items = await calendarService.listInterviews(userId, query.applicationId);
       return { status: 'ok', data: items };
     });
 
@@ -174,6 +195,23 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
       return { status: 'ok', data: result };
     });
 
+    app.post(
+      '/applications/:applicationId/interviews/:interviewId/calendar-event/reconcile-not-created',
+      async (req) => {
+        const ids = req.params as { applicationId: string; interviewId: string };
+        const body = z
+          .object({ reason: z.string().trim().min(10).max(2000) })
+          .strict()
+          .parse(req.body);
+        await calendarService.reconcileCalendarCreation(
+          requireCurrentUserId(req),
+          ids.applicationId,
+          ids.interviewId,
+          body.reason,
+        );
+        return { status: 'ok' };
+      },
+    );
     // 13. Get linked calendar event
     app.get('/applications/:applicationId/interviews/:interviewId/calendar-event', async (req) => {
       const userId = requireCurrentUserId(req);
@@ -191,7 +229,10 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
       async (req) => {
         const userId = requireCurrentUserId(req);
         const { interviewId } = req.params as { interviewId: string };
-        await calendarService.deleteInterviewCalendarEvent(interviewId, userId);
+        z.object({ userConfirmed: z.literal(true) })
+          .strict()
+          .parse(req.body);
+        await calendarService.deleteInterviewCalendarEvent(interviewId, userId, true);
         return { status: 'ok', message: 'Calendar event unlinked and deleted' };
       },
     );
