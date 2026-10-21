@@ -5,9 +5,10 @@ import { jobs } from './jobs.js';
 import { candidateDocuments } from './candidate-documents.js';
 import { preparationBatches } from './job-search.js';
 import { browserApplicationRuns } from './browser-application-runs.js';
-import type { ApplicationIntentDto } from '@job-agent/shared';
+import type { ApplicationIntentDto, AutopilotGrant } from '@job-agent/shared';
 export type ApplicationIntentEvent = ApplicationIntentDto['events'][number] & {
   answerSources?: Record<string, string>;
+  autopilotGrant?: AutopilotGrant;
 };
 
 // Permission exists before a package/version does; queues and materials remain authoritative.
@@ -29,6 +30,7 @@ export const applicationIntents = pgTable(
     }),
     batchId: uuid('batch_id').references(() => preparationBatches.id, { onDelete: 'set null' }),
     runId: uuid('run_id').references(() => browserApplicationRuns.id, { onDelete: 'restrict' }),
+    autopilotGrant: jsonb('autopilot_grant').$type<AutopilotGrant>(),
     termsVersion: text('terms_version').notNull(),
     targetUrl: text('target_url').notNull(),
     inputFingerprint: text('input_fingerprint').notNull(),

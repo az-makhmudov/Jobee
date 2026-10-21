@@ -1,4 +1,5 @@
-import { pgTable, uuid, timestamp, boolean, integer, text } from 'drizzle-orm/pg-core';
+import type { AutopilotGrant } from '@job-agent/shared';
+import { pgTable, uuid, timestamp, boolean, integer, text, jsonb } from 'drizzle-orm/pg-core';
 import { users } from './users.js';
 
 export const applicationPolicy = pgTable('application_policy', {
@@ -7,6 +8,9 @@ export const applicationPolicy = pgTable('application_policy', {
     .notNull()
     .references(() => users.id, { onDelete: 'cascade' })
     .unique(),
+  autopilotVersion: integer('autopilot_version').default(0).notNull(),
+  autopilotGrant: jsonb('autopilot_grant').$type<AutopilotGrant>(),
+  autopilotNextRunAt: timestamp('autopilot_next_run_at', { withTimezone: true }),
   autoApplyEnabled: boolean('auto_apply_enabled').default(false).notNull(), // ALWAYS disabled by default
   minScoreForReview: integer('min_score_for_review').default(70).notNull(),
   autoApplyMinScore: integer('auto_apply_min_score').default(90).notNull(),

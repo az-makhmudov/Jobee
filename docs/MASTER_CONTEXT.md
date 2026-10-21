@@ -1,6 +1,6 @@
 # Jobee — master context
 
-Updated 2026-10-20. Product source of truth; [status](STATUS.md) records implementation evidence, and [roadmap](ROADMAP.md) records unfinished acceptance. This document describes the intended product and identifies where the core promise is still being completed.
+Updated 2026-10-21. Product source of truth; [status](STATUS.md) records implementation evidence, and [roadmap](ROADMAP.md) records unfinished acceptance. This document describes the intended product and identifies where the core promise is still being completed.
 
 ## Purpose and users
 
@@ -33,7 +33,7 @@ Prefer permitted public sources and modular provider adapters. Be honest about f
 | Execution       | Authorized form completion, submission, verification and recovery                       | One-click fixtures pass; employer-confirmed live acceptance remains open                 |
 | Applications    | Attempts, employer lifecycle, documents, attention, messages and interviews             | Existing CRM/workspaces preserved; simplification and safe-resume convergence remain     |
 | Integrations    | Authorized email enrichment and calendar assistance                                     | Existing implementations/fixtures retained; new live actions need explicit authorization |
-| Autopilot       | Scheduled eligible applications under an explicit bounded policy                        | Legacy orchestration exists; revised shared-engine contract is unfinished                |
+| Autopilot       | Scheduled eligible applications under an explicit bounded policy                        | Versioned opt-in now uses the shared intent engine locally; rollout defaults off         |
 
 ## Candidate journey
 

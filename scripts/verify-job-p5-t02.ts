@@ -27,7 +27,7 @@ import { buildApp } from '../apps/api/src/app.js';
 
 async function main() {
   console.log('======================================================================');
-  console.log('JOB-P5-T02 — LIVE POSTGRESQL DETERMINISTIC VERIFICATION SUITE');
+  console.log('JOB-P5-T02 — ISOLATED POSTGRESQL DETERMINISTIC VERIFICATION SUITE');
   console.log('Autonomous Orchestrator, Scheduling, Notifications & Production Hardening');
   console.log('======================================================================\n');
 
@@ -184,30 +184,34 @@ async function main() {
     createdRunIds.push(run1Id);
     console.log(`✓ Executed MATCHING task via AutonomousOrchestrator: Run ID ${run1Id}`);
 
-    // Verify job transitioned to MATCHED
-    const evaluatedJob = await db.query.jobs.findFirst({
-      where: (j, { eq }) => eq(j.id, testJob.id),
+    // Matching persists current evidence; it does not invent an employer lifecycle/job state.
+    const analysis = await db.query.jobMatchAnalyses.findFirst({
+      where: (a, { eq, and }) =>
+        and(eq(a.jobId, testJob.id), eq(a.userId, userId), eq(a.isStale, false)),
     });
+    if (!analysis) throw new Error('Expected current persisted matching evidence');
     console.log(
-      `✓ Opportunity state after MATCHING task: ${evaluatedJob?.state} (Expected: MATCHED)`,
+      `✓ Current matching evidence persisted: ${analysis.decision}; missing candidate context is not fabricated.`,
     );
-    if (evaluatedJob?.state !== 'MATCHED') {
-      throw new Error(`Expected state MATCHED but got ${evaluatedJob?.state}`);
-    }
 
     // Run PREPARATION task
     const prepRunId = await orchestrator.executeRun(userId, 'PREPARATION', 'MANUAL');
     createdRunIds.push(prepRunId);
     console.log(`✓ Executed PREPARATION task via AutonomousOrchestrator: Run ID ${prepRunId}`);
 
-    const prepApp = await db.query.applications.findFirst({
-      where: (a, { eq, and }) => and(eq(a.jobId, testJob.id), eq(a.userId, userId)),
+    const prepTrace = await db.query.orchestrationRuns.findFirst({
+      where: (r, { eq }) => eq(r.id, prepRunId),
     });
-    if (!prepApp) throw new Error('Expected application to be automatically prepared');
+    if ((prepTrace?.summary.preparation as { status?: string })?.status !== 'PENDING')
+      throw new Error('Expected durable preparation handoff to the API queue');
+    console.log('✓ Legacy preparation records a durable request without submission authority.');
+    // Explicit synthetic CRM record for the reminder tests below; not a generated preparation result.
+    const [prepApp] = await db
+      .insert(applications)
+      .values({ userId, jobId: testJob.id, status: 'NEEDS_REVIEW' })
+      .returning();
+    if (!prepApp) throw new Error('Could not create the isolated reminder fixture');
     createdAppIds.push(prepApp.id);
-    console.log(
-      `✓ Automatically prepared CRM application record: ${prepApp.id} [Status: ${prepApp.status}]`,
-    );
 
     // -------------------------------------------------------------------------
     // SECTION 7: Controlled Auto-Apply Circuit Breaker & Quota Enforcement
@@ -235,7 +239,7 @@ async function main() {
       where: (r, { eq }) => eq(r.id, autoApplyRunId),
     });
     const stepLogs = autoApplyTrace?.stepLogs as any[];
-    const circuitBreakerLog = stepLogs.find((s) => s.message.includes('circuit breaker is OFF'));
+    const circuitBreakerLog = stepLogs.find((s) => s.message.includes('Autopilot is off'));
     console.log(`✓ Circuit breaker audit verification: "${circuitBreakerLog?.message}"`);
     if (!circuitBreakerLog) {
       throw new Error('Circuit breaker log missing from auto-apply step trace');
@@ -464,12 +468,14 @@ async function main() {
       '✓ Teardown completed with 100% test record removal. Zero real user data modified.',
     );
     console.log('\n======================================================================');
-    console.log('JOB-P5-T02 LIVE END-TO-END VERIFICATION: ALL 10 SECTIONS PASSED CLEANLY');
+    console.log('JOB-P5-T02 ISOLATED END-TO-END VERIFICATION: ALL 10 SECTIONS PASSED CLEANLY');
     console.log('======================================================================\n');
   } finally {
     if (fastifyApp) {
       await fastifyApp.close();
     }
+    assertScopedCleanup({ userId });
+    await db.delete(users).where(eq(users.id, userId));
     await closeDbPool();
   }
 }

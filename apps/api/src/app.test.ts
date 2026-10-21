@@ -5,6 +5,7 @@ import { AppError } from '@job-agent/shared';
 
 const testConfig: AppConfig = {
   NODE_ENV: 'test',
+  AUTOPILOT_ENABLED: false,
   BATCH_PREPARATION_ENABLED: true,
   SELECTED_SUBMISSIONS_ENABLED: true,
   API_HOST: '127.0.0.1',

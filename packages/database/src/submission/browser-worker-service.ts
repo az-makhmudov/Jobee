@@ -102,14 +102,8 @@ export class BrowserWorkerService {
         (appRecord.job.expirationDate && appRecord.job.expirationDate < new Date())
       )
         throw AppError.badRequest('This listing is no longer available.');
-      const [policy] = await db
-        .select()
-        .from(applicationPolicy)
-        .where(eq(applicationPolicy.userId, userId))
-        .limit(1);
-
       if (intentId) {
-        await assertApplicationIntent(db, userId, applicationId, intentId);
+        const intent = await assertApplicationIntent(db, userId, applicationId, intentId);
         const ticket = await SubmissionAuthorizationService.createSubmissionAuthorizationTicket(
           userId,
           applicationId,
@@ -125,23 +119,11 @@ export class BrowserWorkerService {
           ...manifest,
           authorizedAt: Date.now(),
           authorizationMode: 'INTENT',
+          ...(intent.autopilotGrant
+            ? { autopilotPolicyVersion: intent.autopilotGrant.version }
+            : {}),
           submissionToken: ticket.submissionToken,
           intentId,
-          targetUrl,
-        };
-        verifiedManifestChecksum = manifest.manifestChecksum;
-        verifiedVersionId = manifest.packageVersionId;
-      } else if (policy?.autoApplyEnabled && !input.submissionToken) {
-        // Mode A: Autonomous auto-apply path (candidate authorized autoApply in settings)
-        const { manifest } = await SubmissionAuthorizationService.buildManifest(
-          userId,
-          applicationId,
-          db,
-        );
-        authorizationManifest = {
-          ...manifest,
-          authorizedAt: Date.now(),
-          authorizationMode: 'POLICY',
           targetUrl,
         };
         verifiedManifestChecksum = manifest.manifestChecksum;

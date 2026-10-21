@@ -13,9 +13,9 @@ import {
   applicationQuestions,
   applicationPackages,
   SubmissionAuthorizationService,
-  applicationPolicy,
   applicationIntents,
   applications,
+  systemNotifications,
   assertApplicationIntent,
   resolveRuntimeQuestions,
   intentAnswerSources,
@@ -24,6 +24,7 @@ import {
   and,
 } from '@job-agent/database';
 import {
+  createLogger,
   BrowserRunMode,
   BrowserRunStatus,
   type ApplicationSubmissionPayload,
@@ -217,14 +218,10 @@ export async function executePendingBrowserRun(
           Date.now() - snapshot.authorizedAt > 15 * 60_000
         )
           throw new Error('Application authorization expired. Review and authorize it again.');
-        if (snapshot.authorizationMode === 'POLICY') {
-          const [policy] = await db
-            .select()
-            .from(applicationPolicy)
-            .where(eq(applicationPolicy.userId, run.userId));
-          if (!policy?.autoApplyEnabled)
-            throw new Error('Automatic application permission was disabled.');
-        }
+        if (snapshot.authorizationMode === 'POLICY')
+          throw new Error(
+            'Legacy automatic permission is no longer valid. Review and authorize a versioned Autopilot policy.',
+          );
         if (snapshot.authorizationMode === 'INTENT') {
           if (
             !getConfig().SELECTED_SUBMISSIONS_ENABLED ||
@@ -432,14 +429,8 @@ export async function executePendingBrowserRun(
             (appRecord.job.expirationDate && appRecord.job.expirationDate < new Date())
           )
             throw new Error('Application is already sent or the listing has expired.');
-          if (snapshot.authorizationMode === 'POLICY') {
-            const [policy] = await db
-              .select()
-              .from(applicationPolicy)
-              .where(eq(applicationPolicy.userId, run.userId));
-            if (!policy?.autoApplyEnabled)
-              throw new Error('Automatic application permission was disabled.');
-          }
+          if (snapshot.authorizationMode === 'POLICY')
+            throw new Error('Legacy automatic permission is no longer valid.');
           if (manifest.manifestChecksum !== snapshot.manifestChecksum)
             throw new Error('Reviewed application changed before dispatch. Review it again.');
           if (snapshot.authorizationMode === 'INTENT') {
@@ -523,6 +514,32 @@ export async function executePendingBrowserRun(
         .from(browserApplicationRuns)
         .where(eq(browserApplicationRuns.id, run.id));
       if (final && !['PENDING', 'RUNNING'].includes(final.status)) {
+        if (final.status !== 'SUCCESS')
+          await db
+            .insert(systemNotifications)
+            .values({
+              userId: run.userId,
+              type: 'MANUAL_REVIEW_REQUIRED',
+              title:
+                final.status === 'SUBMISSION_UNCERTAIN'
+                  ? 'Verify the employer outcome'
+                  : 'Application needs review',
+              message:
+                final.status === 'SUBMISSION_UNCERTAIN'
+                  ? 'Check employer confirmation and reconcile this attempt before retrying.'
+                  : 'Open the application to review the stopped attempt and its next safe action.',
+              severity: 'WARNING',
+              targetType: 'APPLICATION',
+              targetId: run.applicationId,
+              actionUrl: '/applications',
+              metadata: { runId: run.id },
+            })
+            .catch(() =>
+              createLogger({ service: 'worker' }).warn(
+                'Could not record application recovery notification',
+                { runId: run.id },
+              ),
+            );
         await db
           .update(applications)
           .set(

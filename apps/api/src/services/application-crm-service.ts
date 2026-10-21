@@ -1,7 +1,9 @@
-import { eq, and, desc, asc, ilike, or, isNotNull, count } from 'drizzle-orm';
+import { eq, and, desc, asc, ilike, or, isNotNull, count, inArray, lte, sql } from 'drizzle-orm';
 import {
   getDb,
   applications,
+  browserApplicationRuns,
+  applicationIntents,
   applicationLifecycleEvents,
   applicationNotes,
   applicationContacts,
@@ -16,6 +18,7 @@ import {
 } from '@job-agent/database';
 import {
   AppError,
+  applicationAttention,
   createLogger,
   ApplicationLifecycleStatus,
   ApplicationEventType,
@@ -625,6 +628,8 @@ export class ApplicationCrmService {
 
     if (query.hasFollowUp) {
       conditions.push(isNotNull(applications.followUpAt));
+      conditions.push(lte(applications.followUpAt, new Date(now.getTime() + 24 * 60 * 60 * 1000)));
+      conditions.push(sql`${applications.closedAt} is null`);
     }
 
     // Search by title or company
@@ -672,7 +677,7 @@ export class ApplicationCrmService {
     const limit = query.limit || 50;
     const offset = query.offset || 0;
 
-    const rows = await db
+    const rowsQuery = db
       .select({
         app: applications,
         job: jobs,
@@ -694,9 +699,49 @@ export class ApplicationCrmService {
         eq(applications.submittedPackageVersionId, applicationPackageVersions.id),
       )
       .where(whereClause)
-      .orderBy(orderColumn)
-      .limit(limit)
-      .offset(offset);
+      .orderBy(orderColumn);
+    // Attention is filtered before pagination so a later actionable record is never hidden.
+    const rows = await (query.needsAttention ? rowsQuery : rowsQuery.limit(limit).offset(offset));
+    const runRows = rows.length
+      ? await db
+          .select()
+          .from(browserApplicationRuns)
+          .where(
+            and(
+              eq(browserApplicationRuns.userId, userId),
+              inArray(
+                browserApplicationRuns.applicationId,
+                rows.map((r) => r.app.id),
+              ),
+            ),
+          )
+          .orderBy(
+            sql`CASE WHEN ${browserApplicationRuns.mode} = 'SUBMIT' AND ${browserApplicationRuns.status} = 'SUBMISSION_UNCERTAIN' THEN 0 WHEN ${browserApplicationRuns.mode} = 'SUBMIT' THEN 1 ELSE 2 END`,
+            desc(browserApplicationRuns.createdAt),
+            desc(browserApplicationRuns.id),
+          )
+      : [];
+    const intentRows = rows.length
+      ? await db
+          .select()
+          .from(applicationIntents)
+          .where(
+            and(
+              eq(applicationIntents.userId, userId),
+              inArray(
+                applicationIntents.applicationId,
+                rows.map((r) => r.app.id),
+              ),
+            ),
+          )
+          .orderBy(desc(applicationIntents.createdAt))
+      : [];
+    const latestIntents = new Map<string, (typeof intentRows)[number]>();
+    for (const intent of intentRows)
+      if (!latestIntents.has(intent.applicationId)) latestIntents.set(intent.applicationId, intent);
+    const latestRuns = new Map<string, (typeof runRows)[number]>();
+    for (const run of runRows)
+      if (!latestRuns.has(run.applicationId)) latestRuns.set(run.applicationId, run);
 
     // Fetch counts for notes, contacts, interviews in parallel
     const seenAppIds = new Set<string>();
@@ -731,7 +776,40 @@ export class ApplicationCrmService {
         !r.app.closedAt,
       );
 
+      const run = latestRuns.get(appId);
+      const execution = run
+        ? {
+            runId: run.id,
+            mode: run.mode,
+            status: run.status,
+            createdAt: run.createdAt.toISOString(),
+          }
+        : null;
+      const intent = latestIntents.get(appId);
+      const preparation = intent
+        ? {
+            intentId: intent.id,
+            status: intent.status,
+            message: intent.message,
+            expiresAt: intent.expiresAt.toISOString(),
+          }
+        : null;
+      const attention = applicationAttention(
+        {
+          ...r.app,
+          status: r.app.status as ApplicationLifecycleStatus,
+          appliedAt: r.app.appliedAt?.toISOString(),
+          closedAt: r.app.closedAt?.toISOString(),
+          isFollowUpDue,
+          isFollowUpOverdue,
+        },
+        execution,
+        preparation,
+      );
       items.push({
+        preparation,
+        execution,
+        attention,
         id: r.app.id,
         jobId: r.app.jobId,
         jobTitle: r.job.title,
@@ -767,6 +845,10 @@ export class ApplicationCrmService {
       });
     }
 
+    if (query.needsAttention) {
+      const actionable = items.filter((item) => item.attention);
+      return { items: actionable.slice(offset, offset + limit), total: actionable.length };
+    }
     return { items, total };
   }
 
@@ -829,7 +911,64 @@ export class ApplicationCrmService {
       !row.app.closedAt,
     );
 
+    const [run] = await db
+      .select()
+      .from(browserApplicationRuns)
+      .where(
+        and(
+          eq(browserApplicationRuns.userId, userId),
+          eq(browserApplicationRuns.applicationId, applicationId),
+        ),
+      )
+      .orderBy(
+        sql`CASE WHEN ${browserApplicationRuns.mode} = 'SUBMIT' AND ${browserApplicationRuns.status} = 'SUBMISSION_UNCERTAIN' THEN 0 WHEN ${browserApplicationRuns.mode} = 'SUBMIT' THEN 1 ELSE 2 END`,
+        desc(browserApplicationRuns.createdAt),
+        desc(browserApplicationRuns.id),
+      )
+      .limit(1);
+    const execution = run
+      ? {
+          runId: run.id,
+          mode: run.mode,
+          status: run.status,
+          createdAt: run.createdAt.toISOString(),
+        }
+      : null;
+    const [intent] = await db
+      .select()
+      .from(applicationIntents)
+      .where(
+        and(
+          eq(applicationIntents.userId, userId),
+          eq(applicationIntents.applicationId, applicationId),
+        ),
+      )
+      .orderBy(desc(applicationIntents.createdAt))
+      .limit(1);
+    const preparation = intent
+      ? {
+          intentId: intent.id,
+          status: intent.status,
+          message: intent.message,
+          expiresAt: intent.expiresAt.toISOString(),
+        }
+      : null;
+    const attention = applicationAttention(
+      {
+        ...row.app,
+        status: row.app.status as ApplicationLifecycleStatus,
+        appliedAt: row.app.appliedAt?.toISOString(),
+        closedAt: row.app.closedAt?.toISOString(),
+        isFollowUpDue,
+        isFollowUpOverdue,
+      },
+      execution,
+      preparation,
+    );
     return {
+      preparation,
+      execution,
+      attention,
       id: row.app.id,
       jobId: row.app.jobId,
       jobTitle: row.job.title,

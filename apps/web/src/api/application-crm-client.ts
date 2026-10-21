@@ -60,6 +60,8 @@ export const ApplicationCrmClient = {
     if (query?.company) params.set('company', query.company);
     if (query?.source) params.set('source', query.source);
     if (query?.isArchived !== undefined) params.set('isArchived', String(query.isArchived));
+    if (query?.needsAttention !== undefined)
+      params.set('needsAttention', String(query.needsAttention));
     if (query?.hasFollowUp !== undefined) params.set('hasFollowUp', String(query.hasFollowUp));
     if (query?.limit) params.set('limit', String(query.limit));
     if (query?.offset) params.set('offset', String(query.offset));

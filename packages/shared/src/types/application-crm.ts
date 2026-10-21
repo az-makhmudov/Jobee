@@ -135,6 +135,99 @@ export const OfferStatus = {
 } as const;
 export type OfferStatus = (typeof OfferStatus)[keyof typeof OfferStatus];
 
+export interface ApplicationPreparationDto {
+  intentId: string;
+  status: string;
+  message: string;
+  expiresAt: string;
+}
+export interface ApplicationExecutionDto {
+  runId: string;
+  mode: string;
+  status: string;
+  createdAt: string;
+}
+
+export interface ApplicationAttentionDto {
+  kind: 'VERIFY_SUBMISSION' | 'MANUAL_HANDOFF' | 'REVIEW' | 'FOLLOW_UP' | 'NEXT_ACTION';
+  message: string;
+  actionLabel: string;
+}
+
+// A read-only projection: execution evidence never advances the employer pipeline.
+export function applicationAttention(
+  app: Pick<
+    ApplicationSummaryDto,
+    | 'status'
+    | 'appliedAt'
+    | 'isArchived'
+    | 'closedAt'
+    | 'nextAction'
+    | 'isFollowUpDue'
+    | 'isFollowUpOverdue'
+  >,
+  execution?: ApplicationExecutionDto | null,
+  preparation?: ApplicationPreparationDto | null,
+): ApplicationAttentionDto | null {
+  if (app.isArchived) return null;
+  if (execution?.mode === 'SUBMIT' && execution.status === 'SUBMISSION_UNCERTAIN')
+    return {
+      kind: 'VERIFY_SUBMISSION',
+      message:
+        'The employer outcome is unknown. Check the evidence and reconcile before another attempt.',
+      actionLabel: 'Verify submission',
+    };
+  if (app.closedAt || TERMINAL_APPLICATION_STATUSES.includes(app.status)) return null;
+  if (
+    !app.appliedAt &&
+    execution?.mode === 'SUBMIT' &&
+    ['STOPPED_CAPTCHA', 'STOPPED_MANUAL_REVIEW', 'VALIDATION_FAILED', 'FAILED'].includes(
+      execution.status,
+    )
+  )
+    return {
+      kind: 'MANUAL_HANDOFF',
+      message:
+        app.nextAction ||
+        'This attempt stopped. Review its evidence, resolve the issue or continue on the employer website.',
+      actionLabel: 'Review stopped attempt',
+    };
+  if (
+    preparation &&
+    (!execution || !['PENDING', 'RUNNING', 'SUCCESS'].includes(execution.status))
+  ) {
+    if (
+      ['AUTHORIZED', 'PREPARING'].includes(preparation.status) &&
+      Date.parse(preparation.expiresAt) > Date.now()
+    )
+      return null;
+    if (Date.parse(preparation.expiresAt) <= Date.now())
+      return {
+        kind: 'REVIEW',
+        message:
+          'Application permission expired. Review the current inputs before authorizing resume.',
+        actionLabel: 'Review permission',
+      };
+    if (preparation.status === 'NEEDS_USER_ACTION')
+      return { kind: 'REVIEW', message: preparation.message, actionLabel: 'Resolve review' };
+  }
+  if (app.status === 'NEEDS_REVIEW')
+    return {
+      kind: 'REVIEW',
+      message: app.nextAction || 'Review the missing information and current materials.',
+      actionLabel: 'Resolve review',
+    };
+  if (app.isFollowUpDue || app.isFollowUpOverdue)
+    return {
+      kind: 'FOLLOW_UP',
+      message: app.nextAction || 'Your saved follow-up is due. No employer activity is inferred.',
+      actionLabel: 'Open follow-up',
+    };
+  if (app.nextAction && !['PENDING', 'RUNNING'].includes(execution?.status || ''))
+    return { kind: 'NEXT_ACTION', message: app.nextAction, actionLabel: 'Open next step' };
+  return null;
+}
+
 // DTOs
 export interface ApplicationSummaryDto {
   id: string;
@@ -162,6 +255,9 @@ export interface ApplicationSummaryDto {
   matchDecision?: MatchDecision | null;
   packageId?: string | null;
   submittedVersionNumber?: number | null;
+  preparation?: ApplicationPreparationDto | null;
+  execution?: ApplicationExecutionDto | null;
+  attention?: ApplicationAttentionDto | null;
   notesCount: number;
   contactsCount: number;
   interviewsCount: number;
@@ -510,6 +606,7 @@ export interface ListApplicationsQuery {
   source?: string;
   isArchived?: boolean;
   hasFollowUp?: boolean;
+  needsAttention?: boolean;
   limit?: number;
   offset?: number;
   sortBy?: 'lastActivity' | 'appliedAt' | 'createdAt' | 'followUpAt' | 'company' | 'title';

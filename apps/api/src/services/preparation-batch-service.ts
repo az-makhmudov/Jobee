@@ -2,6 +2,8 @@ import { and, eq, inArray, desc, asc, sql, gte, lt } from 'drizzle-orm';
 import {
   type Database,
   preparationBatches,
+  orchestrationRuns,
+  systemNotifications,
   preparationItems,
   jobs,
   candidateDocuments,
@@ -30,10 +32,79 @@ export class PreparationBatchService {
     private readonly db: Database,
     private readonly packages: ApplicationPackageService,
   ) {}
+  /** Consume durable worker requests using the same budget, ownership and preparation engine. */
+  async processOrchestrationRequests(userId?: string) {
+    const requests = await this.db
+      .select()
+      .from(orchestrationRuns)
+      .where(
+        and(
+          inArray(orchestrationRuns.status, ['COMPLETED', 'PARTIAL']),
+          sql`${orchestrationRuns.summary}->'preparation'->>'status' = 'PENDING'`,
+          userId ? eq(orchestrationRuns.userId, userId) : undefined,
+        ),
+      )
+      .orderBy(asc(orchestrationRuns.createdAt))
+      .limit(10);
+    for (const request of requests) {
+      const prep = request.summary.preparation as { requestedJobIds?: unknown };
+      const ids = prep.requestedJobIds;
+      if (Array.isArray(ids) && ids.length === 0) {
+        await this.db
+          .update(orchestrationRuns)
+          .set({
+            summary: sql`jsonb_set(${orchestrationRuns.summary},'{preparation,status}','"EMPTY"'::jsonb)`,
+          })
+          .where(
+            and(
+              eq(orchestrationRuns.id, request.id),
+              sql`${orchestrationRuns.summary}->'preparation'->>'status' = 'PENDING'`,
+            ),
+          );
+        continue;
+      }
+      try {
+        if (
+          !Array.isArray(ids) ||
+          !ids.length ||
+          ids.length > 10 ||
+          ids.some((id) => typeof id !== 'string')
+        )
+          throw AppError.badRequest('No eligible jobs were requested.');
+        await this.create(request.userId, ids, undefined, request.id);
+      } catch {
+        const [changed] = await this.db
+          .update(orchestrationRuns)
+          .set({
+            summary: sql`jsonb_set(${orchestrationRuns.summary},'{preparation,status}','"NEEDS_REVIEW"'::jsonb)`,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(orchestrationRuns.id, request.id),
+              sql`${orchestrationRuns.summary}->'preparation'->>'status' = 'PENDING'`,
+            ),
+          )
+          .returning({ id: orchestrationRuns.id });
+        if (changed && Array.isArray(ids) && ids.length)
+          await this.db.insert(systemNotifications).values({
+            userId: request.userId,
+            type: 'MANUAL_REVIEW_REQUIRED',
+            title: 'Preparation needs review',
+            message:
+              'A scheduled preparation request could not be queued. Review the jobs, selected CV and daily preparation budget in Explore.',
+            severity: 'WARNING',
+            targetType: 'SYSTEM',
+            actionUrl: '/jobs',
+          });
+      }
+    }
+  }
   async create(
     userId: string,
     jobIds: string[],
     selectedCvId?: string | null,
+    orchestrationRequestId?: string,
   ): Promise<PreparationBatchDto> {
     const ids = [...new Set(jobIds)];
     if (!ids.length || ids.length > 10) throw AppError.badRequest('Select between 1 and 10 jobs.');
@@ -65,6 +136,33 @@ export class PreparationBatchService {
     const fingerprints = await Promise.all(ids.map((id) => readFingerprint(id, cvId)));
     const batchId = await this.db.transaction(async (tx) => {
       await tx.execute(sql`SELECT id FROM users WHERE id=${userId} FOR UPDATE`);
+      if (orchestrationRequestId) {
+        const [request] = await tx
+          .select()
+          .from(orchestrationRuns)
+          .where(
+            and(
+              eq(orchestrationRuns.id, orchestrationRequestId),
+              eq(orchestrationRuns.userId, userId),
+            ),
+          );
+        const prep = request?.summary?.preparation as
+          { batchId?: string; status?: string } | undefined;
+        if (prep?.batchId) return prep.batchId;
+        if (prep?.status !== 'PENDING')
+          throw AppError.conflict('Preparation request is no longer pending.');
+      }
+      const acknowledgeRequest = async (batchId: string) => {
+        if (orchestrationRequestId)
+          await tx
+            .update(orchestrationRuns)
+            .set({
+              summary: sql`jsonb_set(${orchestrationRuns.summary},'{preparation}',(${orchestrationRuns.summary}->'preparation') || ${JSON.stringify({ status: 'QUEUED', batchId })}::jsonb)`,
+              updatedAt: new Date(),
+            })
+            .where(eq(orchestrationRuns.id, orchestrationRequestId));
+        return batchId;
+      };
       const active = await tx
         .select()
         .from(preparationItems)
@@ -76,7 +174,7 @@ export class PreparationBatchService {
           ),
         );
       if (active.length === ids.length && new Set(active.map((i) => i.batchId)).size === 1)
-        return active[0]!.batchId;
+        return acknowledgeRequest(active[0]!.batchId);
       if (active.length)
         throw AppError.badRequest(
           'Some selected jobs are already being prepared. Check the current batch first.',
@@ -137,7 +235,7 @@ export class PreparationBatchService {
           finishedAt: reuse[index] ? new Date() : null,
         })),
       );
-      return batch!.id;
+      return acknowledgeRequest(batch!.id);
     });
     return this.get(userId, batchId);
   }

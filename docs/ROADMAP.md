@@ -1,24 +1,22 @@
 # Jobee — remaining roadmap
 
-Updated 2026-10-20. This is a delta roadmap over the current implementation, not a rebuild. Scope and acceptance live here; current verification/checkpoints live in [status](STATUS.md). Product vision lives in [master context](MASTER_CONTEXT.md).
+Updated 2026-10-21. This is a delta roadmap over the current implementation, not a rebuild. Scope and acceptance live here; current verification/checkpoints live in [status](STATUS.md). Product vision lives in [master context](MASTER_CONTEXT.md).
 
 ## Completed foundation
 
-JOB-PRODUCT-EVOLUTION-01 is the historical deployed preparation/discovery/student-interface release. Local Jobee 2.0 work completed JOB-P0-T01, JOB-P1-T01, JOB-P1-T02, JOB-P2-T01 and JOB-P2-T02: reconciled foundation, three-section shell, verified candidate preferences/answers, persistent Explore/source extraction and shared grounded matching. JOB-P3-T01 now adds durable job-scoped permission and automatic preparation through the existing queues, with actual employer questions and safe pause/resume. Local completion does not establish deployment or the full revised MVP.
+JOB-PRODUCT-EVOLUTION-01 is the historical deployed preparation/discovery/student-interface release. Local Jobee 2.0 work completed JOB-P0-T01, JOB-P1-T01, JOB-P1-T02, JOB-P2-T01 and JOB-P2-T02: reconciled foundation, three-section shell, verified candidate preferences/answers, persistent Explore/source extraction and shared grounded matching. JOB-P3-T01 now adds durable job-scoped permission and automatic preparation through the existing queues, with actual employer questions and safe pause/resume. JOB-P3-T02 and JOB-P5-T02 add the local Applications attention/recovery projection and versioned-policy Autopilot on that same pipeline. Local completion does not establish deployment or the full revised MVP.
 
 JOB-DOC-CONSOLIDATION-01 consolidates current documentation; it is not a feature release. Historical detailed reports and retired specifications remain in Git rather than an archive of competing guidance.
 
 ## Dependency order
 
-JOB-P3-T01 is complete locally. JOB-P5-T01 has local API/worker fixture proof; its external acceptance remains open. Other milestones below remain **PARTIAL**. Work in this order. JOB-P5-T01 intentionally precedes full CRM/Autopilot convergence; email/calendar expansion does not block One-click Apply.
+JOB-P3-T01, JOB-P3-T02 and JOB-P5-T02 are complete locally. JOB-P5-T01 has local API/worker fixture proof; its external acceptance remains open. The integration milestones below remain **PARTIAL**. Work in this order. JOB-P5-T01 intentionally precedes full CRM/Autopilot convergence; email/calendar expansion does not block One-click Apply.
 
-| Priority | Canonical task | Remaining meaningful outcome                                   | Required foundation                           |
-| -------- | -------------- | -------------------------------------------------------------- | --------------------------------------------- |
-| 1        | JOB-P5-T01     | Owner-approved employer-confirmed provider validation          | Locally verified one-click pipeline           |
-| 2        | JOB-P3-T02     | Unified execution/employer tracking and actionable safe resume | Proven provider workflow                      |
-| 3        | JOB-P5-T02     | Versioned-policy Autopilot on that same engine                 | Proven manual engine and lifecycle            |
-| 4        | JOB-P4-T01     | Contextual verified communications enrichment                  | Existing Gmail/read-only integration retained |
-| 5        | JOB-P4-T02     | Contextual authorized calendar/interview workflow              | Existing calendar/preparation retained        |
+| Priority | Canonical task | Remaining meaningful outcome                                            | Required foundation                           |
+| -------- | -------------- | ----------------------------------------------------------------------- | --------------------------------------------- |
+| 1        | JOB-P5-T01     | Owner-approved employer-confirmed provider validation                   | Locally verified one-click pipeline           |
+| 2        | JOB-P4-T01     | Contextual verified communications enrichment and confidence-policy fix | Existing Gmail/read-only integration retained |
+| 3        | JOB-P4-T02     | Contextual authorized calendar/interview workflow                       | Existing calendar/preparation retained        |
 
 ### JOB-P5-T01 — provider execution proof
 
@@ -30,25 +28,6 @@ Remaining external acceptance:
 - Observe an actual authorized prepare/fill/validate/submit/verify/record journey and employer-confirmed result through at least one provider. Retain real artifact/evidence bytes and truthful references under the existing privacy controls.
 - Validate available failure/recovery behavior on that approved target without intentionally creating duplicate or uncertain real applications. Any uncertainty requires reconciliation before retry.
 - Record observed coverage and limitations rather than certifying all forms on that provider. Fixture success alone cannot close the revised MVP external requirement. No live action is authorized by the local implementation request.
-
-### JOB-P3-T02 — Applications convergence
-
-Keep manual records, immutable submitted provenance, employer lifecycle, notes, contacts, offers, assessments, messages and interviews. Simplify their presentation around application context and an attention queue.
-
-Acceptance: execution attempts are distinct from employer pipeline; the next required action is visible; failure/unknown/manual handoff and safe resume retain previous attempts; terminal corrections require reasons; manual records without packages work; old record links survive. No employer activity is inferred from elapsed time. Verify responsive themes, ownership, restoration and accessibility.
-
-### JOB-P5-T02 — bounded Autopilot
-
-Converge daily assistance and the legacy orchestrator onto the proven pipeline with two triggers. Preserve useful scheduling/notifications without introducing a service fleet or a second authorization model.
-
-Acceptance:
-
-- Explicit versioned/snapshotted opt-in; default off; effective policy covers roles, locations, work mode/type, eligibility, salary, exclusions, schedule, volume and review conditions.
-- Policy/candidate changes and revocation stop affected pending actions at safe checkpoints. Old flags do not grant expanded permissions.
-- Atomic volume controls hold under concurrency and recovery; clarify reservation/counted-attempt semantics across scheduler, queue and metrics.
-- Pause/disable/resume, restart, lease expiry and partial failure preserve auditability without duplicate dispatch.
-- Actionable in-app notifications explain blocked/uncertain work; daily preparation does not silently enable submissions.
-- Isolated tests prove policy boundaries end to end. Production enablement and any live side effects remain separately authorized.
 
 ### JOB-P4-T01 — communications
 

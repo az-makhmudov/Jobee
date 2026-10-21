@@ -2,7 +2,7 @@ import { applicationStatusStyle } from '../ui/status.js';
 import { initialApplicationView } from '../ui/student-experience.js';
 import { useFeedback } from '../ui/Feedback.js';
 import { Button, Card, Icon, Input, ModalSurface, Select, Textarea } from '../ui/Primitives.js';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ApplicationCrmClient } from '../api/application-crm-client.js';
 import { jobApi } from '../api/job-client.js';
 import { ApplicationAnalyticsModal } from './ApplicationAnalyticsModal.js';
@@ -15,6 +15,7 @@ import {
 } from '@job-agent/shared';
 
 interface Props {
+  initialNeedsAttention?: boolean;
   onSelectApplication: (id: string) => void;
   onOpenStudio?: (packageId: string) => void;
   onNavigateToStudioList?: () => void;
@@ -62,6 +63,7 @@ export function formatStatusLabel(status: string): string {
 }
 
 export function ApplicationsCrmView({
+  initialNeedsAttention = false,
   onSelectApplication,
   onOpenStudio,
   onNavigateToStudioList,
@@ -84,6 +86,8 @@ export function ApplicationsCrmView({
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
+  const [needsAttention, setNeedsAttention] = useState(initialNeedsAttention);
+  const loadRevision = useRef(0);
   const [onlyFollowUps, setOnlyFollowUps] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
 
@@ -106,12 +110,14 @@ export function ApplicationsCrmView({
   const [quickRef, setQuickRef] = useState('');
 
   const loadData = async () => {
+    const revision = ++loadRevision.current;
     try {
       setLoading(true);
       setError(null);
 
       const [appsResult, metricsResult] = await Promise.all([
         ApplicationCrmClient.listApplications({
+          needsAttention: needsAttention || undefined,
           search: search || undefined,
           status: statusFilter || undefined,
           source: sourceFilter || undefined,
@@ -122,18 +128,23 @@ export function ApplicationsCrmView({
         ApplicationCrmClient.getMetrics(),
       ]);
 
+      if (revision !== loadRevision.current) return;
       setApplications(appsResult.items);
       setMetrics(metricsResult);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      if (revision === loadRevision.current)
+        setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setLoading(false);
+      if (revision === loadRevision.current) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadData();
-  }, [search, statusFilter, sourceFilter, onlyFollowUps, showArchived]);
+    void loadData();
+    return () => {
+      loadRevision.current++;
+    };
+  }, [search, statusFilter, sourceFilter, onlyFollowUps, showArchived, needsAttention]);
 
   const loadJobsForRecordModal = async () => {
     try {
@@ -290,6 +301,13 @@ export function ApplicationsCrmView({
             onChange={(e) => setSearch(e.target.value)}
           />
 
+          <Button
+            className={needsAttention ? 'btn-primary' : 'btn-outline'}
+            aria-pressed={needsAttention}
+            onClick={() => setNeedsAttention((value) => !value)}
+          >
+            Needs attention
+          </Button>
           <details className="advanced-details">
             <summary>
               Filters
@@ -403,11 +421,15 @@ export function ApplicationsCrmView({
         </div>
       ) : applications.length === 0 ? (
         <Card className="card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <h3>No applications tracked yet</h3>
+          <h3>
+            {needsAttention
+              ? 'No applications need attention'
+              : 'No applications match these filters'}
+          </h3>
           <p
             style={{ color: 'var(--text-secondary)', marginTop: '0.5rem', marginBottom: '1.5rem' }}
           >
-            Prepare an application package in Studio, or record an existing application.
+            Apply from Explore, record an existing application, or adjust your filters.
           </p>
           <Button className="btn btn-primary" onClick={handleOpenRecordModal}>
             <Icon name="edit" /> Record application
@@ -548,6 +570,24 @@ export function ApplicationsCrmView({
                         )}
                       </div>
 
+                      {app.execution && (
+                        <p className="page-subtitle">
+                          {app.execution.mode === 'SUBMIT'
+                            ? 'Submission attempt'
+                            : 'Preview attempt'}
+                          : {formatStatusLabel(app.execution.status)}
+                        </p>
+                      )}
+                      {app.attention && <p>{app.attention.message}</p>}
+                      <Button
+                        className="btn-outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectApplication(app.id);
+                        }}
+                      >
+                        {app.attention?.actionLabel || 'Open application'}
+                      </Button>
                       {/* Next Action preview */}
                       {app.nextAction && (
                         <div
@@ -653,6 +693,13 @@ export function ApplicationsCrmView({
                       : ' · No submission date recorded'}
                     {app.nextAction ? ` · ${app.nextAction}` : ''}
                   </p>
+                  {app.execution && (
+                    <p>
+                      {app.execution.mode === 'SUBMIT' ? 'Submission attempt' : 'Preview attempt'}:{' '}
+                      {formatStatusLabel(app.execution.status)}
+                    </p>
+                  )}
+                  {app.attention && <p>{app.attention.message}</p>}
                   {(app.isFollowUpDue || app.isFollowUpOverdue) && (
                     <p className="follow-up-notice">
                       {app.isFollowUpOverdue ? 'Follow-up overdue' : 'Follow-up due today'}
@@ -661,7 +708,7 @@ export function ApplicationsCrmView({
                   {app.isArchived && <p>Archived</p>}
                 </div>
                 <Button className="btn-outline" onClick={() => onSelectApplication(app.id)}>
-                  Open application
+                  {app.attention?.actionLabel || 'Open application'}
                 </Button>
               </div>
             ))}

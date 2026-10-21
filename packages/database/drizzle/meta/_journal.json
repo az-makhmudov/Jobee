@@ -183,6 +183,13 @@
       "when": 1792501378106,
       "tag": "0025_application_intents",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1792562506469,
+      "tag": "0026_autopilot_policy",
+      "breakpoints": true
     }
   ]
 }

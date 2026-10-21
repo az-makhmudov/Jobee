@@ -1,6 +1,6 @@
 # Jobee — operations
 
-Updated 2026-10-20 from current source/configuration. These are procedures for the existing deployment topology, not a claim that live accounts or production health were freshly certified. Production changes, live external actions and charges require explicit owner authorization under [AGENTS.md](../AGENTS.md).
+Updated 2026-10-21 from current source/configuration. These are procedures for the existing deployment topology, not a claim that live accounts or production health were freshly certified. Production changes, live external actions and charges require explicit owner authorization under [AGENTS.md](../AGENTS.md).
 
 ## Local requirements and configuration
 
@@ -101,6 +101,8 @@ npm run test:ui
 Build shared packages before browser servers start; avoid package rebuilds during watched API execution. Inspect existing servers before enabling reuse. Keep Linux/macOS snapshots distinct and visually review changed references. Browser tests and container builds are not live employer certification.
 
 Inspect standalone verification scripts before use. Some perform public network requests, connect production health endpoints, generate AI requests or create fixture data. A script's name is not proof it is offline. `scripts/evaluate-real-job-discovery.ts` writes transient evidence to ignored `output/acceptance/real-job-discovery.md`; it must not regenerate a canonical document. Review generated content before sharing. `scripts/run-real-user-acceptance.ts` includes historical attestation and production/public checks and is not an offline unit gate.
+
+Autopilot requires additive migration `0026_autopilot_policy` before API/worker rollout. `AUTOPILOT_ENABLED=false` is the default; keep both processes consistent. Enabling the environment switch does not accept a candidate policy, and this local task does not authorize production enablement. The API owns policy checks and durable preparation; the separate worker owns browser execution. Monitor stale scheduling leases (15 minutes), partial runs, pending preparation requests and attention notifications. Manual/scheduled retries must retain prior attempts; do not reset dispatch markers to recover uncertainty. Queue reservations count every SUBMIT run created in the current UTC day, including failures; previews/preparation use their own budgets. Orchestration metrics report those same submission reservations.
 
 ## Storage and R2
 

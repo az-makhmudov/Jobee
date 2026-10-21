@@ -257,6 +257,10 @@ export const envSchema = z
       BATCH_PREPARATION_ENABLED: z
         .preprocess((v) => (v === undefined ? true : v === 'true' || v === true), z.boolean())
         .default(true),
+      AUTOPILOT_ENABLED: z
+        .enum(['true', 'false'])
+        .default('false')
+        .transform((v) => v === 'true'),
       SELECTED_SUBMISSIONS_ENABLED: z
         .preprocess((v) => (v === undefined ? true : v === 'true' || v === true), z.boolean())
         .default(true),

@@ -543,7 +543,11 @@ export default function App() {
                     <ApplicationWorkspaceView
                       key={selectedApplicationId || selectedPackageId}
                       applicationId={selectedApplicationId}
-                      initialPanel={applicationOrigin === 'approvals' ? 'questions' : undefined}
+                      initialPanel={
+                        applicationOrigin === 'approvals' && selectedPackageId
+                          ? 'questions'
+                          : undefined
+                      }
                       packageId={selectedPackageId}
                       onBack={() => {
                         setSelectedApplicationId(null);
@@ -578,14 +582,25 @@ export default function App() {
 
                 {/* Phase 3: Approvals Inbox */}
                 {currentSection === 'approvals' && (
-                  <ApprovalsInboxView
-                    onOpenPackage={(pkgId) => {
-                      setApplicationOrigin('approvals');
-                      setSelectedPackageId(pkgId);
-                      setSelectedApplicationId(null);
-                      setCurrentSection('applications');
-                    }}
-                  />
+                  <div className="student-stack">
+                    <ApplicationsCrmView
+                      initialNeedsAttention
+                      onSelectApplication={(id) => {
+                        setApplicationOrigin('approvals');
+                        setSelectedApplicationId(id);
+                        setSelectedPackageId(null);
+                        setCurrentSection('applications');
+                      }}
+                    />
+                    <ApprovalsInboxView
+                      onOpenPackage={(pkgId) => {
+                        setApplicationOrigin('approvals');
+                        setSelectedPackageId(pkgId);
+                        setSelectedApplicationId(null);
+                        setCurrentSection('applications');
+                      }}
+                    />
+                  </div>
                 )}
 
                 {/* Phase 4: Email Intelligence & Status Sync */}

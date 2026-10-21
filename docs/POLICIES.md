@@ -1,6 +1,6 @@
 # Jobee — policies
 
-Updated 2026-10-20. This document owns product safety and security requirements. [Architecture](ARCHITECTURE.md) describes current mechanisms; [roadmap](ROADMAP.md) identifies guarantees still being completed. A requirement is not a claim of formal certification or live provider coverage.
+Updated 2026-10-21. This document owns product safety and security requirements. [Architecture](ARCHITECTURE.md) describes current mechanisms; [roadmap](ROADMAP.md) identifies guarantees still being completed. A requirement is not a claim of formal certification or live provider coverage.
 
 > **AI evaluates and prepares. Rules authorize. Humans handle uncertainty. Everything is auditable.**
 
@@ -42,20 +42,21 @@ Code, not older prose, determines current effective behavior. The following was 
 
 | Setting or path                                                       | Current implementation                                             | Implication                                                                                           |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `autoApplyEnabled`                                                    | Defaults false                                                     | Explicit candidate opt-in is necessary for the existing POLICY path                                   |
+| `autoApplyEnabled`                                                    | Defaults false                                                     | Compatibility flag only; no submission authority without an accepted intent/policy                    |
 | `minScoreForReview`                                                   | Defaults 70                                                        | Review/scoring configuration, not permission                                                          |
 | `autoApplyMinScore`                                                   | Defaults 90                                                        | Preliminary gate; not an employer-submission guarantee                                                |
 | `maxApplicationsPerDay`                                               | Stored/service default 5; update API permits 1–100                 | Persisted preferences can differ from defaults                                                        |
 | Submission queue                                                      | Effective daily limit `min(20, policy.maxApplicationsPerDay ?? 5)` | Counts UTC-day SUBMIT run creation, including pending/failed attempts, not only confirmed submissions |
-| Worker orchestrator                                                   | Uses policy limit with fallback 5                                  | Scheduler metrics/checks do not replace queue transaction checks                                      |
+| Worker orchestrator                                                   | Requests the shared policy scheduler; does not dispatch            | Scheduler and metrics use UTC queue reservations; transaction remains authoritative                   |
 | `RATE_LIMIT_DAILY_APPLICATIONS_DEFAULT`                               | Environment schema default 10                                      | Not the authoritative stored candidate policy or queue limit                                          |
 | `blockOnUnresolvedReview`, `blockOnManual`, `blockOnUnknownSensitive` | Default true                                                       | Keep readiness and human-review interlocks                                                            |
 | Browser run mode                                                      | Defaults DRY_RUN                                                   | Success in DRY_RUN/PREFILL_ONLY is not Applied                                                        |
+| `AUTOPILOT_ENABLED`                                                   | Default false                                                      | Rollout switch plus explicit accepted policy required; no live-test authority                         |
 | Batch preparation / selected submission flags                         | Default true                                                       | Workflow availability does not grant user authorization                                               |
 | `ORCHESTRATOR_ENABLED`                                                | Environment default true                                           | Starts scheduling capability, not blanket submission permission                                       |
 | Daily discovery/preparation                                           | Candidate opt-in; preparation budget configured separately         | Assistance does not submit or share submission quota semantics                                        |
 
-The queue transaction locks user/application records and rejects conflicting previous PENDING, RUNNING, SUCCESS or SUBMISSION_UNCERTAIN SUBMIT runs. This provides present concurrency/duplicate protection. Revised Autopilot still needs an explicit effective-policy snapshot and end-to-end policy/dispatch/recovery proof; do not claim the existing boolean implements that whole contract.
+The queue transaction locks user/application records and rejects conflicting previous PENDING, RUNNING, SUCCESS or SUBMISSION_UNCERTAIN SUBMIT runs. This provides present concurrency/duplicate protection. Autopilot uses a versioned effective-policy snapshot and the same intent-bound signed proof as a deliberate application. Legacy POLICY manifests are rejected.
 
 Source references: [policy schema](../packages/database/src/schema/application-policy.ts), [candidate request validation](../apps/api/src/routes/candidate-schemas.ts), [queue service](../packages/database/src/submission/browser-worker-service.ts), [environment schema](../packages/config/src/env.ts).
 
@@ -63,7 +64,7 @@ Source references: [policy schema](../packages/database/src/schema/application-p
 
 ### Current reviewed submissions
 
-Current selected batches prepare materials, expose review and issue an independent short-lived signed authorization for each enumerated ready application. Browser submission requires a signed reviewed TOKEN, intent-bound signed proof or the existing enabled POLICY path. Raw `userConfirmed=true` is insufficient. Unsupported destinations use a manual employer-site handoff.
+Current selected batches prepare materials, expose review and issue an independent short-lived signed authorization for each enumerated ready application. Browser submission requires a signed reviewed TOKEN, intent-bound signed proof bound to a valid job-specific or versioned Autopilot grant. Raw `userConfirmed=true` is insufficient. Unsupported destinations use a manual employer-site handoff.
 
 Preparation, preview, downloading, matching, saved-answer approval, daily discovery and authorizing another application do not grant submission permission for this application. Per-question approval resolves that question; it does not remove unrelated blockers. The signed final material manifest does not authorize arbitrary future document versions.
 
@@ -77,13 +78,15 @@ A deliberate Apply with Jobee action authorizes an attempt for the selected job 
 
 Do not require a mandatory package-review screen merely to represent consent when verified facts and accepted rules suffice. Equally, do not achieve a one-button UI by bypassing readiness, answer verification or cryptographic authorization. Existing reviewed and policy permissions must not silently expand into job-scoped one-click authority.
 
-### Autopilot target
+### Bounded Autopilot
 
 Explicit opt-in must reference a versioned or snapshotted effective policy covering roles, locations, work modes, employment types, work authorization/eligibility, salary constraints, exclusions, volume, schedule and review conditions. Scheduled and manual triggers must share the proven execution engine.
 
 Recheck revocation, current eligibility, freshness, duplicate history, quotas, supported provider and material changes at the last safe pre-dispatch boundary. Reserve quota atomically across concurrent workers. Pause/disable prevents new dispatches; an already dispatched submission cannot be fictionally cancelled. Reauthorize material changes while avoiding invalidation by unrelated edits.
 
-These target requirements are not all established by the present legacy orchestrator. Existing candidate flags must not confer broader powers without explicit accepted policy.
+Local implementation requires explicit `jobee-autopilot-v1` acceptance, with a current candidate-input fingerprint and a saved target role. The policy preview is read from a consistent snapshot; a changed fingerprint rejects stale acceptance. Each accepted version fixes the saved scope, schedule (1–168 hours), daily attempt limit (1–20), score floor (90–100) and mandatory pause-on-review behavior. `AUTOPILOT_ENABLED` defaults false and is checked by the shared authorization guard; the legacy boolean alone cannot submit.
+
+Automated checks do not renew existing stopped/cancelled/expired intents, repeat uncertain work or consume manual grants. A deliberate per-application resume creates fresh one-job permission and retains previous policy/attempt history. Pause and reauthorization increment the effective policy version; candidate/preference changes invalidate pending policy authority at preparation, worker claim and final dispatch. These local fixture guarantees do not authorize production enablement or real employer validation.
 
 ### Human intervention
 

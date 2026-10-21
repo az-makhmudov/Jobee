@@ -158,7 +158,7 @@ export function ApplicationWorkspaceView({
           {company ? ` · ${company}` : ''}
         </h1>
         <p className="page-subtitle">
-          Documents → Questions → Final review. Preparing materials does not submit an application.
+          Track employer activity, review attempts and resolve the next step for this application.
         </p>
       </header>
       <Tabs
@@ -256,7 +256,20 @@ export function ApplicationWorkspaceView({
       {panel === 'progress' && detail && (
         <>
           <Card>
-            <h2 className="card-title">{formatStatusLabel(detail.application.status)}</h2>
+            <h2 className="card-title">
+              Employer pipeline: {formatStatusLabel(detail.application.status)}
+            </h2>
+            {detail.application.execution && (
+              <p>
+                {detail.application.execution.mode === 'SUBMIT'
+                  ? 'Recorded submission attempt'
+                  : 'Preview attempt'}
+                : {formatStatusLabel(detail.application.execution.status)}
+              </p>
+            )}
+            {detail.application.attention && (
+              <p role="status">{detail.application.attention.message}</p>
+            )}
             <p className="page-subtitle">
               {runHistoryChecked
                 ? submissionSummary(

@@ -13,3 +13,5 @@ export * from './submission/application-intent-authorization.js';
 
 export * from './preparation/application-question-engine.js';
 export * from './preparation/runtime-questions.js';
+
+export * from './submission/autopilot-authorization.js';

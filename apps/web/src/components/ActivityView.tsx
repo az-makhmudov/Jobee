@@ -153,7 +153,7 @@ export function ActivityView() {
 
               <Card className="card" style={{ padding: '1rem' }}>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  Daily Submission Quota
+                  Daily attempt reservations (UTC)
                 </div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 700, marginTop: '0.25rem' }}>
                   {metrics.applicationsToday} / {metrics.maxApplicationsPerDay}
@@ -165,7 +165,8 @@ export function ActivityView() {
                     marginTop: '0.2rem',
                   }}
                 >
-                  {metrics.dailyQuotaRemaining} slot(s) remaining today
+                  {metrics.dailyQuotaRemaining} slot(s) remaining today · queued and failed attempts
+                  count
                 </div>
               </Card>
 

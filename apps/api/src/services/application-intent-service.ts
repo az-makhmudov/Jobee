@@ -11,12 +11,16 @@ import {
   snapshotIntentAnswers,
   assertApplicationIntent,
   BrowserWorkerService,
+  assertAutopilotGrant,
+  orchestrationRuns,
+  systemNotifications,
 } from '@job-agent/database';
 import {
   APPLICATION_INTENT_TERMS,
   AppError,
   BrowserRunMode,
   type ApplicationIntentDto,
+  type AutopilotGrant,
 } from '@job-agent/shared';
 import type { PreparationBatchService } from './preparation-batch-service.js';
 import type { ApplicationPackageService } from './application-package-service.js';
@@ -44,7 +48,12 @@ export class ApplicationIntentService {
     return intent;
   }
 
-  async create(userId: string, jobId: string): Promise<ApplicationIntentDto> {
+  async create(
+    userId: string,
+    jobId: string,
+    autopilotGrant?: AutopilotGrant,
+    schedulingRunId?: string,
+  ): Promise<ApplicationIntentDto> {
     const id = await this.db.transaction(async (tx) => {
       await tx.execute(sql`SELECT id FROM users WHERE id=${userId} FOR UPDATE`);
       const [job] = await tx
@@ -52,6 +61,23 @@ export class ApplicationIntentService {
         .from(jobs)
         .where(and(eq(jobs.id, jobId), eq(jobs.userId, userId)));
       if (!job) throw AppError.notFound('Job not found.');
+      if (autopilotGrant)
+        await assertAutopilotGrant(tx as unknown as Database, userId, autopilotGrant, job);
+      if (schedulingRunId) {
+        const [lease] = await tx
+          .select()
+          .from(orchestrationRuns)
+          .where(
+            and(
+              eq(orchestrationRuns.id, schedulingRunId),
+              eq(orchestrationRuns.userId, userId),
+              eq(orchestrationRuns.taskType, 'AUTO_APPLY'),
+              eq(orchestrationRuns.status, 'RUNNING'),
+            ),
+          );
+        if (!lease?.startedAt || lease.startedAt.getTime() <= Date.now() - 15 * 60_000)
+          throw AppError.conflict('Autopilot scheduling lease expired.');
+      }
       if (
         ['ARCHIVED', 'INVALID'].includes(job.state) ||
         (job.expirationDate && job.expirationDate < new Date())
@@ -155,6 +181,7 @@ export class ApplicationIntentService {
           jobId,
           applicationId: app.id,
           selectedCvId: cvId,
+          autopilotGrant,
           termsVersion: APPLICATION_INTENT_TERMS,
           targetUrl:
             app.applicationUrl || job.applicationUrl || job.originalUrl || job.canonicalUrl || '',
@@ -168,6 +195,7 @@ export class ApplicationIntentService {
           events: [
             {
               type: 'AUTHORIZED',
+              ...(autopilotGrant ? { autopilotGrant } : {}),
               at: now.toISOString(),
               answerSources: await snapshotIntentAnswers(tx as unknown as Database, userId),
             },
@@ -359,6 +387,7 @@ export class ApplicationIntentService {
         .update(applicationIntents)
         .set({
           status: 'AUTHORIZED',
+          autopilotGrant: null,
           revokedAt: null,
           dispatchStartedAt: null,
           runId: null,
@@ -393,7 +422,7 @@ export class ApplicationIntentService {
 
   private async pause(intent: Intent, message: string) {
     // Never overwrite cancellation or an atomically queued run.
-    await this.db
+    const changed = await this.db
       .update(applicationIntents)
       .set({
         status: 'NEEDS_USER_ACTION',
@@ -406,7 +435,20 @@ export class ApplicationIntentService {
           eq(applicationIntents.id, intent.id),
           inArray(applicationIntents.status, ['AUTHORIZED', 'PREPARING']),
         ),
-      );
+      )
+      .returning({ id: applicationIntents.id });
+    if (intent.autopilotGrant && changed.length)
+      await this.db.insert(systemNotifications).values({
+        userId: intent.userId,
+        type: 'MANUAL_REVIEW_REQUIRED',
+        title: 'Application needs your review',
+        message:
+          'An Autopilot application paused before submission. Open it to resolve the missing information or permission.',
+        severity: 'WARNING',
+        targetType: 'APPLICATION',
+        targetId: intent.applicationId,
+        actionUrl: '/applications',
+      });
   }
 
   /** Called by the API preparation runner; all external form work remains in the worker. */
@@ -473,6 +515,16 @@ export class ApplicationIntentService {
             analysis.hardBlockers.length
               ? 'Eligibility checks found a blocker. Review this job and your preferences.'
               : 'Eligibility or fit needs your review before this application can continue.',
+          );
+          continue;
+        }
+        if (
+          intent.autopilotGrant &&
+          (analysis.decision !== 'MATCH' || analysis.overallScore < intent.autopilotGrant.minScore)
+        ) {
+          await this.pause(
+            intent,
+            'This match no longer meets your accepted Autopilot policy. Review it manually.',
           );
           continue;
         }

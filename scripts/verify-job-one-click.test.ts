@@ -1,3 +1,6 @@
+import { AutopilotService } from '../apps/api/src/services/autopilot-service.js';
+import { ApplicationCrmService } from '../apps/api/src/services/application-crm-service.js';
+import { OrchestratorService } from '../apps/api/src/services/orchestrator/orchestrator-service.js';
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -19,11 +22,16 @@ import {
   eq,
   assertSafeTestDatabase,
   assertSafeTestUser,
+  assertAutopilotGrant,
+  BrowserWorkerService,
+  orchestrationRuns,
+  preparationBatches,
+  preparationItems,
 } from '@job-agent/database';
 import { MatchService, DisabledAiProvider } from '@job-agent/database/matching';
-import { APPLICATION_INTENT_TERMS } from '@job-agent/shared';
+import { AUTOPILOT_TERMS, APPLICATION_INTENT_TERMS } from '@job-agent/shared';
 import { LocalStorageProvider } from '@job-agent/shared/storage';
-import { getConfig } from '@job-agent/config';
+import { getConfig, resetConfigCache } from '@job-agent/config';
 import { buildApp } from '../apps/api/src/app.js';
 import { ApplicationIntentService } from '../apps/api/src/services/application-intent-service.js';
 import { ApplicationPackageService } from '../apps/api/src/services/application-package-service.js';
@@ -161,6 +169,8 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  resetConfigCache();
   await app?.close();
   // Explicitly remove owned permission references before cascading fixture users and runs.
   if (userId) {
@@ -751,5 +761,422 @@ describe('One-click preparation and provider execution (JOB-P3-T01 / JOB-P5-T01)
         .from(browserApplicationRuns)
         .where(eq(browserApplicationRuns.userId, userId)),
     ).toHaveLength(1);
+  });
+});
+
+describe('Applications convergence and bounded Autopilot (JOB-P3-T02 / JOB-P5-T02)', () => {
+  async function autopilot() {
+    vi.stubEnv('AUTOPILOT_ENABLED', 'true');
+    resetConfigCache();
+    const match = new MatchService(db, new DisabledAiProvider());
+    // Deterministic high-score matcher fixture; all normal hard checks/material gates still run.
+    const analyze = match.analyzeJob.bind(match);
+    vi.spyOn(match, 'analyzeJob').mockImplementation(async (...args) => ({
+      ...(await analyze(...args)),
+      overallScore: 95,
+      decision: 'MATCH',
+    }));
+    intents = new ApplicationIntentService(db, batches, packages, match);
+    const service = new AutopilotService(db, intents, match, true);
+    const state = await service.state(userId);
+    await service.authorize(userId, {
+      expectedCandidateFingerprint: state.candidateFingerprint,
+      intervalHours: 24,
+      maxPerDay: 2,
+      minScore: 90,
+    });
+    return service;
+  }
+  it('restores owned execution and attention without moving the employer pipeline, including unknown attempts older than previews', async () => {
+    const intent = await queued();
+    await db
+      .update(browserApplicationRuns)
+      .set({ status: 'SUBMISSION_UNCERTAIN' })
+      .where(eq(browserApplicationRuns.id, intent.runId!));
+    await db.insert(browserApplicationRuns).values({
+      userId,
+      applicationId: intent.applicationId,
+      targetUrl: 'https://example.test',
+      mode: 'DRY_RUN',
+      status: 'SUCCESS',
+    });
+    const summary = await ApplicationCrmService.getApplicationSummary(userId, intent.applicationId);
+    expect(summary.execution?.status).toBe('SUBMISSION_UNCERTAIN');
+    expect(summary.attention?.kind).toBe('VERIFY_SUBMISSION');
+    expect(summary.appliedAt).toBeNull();
+    expect(
+      (await ApplicationCrmService.listApplications(userId, { needsAttention: true, limit: 1 }))
+        .total,
+    ).toBe(1);
+    expect(
+      (await ApplicationCrmService.listApplications(otherId, { needsAttention: true })).items,
+    ).toHaveLength(0);
+    await expect(
+      ApplicationCrmService.getApplicationSummary(otherId, intent.applicationId),
+    ).rejects.toThrow('not found');
+  });
+  it('never uses a legacy enabled flag as employer-submit permission', async () => {
+    const intent = await queued();
+    await db
+      .update(browserApplicationRuns)
+      .set({ status: 'FAILED' })
+      .where(eq(browserApplicationRuns.id, intent.runId!));
+    await db
+      .update(applications)
+      .set({ status: 'READY_TO_APPLY' })
+      .where(eq(applications.id, intent.applicationId));
+    await db
+      .update(applicationPolicy)
+      .set({ autoApplyEnabled: true })
+      .where(eq(applicationPolicy.userId, userId));
+    await expect(
+      BrowserWorkerService.createBrowserRun(userId, intent.applicationId, { mode: 'SUBMIT' }),
+    ).rejects.toThrow('cryptographic');
+  });
+  it('persists the accepted version and uses the same preparation and fixture worker pipeline', async () => {
+    const service = await autopilot();
+    expect((await service.run(userId)).prepared).toBe(1);
+    await prepare();
+    const intent = await intents.forJob(userId, jobId);
+    expect(intent?.runId, intent?.message).toBeTruthy();
+    const [saved] = await db
+      .select()
+      .from(applicationIntents)
+      .where(eq(applicationIntents.id, intent!.id));
+    expect(saved!.autopilotGrant?.termsVersion).toBe(AUTOPILOT_TERMS);
+    expect(
+      (await executePendingBrowserRun(db, intent!.runId!, { controller: controller(), storage }))
+        .status,
+    ).toBe('SUCCESS');
+    expect((await service.run(userId)).prepared).toBe(0);
+  });
+  it('serializes simultaneous scheduler/manual starts and survives a service restart without duplicate intents', async () => {
+    const service = await autopilot();
+    await Promise.all([service.run(userId), service.run(userId, 'SCHEDULED')]);
+    expect(
+      await db.select().from(applicationIntents).where(eq(applicationIntents.userId, userId)),
+    ).toHaveLength(1);
+    expect(
+      (
+        await new AutopilotService(
+          db,
+          intents,
+          new MatchService(db, new DisabledAiProvider()),
+          true,
+        ).run(userId)
+      ).prepared,
+    ).toBe(0);
+  });
+  it('rejects stale policy previews and requires a new version after pause', async () => {
+    const service = await autopilot();
+    const before = await service.state(userId);
+    await service.pause(userId);
+    expect((await service.state(userId)).current).toBe(false);
+    await expect(assertAutopilotGrant(db, userId, before.grant!)).rejects.toThrow('paused');
+    await db
+      .update(candidateProfiles)
+      .set({ headline: 'Updated verified profile' })
+      .where(eq(candidateProfiles.userId, userId));
+    await expect(
+      service.authorize(userId, {
+        expectedCandidateFingerprint: before.candidateFingerprint,
+        intervalHours: 24,
+        maxPerDay: 2,
+        minScore: 90,
+      }),
+    ).rejects.toThrow('changed');
+  });
+  it('stops queued permission after pause before worker claim', async () => {
+    const service = await autopilot();
+    await service.run(userId);
+    await prepare();
+    const intent = await intents.forJob(userId, jobId);
+    await service.pause(userId);
+    await expect(
+      executePendingBrowserRun(db, intent!.runId!, { controller: controller(), storage }),
+    ).rejects.toThrow('paused');
+    expect((await intents.get(userId, intent!.id)).status).toBe('NEEDS_USER_ACTION');
+  });
+  it('stops at the last safe dispatch boundary when Autopilot is paused while filling', async () => {
+    const service = await autopilot();
+    await service.run(userId);
+    await prepare();
+    const intent = await intents.forJob(userId, jobId);
+    const fixture = controller();
+    const browser: BrowserController = {
+      close: () => fixture.close(),
+      newPage: async () => {
+        const page = await fixture.newPage();
+        const screenshot = page.screenshot.bind(page);
+        let paused = false;
+        page.screenshot = async (options) => {
+          if (!paused) {
+            paused = true;
+            await service.pause(userId);
+          }
+          return screenshot(options);
+        };
+        return page;
+      },
+    };
+    await executePendingBrowserRun(db, intent!.runId!, { controller: browser, storage });
+    const [run] = await db
+      .select()
+      .from(browserApplicationRuns)
+      .where(eq(browserApplicationRuns.id, intent!.runId!));
+    expect(run!.status).not.toBe('SUCCESS');
+    expect(
+      (run!.stepLogs as { step: string }[]).some((s) => s.step === 'SUBMISSION_DISPATCHING'),
+    ).toBe(false);
+  });
+  it('invalidates the global grant after profile/preferences change, including pending preparation', async () => {
+    const service = await autopilot();
+    await service.run(userId);
+    await db
+      .update(jobPreferences)
+      .set({ excludedCompanies: ['Fixture Company'] })
+      .where(eq(jobPreferences.userId, userId));
+    expect((await service.state(userId)).current).toBe(false);
+    await prepare();
+    expect((await intents.forJob(userId, jobId))?.status).toBe('NEEDS_USER_ACTION');
+    expect(
+      await db
+        .select()
+        .from(browserApplicationRuns)
+        .where(eq(browserApplicationRuns.userId, userId)),
+    ).toHaveLength(0);
+  });
+  it('reclaims an expired scheduling lease and does not reauthorize a stopped application', async () => {
+    const service = await autopilot();
+    await db.insert(orchestrationRuns).values({
+      userId,
+      taskType: 'AUTO_APPLY',
+      trigger: 'SCHEDULED',
+      status: 'RUNNING',
+      startedAt: new Date(Date.now() - 16 * 60_000),
+    });
+    expect((await service.run(userId)).prepared).toBe(1);
+    const intent = await intents.forJob(userId, jobId);
+    await intents.cancel(userId, intent!.id);
+    expect((await service.run(userId)).prepared).toBe(0);
+    expect((await intents.forJob(userId, jobId))?.status).toBe('CANCELLED');
+  });
+  it('reports queue reservations consistently even when a failed attempt consumes the slot', async () => {
+    await queued();
+    await db
+      .update(browserApplicationRuns)
+      .set({ status: 'FAILED' })
+      .where(eq(browserApplicationRuns.userId, userId));
+    const metrics = await new OrchestratorService(db, getConfig()).getMetrics(userId);
+    expect(metrics.applicationsToday).toBe(1);
+    expect(metrics.dailyQuotaRemaining).toBe(metrics.maxApplicationsPerDay - 1);
+  });
+  it('atomically reserves the last daily slot across applications and includes failed attempts in quota metrics', async () => {
+    const first = await queued();
+    await db
+      .update(applicationPolicy)
+      .set({ maxApplicationsPerDay: 1 })
+      .where(eq(applicationPolicy.userId, userId));
+    const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId));
+    const [secondJob] = await db
+      .insert(jobs)
+      .values({
+        userId,
+        title: job!.title,
+        company: 'Other fixture',
+        description: job!.description,
+        country: job!.country,
+        city: job!.city,
+        locationText: job!.locationText,
+        workplaceType: job!.workplaceType,
+        employmentType: job!.employmentType,
+        state: 'INGESTED',
+        contentHash: crypto.randomUUID(),
+        applicationUrl: `https://boards.greenhouse.io/other/jobs/${crypto.randomUUID()}`,
+      })
+      .returning();
+    await db.insert(jobRequirements).values(
+      ['TypeScript', 'Node.js'].map((name) => ({
+        userId,
+        jobId: secondJob!.id,
+        rawText: `Must have ${name} skills`,
+        category: 'SKILL',
+        requirementStrength: 'MANDATORY',
+      })),
+    );
+    const second = await intents.create(userId, secondJob!.id);
+    await prepare();
+    await batches.processOne(userId);
+    await intents.processPending();
+    expect((await intents.get(userId, second.id)).message).toContain('Daily application limit');
+    await db
+      .update(browserApplicationRuns)
+      .set({ status: 'FAILED' })
+      .where(eq(browserApplicationRuns.id, first.runId!));
+    await db
+      .update(applications)
+      .set({ status: 'READY_TO_APPLY' })
+      .where(eq(applications.id, first.applicationId));
+    await intents.resume(userId, first.id);
+    await expect(
+      BrowserWorkerService.createBrowserRun(
+        userId,
+        first.applicationId,
+        { mode: 'SUBMIT' },
+        first.id,
+        db,
+      ),
+    ).rejects.toThrow('Daily application limit');
+    expect(
+      (await new OrchestratorService(db, getConfig()).getMetrics(userId)).dailyQuotaRemaining,
+    ).toBe(0);
+    // Move only this fixture's old reservation to the preceding UTC day, then race two ready packages.
+    await db
+      .update(browserApplicationRuns)
+      .set({ createdAt: new Date(Date.now() - 24 * 60 * 60_000) })
+      .where(eq(browserApplicationRuns.id, first.runId!));
+    await intents.resume(userId, second.id);
+    const outcomes = await Promise.allSettled([
+      BrowserWorkerService.createBrowserRun(
+        userId,
+        first.applicationId,
+        { mode: 'SUBMIT' },
+        first.id,
+        db,
+      ),
+      BrowserWorkerService.createBrowserRun(
+        userId,
+        second.applicationId,
+        { mode: 'SUBMIT' },
+        second.id,
+        db,
+      ),
+    ]);
+    expect(outcomes.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    expect(
+      (await new OrchestratorService(db, getConfig()).getMetrics(userId)).applicationsToday,
+    ).toBe(1);
+  });
+  it('consumes legacy preparation requests with durable batch acknowledgement and no submission authority', async () => {
+    const [request] = await db
+      .insert(orchestrationRuns)
+      .values({
+        userId,
+        taskType: 'PREPARATION',
+        trigger: 'MANUAL',
+        status: 'COMPLETED',
+        summary: { preparation: { requestedJobIds: [jobId], status: 'PENDING' } },
+      })
+      .returning();
+    await Promise.all([
+      batches.processOrchestrationRequests(userId),
+      batches.processOrchestrationRequests(userId),
+    ]);
+    const [saved] = await db
+      .select()
+      .from(orchestrationRuns)
+      .where(eq(orchestrationRuns.id, request!.id));
+    expect((saved!.summary.preparation as { status: string }).status).toBe('QUEUED');
+    expect(
+      await db.select().from(preparationBatches).where(eq(preparationBatches.userId, userId)),
+    ).toHaveLength(1);
+    expect(
+      await db.select().from(preparationItems).where(eq(preparationItems.userId, userId)),
+    ).toHaveLength(1);
+    expect(
+      await db.select().from(applicationIntents).where(eq(applicationIntents.userId, userId)),
+    ).toHaveLength(0);
+    expect(
+      await db
+        .select()
+        .from(browserApplicationRuns)
+        .where(eq(browserApplicationRuns.userId, userId)),
+    ).toHaveLength(0);
+  });
+  it('keeps active preparation out of the attention queue, then exposes expired permission', async () => {
+    const intent = await create();
+    expect(
+      (await ApplicationCrmService.getApplicationSummary(userId, intent.applicationId)).attention,
+    ).toBeNull();
+    await db
+      .update(applicationIntents)
+      .set({
+        expiresAt: new Date(Date.now() - 1000),
+        message: 'Permission expired. Review before resuming.',
+      })
+      .where(eq(applicationIntents.id, intent.id));
+    expect(
+      (await ApplicationCrmService.getApplicationSummary(userId, intent.applicationId)).attention
+        ?.kind,
+    ).toBe('REVIEW');
+  });
+  it('exposes validated policy endpoints with tenant-scoped acceptance, pause and read-only restoration', async () => {
+    vi.stubEnv('AUTOPILOT_ENABLED', 'true');
+    resetConfigCache();
+    const local = buildApp({
+      config: {
+        ...getConfig(),
+        AUTOPILOT_ENABLED: true,
+        NODE_ENV: 'test',
+        AI_PROVIDER: 'disabled',
+      },
+      db,
+      storage,
+      packageService: packages,
+      matchService: new MatchService(db, new DisabledAiProvider()),
+      aiProvider: new DisabledAiProvider(),
+    });
+    await local.ready();
+    try {
+      const read = await local.inject({
+        url: '/api/autopilot',
+        headers: { 'x-test-user-id': userId },
+      });
+      const state = read.json().data;
+      expect(state.enabled).toBe(false);
+      expect(
+        (
+          await local.inject({
+            method: 'POST',
+            url: '/api/autopilot/authorize',
+            headers: { 'x-test-user-id': userId },
+            payload: { termsVersion: AUTOPILOT_TERMS },
+          })
+        ).statusCode,
+      ).toBe(400);
+      const accepted = await local.inject({
+        method: 'POST',
+        url: '/api/autopilot/authorize',
+        headers: { 'x-test-user-id': userId },
+        payload: {
+          expectedCandidateFingerprint: state.candidateFingerprint,
+          termsVersion: AUTOPILOT_TERMS,
+          intervalHours: 24,
+          maxPerDay: 2,
+          minScore: 90,
+          reviewMode: 'PAUSE',
+        },
+      });
+      expect(accepted.statusCode, accepted.body).toBe(200);
+      expect(accepted.json().data.current).toBe(true);
+      expect(
+        (
+          await local.inject({ url: '/api/autopilot', headers: { 'x-test-user-id': otherId } })
+        ).json().data.grant,
+      ).toBeNull();
+      expect(
+        (
+          await local.inject({
+            method: 'POST',
+            url: '/api/autopilot/pause',
+            headers: { 'x-test-user-id': userId },
+            payload: {},
+          })
+        ).json().data.current,
+      ).toBe(false);
+    } finally {
+      await local.close();
+    }
   });
 });

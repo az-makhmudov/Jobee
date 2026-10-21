@@ -70,7 +70,7 @@ describe('AutonomousOrchestrator Unit Tests', () => {
   });
 
   describe('Policy Invariant: Daily Rate Limit Quota', () => {
-    it('halts and logs warning when daily application quota is reached', async () => {
+    it('does not queue submissions from a legacy enabled flag', async () => {
       const mockDb: any = {
         insert: vi.fn().mockReturnValue({
           values: vi.fn().mockReturnValue({
@@ -111,7 +111,8 @@ describe('AutonomousOrchestrator Unit Tests', () => {
 
       expect(runId).toBe('test-run-456');
       // Dispatches RATE_LIMIT_EXCEEDED notification, but queues 0 browser runs
-      expect(mockDb.select).toHaveBeenCalled();
+      expect(mockDb.select).not.toHaveBeenCalled();
+      expect(mockDb.insert).toHaveBeenCalledTimes(1);
     });
   });
 });

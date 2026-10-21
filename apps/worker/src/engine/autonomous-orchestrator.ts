@@ -3,13 +3,10 @@ import crypto from 'node:crypto';
 import type { Database } from '@job-agent/database';
 import {
   orchestrationRuns,
-  BrowserWorkerService,
   applicationPolicy,
   applications,
-  applicationPackages,
   jobs,
   approvalRequests,
-  browserApplicationRuns,
   applicationInterviews,
   jobPreferences,
   emailAccounts,
@@ -25,11 +22,8 @@ import {
   OrchestrationRunStatuses,
   OrchestrationStepLog,
   Logger,
-  BrowserRunMode,
-  BrowserRunStatus,
 } from '@job-agent/shared';
 import { NotificationDispatcher } from '../services/notification-dispatcher.js';
-import { executePendingBrowserRun } from '../services/browser-runner.js';
 
 export interface OrchestratorRunOptions {
   runId?: string;
@@ -182,7 +176,7 @@ export class AutonomousOrchestrator {
 
       // Stage 4: Controlled Auto-Apply (if PIPELINE_CYCLE or AUTO_APPLY)
       if (taskType === 'PIPELINE_CYCLE' || taskType === 'AUTO_APPLY') {
-        const autoApplyResult = await this.runAutoApplyStage(userId, addStep);
+        const autoApplyResult = await this.runAutoApplyStage(userId, addStep, trigger);
         itemsProcessed += autoApplyResult.processed;
         itemsSucceeded += autoApplyResult.succeeded;
         itemsFailed += autoApplyResult.failed;
@@ -428,70 +422,41 @@ export class AutonomousOrchestrator {
   private async runPreparationStage(
     userId: string,
     addStep: (stage: string, message: string, details?: Record<string, unknown>) => Promise<void>,
-  ): Promise<{ processed: number; succeeded: number; failed: number; prepared: number }> {
-    await addStep('PREPARATION', 'Inspecting matched jobs without CRM applications...');
-
-    const matchedJobs = await this.match.findMatchedJobs(userId, 10);
-
-    let prepared = 0;
-
-    for (const job of matchedJobs) {
-      const existingApp = await this.db.query.applications.findFirst({
+  ): Promise<{
+    processed: number;
+    succeeded: number;
+    failed: number;
+    prepared: number;
+    requestedJobIds: string[];
+    status: 'PENDING';
+  }> {
+    const matched = await this.match.findMatchedJobs(userId, 10);
+    const requestedJobIds: string[] = [];
+    for (const job of matched) {
+      const existing = await this.db.query.applications.findFirst({
         where: and(eq(applications.jobId, job.id), eq(applications.userId, userId)),
       });
-
-      if (!existingApp) {
-        const [newApp] = await this.db
-          .insert(applications)
-          .values({
-            jobId: job.id,
-            userId,
-            status: 'NEEDS_REVIEW',
-            notes:
-              'Automatically prepared by Autonomous Orchestrator. Requires material tailoring and human approval before applying.',
-          })
-          .returning({ id: applications.id });
-
-        if (newApp) {
-          prepared++;
-          await addStep(
-            'PREPARATION',
-            `Prepared application record for ${job.title} at ${job.company}`,
-            {
-              jobId: job.id,
-              applicationId: newApp.id,
-            },
-          );
-        }
-      }
-
-      // Also ensure application package exists in Studio for review
-      const existingPkg = await this.db.query.applicationPackages.findFirst({
-        where: and(eq(applicationPackages.jobId, job.id), eq(applicationPackages.userId, userId)),
-      });
-
-      if (!existingPkg) {
-        await this.db.insert(applicationPackages).values({
-          jobId: job.id,
-          userId,
-          status: 'NEEDS_REVIEW',
-          readinessReason:
-            'Draft package initialized by Autonomous Orchestrator. Review and tailor materials in Application Studio.',
-        });
-      }
+      if (!existing) requestedJobIds.push(job.id);
     }
-
+    await addStep(
+      'PREPARATION',
+      'Requested the shared durable preparation queue. No submission permission is created.',
+      { requestedCount: requestedJobIds.length },
+    );
     return {
-      processed: matchedJobs.length,
-      succeeded: matchedJobs.length,
+      processed: requestedJobIds.length,
+      succeeded: 0,
       failed: 0,
-      prepared,
+      prepared: 0,
+      requestedJobIds,
+      status: 'PENDING',
     };
   }
 
   private async runAutoApplyStage(
     userId: string,
     addStep: (stage: string, message: string, details?: Record<string, unknown>) => Promise<void>,
+    trigger: OrchestrationTrigger,
   ): Promise<{
     processed: number;
     succeeded: number;
@@ -499,319 +464,32 @@ export class AutonomousOrchestrator {
     submitted: number;
     blocked: number;
   }> {
-    await addStep(
-      'AUTO_APPLY',
-      'Evaluating autonomous application policy boundaries and quotas...',
-    );
-
+    // Legacy scheduling is a trigger only; it cannot manufacture employer-submit authority.
     const policy = await this.db.query.applicationPolicy.findFirst({
       where: eq(applicationPolicy.userId, userId),
     });
-
-    // Invariant 1: Circuit breaker check
-    if (!policy || !policy.autoApplyEnabled) {
-      await addStep(
-        'AUTO_APPLY',
-        'Auto-apply circuit breaker is OFF (auto_apply_enabled=false). Human authorization required for submissions.',
-        { autoApplyEnabled: false },
-      );
-      return { processed: 0, succeeded: 0, failed: 0, submitted: 0, blocked: 0 };
-    }
-
-    // Invariant 2: Rate limit / Daily quota check
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const applicationsToday = await this.db
-      .select({ count: sql<number>`count(*)` })
-      .from(applications)
-      .where(
-        and(
-          eq(applications.userId, userId),
-          eq(applications.status, 'APPLIED'),
-          sql`${applications.appliedAt} >= ${today}`,
-        ),
-      );
-
-    const submittedCountToday = Number(applicationsToday[0]?.count || 0);
-    const maxPerDay = policy.maxApplicationsPerDay || 5;
-
-    await addStep(
-      'AUTO_APPLY',
-      `Quota check: ${submittedCountToday}/${maxPerDay} applications submitted today.`,
-      { submittedCountToday, maxPerDay },
-    );
-
-    if (submittedCountToday >= maxPerDay) {
-      await addStep(
-        'AUTO_APPLY',
-        `Daily application quota reached (${submittedCountToday}/${maxPerDay}). Pausing auto-apply until tomorrow.`,
-      );
-      await this.dispatcher.dispatch({
-        userId,
-        type: 'RATE_LIMIT_EXCEEDED',
-        title: 'Daily Application Quota Reached',
-        message: `Your configured daily application limit of ${maxPerDay} has been reached. Autonomous submissions are paused.`,
-        severity: 'WARNING',
-      });
-      return { processed: 0, succeeded: 0, failed: 0, submitted: 0, blocked: 1 };
-    }
-
-    // Invariant 3 & 4: Find eligible applications in READY_TO_APPLY
-    const eligibleApps = await this.db.query.applications.findMany({
-      where: and(eq(applications.userId, userId), eq(applications.status, 'READY_TO_APPLY')),
-      limit: Math.max(1, maxPerDay - submittedCountToday),
-    });
-
-    if (eligibleApps.length === 0) {
-      await addStep('AUTO_APPLY', 'No eligible applications in READY_TO_APPLY state.');
-      return { processed: 0, succeeded: 0, failed: 0, submitted: 0, blocked: 0 };
-    }
-
-    let submitted = 0;
-    let blocked = 0;
-
-    for (const app of eligibleApps) {
-      const job = await this.db.query.jobs.findFirst({
-        where: eq(jobs.id, app.jobId),
-      });
-
-      const roleTitle = job?.title || 'Unknown Role';
-      const company = job?.company || 'Unknown Company';
-
-      // Invariant: If a prior run was SUBMISSION_UNCERTAIN or SUCCESS, block submission to prevent duplicates
-      const existingRuns = await this.db.query.browserApplicationRuns.findMany({
-        where: eq(browserApplicationRuns.applicationId, app.id),
-      });
-
-      const uncertainRun = existingRuns.find(
-        (r) => r.status === BrowserRunStatus.SUBMISSION_UNCERTAIN,
-      );
-      if (uncertainRun) {
-        await addStep(
-          'AUTO_APPLY',
-          `Application ${app.id} blocked: Prior run ${uncertainRun.id} is SUBMISSION_UNCERTAIN. Human review required to avoid duplicate submission.`,
-          { applicationId: app.id, runId: uncertainRun.id },
-        );
-        blocked++;
-        continue;
-      }
-
-      // Invariant: Verify associated Application Package exists and is human-approved & ready
-      const pkg = app.currentPackageId
-        ? await this.db.query.applicationPackages.findFirst({
-            where: eq(applicationPackages.id, app.currentPackageId),
-          })
-        : await this.db.query.applicationPackages.findFirst({
-            where: and(
-              eq(applicationPackages.jobId, app.jobId),
-              eq(applicationPackages.userId, userId),
-            ),
-          });
-
-      if (!pkg || pkg.status !== 'READY') {
-        await addStep(
-          'AUTO_APPLY',
-          `Application ${app.id} blocked: Application package is not ready (status: ${pkg?.status ?? 'MISSING'}). Human preparation and review required.`,
-          { applicationId: app.id, packageId: pkg?.id, packageStatus: pkg?.status },
-        );
-        blocked++;
-        continue;
-      }
-
-      if (pkg.hasPolicyBlocker && !pkg.blockerOverridden) {
-        await addStep(
-          'AUTO_APPLY',
-          `Application ${app.id} blocked: Job matching has active hard policy blocker not overridden by candidate.`,
-          { applicationId: app.id, packageId: pkg.id },
-        );
-        blocked++;
-        continue;
-      }
-
-      // Invariant: Verify all approvals for this package have been explicitly resolved by human candidate
-      const packageApprovals = await this.db.query.approvalRequests.findMany({
-        where: and(eq(approvalRequests.packageId, pkg.id), eq(approvalRequests.userId, userId)),
-      });
-
-      const unverifiedApprovals = packageApprovals.filter(
-        (a) =>
-          a.status === 'PENDING' ||
-          a.status === 'NEEDS_USER_RECONFIRMATION' ||
-          ((a.status === 'APPROVED' || a.status === 'RESOLVED') && a.resolvedBy !== 'USER'),
-      );
-
-      if (unverifiedApprovals.length > 0) {
-        await addStep(
-          'AUTO_APPLY',
-          `Application ${app.id} blocked: Package has ${unverifiedApprovals.length} approval request(s) requiring human authorization or reconfirmation.`,
-          { applicationId: app.id, unverifiedApprovalsCount: unverifiedApprovals.length },
-        );
-        blocked++;
-        continue;
-      }
-
-      // Check global pending approvals across user
-      const pendingApprovals = await this.db.query.approvalRequests.findMany({
-        where: and(
-          eq(approvalRequests.userId, userId),
-          inArray(approvalRequests.status, ['PENDING', 'NEEDS_USER_RECONFIRMATION']),
-        ),
-      });
-
-      if (pendingApprovals.length > 0 && policy.blockOnUnresolvedReview) {
-        await addStep(
-          'AUTO_APPLY',
-          `Application blocked: candidate has ${pendingApprovals.length} unresolved approval request(s).`,
-          { applicationId: app.id, pendingApprovalsCount: pendingApprovals.length },
-        );
-        blocked++;
-        continue;
-      }
-
-      const targetUrl = job?.applicationUrl || job?.originalUrl;
-      let run: { id: string } | undefined;
-      try {
-        run = await BrowserWorkerService.createBrowserRun(userId, app.id, {
-          mode: BrowserRunMode.SUBMIT,
-        });
-      } catch {
-        blocked++;
-        continue;
-      }
-
-      if (!run) {
-        blocked++;
-        continue;
-      }
-
-      await addStep(
-        'AUTO_APPLY',
-        `Queued browser application run ${run.id} in SUBMIT mode for ${roleTitle} at ${company}`,
-        { applicationId: app.id, runId: run.id, targetUrl },
-      );
-
-      try {
-        const completedRun = await executePendingBrowserRun(this.db, run.id);
-
-        if (completedRun.status === BrowserRunStatus.SUCCESS) {
-          submitted++;
-          await this.db
-            .update(applications)
-            .set({
-              status: 'APPLIED',
-              appliedAt: new Date(),
-              updatedAt: new Date(),
-            })
-            .where(eq(applications.id, app.id));
-
-          await this.dispatcher.dispatch({
-            userId,
-            type: 'AUTO_APPLY_SUCCESS',
-            title: `Application Submitted: ${roleTitle}`,
-            message: `Successfully submitted application to ${company} via autonomous worker.`,
-            severity: 'INFO',
-            targetType: 'APPLICATION',
-            targetId: app.id,
-            actionUrl: `/applications`,
-          });
-        } else if (completedRun.status === BrowserRunStatus.STOPPED_CAPTCHA) {
-          blocked++;
-          await this.db
-            .update(applications)
-            .set({
-              status: 'NEEDS_REVIEW',
-              updatedAt: new Date(),
-            })
-            .where(eq(applications.id, app.id));
-
-          await this.dispatcher.dispatch({
-            userId,
-            type: 'CAPTCHA_HALT',
-            title: `CAPTCHA Challenge Detected at ${company}`,
-            message: `Browser worker paused safely due to bot challenge. Human completion required.`,
-            severity: 'CRITICAL',
-            targetType: 'APPLICATION',
-            targetId: app.id,
-            actionUrl: `/applications`,
-          });
-        } else if (completedRun.status === BrowserRunStatus.STOPPED_MANUAL_REVIEW) {
-          blocked++;
-          await this.db
-            .update(applications)
-            .set({
-              status: 'NEEDS_REVIEW',
-              updatedAt: new Date(),
-            })
-            .where(eq(applications.id, app.id));
-
-          await this.dispatcher.dispatch({
-            userId,
-            type: 'MANUAL_REVIEW_REQUIRED',
-            title: `Manual Review Required: ${company}`,
-            message: `Required application fields lack verified candidate facts. Answer required before submission.`,
-            severity: 'WARNING',
-            targetType: 'APPLICATION',
-            targetId: app.id,
-            actionUrl: `/applications`,
-          });
-        } else if (completedRun.status === BrowserRunStatus.SUBMISSION_UNCERTAIN) {
-          blocked++;
-          await this.db
-            .update(applications)
-            .set({
-              status: 'NEEDS_REVIEW',
-              updatedAt: new Date(),
-            })
-            .where(eq(applications.id, app.id));
-
-          await this.dispatcher.dispatch({
-            userId,
-            type: 'MANUAL_REVIEW_REQUIRED',
-            title: `Submission Uncertain: ${company}`,
-            message: `Submission status is uncertain for ${roleTitle} at ${company}. Application marked Needs Review to prevent duplicate submissions. Please verify with employer portal.`,
-            severity: 'CRITICAL',
-            targetType: 'APPLICATION',
-            targetId: app.id,
-            actionUrl: `/applications`,
-          });
-        } else {
-          blocked++;
-          await this.dispatcher.dispatch({
-            userId,
-            type: 'AUTO_APPLY_FAILED',
-            title: `Submission Run ${completedRun.status}: ${company}`,
-            message:
-              completedRun.errorMessage ||
-              `Browser application run ended with status ${completedRun.status}.`,
-            severity: 'WARNING',
-            targetType: 'APPLICATION',
-            targetId: app.id,
-          });
-        }
-      } catch (runErr: any) {
-        blocked++;
-        // If error thrown during execution of a SUBMIT run, set application to NEEDS_REVIEW to prevent retry
+    if (policy?.autoApplyEnabled && policy.autopilotGrant) {
+      if (trigger === 'MANUAL')
         await this.db
-          .update(applications)
-          .set({ status: 'NEEDS_REVIEW', updatedAt: new Date() })
-          .where(eq(applications.id, app.id));
-
-        await addStep(
-          'AUTO_APPLY',
-          `Error executing browser run for ${roleTitle}: ${runErr.message}. Set application to NEEDS_REVIEW to prevent duplicate submission retry.`,
-          { error: runErr.message },
-        );
-      }
-    }
-
-    return {
-      processed: eligibleApps.length,
-      succeeded: submitted,
-      failed: 0,
-      submitted,
-      blocked,
-    };
+          .update(applicationPolicy)
+          .set({ autopilotNextRunAt: new Date() })
+          .where(
+            and(
+              eq(applicationPolicy.userId, userId),
+              eq(applicationPolicy.autopilotVersion, policy.autopilotVersion),
+              eq(applicationPolicy.autoApplyEnabled, true),
+            ),
+          );
+      await addStep(
+        'AUTO_APPLY',
+        'Requested the shared intent pipeline under the accepted versioned policy. No employer submission occurred in the legacy stage.',
+      );
+    } else
+      await addStep(
+        'AUTO_APPLY',
+        'Autopilot is off. An explicit versioned policy is required; legacy flags do not authorize submission.',
+      );
+    return { processed: 0, succeeded: 0, failed: 0, submitted: 0, blocked: 0 };
   }
 
   private async runEmailSyncStage(

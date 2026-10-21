@@ -3,6 +3,7 @@ import type { Database } from '@job-agent/database';
 import {
   orchestrationRuns,
   applicationPolicy,
+  assertAutopilotGrant,
   applications,
   jobs,
   approvalRequests,
@@ -140,11 +141,11 @@ export class OrchestratorService {
 
     // 2. Applications submitted & applications today
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
 
     const [appsTotal] = await this.db
       .select({
-        submitted: sql<number>`count(*) filter (where ${applications.status} = 'APPLIED')`,
+        submitted: sql<number>`count(*) filter (where ${applications.appliedAt} is not null)`,
         todayCount: sql<number>`count(*) filter (where ${applications.status} = 'APPLIED' and ${applications.appliedAt} >= ${today})`,
       })
       .from(applications)
@@ -155,8 +156,18 @@ export class OrchestratorService {
       where: eq(applicationPolicy.userId, userId),
     });
 
-    const maxPerDay = policy?.maxApplicationsPerDay || 5;
-    const appliedToday = Number(appsTotal?.todayCount || 0);
+    const maxPerDay = Math.min(20, policy?.maxApplicationsPerDay ?? 5);
+    const [reserved] = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(browserApplicationRuns)
+      .where(
+        and(
+          eq(browserApplicationRuns.userId, userId),
+          eq(browserApplicationRuns.mode, 'SUBMIT'),
+          sql`${browserApplicationRuns.createdAt} >= ${today}`,
+        ),
+      );
+    const appliedToday = Number(reserved?.count || 0);
     const dailyQuotaRemaining = Math.max(0, maxPerDay - appliedToday);
 
     // 4. Pending approvals
@@ -196,6 +207,15 @@ export class OrchestratorService {
       orderBy: desc(orchestrationRuns.createdAt),
     });
 
+    let effectiveAutopilot = false;
+    if (this.config.AUTOPILOT_ENABLED && policy?.autopilotGrant) {
+      try {
+        await assertAutopilotGrant(this.db, userId, policy.autopilotGrant);
+        effectiveAutopilot = true;
+      } catch {
+        /* stale or revoked permission is not enabled */
+      }
+    }
     return {
       totalJobsDiscovered: Number(jobsTotal?.discovered || 0),
       totalJobsMatched: Number(jobsTotal?.matched || 0),
@@ -203,7 +223,7 @@ export class OrchestratorService {
       applicationsToday: appliedToday,
       maxApplicationsPerDay: maxPerDay,
       dailyQuotaRemaining,
-      autoApplyEnabled: policy?.autoApplyEnabled ?? false,
+      autoApplyEnabled: effectiveAutopilot,
       pendingApprovalsCount: Number(approvalsCount?.count || 0),
       unreadNotificationsCount: Number(notificationsCount?.count || 0),
       pendingBrowserRunsCount: Number(browserRunsCount?.count || 0),

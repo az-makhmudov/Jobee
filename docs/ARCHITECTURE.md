@@ -71,7 +71,7 @@ These are logical relationships; consult schema for actual foreign keys and casc
 
 ### Migrations
 
-The journal has **26 entries, `0000`–`0025`**. Each journal tag has a matching SQL file. Important boundaries:
+The journal has **27 entries, `0000`–`0026`**. Each journal tag has a matching SQL file. Important boundaries:
 
 - `0000`–`0002`: Candidate foundation and metadata-only audit
 - `0003`–`0005`: Job ingestion/requirements and matching
@@ -84,6 +84,7 @@ The journal has **26 entries, `0000`–`0025`**. Each journal tag has a matching
 - `0023`: Current extraction flags preserving historical requirement/section rows
 - `0024`: Nullable salary pay period with allowed-value constraint
 - `0025`: Job-scoped application permission, preparation/run references and audit history
+- `0026`: Versioned Autopilot policy snapshot/schedule and per-intent policy binding
 
 Journal presence is not proof a database is migrated. [Status](STATUS.md) records the inspected local target; [operations](OPERATIONS.md) explains comparison with applied migration records. Existing salary values remain unit-unknown until confirmed; no migration invents a yearly period. Production startup runs migrations; deployment is therefore a database-affecting action.
 
@@ -131,15 +132,15 @@ The worker inspects actual provider questions rather than synthesizing mandatory
 
 Shared [SubmissionAuthorizationService](../packages/database/src/submission/submission-authorization-service.ts) builds a manifest from owned application/package readiness, immutable version, artifact checksums, question answers/approvals, used answer-library sources and material-input fingerprint. A signed ticket expires after 15 minutes and is bound to a user/application and those materials.
 
-Shared [BrowserWorkerService](../packages/database/src/submission/browser-worker-service.ts) defaults runs to DRY_RUN. SUBMIT requires a valid reviewed token, an intent-bound signed proof or the existing opt-in POLICY path. It rejects unsupported providers, unavailable listings, changed destinations and already submitted/unready applications. In a transaction it locks user/application rows, checks prior SUBMIT attempts and counts today's UTC SUBMIT queue entries against `min(20, configured daily limit or 5)`.
+Shared [BrowserWorkerService](../packages/database/src/submission/browser-worker-service.ts) defaults runs to DRY_RUN. SUBMIT requires a valid reviewed token, an intent-bound signed proof from an accepted job-specific or versioned Autopilot permission. It rejects unsupported providers, unavailable listings, changed destinations and already submitted/unready applications. In a transaction it locks user/application rows, checks prior SUBMIT attempts and counts today's UTC SUBMIT queue entries against `min(20, configured daily limit or 5)`.
 
-The worker claims persisted runs, heartbeats and validates the manifest at claim and immediately before dispatch. POLICY runs recheck the current opt-in. INTENT runs recheck feature availability, signed proof, owner/job/destination, expiry, revocation, used answer sources and material fingerprints. The final transaction reserves dispatch; cancellation after reservation reports that the action cannot be recalled. It loads actual checksum-verified artifact bytes and maps only allowed answers. Hosted Greenhouse, Lever and Ashby adapters inspect runtime forms; generic forms do not get automatic submission coverage. Unmapped required controls, unsupported layouts, password/one-time-code forms, CAPTCHA and identity challenges stop for intervention.
+The worker claims persisted runs, heartbeats and validates the manifest at claim and immediately before dispatch. Legacy POLICY runs are rejected; the old boolean cannot authorize a new submission. INTENT runs recheck feature availability, signed proof, owner/job/destination, expiry, revocation, used answer sources and material fingerprints. The final transaction reserves dispatch; cancellation after reservation reports that the action cannot be recalled. It loads actual checksum-verified artifact bytes and maps only allowed answers. Hosted Greenhouse, Lever and Ashby adapters inspect runtime forms; generic forms do not get automatic submission coverage. Unmapped required controls, unsupported layouts, password/one-time-code forms, CAPTCHA and identity challenges stop for intervention.
 
 The browser engine records dispatch before clicking and observes new provider confirmation, validation rejection or ambiguity. An internal run ID is never represented as an employer reference. A timeout/disconnection after dispatch becomes SUBMISSION_UNCERTAIN; orphaned SUBMIT runs recover conservatively into uncertainty. Reconciliation is explicit and tenant-scoped. Evidence screenshots are private, bounded by ownership/expiry and stored through the common provider.
 
 ## CRM and communications
 
-Applications preserve one tracked record per user/job, manual applications, lifecycle correction history, frozen submitted artifact provenance, contacts, notes, assessments, interviews and offers. Execution status is not employer status. Package regeneration cannot rewrite what was submitted. Normal archiving preserves history; purge is distinct and destructive.
+Applications preserve one tracked record per user/job, manual applications, lifecycle correction history, frozen submitted artifact provenance, contacts, notes, assessments, interviews and offers. The API projects the most relevant execution attempt separately from employer status, prioritizing unresolved uncertainty over newer previews. A shared attention projection covers reconciliation, handoff, review, due follow-ups and saved next steps; active preparation is not a request for human action. Attention filtering precedes pagination and scopes every evidence query to the owner. Package regeneration cannot rewrite what was submitted. Normal archiving preserves history; purge is distinct and destructive.
 
 Email services implement Gmail read-only OAuth, token envelopes, persistent state, sync claims, MIME normalization, classification/entity resolution and review queues. Conservative state changes go through the CRM state machine. Offers and uncertain associations require review; no recruiter-send feature is implied. Authentication/reset email uses a separate transactional mailer (Resend/SMTP).
 
@@ -147,7 +148,9 @@ Calendar providers separate availability from event management scopes; interview
 
 ## Background scheduling and deployment
 
-`DailySearchService` in the API uses opt-in rolling 24-hour scheduling and recoverable leases for discovery/matching/preparation plus an optional in-app digest. It does not submit. `AutonomousOrchestrator` in the worker retains older discovery/draft preparation and auto-apply controls. These paths have not yet converged into the versioned-policy Autopilot engine.
+`DailySearchService` in the API uses opt-in rolling 24-hour scheduling and recoverable leases for discovery/matching/preparation plus an optional in-app digest. It does not submit. `AutonomousOrchestrator` retains discovery/matching and reminders, but preparation now records a durable request consumed by the same API `PreparationBatchService`. The batch and acknowledgement commit together; preparation creates no submission grant. Legacy auto-apply only triggers the API-owned policy scheduler, preserving accepted scheduled intervals.
+
+[AutopilotService](../apps/api/src/services/autopilot-service.ts) accepts explicit `jobee-autopilot-v1` policy snapshots behind default-off `AUTOPILOT_ENABLED`. Scheduled and manual checks use the same intent/preparation/browser pipeline. Policy versions and accepted scope are retained in orchestration history and intent events, including after a deliberate manual resume. Candidate-only fingerprints, current policy/version, role/location/work/type/salary/exclusions and pending human reviews are rechecked through the shared [authorization boundary](../packages/database/src/submission/autopilot-authorization.ts). A 15-minute scheduling lease, transactional fencing, idempotent existing intents and atomic queue reservations prevent replay from duplicating dispatch. Expired leases become partial history; stale policy inputs require explicit reauthorization. Worker failures/uncertainty and preparation blocks create private in-app recovery notifications. No additional process or API-to-worker import is introduced.
 
 [Railway configuration](../.railway/railway.ts) defines `jobee-api` and `jobee-worker`, sharing PostgreSQL and storage credentials. [Dockerfile](../Dockerfile) builds all workspaces on Node 24, installs Chromium, runs as the non-root node user and defaults to the API entry point. API boot serves the built web SPA and runs migrations. Worker start overrides the command to `node apps/worker/dist/index.js`. Neon and R2 are recorded infrastructure, not freshly certified service health.
 

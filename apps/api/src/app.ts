@@ -1,3 +1,5 @@
+import { AutopilotService } from './services/autopilot-service.js';
+import { createAutopilotRoutes } from './routes/autopilot-routes.js';
 import { pruneBrowserEvidence } from './services/browser-evidence-retention.js';
 import { PreparationBatchService } from './services/preparation-batch-service.js';
 import { ApplicationIntentService } from './services/application-intent-service.js';
@@ -273,6 +275,18 @@ export function buildApp(options: AppOptions): FastifyInstance {
         ),
         { prefix: '/api' },
       );
+    const autopilot =
+      intents && matchService
+        ? new AutopilotService(
+            db,
+            intents,
+            matchService,
+            config.AUTOPILOT_ENABLED &&
+              config.SELECTED_SUBMISSIONS_ENABLED &&
+              config.BATCH_PREPARATION_ENABLED,
+          )
+        : null;
+    if (autopilot) app.register(createAutopilotRoutes(autopilot), { prefix: '/api' });
     const searchSettings = new JobSearchSettingsService(db);
     if (config.BATCH_PREPARATION_ENABLED)
       app.register(
@@ -287,11 +301,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
         const tick = () => {
           if (active) return;
           active = (async () => {
+            await batches.processOrchestrationRequests();
             await batches.processOne();
             if (config.SELECTED_SUBMISSIONS_ENABLED && config.BATCH_PREPARATION_ENABLED)
               await intents?.processPending();
             if (discoveryService && matchService && Date.now() - lastDaily > 60_000) {
               lastDaily = Date.now();
+              await autopilot?.runDue();
               await pruneBrowserEvidence(db, options.storage ?? createStorageProvider(config));
               await new DailySearchService(db, discoveryService, batches, matchService).runDue();
             }

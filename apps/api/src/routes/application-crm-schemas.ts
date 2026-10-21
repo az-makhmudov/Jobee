@@ -152,6 +152,10 @@ export const listApplicationsQuerySchema = z.object({
     .enum(['true', 'false'])
     .transform((v) => v === 'true')
     .optional(),
+  needsAttention: z
+    .enum(['true', 'false'])
+    .transform((v) => v === 'true')
+    .optional(),
   hasFollowUp: z
     .enum(['true', 'false'])
     .transform((v) => v === 'true')

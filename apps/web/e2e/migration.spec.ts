@@ -197,7 +197,9 @@ async function openApplication(page: import('@playwright/test').Page) {
   await page
     .locator('.application-list .action-row')
     .filter({ hasText: 'Frontend Developer Intern' })
-    .getByRole('button', { name: 'Open application', exact: true })
+    .getByRole('button', {
+      name: /^(Open application|Resolve review|Open follow-up|Open next step|Verify submission|Review stopped attempt)$/,
+    })
     .click();
   await expect(
     page.getByRole('heading', { name: 'Frontend Developer Intern · Northstar', exact: true }),
@@ -716,7 +718,9 @@ test('complete desktop render inventory in Light and Dark', async ({ page }) => 
     await page
       .locator('.application-list .action-row')
       .filter({ hasText: 'Frontend Developer Intern' })
-      .getByRole('button', { name: 'Open application', exact: true })
+      .getByRole('button', {
+        name: /^(Open application|Resolve review|Open follow-up|Open next step|Verify submission|Review stopped attempt)$/,
+      })
       .click();
     await expect(
       page.getByRole('heading', { name: 'Frontend Developer Intern · Northstar', exact: true }),

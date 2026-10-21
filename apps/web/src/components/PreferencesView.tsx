@@ -1,3 +1,4 @@
+import { AutopilotSettings } from './AutopilotSettings.js';
 import { Button, Card, Icon, Input, Select } from '../ui/Primitives.js';
 import { useState, useEffect } from 'react';
 import { candidateApi } from '../api/candidate-client.js';
@@ -8,7 +9,7 @@ interface Props {
 }
 
 export function PreferencesView({ onUpdate }: Props) {
-  const [, setPreferences] = useState<JobPreferencesDto | null>(null);
+  const [preferences, setPreferences] = useState<JobPreferencesDto | null>(null);
   const [policy, setPolicy] = useState<ApplicationPolicyDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -557,6 +558,7 @@ export function PreferencesView({ onUpdate }: Props) {
           Saving search preferences does not enable automatic submission. Change submission
           permissions separately below.
         </p>
+        <AutopilotSettings key={(policy?.updatedAt || '') + (preferences?.updatedAt || '')} />
         {/* SECTION 1: APPLICATION SAFETY & POLICY */}
         <Card className="card" style={{ borderLeft: '4px solid var(--accent)' }}>
           <div className="card-title">Application Safety & Policy Guardrails</div>
@@ -589,12 +591,11 @@ export function PreferencesView({ onUpdate }: Props) {
                   marginBottom: '0.25rem',
                 }}
               >
-                <Icon name="warning" /> Warning: Automated Job Applications Enabled
+                <Icon name="warning" /> Legacy automation flag is enabled
               </div>
               <p style={{ fontSize: '0.85rem', color: 'var(--status-danger)' }}>
-                The system will be allowed to submit applications without prior human confirmation
-                if the match score exceeds {autoScore}% and all policy gates pass. Keep this
-                disabled if you prefer to review all submissions.
+                This compatibility flag does not authorize submission. Use the explicit Autopilot
+                policy above. Changing these limits can invalidate an accepted policy.
               </p>
             </div>
           )}
@@ -618,11 +619,10 @@ export function PreferencesView({ onUpdate }: Props) {
                   />
                   <div>
                     <span style={{ fontWeight: 600, fontSize: '1rem' }}>
-                      Enable Autonomous Auto-Apply
+                      Legacy automation compatibility flag
                     </span>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                      Disabled by default. When disabled, all applications require explicit human
-                      sign-off.
+                      Disabled by default. This flag alone grants no submission permission.
                     </div>
                   </div>
                 </label>

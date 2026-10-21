@@ -1,3 +1,4 @@
+import { assertAutopilotGrant } from './autopilot-authorization.js';
 import crypto from 'node:crypto';
 import { and, eq, sql } from 'drizzle-orm';
 import type { Database } from '../client.js';
@@ -84,6 +85,8 @@ export async function assertApplicationIntent(
     (record.job.expirationDate && record.job.expirationDate < new Date())
   )
     throw AppError.badRequest('This application is already sent or the vacancy is unavailable.');
+  if (intent.autopilotGrant)
+    await assertAutopilotGrant(db, userId, intent.autopilotGrant, record.job);
   const target =
     record.app.applicationUrl ||
     record.job.applicationUrl ||

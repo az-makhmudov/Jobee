@@ -1,6 +1,6 @@
 # Jobee — UX
 
-Updated 2026-10-20 against the local Jobee 2.0 interface. [Master context](MASTER_CONTEXT.md) owns product goals; this document owns current navigation, interaction requirements and validation. The implemented three-section shell supersedes older four-destination design navigation.
+Updated 2026-10-21 against the local Jobee 2.0 interface. [Master context](MASTER_CONTEXT.md) owns product goals; this document owns current navigation, interaction requirements and validation. The implemented three-section shell supersedes older four-destination design navigation.
 
 ## Navigation and feature access
 
@@ -45,6 +45,8 @@ Saved answers expose verification and AUTO/REVIEW/MANUAL meaning. Material edits
 
 Preferences include roles, locations, work modes, employment/seniority, languages, compensation/currency/period, excluded employers/keywords, authorization countries, internship eligibility and availability. Preserve false versus unknown and explicit clearing versus omission. A preferences load failure offers retry and must not let a default form overwrite existing values.
 
+The permissions section includes a saved-scope Autopilot preview, schedule, attempt limit, score floor and an unchecked consent box. Authorization is separate from saving preferences; unavailable rollout or failed preview cannot authorize defaults. Reloading the preview clears consent. Pause stops pending authority, while an action already dispatched cannot be recalled. Resume requires a new policy approval or deliberate job-specific permission. The old compatibility flag is labeled as granting no submission authority.
+
 Ordinary job preferences precede separate submission-permission controls. Automation is a conscious opt-in. Editing preferences or connecting an account cannot silently grant employer-submit rights. Desktop preference forms use the available width; mobile stays readable in one column.
 
 ## Application preparation and review
@@ -60,6 +62,8 @@ Repeated questions may be grouped for navigation. Each application still owns it
 ## Applications and employer activity
 
 Applications includes generated workflows and manually tracked applications. Manual records without package versions must render normally; do not require fake documents or synthetic associations. Preserve history, notes, contacts, offers, assessments and interview preparation.
+
+Applications and Needs review now use an application-level attention queue with a direct recovery action, alongside the retained individual decision inbox. Active preparation does not appear as a request for human input. Due-follow-up filtering excludes future follow-ups beyond the next 24 hours and closed records. Manual records continue to work without generated documents. The list/workspace shows execution evidence separately, retaining unknown outcomes even when a newer preview exists. Search responses cannot overwrite a newer filter selection.
 
 Execution progress and employer lifecycle are separate. Prepared, queued, filling, awaiting input, failed and uncertain runs are not confirmed Applied. A DRY_RUN/PREFILL_ONLY success must remain visibly different from verified external submission. Never imply an employer viewed/reviewed an application from elapsed time.
 
@@ -102,7 +106,7 @@ The old design-reference JSON was documentation-only and has been removed. Runti
 
 Browser scenarios are under [web E2E](../apps/web/e2e/), with theme/platform references and isolated synthetic records. [Playwright configuration](../playwright.config.ts) rejects non-loopback/non-isolated UI targets. Build shared packages before starting watched servers. Snapshot references are platform-specific; do not replace Linux references with macOS captures. The historical contract-audit script remains a comparison tool, not a reason to forbid approved later behavior changes.
 
-The preceding feature checkpoint recorded 37 passing Chromium scenarios plus three affected render/navigation checks and inspected desktop themes/390px mobile. [Status](STATUS.md) distinguishes that evidence from checks rerun for documentation consolidation. Earlier Home snapshots do not constitute a new pixel baseline for Explore.
+[Status](STATUS.md) records the current browser/component checks and inspected desktop/mobile themes. Earlier Home snapshots do not constitute a new pixel baseline for Explore.
 
 Human student usability and measured time savings remain unverified. Recruit 5–8 students, including someone without a CV/employment history, using synthetic records only. Test finding a relevant internship, understanding fit/unknowns, starting preparation, resolving separate personal questions, reviewing materials, reading confirmed versus uncertain progress, finding messages/interviews and editing profile/preferences. Ask participants to explain what action grants consent and what actually means Applied.
 
