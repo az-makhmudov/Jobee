@@ -25,6 +25,7 @@ export interface CalendarRoutesOptions {
   calendarService: CalendarService;
   prepService: InterviewPreparationService;
   oauthStateService: OAuthStateService;
+  webOrigin?: string;
 }
 
 export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPluginAsync {
@@ -89,18 +90,24 @@ export function createCalendarRoutes(options: CalendarRoutesOptions): FastifyPlu
         'CALENDAR_OAUTH',
       );
 
-      const account = await calendarService.connectAccount(
-        verifiedUserId,
-        CalendarProviderType.GOOGLE,
-        query.code,
-        scopeLevel ?? 'AVAILABILITY',
-      );
-
-      return reply.send({
-        status: 'ok',
-        message: 'Google Calendar successfully connected',
-        data: account,
-      });
+      const destination = new URL(options.webOrigin ?? 'http://localhost:5173');
+      destination.searchParams.set('connection', 'calendar');
+      if (query.error) {
+        destination.searchParams.set('connectionError', 'calendar_denied');
+      } else {
+        try {
+          await calendarService.connectAccount(
+            verifiedUserId,
+            CalendarProviderType.GOOGLE,
+            query.code!,
+            scopeLevel ?? 'AVAILABILITY',
+          );
+          destination.searchParams.set('connected', 'true');
+        } catch {
+          destination.searchParams.set('connectionError', 'calendar_failed');
+        }
+      }
+      return reply.redirect(destination.href);
     });
 
     // 5. Get calendar account details

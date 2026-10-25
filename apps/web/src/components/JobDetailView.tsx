@@ -202,20 +202,10 @@ export function JobDetailView({
         <Button className="btn btn-secondary btn-sm" onClick={onBack}>
           ← Back to results
         </Button>
-        <div
-          style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}
-          className="layout-group"
-        >
-          {crmApp ? (
-            <Button
-              className="btn btn-secondary btn-sm"
-              onClick={() => onViewApplicationInCrm?.(crmApp.id)}
-              style={{ fontWeight: 600, borderColor: 'var(--color-primary)' }}
-            >
-              <Icon name="list" /> View application ({crmApp.status}) →
-            </Button>
-          ) : (
-            job.state !== 'ARCHIVED' && (
+        <details>
+          <summary>More options</summary>
+          <div className="account-actions">
+            {!crmApp && job.state !== 'ARCHIVED' && (
               <Button
                 className="btn btn-secondary btn-sm"
                 onClick={handleTrackInCrm}
@@ -223,37 +213,23 @@ export function JobDetailView({
               >
                 Track application
               </Button>
-            )
-          )}
+            )}
 
-          <Button
-            className="btn btn-secondary btn-sm"
-            onClick={() => setIsEditing(true)}
-            disabled={job.state === 'ARCHIVED'}
-          >
-            <Icon name="edit" /> Correct Fields
-          </Button>
-          {job.state !== 'ARCHIVED' && (
-            <Button className="btn btn-danger btn-sm" onClick={() => setShowArchiveModal(true)}>
-              <Icon name="folder" /> Archive
+            <Button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setIsEditing(true)}
+              disabled={job.state === 'ARCHIVED'}
+            >
+              <Icon name="edit" /> Correct Fields
             </Button>
-          )}
-        </div>
+            {job.state !== 'ARCHIVED' && (
+              <Button className="btn btn-danger btn-sm" onClick={() => setShowArchiveModal(true)}>
+                <Icon name="folder" /> Archive
+              </Button>
+            )}
+          </div>
+        </details>
       </div>
-
-      {job.state !== 'ARCHIVED' && (
-        <ApplyWithJobee
-          key={job.id}
-          jobId={job.id}
-          onOpenPackage={onPrepareApplication}
-          onOpenApplication={onViewApplicationInCrm}
-          employerUrl={job.applicationUrl || job.originalUrl}
-          existingOnly={Boolean(
-            crmApp &&
-            (crmApp.appliedAt || !['READY_TO_APPLY', 'NEEDS_REVIEW'].includes(crmApp.status)),
-          )}
-        />
-      )}
 
       {/* Job Header Card */}
       <Card className="card" style={{ marginBottom: '1.5rem' }}>
@@ -279,11 +255,6 @@ export function JobDetailView({
               className="layout-group"
             >
               <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>{job.title}</h2>
-              <span
-                className={`status-badge ${job.state === 'INGESTED' ? 'ok' : job.state === 'ARCHIVED' ? 'disconnected' : 'degraded'}`}
-              >
-                {job.state}
-              </span>
               {job.hasManualEdits && (
                 <span
                   className="nav-tag"
@@ -309,10 +280,17 @@ export function JobDetailView({
               style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}
               className="layout-group"
             >
-              <span className="nav-tag">Provider: {job.provider}</span>
-              <span className="nav-tag">Workplace: {job.workplaceType}</span>
-              <span className="nav-tag">Type: {job.employmentType}</span>
-              <span className="nav-tag">Seniority: {job.seniority}</span>
+              {job.workplaceType !== 'UNKNOWN' && (
+                <span className="nav-tag">{job.workplaceType.toLowerCase()}</span>
+              )}
+              {job.employmentType !== 'UNKNOWN' && (
+                <span className="nav-tag">
+                  {job.employmentType.replaceAll('_', ' ').toLowerCase()}
+                </span>
+              )}
+              {job.seniority !== 'UNKNOWN' && (
+                <span className="nav-tag">{job.seniority.toLowerCase()}</span>
+              )}
               {(job.minSalary || job.maxSalary) && (
                 <span className="nav-tag" style={{ color: 'var(--status-success)' }}>
                   <Icon name="info" size={20} /> {job.currency || 'Currency unspecified '}
@@ -347,9 +325,32 @@ export function JobDetailView({
             borderTop: '1px solid var(--surface-border)',
           }}
         >
-          <JobFeedbackBar jobId={job.id} />
+          <details>
+            <summary>Help improve your matches</summary>
+            <JobFeedbackBar jobId={job.id} />
+          </details>
         </div>
       </Card>
+
+      {crmApp && (
+        <Button className="btn btn-primary" onClick={() => onViewApplicationInCrm?.(crmApp.id)}>
+          View application
+        </Button>
+      )}
+
+      {job.state !== 'ARCHIVED' && (
+        <ApplyWithJobee
+          key={job.id}
+          jobId={job.id}
+          onOpenPackage={onPrepareApplication}
+          onOpenApplication={onViewApplicationInCrm}
+          employerUrl={job.applicationUrl || job.originalUrl}
+          existingOnly={Boolean(
+            crmApp &&
+            (crmApp.appliedAt || !['READY_TO_APPLY', 'NEEDS_REVIEW'].includes(crmApp.status)),
+          )}
+        />
+      )}
 
       <Card className="job-fit-overview" style={{ marginBottom: 24 }}>
         <h3>Your fit</h3>
@@ -387,22 +388,25 @@ export function JobDetailView({
         </Button>
       </Card>
 
-      <Tabs
-        panelId="job-details-panel"
-        label="Job details"
-        value={activeTab}
-        items={[
-          { id: 'overview', label: 'Overview' },
-          { id: 'requirements', label: `Requirements (${job.requirements?.length || 0})` },
-          { id: 'sections', label: `Sections (${job.sections?.length || 0})` },
-          { id: 'provenance', label: 'Sources & history' },
-          {
-            id: 'matching',
-            label: `Match analysis ${analysis ? `(${analysis.overallScore}% ${analysis.decision})` : ''}`,
-          },
-        ]}
-        onChange={(id) => setActiveTab(id as typeof activeTab)}
-      />
+      <details>
+        <summary>Requirements, fit details & sources</summary>
+        <Tabs
+          panelId="job-details-panel"
+          label="Job details"
+          value={activeTab}
+          items={[
+            { id: 'overview', label: 'Overview' },
+            { id: 'requirements', label: `Requirements (${job.requirements?.length || 0})` },
+            { id: 'sections', label: `Sections (${job.sections?.length || 0})` },
+            { id: 'provenance', label: 'Sources & history' },
+            {
+              id: 'matching',
+              label: `Match analysis ${analysis ? `(${analysis.overallScore}% ${analysis.decision})` : ''}`,
+            },
+          ]}
+          onChange={(id) => setActiveTab(id as typeof activeTab)}
+        />
+      </details>
 
       <section id="job-details-panel" role="tabpanel" aria-label={activeTab}>
         {/* Tab 1: Overview & Description */}

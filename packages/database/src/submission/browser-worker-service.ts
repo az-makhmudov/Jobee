@@ -1,9 +1,9 @@
-import { eq, and, desc, sql, gte } from 'drizzle-orm';
+import { assertDailyApplicationLimit } from './application-limits.js';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import {
   getDb,
   applications,
   jobs,
-  applicationPolicy,
   applicationPackageVersions,
   browserApplicationRuns,
   type BrowserApplicationRun,
@@ -224,25 +224,7 @@ export class BrowserWorkerService {
           throw AppError.badRequest(
             'An application attempt already exists. Check its progress before trying again.',
           );
-        const daily = await tx
-          .select({ id: browserApplicationRuns.id })
-          .from(browserApplicationRuns)
-          .where(
-            and(
-              eq(browserApplicationRuns.userId, userId),
-              eq(browserApplicationRuns.mode, 'SUBMIT'),
-              gte(
-                browserApplicationRuns.createdAt,
-                new Date(new Date().toISOString().slice(0, 10)),
-              ),
-            ),
-          );
-        const [currentPolicy] = await tx
-          .select()
-          .from(applicationPolicy)
-          .where(eq(applicationPolicy.userId, userId));
-        if (daily.length >= Math.min(20, currentPolicy?.maxApplicationsPerDay ?? 5))
-          throw AppError.badRequest('Daily application limit reached. Continue tomorrow.');
+        await assertDailyApplicationLimit(tx as unknown as Database, userId);
       }
       const [created] = await tx
         .insert(browserApplicationRuns)

@@ -11,6 +11,7 @@ export function normalizeCountry(value: string): string {
     uk: 'united kingdom',
     'great britain': 'united kingdom',
     pl: 'poland',
+    polska: 'poland',
     de: 'germany',
     fr: 'france',
     es: 'spain',

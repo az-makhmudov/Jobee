@@ -436,6 +436,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         candidateService,
         calendarService,
         prepService,
+        webOrigin: config.WEB_ORIGIN,
         oauthStateService,
       }),
       { prefix: '/api' },
@@ -445,6 +446,7 @@ export function buildApp(options: AppOptions): FastifyInstance {
         candidateService,
         calendarService,
         prepService,
+        webOrigin: config.WEB_ORIGIN,
         oauthStateService,
       }),
     );

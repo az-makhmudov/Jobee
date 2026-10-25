@@ -1,4 +1,4 @@
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, sql } from 'drizzle-orm';
 import type { Database } from '@job-agent/database';
 import {
   candidateProfiles,
@@ -1121,34 +1121,55 @@ export class CandidateService {
       isMaster?: boolean;
     },
   ): Promise<CandidateDocumentDto> {
-    const storageResult = await this.storage.saveFile(fileBuffer, fileMeta);
+    let storedFile: Awaited<ReturnType<FileStorageProvider['saveFile']>> | undefined;
 
-    // If marked as isMaster, unset isMaster on existing documents
-    const isMaster = docMeta.documentType === 'MASTER_CV' || !!docMeta.isMaster;
-    if (isMaster) {
-      await this.db
-        .update(candidateDocuments)
-        .set({ isMaster: false, updatedAt: new Date() })
-        .where(eq(candidateDocuments.userId, userId));
+    let row: typeof candidateDocuments.$inferSelect;
+    try {
+      row = await this.db.transaction(async (tx) => {
+        await tx.execute(sql`SELECT id FROM users WHERE id=${userId} FOR UPDATE`);
+        const saved = await tx
+          .select({ id: candidateDocuments.id })
+          .from(candidateDocuments)
+          .where(eq(candidateDocuments.userId, userId));
+        if (saved.length >= 10)
+          throw AppError.badRequest(
+            'You can save up to 10 documents. Delete a document before adding another.',
+          );
+        const storageResult = await this.storage.saveFile(fileBuffer, fileMeta);
+        storedFile = storageResult;
+        // If marked as isMaster, unset isMaster on existing documents
+        const isMaster = docMeta.documentType === 'MASTER_CV' || !!docMeta.isMaster;
+        if (isMaster) {
+          await tx
+            .update(candidateDocuments)
+            .set({ isMaster: false, updatedAt: new Date() })
+            .where(eq(candidateDocuments.userId, userId));
+        }
+
+        const [row] = await tx
+          .insert(candidateDocuments)
+          .values({
+            userId,
+            documentType: docMeta.documentType,
+            displayName: docMeta.displayName?.trim() || storageResult.originalFilename,
+            originalFilename: storageResult.originalFilename,
+            mimeType: storageResult.mimeType,
+            sizeBytes: storageResult.sizeBytes,
+            storageKey: storageResult.storageKey,
+            sha256Checksum: storageResult.sha256Checksum,
+            roleFocus: docMeta.roleFocus?.trim() || null,
+            version: docMeta.version?.trim() || '1.0',
+            isActive: true,
+            isMaster,
+          })
+          .returning();
+
+        return row!;
+      });
+    } catch (error) {
+      if (storedFile) await this.storage.deleteFile(storedFile.storageKey).catch(() => {});
+      throw error;
     }
-
-    const [row] = await this.db
-      .insert(candidateDocuments)
-      .values({
-        userId,
-        documentType: docMeta.documentType,
-        displayName: docMeta.displayName?.trim() || storageResult.originalFilename,
-        originalFilename: storageResult.originalFilename,
-        mimeType: storageResult.mimeType,
-        sizeBytes: storageResult.sizeBytes,
-        storageKey: storageResult.storageKey,
-        sha256Checksum: storageResult.sha256Checksum,
-        roleFocus: docMeta.roleFocus?.trim() || null,
-        version: docMeta.version?.trim() || '1.0',
-        isActive: true,
-        isMaster,
-      })
-      .returning();
 
     await this.recordAudit({
       userId,

@@ -1,3 +1,4 @@
+import { relevanceIssues } from './job-relevance.js';
 import {
   comparableCompensation,
   hasCountryAuthorization,
@@ -36,6 +37,16 @@ export class HardPolicyEngine {
         reasonCodes: [DecisionReasonCodes.POLICY_INFORMATION_MISSING],
         missingSensitiveInfo: true,
       };
+    }
+
+    const compatibility = relevanceIssues(job, prefs, context.candidateProfile);
+    if (compatibility.includes('seniority')) {
+      blockers.push('Job seniority is outside the candidate target levels');
+      reasonCodes.push(DecisionReasonCodes.SENIORITY_NOT_ALLOWED);
+    }
+    if (compatibility.includes('location') && prefs.willingToRelocate === false) {
+      blockers.push('Job location is outside candidate preferences; relocation is not enabled');
+      reasonCodes.push(DecisionReasonCodes.LOCATION_NOT_ALLOWED);
     }
 
     // 1. EXCLUDED COMPANY

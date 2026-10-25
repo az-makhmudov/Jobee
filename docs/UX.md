@@ -1,6 +1,6 @@
 # Jobee — UX
 
-Updated 2026-10-21 against the local Jobee 2.0 interface. [Master context](MASTER_CONTEXT.md) owns product goals; this document owns current navigation, interaction requirements and validation. The implemented three-section shell supersedes older four-destination design navigation.
+Updated 2026-10-25 against the local Jobee 2.0 interface. [Master context](MASTER_CONTEXT.md) owns product goals; this document owns current navigation, interaction requirements and validation. The implemented three-section shell supersedes older four-destination design navigation.
 
 ## Navigation and feature access
 
@@ -20,7 +20,7 @@ Authenticated session gating keeps signed-out users out of private views. Switch
 
 Desktop keeps the search/result list beside selected detail; mobile opens detail with a clear return action and focus restoration. Submitted query, filters, pagination and selection survive detail navigation. An asynchronous discovery refresh must use the current query rather than a captured old filter. Late responses must not overwrite newer searches.
 
-Expose only essential workplace/employment/search/sort controls first. Fit ranking is useful only with an explanation: show relevant evidence, a material blocker or an unknown succinctly, with deeper analysis accessible when needed. Keep salary and eligibility unknown when source/candidate information is missing. A fit score is not a submission permission indicator.
+Expose only essential workplace/employment/search/sort controls first. Default results honor profile location/seniority and exclude current SKIP decisions before pagination; unknown metadata remains clearly unconfirmed. Junior/Entry and Intern/Internship labels are normalized. Bulk tools, source metrics and selection checkboxes are hidden under More tools. Job corrections/archive/tracking and detailed source/fit tabs are contextual disclosures. Fit ranking is useful only with an explanation: show relevant evidence, a material blocker or an unknown succinctly, with deeper analysis accessible when needed. Keep salary and eligibility unknown when source/candidate information is missing. A fit score is not a submission permission indicator.
 
 Show source identity, real description, company, location and supplied employment/salary information. Partial discovery failures must say which coverage is incomplete; an empty list after a failed source is not “no jobs exist.” Retryable failures preserve query context. Source refresh should not discard manual corrections or historical analysis.
 
@@ -70,6 +70,8 @@ Execution progress and employer lifecycle are separate. Prepared, queued, fillin
 Needs review is an actionable queue, not merely an error count. Explain the missing fact, approval, stale material, unsupported form or challenge and provide a direct next action. Ambiguous submission requires employer verification and explicit reconciliation; never offer an unqualified “retry now” that could duplicate an application.
 
 Messages and Interviews remain reachable within Applications and relevant record contexts. Gmail classification/linking and calendar/preparation can be incomplete or disconnected; show reconnection and error states honestly. Each application's “Messages & interviews” workspace filters messages, pending review and interviews on the server. Reviewing a message does not reply or accept an invitation. Interview timestamps use the saved IANA timezone; missing timezone is visibly UTC. Availability access is offered separately from event management. Booking confirms a private reminder, defaults to excluding private notes/conference creation and preserves any employer meeting URL. Pending/uncertain creation disables another booking; recovery requires the user to verify no event was created and record a reason. Failed loads show an error/retry rather than an empty success. Connecting identity login does not automatically connect mail/calendar. Interview reminders and review items must retain record navigation.
+
+Account settings expose appearance, connections and privacy, with no user AI provider/model settings. Application navigation keeps the tracker and Needs review visible; global Messages/Interviews live under a disclosure, and each record retains contextual activity. Google Calendar consent returns into account connections with clear success/failure feedback. Document storage shows usage out of 10 and blocks adding another at the cap while preserving deletion/preview.
 
 ## Common state and interaction requirements
 

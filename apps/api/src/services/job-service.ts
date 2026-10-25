@@ -1,4 +1,8 @@
-import { currentMatchingInputs } from '@job-agent/database/matching';
+import {
+  currentMatchingInputs,
+  relevanceIssues,
+  HardPolicyEngine,
+} from '@job-agent/database/matching';
 import { eq, desc, and, or, ilike, count, sql, inArray } from 'drizzle-orm';
 import type { Database } from '@job-agent/database';
 import {
@@ -508,15 +512,23 @@ export class JobService {
       orderBy: [desc(jobs.discoveredDate)],
     });
 
-    const { analysesByJob: latestAnalysisMap } = await currentMatchingInputs(
+    const { analysesByJob: latestAnalysisMap, context } = await currentMatchingInputs(
       this.db,
       userId,
       allMatchingJobs,
     );
 
+    const hardPolicy = new HardPolicyEngine();
     // Filter by match intelligence if requested
     const filteredJobs = allMatchingJobs.filter((r) => {
+      if (
+        query.relevantOnly &&
+        relevanceIssues(r, context.preferences, context.candidateProfile).length
+      )
+        return false;
+      if (query.relevantOnly && hardPolicy.evaluate(r, context).hasBlockers) return false;
       const match = latestAnalysisMap.get(r.id);
+      if (query.relevantOnly && match && !match.isStale && match.decision === 'SKIP') return false;
 
       if (query.decision) {
         if (query.decision === 'UNANALYZED') {

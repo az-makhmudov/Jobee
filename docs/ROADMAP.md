@@ -1,12 +1,20 @@
 # Jobee — remaining roadmap
 
-Updated 2026-10-21. This is a delta roadmap over the current implementation, not a rebuild. Scope and acceptance live here; current verification/checkpoints live in [status](STATUS.md). Product vision lives in [master context](MASTER_CONTEXT.md).
+Updated 2026-10-25. This is a delta roadmap over the current implementation, not a rebuild. Scope and acceptance live here; current verification/checkpoints live in [status](STATUS.md). Product vision lives in [master context](MASTER_CONTEXT.md).
 
 ## Completed foundation
 
 JOB-PRODUCT-EVOLUTION-01 is the historical deployed preparation/discovery/student-interface release. Local Jobee 2.0 work completed JOB-P0-T01, JOB-P1-T01, JOB-P1-T02, JOB-P2-T01 and JOB-P2-T02: reconciled foundation, three-section shell, verified candidate preferences/answers, persistent Explore/source extraction and shared grounded matching. JOB-P3-T01 now adds durable job-scoped permission and automatic preparation through the existing queues, with actual employer questions and safe pause/resume. JOB-P3-T02 and JOB-P5-T02 add the local Applications attention/recovery projection and versioned-policy Autopilot on that same pipeline. Local completion does not establish deployment or the full revised MVP.
 
 JOB-DOC-CONSOLIDATION-01 consolidates current documentation; it is not a feature release. Historical detailed reports and retired specifications remain in Git rather than an archive of competing guidance.
+
+## Owner feedback and launch decisions
+
+The owner confirms a simple Profile → relevant Explore → job details → one-click Apply → Applications path, managed Gemini only, a 10/day platform application cap (admin-designated tester/admin exemptions), 10 saved documents per account, private repository and initial Poland launch for all job seekers with emphasis on international students. Autopilot remains default-off and production rollout is undecided. These are product decisions, not live account-action authority.
+
+JOB-P2-T02 / JOB-P3-T02 / JOB-P4-T02 local corrections address profile-compatible Explore, seniority blockers, progressive tools, managed AI, quotas/document admission and Calendar OAuth return. Human relevance/usability acceptance remains open. **JOB-P1-T02 remaining engineering:** self-service account deletion with scoped storage cleanup, session/token revocation and retention/export semantics; the document cap is not an account-deletion feature.
+
+The owner supplied Honeywell vacancy 159335 (Oracle Recruiting), publicly inspected read-only on 2026-10-25: project-management internship in Warsaw, hybrid. Oracle submission is outside the three current adapters; preserve truthful manual handoff. No application was started/submitted. The owner reports Gmail/Calendar connected on the Railway production app; local database records are separate and cannot prove those live grants. Deployment identity/account behavior still needs authorized release verification.
 
 ## Dependency order
 

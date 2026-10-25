@@ -3,7 +3,6 @@ import { AppConfig } from '@job-agent/config';
 import { AiProvider, AiMatchContext, AiMatchResult } from './types.js';
 import { DisabledAiProvider } from './disabled-ai-provider.js';
 import { GeminiAiProvider, normalizeGeminiModel } from './gemini-ai-provider.js';
-import { OpenAiAiProvider } from './openai-ai-provider.js';
 
 export interface ProviderSelection {
   provider: 'gemini' | 'openai' | 'disabled';
@@ -22,7 +21,7 @@ export class DynamicAiProvider implements AiProvider {
     this.activeModelName = 'none';
     this.currentProvider = new DisabledAiProvider();
 
-    const requestedProvider = initial?.provider || (config.AI_PROVIDER as any) || 'disabled';
+    const requestedProvider = config.AI_PROVIDER === 'disabled' ? 'disabled' : 'gemini';
     const requestedModel =
       requestedProvider === 'gemini'
         ? normalizeGeminiModel(initial?.model || config.AI_MODEL)
@@ -45,14 +44,8 @@ export class DynamicAiProvider implements AiProvider {
     return this.activeModelName;
   }
 
-  forPolicy(policy: ApplicationPolicy | null): AiProvider {
-    if (!policy || this.activeProviderName === 'disabled') return this;
-    if (!['gemini', 'openai', 'disabled'].includes(policy.activeAiProvider))
-      return new DisabledAiProvider();
-    return new DynamicAiProvider(this.config, {
-      provider: policy.activeAiProvider as ProviderSelection['provider'],
-      model: policy.activeAiModel,
-    });
+  forPolicy(_policy: ApplicationPolicy | null): AiProvider {
+    return this;
   }
 
   isAvailable(): boolean {
@@ -76,17 +69,7 @@ export class DynamicAiProvider implements AiProvider {
       throw new Error('GEMINI_API_KEY is not configured in server environment');
     }
 
-    if (providerName === 'openai') {
-      const apiKey = (this.config as any).OPENAI_API_KEY || this.config.AI_API_KEY;
-      const model = modelName && modelName.trim().length > 0 ? modelName.trim() : 'gpt-4o-mini';
-      if (apiKey && apiKey.trim().length > 0) {
-        this.currentProvider = new OpenAiAiProvider(apiKey.trim(), model);
-        this.activeProviderName = 'openai';
-        this.activeModelName = model;
-        return;
-      }
-      throw new Error('OPENAI_API_KEY is not configured in server environment');
-    }
+    if (providerName === 'openai') throw new Error('Jobee supports Gemini only');
 
     // Default: disabled
     this.currentProvider = new DisabledAiProvider();

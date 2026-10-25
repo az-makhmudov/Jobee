@@ -88,7 +88,25 @@ export default function App() {
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [settingsTab, setSettingsTab] = useState<'basics' | 'advanced'>('basics');
+  const [connectionNotice, setConnectionNotice] = useState('');
   const [connectionTab, setConnectionTab] = useState<'email' | 'calendar' | null>(null);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('connection') === 'calendar') {
+      setConnectionNotice(
+        url.searchParams.has('connectionError')
+          ? 'Calendar was not connected. You can try again from this page.'
+          : 'Google Calendar connected successfully.',
+      );
+      setCurrentSection('settings');
+      setConnectionTab('calendar');
+      url.searchParams.delete('connected');
+      url.searchParams.delete('connection');
+      url.searchParams.delete('connectionError');
+      window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    }
+  }, []);
+
   const [applicationsSubView, setApplicationsSubView] = useState<'crm' | 'packages'>('crm');
   const [refreshKey, setRefreshKey] = useState<number>(0);
   const [isNotifModalOpen, setIsNotifModalOpen] = useState(false);
@@ -284,7 +302,13 @@ export default function App() {
                 <div>
                   <span>{session.user.name || 'Your account'}</span>
                   <small>{session.user.email}</small>
-                  <small>{role === 'admin' ? 'Owner / Admin' : 'Pilot Tester'}</small>
+                  <small>
+                    {role === 'admin'
+                      ? 'Owner / Admin'
+                      : role === 'tester'
+                        ? 'Tester'
+                        : 'Pilot user'}
+                  </small>
                 </div>
               </div>
               <div className="account-actions">
@@ -400,6 +424,7 @@ export default function App() {
               )}
               {settingsGroup && (
                 <>
+                  {connectionNotice && <Card role="status">{connectionNotice}</Card>}
                   <header className="group-heading">
                     <h2>Account & connections</h2>
                     <p className="page-subtitle">
@@ -419,7 +444,7 @@ export default function App() {
                     items={[
                       { id: 'basics', label: 'Account basics' },
                       { id: 'connections', label: 'Connected accounts' },
-                      { id: 'advanced', label: 'Advanced settings' },
+
                       { id: 'activity', label: 'System activity' },
                     ]}
                     onChange={(id) => {
@@ -454,10 +479,28 @@ export default function App() {
                       variant="pill"
                       label="Application views"
                       value={currentSection}
-                      items={applicationViews}
+                      items={applicationViews.slice(0, 2)}
                       onChange={navigate}
                     />
                   )}
+                  {!(
+                    currentSection === 'applications' &&
+                    (selectedApplicationId || selectedPackageId)
+                  ) && (
+                    <details
+                      className="advanced-details"
+                      open={['emails', 'interviews'].includes(currentSection)}
+                    >
+                      <summary>Messages & interviews</summary>
+                      <Tabs
+                        label="Application tools"
+                        value={currentSection}
+                        items={applicationViews.slice(2)}
+                        onChange={navigate}
+                      />
+                    </details>
+                  )}
+
                   {currentSection === 'applications' &&
                     !selectedApplicationId &&
                     !selectedPackageId &&
@@ -662,7 +705,7 @@ export default function App() {
                           </div>
                         </section>
                         <section className="card">
-                          <h2 className="card-title">Privacy & advanced tools</h2>
+                          <h2 className="card-title">Privacy</h2>
                           <p>Control external AI processing and permission to use saved details.</p>
                           <div className="account-actions">
                             <Button
@@ -671,12 +714,7 @@ export default function App() {
                             >
                               AI permissions
                             </Button>
-                            <Button
-                              className="btn-outline"
-                              onClick={() => setSettingsTab('advanced')}
-                            >
-                              Advanced settings
-                            </Button>
+
                             <Button className="btn-outline" onClick={() => navigate('activity')}>
                               System activity
                             </Button>

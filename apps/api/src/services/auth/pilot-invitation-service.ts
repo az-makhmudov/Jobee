@@ -12,7 +12,7 @@ import { AppError } from '@job-agent/shared';
 export interface CreateInvitationInput {
   inviterUserId: string;
   invitedEmail?: string;
-  role?: 'user' | 'admin';
+  role?: 'user' | 'tester' | 'admin';
   expiresInDays?: number;
 }
 
@@ -148,18 +148,44 @@ export class PilotInvitationService {
   /**
    * Mark an invitation as redeemed by the newly created user.
    */
-  async redeemInvitation(code: string, newUserId: string): Promise<void> {
-    const invitation = await this.verifyInvitation(code);
-
-    await this.db
-      .update(pilotInvitations)
-      .set({
-        status: PilotInvitationStatus.ACCEPTED,
-        acceptedByUserId: newUserId,
-        acceptedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(pilotInvitations.id, invitation.id));
+  async redeemInvitation(code: string, newUserId: string): Promise<string> {
+    return this.db.transaction(async (tx) => {
+      const [invitation] = await tx
+        .select()
+        .from(pilotInvitations)
+        .where(eq(pilotInvitations.code, code.trim()))
+        .for('update');
+      const [user] = await tx.select().from(users).where(eq(users.id, newUserId)).for('update');
+      if (
+        !invitation ||
+        !user ||
+        invitation.status !== PilotInvitationStatus.PENDING ||
+        invitation.expiresAt <= new Date()
+      )
+        throw AppError.badRequest('Invitation is unavailable or already redeemed.');
+      if (
+        invitation.invitedEmail &&
+        invitation.invitedEmail.toLowerCase() !== user.email.toLowerCase()
+      )
+        throw AppError.forbidden('Invitation belongs to a different email address.');
+      const role =
+        user.role === 'admin'
+          ? 'admin'
+          : ['tester', 'admin'].includes(invitation.role)
+            ? invitation.role
+            : 'user';
+      await tx
+        .update(pilotInvitations)
+        .set({
+          status: PilotInvitationStatus.ACCEPTED,
+          acceptedByUserId: newUserId,
+          acceptedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(pilotInvitations.id, invitation.id));
+      await tx.update(users).set({ role, updatedAt: new Date() }).where(eq(users.id, newUserId));
+      return role;
+    });
   }
 
   /**

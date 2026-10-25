@@ -12,10 +12,16 @@ export const googleAuthUrlSchema = z.object({
   scopeLevel: z.enum(['AVAILABILITY', 'EVENT_MANAGEMENT']).optional().default('AVAILABILITY'),
 });
 
-export const googleCallbackSchema = z.object({
-  code: z.string().min(1, 'Authorization code is required'),
-  state: z.string().min(1, 'OAuth state is required'),
-});
+export const googleCallbackSchema = z
+  .object({
+    code: z.string().min(1, 'Authorization code is required').optional(),
+    error: z.string().optional(),
+    state: z.string().min(1, 'OAuth state is required'),
+  })
+  .refine(
+    (value) => Boolean(value.code) !== Boolean(value.error),
+    'Expected an authorization code or refusal',
+  );
 
 export const fixtureConnectSchema = z
   .object({

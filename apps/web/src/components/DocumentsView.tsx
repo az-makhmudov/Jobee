@@ -142,7 +142,7 @@ export function DocumentsView({ onUpdate }: Props) {
       >
         <div>
           <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            {documents.length} document{documents.length === 1 ? '' : 's'} stored securely
+            {documents.length} of 10 documents saved
           </span>
         </div>
         <span
@@ -150,7 +150,11 @@ export function DocumentsView({ onUpdate }: Props) {
             addDocumentRef.current = node?.querySelector('button') || null;
           }}
         >
-          <Button className="btn-primary" onClick={() => setShowDocumentPurpose(true)}>
+          <Button
+            className="btn-primary"
+            disabled={documents.length >= 10}
+            onClick={() => setShowDocumentPurpose(true)}
+          >
             <Icon name="add" /> Add document
           </Button>
         </span>

@@ -860,6 +860,18 @@ export class ApplicationCrmService {
   /**
    * Get single application summary.
    */
+  static async getApplicationForJob(
+    userId: string,
+    jobId: string,
+  ): Promise<ApplicationSummaryDto | null> {
+    const [record] = await getDb()
+      .select({ id: applications.id })
+      .from(applications)
+      .where(and(eq(applications.userId, userId), eq(applications.jobId, jobId)))
+      .limit(1);
+    return record ? this.getApplicationSummary(userId, record.id) : null;
+  }
+
   static async getApplicationSummary(
     userId: string,
     applicationId: string,

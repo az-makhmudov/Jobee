@@ -80,6 +80,10 @@ export const jobListQuerySchema = z.object({
   company: z.string().trim().optional(),
   search: z.string().trim().optional(),
   includeArchived: z.coerce.boolean().optional().default(false),
+  relevantOnly: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
   decision: z.enum(['MATCH', 'REVIEW', 'SKIP', 'UNANALYZED']).optional(),
   minScore: z.coerce.number().int().min(0).max(100).optional(),
   maxScore: z.coerce.number().int().min(0).max(100).optional(),

@@ -156,7 +156,7 @@ export function ActivityView() {
                   Daily attempt reservations (UTC)
                 </div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 700, marginTop: '0.25rem' }}>
-                  {metrics.applicationsToday} / {metrics.maxApplicationsPerDay}
+                  {metrics.applicationsToday} / {metrics.maxApplicationsPerDay ?? 'No daily limit'}
                 </div>
                 <div
                   style={{
@@ -165,8 +165,9 @@ export function ActivityView() {
                     marginTop: '0.2rem',
                   }}
                 >
-                  {metrics.dailyQuotaRemaining} slot(s) remaining today · queued and failed attempts
-                  count
+                  {metrics.dailyQuotaRemaining === null
+                    ? 'Exempt from the daily application limit'
+                    : `${metrics.dailyQuotaRemaining} slot(s) remaining today · queued and failed attempts count`}
                 </div>
               </Card>
 

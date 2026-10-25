@@ -545,3 +545,47 @@ it('reviews recruiter outreach without pretending to create a vacancy or contact
   await new EmailReviewService(db).resolveReviewItem(userId, item!.id, 'APPROVED');
   expect(await db.select().from(jobs).where(eq(jobs.userId, userId))).toHaveLength(1);
 });
+
+it('returns successful calendar consent to Jobee without exposing the account payload', async () => {
+  const state = await new OAuthStateService(config.EMAIL_TOKEN_ENCRYPTION_KEY, db).generateState(
+    userId,
+    'CALENDAR_OAUTH',
+    900000,
+    'AVAILABILITY',
+  );
+  const response = await app.inject({
+    method: 'GET',
+    url: '/api/calendar/google/callback?code=fixture-only&state=' + encodeURIComponent(state),
+  });
+  expect(response.statusCode).toBe(302);
+  const target = new URL(response.headers.location!);
+  expect(target.origin).toBe(new URL(config.WEB_ORIGIN).origin);
+  expect(target.searchParams.get('connected')).toBe('true');
+  expect(response.body).not.toContain('encryptedTokens');
+  expect(
+    (
+      await app.inject({
+        method: 'GET',
+        url: '/api/calendar/google/callback?code=fixture-only&state=' + encodeURIComponent(state),
+      })
+    ).statusCode,
+  ).toBe(400);
+});
+it('returns declined calendar consent to a recoverable app screen without making a provider call', async () => {
+  const exchange = vi.spyOn(calProvider, 'exchangeCodeForTokens');
+  const state = await new OAuthStateService(config.EMAIL_TOKEN_ENCRYPTION_KEY, db).generateState(
+    userId,
+    'CALENDAR_OAUTH',
+    900000,
+    'AVAILABILITY',
+  );
+  const response = await app.inject({
+    method: 'GET',
+    url: '/api/calendar/google/callback?error=access_denied&state=' + encodeURIComponent(state),
+  });
+  expect(response.statusCode).toBe(302);
+  expect(new URL(response.headers.location!).searchParams.get('connectionError')).toBe(
+    'calendar_denied',
+  );
+  expect(exchange).not.toHaveBeenCalled();
+});

@@ -4,6 +4,7 @@ import {
   orchestrationRuns,
   applicationPolicy,
   assertAutopilotGrant,
+  users,
   applications,
   jobs,
   approvalRequests,
@@ -156,7 +157,11 @@ export class OrchestratorService {
       where: eq(applicationPolicy.userId, userId),
     });
 
-    const maxPerDay = Math.min(20, policy?.maxApplicationsPerDay ?? 5);
+    const [account] = await this.db
+      .select({ role: users.role })
+      .from(users)
+      .where(eq(users.id, userId));
+    const maxPerDay = ['admin', 'tester'].includes(account?.role ?? '') ? null : 10;
     const [reserved] = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(browserApplicationRuns)
@@ -168,7 +173,7 @@ export class OrchestratorService {
         ),
       );
     const appliedToday = Number(reserved?.count || 0);
-    const dailyQuotaRemaining = Math.max(0, maxPerDay - appliedToday);
+    const dailyQuotaRemaining = maxPerDay === null ? null : Math.max(0, maxPerDay - appliedToday);
 
     // 4. Pending approvals
     const [approvalsCount] = await this.db

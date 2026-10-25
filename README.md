@@ -34,7 +34,7 @@ cp .env.example .env
 
 Set development `DATABASE_URL` and a separate `TEST_DATABASE_URL` in the ignored `.env`. Generate distinct non-default `BETTER_AUTH_SECRET` and `EMAIL_TOKEN_ENCRYPTION_KEY` values, for example with `openssl rand -hex 32`. Never commit them. Configure `OWNER_EMAIL` for your own environment; do not assume the example identity is yours.
 
-For offline development, leave provider credentials empty, use local storage, and set `ORCHESTRATOR_ENABLED=false`. An AI key can automatically select Gemini even when `AI_PROVIDER=disabled`; the configuration details are in [operations](docs/OPERATIONS.md). Avoid starting the worker against connected real accounts for an offline test.
+For offline development, leave provider credentials empty, use local storage, and set `ORCHESTRATOR_ENABLED=false`. Set `AI_PROVIDER=disabled` to keep external AI off, even when a key is present; the configuration details are in [operations](docs/OPERATIONS.md). Avoid starting the worker against connected real accounts for an offline test.
 
 ```bash
 npm run build:packages

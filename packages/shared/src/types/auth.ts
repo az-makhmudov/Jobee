@@ -14,7 +14,7 @@ export interface UserDto {
   email: string;
   emailVerified: boolean;
   image?: string | null;
-  role: 'admin' | 'user';
+  role: 'admin' | 'tester' | 'user';
   createdAt: string;
 }
 
@@ -40,7 +40,7 @@ export interface PilotInvitationDto {
 
 export interface CreateInvitationRequest {
   invitedEmail?: string;
-  role?: 'user' | 'admin';
+  role?: 'user' | 'tester' | 'admin';
   expiresInDays?: number;
 }
 

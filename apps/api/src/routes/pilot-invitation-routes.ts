@@ -15,7 +15,7 @@ export interface PilotInvitationRoutesOptions {
 
 const createInviteSchema = z.object({
   invitedEmail: z.string().email().optional(),
-  role: z.enum(['user', 'admin']).optional(),
+  role: z.enum(['user', 'tester', 'admin']).optional(),
   expiresInDays: z.number().int().min(1).max(90).optional(),
 });
 

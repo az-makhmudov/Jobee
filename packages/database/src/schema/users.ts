@@ -13,7 +13,7 @@ export const users = pgTable(
     email: text('email').notNull().unique(),
     emailVerified: boolean('email_verified').default(false).notNull(),
     image: text('image'),
-    role: text('role').default('user').notNull(), // 'admin' (owner) | 'user' (tester)
+    role: text('role').default('user').notNull(), // 'admin' | admin-designated 'tester' | 'user'
     banned: boolean('banned').default(false),
     banReason: text('ban_reason'),
     banExpires: timestamp('ban_expires', { withTimezone: true, mode: 'date' }),

@@ -34,6 +34,7 @@ export function JobInboxView({
   const detailRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const previousSelection = useRef<string | null>(null);
+  const [showTools, setShowTools] = useState(false);
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
   const [jobs, setJobs] = useState<JobSummaryDto[]>([]);
   const [metrics, setMetrics] = useState<JobDashboardMetricsDto | null>(null);
@@ -74,6 +75,7 @@ export function JobInboxView({
         jobApi.getJobs({
           page,
           limit: 10,
+          relevantOnly: !stateFilter && !providerFilter,
           search: submittedSearch || undefined,
           workplaceType: workplaceFilter || undefined,
           employmentType: employmentFilter || undefined,
@@ -268,9 +270,13 @@ export function JobInboxView({
         </Card>
       )}
 
-      <details className="explore-controls" style={{ marginBottom: 16 }}>
+      <details
+        className="explore-controls"
+        style={{ marginBottom: 16 }}
+        onToggle={(event) => setShowTools(event.currentTarget.open)}
+      >
         <summary>
-          Prepare multiple applications
+          More tools
           {selectedJobIds.length ? ` · ${selectedJobIds.length} selected` : ''}
         </summary>
         <PreparationBatchPanel
@@ -278,10 +284,7 @@ export function JobInboxView({
           onPrepared={() => setSelectedJobIds([])}
           onOpenPackage={onOpenPackage}
         />
-      </details>
 
-      <details className="student-tools explore-controls" style={{ marginBottom: 24 }}>
-        <summary>Analysis & source details</summary>
         <div className="account-actions">
           <Button
             className="btn btn-secondary btn-sm"
@@ -579,10 +582,10 @@ export function JobInboxView({
                   decisionFilter ||
                   staleFilter
                     ? 'Try a broader search or clear the filters. Your saved jobs are unchanged.'
-                    : 'Find jobs from public sources or add a job link or description to get started.'}
+                    : 'No saved jobs currently match these preferences. Find more jobs, add a link, or update your preferences in Profile. Your saved jobs are unchanged.'}
                 </p>
                 <Button className="btn btn-primary btn-sm" onClick={() => setIsAddModalOpen(true)}>
-                  ➕ Add your first job
+                  Add a job link
                 </Button>
               </div>
             ) : (
@@ -597,6 +600,7 @@ export function JobInboxView({
                         <div>
                           <label className="job-selection">
                             <Input
+                              hidden={!showTools}
                               type="checkbox"
                               aria-label={`Select ${job.title} at ${job.company} for preparation`}
                               checked={selectedJobIds.includes(job.id)}
@@ -611,7 +615,7 @@ export function JobInboxView({
                                 )
                               }
                             />{' '}
-                            Select for preparation
+                            {showTools ? 'Select for preparation' : null}
                           </label>
                           <h2>{job.title}</h2>
                           <p>

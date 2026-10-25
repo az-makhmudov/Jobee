@@ -1,3 +1,4 @@
+import { assertDailyApplicationLimit } from '@job-agent/database';
 import { and, eq, desc, inArray, sql } from 'drizzle-orm';
 import {
   type Database,
@@ -174,6 +175,7 @@ export class ApplicationIntentService {
             .returning()
         )[0]!;
       const now = new Date();
+      await assertDailyApplicationLimit(tx as unknown as Database, userId);
       const [intent] = await tx
         .insert(applicationIntents)
         .values({

@@ -1005,6 +1005,16 @@ describe('Applications convergence and bounded Autopilot (JOB-P3-T02 / JOB-P5-T0
       })),
     );
     const second = await intents.create(userId, secondJob!.id);
+    // Nine synthetic failed reservations plus the queued attempt consume the platform's ten slots.
+    await db.insert(browserApplicationRuns).values(
+      Array.from({ length: 9 }, () => ({
+        userId,
+        applicationId: first.applicationId,
+        targetUrl: 'https://example.test/fixture',
+        mode: 'SUBMIT',
+        status: 'FAILED',
+      })),
+    );
     await prepare();
     await batches.processOne(userId);
     await intents.processPending();
@@ -1056,7 +1066,7 @@ describe('Applications convergence and bounded Autopilot (JOB-P3-T02 / JOB-P5-T0
     expect(outcomes.filter((result) => result.status === 'rejected')).toHaveLength(1);
     expect(
       (await new OrchestratorService(db, getConfig()).getMetrics(userId)).applicationsToday,
-    ).toBe(1);
+    ).toBe(10);
   });
   it('consumes legacy preparation requests with durable batch acknowledgement and no submission authority', async () => {
     const [request] = await db

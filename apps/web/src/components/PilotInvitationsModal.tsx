@@ -21,7 +21,7 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
 
   // New invitation form state
   const [invitedEmail, setInvitedEmail] = useState('');
-  const [role, setRole] = useState<'user' | 'admin'>('user');
+  const [role, setRole] = useState<'user' | 'tester' | 'admin'>('user');
   const [expiresInDays, setExpiresInDays] = useState(7);
   const [generating, setGenerating] = useState(false);
   const [newlyCreatedCode, setNewlyCreatedCode] = useState<string | null>(null);
@@ -227,10 +227,11 @@ export const PilotInvitationsModal: React.FC<PilotInvitationsModalProps> = ({
                   <Select
                     id="invite-role"
                     value={role}
-                    onChange={(e) => setRole(e.target.value as 'user' | 'admin')}
+                    onChange={(e) => setRole(e.target.value as 'user' | 'tester' | 'admin')}
                     className="form-input"
                   >
-                    <option value="user">User (Tester)</option>
+                    <option value="user">User · 10 applications/day</option>
+                    <option value="tester">Tester · no daily application limit</option>
                     <option value="admin">Administrator</option>
                   </Select>
                 </div>

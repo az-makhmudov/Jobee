@@ -138,7 +138,7 @@ export const envSchema = z
         }
 
         // Auto-detect AI_PROVIDER if GEMINI_API_KEY is provided
-        if (!r.AI_PROVIDER || r.AI_PROVIDER === 'disabled') {
+        if (!r.AI_PROVIDER) {
           if (
             (r.GEMINI_API_KEY &&
               typeof r.GEMINI_API_KEY === 'string' &&
@@ -225,7 +225,7 @@ export const envSchema = z
       WEB_ORIGIN: z.string().default('http://localhost:5173'),
       LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'fatal']).default('info'),
       WORKER_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
-      AI_PROVIDER: z.enum(['disabled', 'gemini', 'openai']).default('disabled'),
+      AI_PROVIDER: z.enum(['disabled', 'gemini']).default('gemini'),
       AI_API_KEY: z.string().optional(),
       GEMINI_API_KEY: z.string().optional(),
       OPENAI_API_KEY: z.string().optional(),

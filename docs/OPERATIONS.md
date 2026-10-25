@@ -22,7 +22,7 @@ Use Node.js 24/npm, PostgreSQL (CI uses version 16), and Chromium installed thro
 - **Web/auth origins:** `WEB_ORIGIN`, `BETTER_AUTH_URL`, `BETTER_AUTH_TRUSTED_ORIGINS`; use exact browser origins and HTTPS production URLs
 - **Authentication:** `BETTER_AUTH_SECRET`, optional Google identity credentials, `OWNER_EMAIL`, `INVITE_ONLY_REGISTRATION` default true
 - **Recruitment token protection:** `EMAIL_TOKEN_ENCRYPTION_KEY`; must remain consistent where stored integration envelopes are decrypted
-- **AI:** `AI_PROVIDER`, `AI_API_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `AI_MODEL`, plus persisted policy provider/model selection
+- **AI:** operator-managed Gemini via `GEMINI_API_KEY` (or `AI_API_KEY`) and `AI_MODEL`; `AI_PROVIDER=gemini` is the default, with explicit `disabled` for offline verification. OpenAI is not an accepted runtime configuration.
 - **Gmail:** `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REDIRECT_URI`
 - **Calendar:** `GOOGLE_CALENDAR_CLIENT_ID`, `GOOGLE_CALENDAR_CLIENT_SECRET`, `GOOGLE_CALENDAR_REDIRECT_URI`
 - **Transactional email:** `RESEND_API_KEY`, `EMAIL_FROM`/`SMTP_FROM`, or `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`
@@ -37,12 +37,16 @@ Configuration normalization matters:
 - Railway public-domain variables can populate Better Auth URL, web/trusted origins and recruitment OAuth callback URLs. Check effective values before a release rather than relying on local defaults.
 - Google identity credentials can fill absent Gmail/Calendar credentials. This is configuration reuse, not consent to the additional scopes.
 - Supplying S3 bucket/key credentials can auto-select `s3` even when the raw storage backend says `local`.
-- Supplying `GEMINI_API_KEY` or `AI_API_KEY` can auto-select Gemini even when raw `AI_PROVIDER` is `disabled`. A strictly offline fixture process must remove external keys and review persisted provider selection.
+- Explicit `AI_PROVIDER=disabled` remains disabled even if keys exist. Offline verification must still remove external provider keys; candidate policy provider/model fields are ignored by runtime selection.
 - Some older Gemini model strings are normalized to the current configured default. The string in source is not evidence the vendor offers that model; verify availability before authorized live use.
 - Test mode redirects only known development database names unless an explicit test URL is supplied. Set `TEST_DATABASE_URL` deliberately; never rely on accidental URL rewriting for safety.
 - Production validates non-default auth/encryption secrets and required database configuration. Passing config validation does not certify credentials, scopes, storage access or provider health.
 
 Remove obsolete free-tier/cost assumptions from operating decisions. Check provider consoles and current terms only when the owner authorizes the relevant service work; do not incur charges as verification.
+
+Calendar OAuth returns to `WEB_ORIGIN`; configure that origin to the actual frontend, not an unrelated callback host. Availability defaults to the primary-calendar alias without requesting calendar-list permissions. Read-only operator AI diagnostics are admin-only; users cannot trigger model switching or paid connectivity checks.
+
+Admins can issue `tester` invitations explicitly. Ordinary invitations remain `user`; acceptance atomically claims the invite and assigns its role. Existing ordinary users are not auto-promoted. Platform attempts reset at UTC midnight; admins/testers still obey all non-volume submission checks. Candidate-document cap is 10 regardless of role; no existing files are auto-deleted.
 
 ## Development processes
 

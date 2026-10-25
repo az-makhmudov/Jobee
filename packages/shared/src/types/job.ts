@@ -213,6 +213,7 @@ export interface JobListQuery {
   company?: string;
   search?: string;
   includeArchived?: boolean;
+  relevantOnly?: boolean;
   decision?: MatchDecision | 'UNANALYZED';
   minScore?: number;
   maxScore?: number;
@@ -305,7 +306,7 @@ export type DimensionStatus = 'SCORED' | 'UNKNOWN' | 'NOT_APPLICABLE';
 
 export type MatchAnalysisMode = 'DETERMINISTIC_ONLY' | 'AI_ENRICHED';
 
-export const MATCH_ALGORITHM_VERSION = '2.0.0';
+export const MATCH_ALGORITHM_VERSION = '2.1.0';
 
 export const DIMENSION_DEFAULT_WEIGHTS: Record<DimensionType, number> = {
   ROLE_FIT: 25,
@@ -320,6 +321,7 @@ export const DIMENSION_DEFAULT_WEIGHTS: Record<DimensionType, number> = {
 
 export const DecisionReasonCodes = {
   LOCATION_NOT_ALLOWED: 'LOCATION_NOT_ALLOWED',
+  SENIORITY_NOT_ALLOWED: 'SENIORITY_NOT_ALLOWED',
   WORK_MODE_NOT_ALLOWED: 'WORK_MODE_NOT_ALLOWED',
   UNPAID_ROLE_REJECTED: 'UNPAID_ROLE_REJECTED',
   EXCLUDED_COMPANY: 'EXCLUDED_COMPANY',

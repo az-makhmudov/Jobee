@@ -1,3 +1,4 @@
+import { adminAc, userAc } from 'better-auth/plugins/admin/access';
 import crypto from 'node:crypto';
 import { betterAuth, APIError, type Auth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
@@ -118,7 +119,7 @@ export function createBetterAuthInstance(
         trustedProviders: ['google'],
       },
     },
-    plugins: [admin()],
+    plugins: [admin({ roles: { admin: adminAc, user: userAc, tester: userAc } })],
     advanced: {
       database: {
         generateId: 'uuid',
@@ -145,7 +146,8 @@ export function createBetterAuthInstance(
             const userEmail = (user.email || '').trim().toLowerCase();
             const isOwnerEmail = Boolean(userEmail && userEmail === ownerEmail);
 
-            if (config.INVITE_ONLY_REGISTRATION && !isOwnerEmail) {
+            user.role = isOwnerEmail ? 'admin' : 'user';
+            if ((config.INVITE_ONLY_REGISTRATION || user.invitationCode) && !isOwnerEmail) {
               let code = user.invitationCode;
               if (!code && user.email) {
                 // Check if user.email was explicitly invited in pilot_invitations (e.g. Google Sign-In onboarding)
@@ -186,7 +188,7 @@ export function createBetterAuthInstance(
               // 1. Redeem invitation code if provided
               const code = (user as any).invitationCode;
               if (code) {
-                await invites.redeemInvitation(code, user.id);
+                user.role = await invites.redeemInvitation(code, user.id);
               }
 
               // 2. Initialize or re-link candidate workspace for the new user

@@ -338,3 +338,53 @@ describe('Release matching guard benchmark (30 synthetic vacancies)', () => {
     if (condition !== 'ready') expect(result.autoApplyEligible).toBe(false);
   });
 });
+it('filters known foreign and senior postings from Explore before pagination while retaining the library', async () => {
+  await updatePreferences({
+    preferredLocations: ['Poland'],
+    seniorityLevels: ['ENTRY', 'INTERN'],
+    willingToRelocate: false,
+  });
+  await updateJob({
+    country: 'Poland',
+    city: 'Warszawa',
+    locationText: 'Warszawa, Poland',
+    seniority: 'ENTRY',
+  });
+  const [base] = await db.select().from(jobs).where(eq(jobs.id, jobId));
+  await db.insert(jobs).values([
+    {
+      ...base!,
+      id: crypto.randomUUID(),
+      contentHash: crypto.randomUUID(),
+      title: 'Senior Software Engineer',
+      seniority: 'UNKNOWN',
+    },
+    {
+      ...base!,
+      id: crypto.randomUUID(),
+      contentHash: crypto.randomUUID(),
+      title: 'Junior Software Engineer',
+      country: 'Germany',
+      city: 'Berlin',
+      locationText: 'Berlin, Germany',
+    },
+  ]);
+  const relevant = await jobService.getJobs(userId, { relevantOnly: true, limit: 1 });
+  expect(relevant.total).toBe(1);
+  expect(relevant.items[0]!.id).toBe(jobId);
+  expect((await jobService.getJobs(userId, {})).total).toBe(3);
+});
+it('a high skills score cannot turn a known senior role into a junior recommendation', async () => {
+  await updatePreferences({ seniorityLevels: ['ENTRY', 'INTERN'] });
+  await updateJob({ title: 'Senior Software Engineer', seniority: 'SENIOR' });
+  const result = await analyze();
+  expect(result.decision).toBe('SKIP');
+  expect(result.autoApplyEligible).toBe(false);
+});
+it('treats Junior/Entry and Intern/Internship as equivalent without promoting senior roles', async () => {
+  await updatePreferences({ seniorityLevels: ['ENTRY', 'INTERNSHIP'] });
+  await updateJob({ title: 'Junior Software Engineer', seniority: 'JUNIOR' });
+  expect((await jobService.getJobs(userId, { relevantOnly: true })).total).toBe(1);
+  await updateJob({ title: 'Intern - Project Management Support', seniority: 'INTERNSHIP' });
+  expect((await jobService.getJobs(userId, { relevantOnly: true })).total).toBe(1);
+});

@@ -17,8 +17,11 @@ async function go(page: import('@playwright/test').Page, name: string) {
       .getByRole('navigation', { name: 'Main navigation' })
       .getByRole('button', { name: 'Applications', exact: true })
       .click();
+    if (['Interviews', 'Messages'].includes(name)) await showDetails(page, 'Messages & interviews');
     await page
-      .getByRole('tablist', { name: 'Application views' })
+      .getByRole('tablist', {
+        name: ['Interviews', 'Messages'].includes(name) ? 'Application tools' : 'Application views',
+      })
       .getByRole('tab', { name: name === 'Approvals' ? 'Needs review' : name, exact: true })
       .click();
   } else {
@@ -421,6 +424,7 @@ test('application workspace retains document editors, questions, independent blo
       .getByRole('region', { name: 'Selected job', exact: true })
       .getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
   ).toBeVisible();
+  await showDetails(page, 'Requirements, fit details & sources');
   await page.getByRole('tab', { name: /^Requirements/ }).click();
   await expect(page.getByRole('heading', { name: /Extracted Requirements/ })).toBeVisible();
 });
@@ -621,6 +625,7 @@ test('Jobs add, edit and archive dialogs retain cancellation and job detail tabs
     .filter({ has: page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }) })
     .getByRole('button', { name: 'View job', exact: true })
     .click();
+  await showDetails(page, 'Requirements, fit details & sources');
   for (const tab of [
     /^Overview$/,
     /^Requirements/,
@@ -631,6 +636,7 @@ test('Jobs add, edit and archive dialogs retain cancellation and job detail tabs
     await page.getByRole('tab', { name: tab }).click();
     await expect(page.locator('#job-details-panel')).toBeVisible();
   }
+  await showDetails(page, 'More options');
   await page.getByRole('button', { name: 'Correct Fields', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
@@ -705,6 +711,8 @@ test('complete desktop render inventory in Light and Dark', async ({ page }) => 
       })
       .getByRole('button', { name: 'View job', exact: true })
       .click();
+    await expect(page.getByRole('tab', { name: /^Requirements/ })).toBeHidden();
+    await showDetails(page, 'Requirements, fit details & sources');
     await expect(page.getByRole('tab', { name: /^Requirements/ })).toBeVisible();
     await shot('job-detail', theme);
     await go(page, 'Applications');
@@ -1200,6 +1208,8 @@ test('Explore preserves search and selection across desktop panes and mobile bac
     await expect(
       detail.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
     ).toBeVisible();
+    await expect(page.getByRole('tab', { name: /^Requirements/ })).toBeHidden();
+    await showDetails(page, 'Requirements, fit details & sources');
     await expect(page.getByRole('tab', { name: /^Requirements/ })).toBeVisible();
     if (viewport.width > 1100) {
       await expect(role).toBeVisible();

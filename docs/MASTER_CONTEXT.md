@@ -1,12 +1,12 @@
 # Jobee — master context
 
-Updated 2026-10-21. Product source of truth; [status](STATUS.md) records implementation evidence, and [roadmap](ROADMAP.md) records unfinished acceptance. This document describes the intended product and identifies where the core promise is still being completed.
+Updated 2026-10-25. Product source of truth; [status](STATUS.md) records implementation evidence, and [roadmap](ROADMAP.md) records unfinished acceptance. This document describes the intended product and identifies where the core promise is still being completed.
 
 ## Purpose and users
 
 **Find the right jobs. Apply intelligently. Track everything.**
 
-Jobee is an AI-assisted job discovery and application agent for individual candidates. Students and early-career applicants are central users: education, projects, transferable skills and limited work history must be meaningful inputs. Experienced applicants also use the same verified candidate context and tracking model. Starting without a CV or past employer must remain possible.
+Jobee is an AI-assisted job discovery and application agent for individual candidates. Students and early-career applicants are central users: education, projects, transferable skills and limited work history must be meaningful inputs. Experienced applicants also use the same verified candidate context and tracking model. International students are a priority audience; first launch is Poland, with later European/Central Asian expansion only after validation. The repository is private by owner decision and the project is not open source. Starting without a CV or past employer must remain possible.
 
 The product reduces repetitive search, truthful document preparation, repeated questions and fragmented application tracking. Suitable opportunities and credible applications matter more than submission volume. It must make a complex technical workflow understandable without exposing infrastructure or requiring users to manage separate AI agents.
 
@@ -21,6 +21,8 @@ Candidate facts come from the candidate and verified records. AI may interpret e
 A recommendation is distinct from eligibility, preparation, authorization, dispatch and employer confirmation. Every one of these can have a different state. A failed, stopped or ambiguous execution must remain visible, with evidence and a safe next action. Never show a simulated success as an employer application.
 
 Prefer permitted public sources and modular provider adapters. Be honest about feed coverage, provider limitations, cost uncertainty and validation scope. Do not depend on unsupported account automation or evading protective challenges.
+
+The primary path is **Profile → Explore relevant jobs → Read details → Apply with Jobee → Track applications**. Optional source diagnostics, bulk preparation and communication tools belong behind contextual disclosure. Gemini is the only production AI provider, configured by the operator; users do not select providers/models. Ordinary users have 10 application attempt reservations per UTC day; admins and admin-designated testers are exempt from that platform cap. Duplicate, consent, material and uncertainty checks still apply. All users can save up to 10 candidate documents; existing excess records are preserved and block further uploads until reduced. Self-service account deletion is a required remaining launch capability, not yet implemented.
 
 ## Core modules
 

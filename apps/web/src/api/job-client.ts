@@ -97,6 +97,8 @@ export const jobApi = {
     if (query?.company) params.append('company', query.company);
     if (query?.search) params.append('search', query.search);
     if (query?.includeArchived) params.append('includeArchived', 'true');
+    if (query?.relevantOnly !== undefined)
+      params.append('relevantOnly', String(query.relevantOnly));
     if (query?.decision) params.append('decision', query.decision);
     if (query?.minScore !== undefined) params.append('minScore', String(query.minScore));
     if (query?.maxScore !== undefined) params.append('maxScore', String(query.maxScore));

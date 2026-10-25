@@ -137,8 +137,8 @@ export interface SystemMetricsDto {
   totalJobsMatched: number;
   totalApplicationsSubmitted: number;
   applicationsToday: number;
-  maxApplicationsPerDay: number;
-  dailyQuotaRemaining: number;
+  maxApplicationsPerDay: number | null;
+  dailyQuotaRemaining: number | null;
   autoApplyEnabled: boolean;
   pendingApprovalsCount: number;
   unreadNotificationsCount: number;

@@ -61,7 +61,7 @@ async function run() {
     preferredLocations: ['Warsaw', 'Remote'],
     workModes: ['REMOTE', 'HYBRID'],
     employmentTypes: ['INTERNSHIP'],
-    seniorityLevels: ['ENTRY'],
+    seniorityLevels: ['ENTRY', 'INTERNSHIP'],
     preferredLanguages: ['English'],
     excludedCompanies: [],
     excludedKeywords: [],

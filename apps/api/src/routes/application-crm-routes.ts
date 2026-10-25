@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { FastifyPluginAsync } from 'fastify';
 import type { CandidateService } from '../services/candidate-service.js';
 import { ApplicationCrmService } from '../services/application-crm-service.js';
@@ -79,10 +80,8 @@ export function createApplicationCrmRoutes(
     // 5. Get application for specific job ID (helper for JobDetail / Studio)
     app.get('/jobs/:jobId/application', async (req: any) => {
       const userId = requireCurrentUserId(req);
-      const { jobId } = req.params;
-
-      const list = await ApplicationCrmService.listApplications(userId, { limit: 1 });
-      const found = list.items.find((item) => item.jobId === jobId);
+      const { jobId } = z.object({ jobId: z.string().uuid() }).parse(req.params);
+      const found = await ApplicationCrmService.getApplicationForJob(userId, jobId);
 
       return {
         status: 'ok',
