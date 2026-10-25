@@ -5,12 +5,26 @@ import type { JobPaginationResult, JobSummaryDto } from '@job-agent/shared';
 import { JobInboxView } from './JobInboxView.js';
 import { jobApi } from '../api/job-client.js';
 vi.mock('../api/job-client.js', () => ({
-  jobApi: { getJobs: vi.fn(), getMetrics: vi.fn(), discoverJobs: vi.fn() },
+  jobApi: {
+    getJobs: vi.fn(),
+    getMetrics: vi.fn(),
+    discoverJobs: vi.fn(),
+    refreshRecommendations: vi.fn(),
+    recommendationStatus: vi.fn(),
+  },
 }));
 vi.mock('./PreparationBatchPanel.js', () => ({ PreparationBatchPanel: () => null }));
 vi.mock('./AddJobModal.js', () => ({ AddJobModal: () => null }));
 const role = (title: string): JobSummaryDto => ({
   id: title,
+  matchSummary: {
+    overallScore: 80,
+    confidenceScore: 90,
+    decision: 'MATCH',
+    isStale: false,
+    analysisMode: 'DETERMINISTIC_ONLY',
+    analyzedAt: '2026-10-20T00:00:00Z',
+  },
   title,
   company: 'Fixture Company',
   state: 'INGESTED',
@@ -47,6 +61,18 @@ const props = {
 };
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(jobApi.refreshRecommendations).mockResolvedValue({
+    state: 'IDLE',
+    ready: 1,
+    pending: 0,
+    excluded: 0,
+    evaluated: 1,
+    processed: 0,
+    batchSize: 0,
+    locations: ['Warsaw'],
+    levels: ['ENTRY'],
+    message: 'Recommendations ready.',
+  });
   vi.mocked(jobApi.getMetrics).mockResolvedValue(
     {} as Awaited<ReturnType<typeof jobApi.getMetrics>>,
   );
@@ -147,4 +173,49 @@ it('refreshes the current filters when a discovery action finishes after the use
   expect(jobApi.getJobs).toHaveBeenLastCalledWith(
     expect.objectContaining({ workplaceType: 'REMOTE' }),
   );
+});
+
+it('automatically requests analysis and withholds unanalysed, stale and REVIEW cards', async () => {
+  const match = role('Completed match');
+  const raw = { ...role('Unanalysed role'), matchSummary: null };
+  const review = {
+    ...role('Review role'),
+    matchSummary: { ...match.matchSummary!, decision: 'REVIEW' as const },
+  };
+  const stale = { ...role('Stale match'), matchSummary: { ...match.matchSummary!, isStale: true } };
+  vi.mocked(jobApi.getJobs).mockResolvedValue({
+    ...result('unused'),
+    items: [raw, review, stale, match],
+    total: 4,
+  });
+  render(<JobInboxView {...props} />);
+  await screen.findByText('Completed match');
+  expect(jobApi.refreshRecommendations).toHaveBeenCalled();
+  expect(jobApi.getJobs).toHaveBeenCalledWith(
+    expect.objectContaining({ recommendationsOnly: true }),
+  );
+  for (const title of ['Unanalysed role', 'Review role', 'Stale match'])
+    expect(screen.queryByText(title)).toBeNull();
+  fireEvent.click(screen.getByText('More tools'));
+  fireEvent.click(screen.getByLabelText('Show all saved jobs'));
+  await screen.findByText('Unanalysed role');
+  expect(screen.getByText(/These are not recommendations/)).toBeTruthy();
+  fireEvent.change(screen.getByTitle('Filter by match policy decision'), {
+    target: { value: 'REVIEW' },
+  });
+  fireEvent.click(screen.getByLabelText('Show all saved jobs'));
+  await waitFor(() =>
+    expect(jobApi.getJobs).toHaveBeenLastCalledWith(
+      expect.objectContaining({ recommendationsOnly: true, decision: undefined }),
+    ),
+  );
+});
+it('shows automatic-analysis failures and retries only when requested', async () => {
+  vi.mocked(jobApi.refreshRecommendations).mockRejectedValueOnce(
+    new Error('Recommendation worker unavailable'),
+  );
+  render(<JobInboxView {...props} />);
+  await screen.findByText('Recommendation worker unavailable');
+  fireEvent.click(screen.getByRole('button', { name: 'Retry automatic analysis' }));
+  await waitFor(() => expect(jobApi.refreshRecommendations).toHaveBeenLastCalledWith(true));
 });

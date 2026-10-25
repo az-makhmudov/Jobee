@@ -1,6 +1,11 @@
-import { DynamicAiProvider } from '@job-agent/database/matching';
+import {
+  MatchService,
+  RecommendationService,
+  RECOMMENDATION_TASK,
+  DynamicAiProvider,
+} from '@job-agent/database/matching';
 import crypto from 'node:crypto';
-import { and, lt } from 'drizzle-orm';
+import { and, lt, ne } from 'drizzle-orm';
 import type { AppConfig } from '@job-agent/config';
 import {
   Logger,
@@ -278,7 +283,12 @@ export class WorkerService {
       const pendingOrchestrations = await this.db
         .select()
         .from(orchestrationRuns)
-        .where(eq(orchestrationRuns.status, OrchestrationRunStatuses.PENDING))
+        .where(
+          and(
+            eq(orchestrationRuns.status, OrchestrationRunStatuses.PENDING),
+            ne(orchestrationRuns.taskType, RECOMMENDATION_TASK),
+          ),
+        )
         .limit(3);
 
       if (pendingOrchestrations.length > 0 && this.orchestrator) {
@@ -306,6 +316,12 @@ export class WorkerService {
     } catch (oQueryErr: any) {
       this.logger.error('Error querying pending orchestration runs', undefined, oQueryErr);
     }
+
+    // Recommendation work is user-requested analysis, independent of application Autopilot.
+    await new RecommendationService(
+      this.db,
+      new MatchService(this.db, new DynamicAiProvider(this.config)),
+    ).processOne();
 
     // 3. Scheduled periodic pipeline trigger
     const now = Date.now();

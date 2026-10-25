@@ -1,3 +1,7 @@
+import { createDatabaseClient } from '@job-agent/database';
+import { RecommendationService } from '@job-agent/database/matching';
+import { readFile } from 'node:fs/promises';
+import { seedUiMatches } from '../../../scripts/ui-preview-matches.js';
 import { test, expect } from '@playwright/test';
 
 const webOrigin = `http://127.0.0.1:${process.env.UI_TEST_WEB_PORT || '5179'}`;
@@ -57,6 +61,10 @@ test.beforeEach(async ({ page }) => {
     data: { email: 'alex.morgan@example.test', password: 'JobeePreview123!' },
   });
   expect(response.ok()).toBeTruthy();
+  const session = await response.json();
+  const seeded = JSON.parse(await readFile('/tmp/jobee-ui-preview-seed.json', 'utf8'));
+  expect(seeded.userId).toBe(session.user.id);
+  await seedUiMatches(process.env.UI_TEST_DATABASE_URL!, session.user.id, seeded.jobIds, true);
 });
 test('three-section shell opens Explore with real synthetic local records', async ({ page }) => {
   const errors: string[] = [];
@@ -1249,7 +1257,7 @@ test('Explore explains fit and unresolved eligibility beside the selected role',
   await overview.getByRole('button', { name: /Check your fit|Refresh your fit/ }).click();
   await expect(overview).toContainText('Unconfirmed:');
   await expect(overview.getByRole('alert')).toHaveCount(0);
-  await expect(role.locator('.job-fit-summary')).toContainText(/review|Excluded|Unconfirmed/i);
+  await expect(role).toHaveCount(0);
   await page.evaluate(() => {
     (document.activeElement as HTMLElement)?.blur();
     window.scrollTo(0, 0);
@@ -1304,6 +1312,8 @@ test('Explore offers Quick Apply for supported forms and an honest employer hand
       await page.goto('/');
       await page.getByLabel('Search jobs', { exact: true }).fill(`${marker} ${suffix}`);
       await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await showDetails(page, 'More tools');
+      await page.getByLabel('Show all saved jobs', { exact: true }).check();
       await page.locator(`[data-job-id="${id}"]`).click();
       if (automatic) {
         await expect(
@@ -1326,5 +1336,50 @@ test('Explore offers Quick Apply for supported forms and an honest employer hand
       await page.request.post(`/api/jobs/${id}/archive`, {
         data: { reason: 'Synthetic smoke test complete' },
       });
+  }
+});
+
+test('Explore automatically queues analysis and publishes a new job only after a completed MATCH', async ({
+  page,
+}) => {
+  const title = `Junior Frontend Developer ${crypto.randomUUID()}`;
+  const created = await page.request.post('/api/jobs/text', {
+    data: {
+      title,
+      company: 'Synthetic recommendation fixture',
+      text: 'Location: Warsaw, Poland\nBuild accessible frontend applications. Synthetic junior role for local browser verification.',
+      url: `https://employer.example.test/${crypto.randomUUID()}`,
+    },
+  });
+  expect(created.ok()).toBeTruthy();
+  const id = (await created.json()).data.job.id;
+  const seeded = JSON.parse(await readFile('/tmp/jobee-ui-preview-seed.json', 'utf8'));
+  const client = createDatabaseClient(process.env.UI_TEST_DATABASE_URL!);
+  try {
+    await page.goto('/');
+    await page.getByLabel('Search jobs', { exact: true }).fill(title);
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
+    await expect(
+      page.getByText('Checking jobs against your profile. Only completed matches appear below.', {
+        exact: true,
+      }),
+    ).toBeVisible();
+    // Actual queue processor with an explicitly synthetic local evaluator; no AI/provider requests.
+    const processor = new RecommendationService(client.db, {
+      analyzeJob: async (jobId, userId) =>
+        seedUiMatches(process.env.UI_TEST_DATABASE_URL!, userId, [jobId]),
+    });
+    await processor.processOne(seeded.userId);
+    await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.getByText('Analysis not run yet', { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel('Search jobs', { exact: true })).toHaveValue(title);
+  } finally {
+    await client.close();
+    await page.request.post(`/api/jobs/${id}/archive`, {
+      data: { reason: 'Synthetic recommendation test complete' },
+    });
   }
 });

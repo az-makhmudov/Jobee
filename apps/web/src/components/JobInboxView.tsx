@@ -5,6 +5,7 @@ import { PreparationBatchPanel } from './PreparationBatchPanel.js';
 import { AddJobModal } from './AddJobModal.js';
 import { CareerFitBadge } from './CareerFitBadge.js';
 import type {
+  RecommendationStatusDto,
   JobSummaryDto,
   JobState,
   JobProvider,
@@ -30,10 +31,15 @@ export function JobInboxView({
   detail,
 }: Props) {
   const requestVersion = useRef(0);
+  const listLoad = useRef<Promise<void>>(Promise.resolve());
+  const listLoadFailed = useRef(false);
   const currentLoader = useRef<() => Promise<void>>(async () => {});
   const detailRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const previousSelection = useRef<string | null>(null);
+  const [libraryMode, setLibraryMode] = useState(false);
+  const [recommendations, setRecommendations] = useState<RecommendationStatusDto | null>(null);
+  const [recommendationError, setRecommendationError] = useState('');
   const [showTools, setShowTools] = useState(false);
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
   const [jobs, setJobs] = useState<JobSummaryDto[]>([]);
@@ -75,7 +81,8 @@ export function JobInboxView({
         jobApi.getJobs({
           page,
           limit: 10,
-          relevantOnly: !stateFilter && !providerFilter,
+          relevantOnly: !libraryMode,
+          recommendationsOnly: !libraryMode,
           search: submittedSearch || undefined,
           workplaceType: workplaceFilter || undefined,
           employmentType: employmentFilter || undefined,
@@ -91,17 +98,27 @@ export function JobInboxView({
       ]);
 
       if (version !== requestVersion.current) return;
-      setJobs(jobsRes.items);
+      setJobs(
+        libraryMode
+          ? jobsRes.items
+          : jobsRes.items.filter(
+              (job) => job.matchSummary?.decision === 'MATCH' && !job.matchSummary.isStale,
+            ),
+      );
+      listLoadFailed.current = false;
       setTotalPages(jobsRes.totalPages);
       setTotalItems(jobsRes.total);
       setMetrics(metricsRes);
     } catch (err) {
-      if (version === requestVersion.current)
+      if (version === requestVersion.current) {
+        listLoadFailed.current = true;
         setError(err instanceof Error ? err.message : 'Failed to load jobs');
+      }
     } finally {
       if (version === requestVersion.current) setLoading(false);
     }
   }, [
+    libraryMode,
     page,
     submittedSearch,
     workplaceFilter,
@@ -117,11 +134,75 @@ export function JobInboxView({
   currentLoader.current = loadData;
 
   useEffect(() => {
-    void loadData();
+    listLoad.current = loadData();
     return () => {
       requestVersion.current++;
     };
   }, [loadData, refreshKey]);
+
+  useEffect(() => {
+    if (libraryMode) return;
+    let active = true;
+    setRecommendationError('');
+    void jobApi
+      .refreshRecommendations()
+      .then(async (value) => {
+        if (active) {
+          setRecommendations(value);
+          if (value.state === 'IDLE' && value.ready > 0 && !value.pending) {
+            await listLoad.current;
+            if (active && !listLoadFailed.current) void currentLoader.current();
+          }
+        }
+      })
+      .catch((error) => {
+        if (active) setRecommendationError(error.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, [libraryMode, refreshKey]);
+
+  useEffect(() => {
+    if (
+      libraryMode ||
+      !recommendations ||
+      recommendationError ||
+      recommendations.state === 'FAILED' ||
+      (recommendations.state === 'IDLE' && !recommendations.pending)
+    )
+      return;
+    let active = true;
+    const timer = setTimeout(() => {
+      void jobApi
+        .recommendationStatus()
+        .then(async (value) => {
+          if (!active) return;
+          if (value.state === 'IDLE' && value.pending)
+            value = await jobApi.refreshRecommendations();
+          if (active) {
+            setRecommendations(value);
+            await currentLoader.current();
+          }
+        })
+        .catch((error) => {
+          if (active) setRecommendationError(error.message);
+        });
+    }, 3000);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [libraryMode, recommendations, recommendationError]);
+
+  const retryRecommendations = async () => {
+    setRecommendationError('');
+    try {
+      setRecommendations(await jobApi.refreshRecommendations(true));
+    } catch (error) {
+      setRecommendationError(error instanceof Error ? error.message : 'Could not start analysis.');
+    }
+  };
 
   useEffect(() => {
     const previousId = previousSelection.current;
@@ -189,6 +270,7 @@ export function JobInboxView({
       setBatchNotice(
         `Discovery complete: ${res.newJobsIngested} new job(s) ingested from public sources (${res.duplicatesSkipped} duplicates skipped, ${res.totalDiscovered} scanned).`,
       );
+      setRecommendations(await jobApi.refreshRecommendations());
       setDiscoveryWarnings(
         res.sourcesSummary.flatMap((source) =>
           source.errors.map((message) => `${source.source}: ${message}`),
@@ -235,6 +317,36 @@ export function JobInboxView({
         </div>
       </div>
 
+      {!libraryMode && (
+        <Card
+          role={recommendationError || recommendations?.state === 'FAILED' ? 'alert' : undefined}
+        >
+          <p>
+            {recommendationError || recommendations?.message || 'Preparing your recommendations…'}
+          </p>
+          {recommendations && (
+            <p>
+              {recommendations.evaluated} analyzed · {recommendations.ready} matches ·{' '}
+              {recommendations.pending} awaiting analysis
+              {recommendations.locations.length ? ` · ${recommendations.locations.join(', ')}` : ''}
+              {recommendations.levels.length
+                ? ` · ${recommendations.levels.map((level) => ({ ENTRY: 'Junior', JUNIOR: 'Junior', INTERNSHIP: 'Internship' })[level.toUpperCase()] ?? level).join(', ')}`
+                : ''}
+            </p>
+          )}
+          {(recommendationError || recommendations?.state === 'FAILED') && (
+            <Button onClick={() => void retryRecommendations()}>Retry automatic analysis</Button>
+          )}
+        </Card>
+      )}
+      {libraryMode && (
+        <Card>
+          <p>
+            Saved job library — includes unanalysed, non-matching and historical jobs. These are not
+            recommendations.
+          </p>
+        </Card>
+      )}
       {batchNotice && (
         <Card
           className="card"
@@ -279,6 +391,22 @@ export function JobInboxView({
           More tools
           {selectedJobIds.length ? ` · ${selectedJobIds.length} selected` : ''}
         </summary>
+        <label>
+          <input
+            type="checkbox"
+            checked={libraryMode}
+            onChange={(event) => {
+              setLibraryMode(event.target.checked);
+              if (!event.target.checked) {
+                setDecisionFilter('');
+                setStaleFilter('');
+                setStateFilter('');
+              }
+              setPage(1);
+            }}
+          />
+          Show all saved jobs
+        </label>
         <PreparationBatchPanel
           selectedJobIds={selectedJobIds}
           onPrepared={() => setSelectedJobIds([])}
@@ -465,38 +593,41 @@ export function JobInboxView({
               style={{ flex: '0 0 auto', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
               className="layout-group"
             >
-              <Select
-                className="form-input"
-                value={decisionFilter}
-                onChange={(e) => {
-                  setDecisionFilter(e.target.value as any);
-                  setPage(1);
-                }}
-                style={{ minWidth: '130px' }}
-                title="Filter by match policy decision"
-              >
-                <option value="">All Decisions</option>
-                <option value="MATCH">MATCH Only</option>
-                <option value="REVIEW">REVIEW Only</option>
-                <option value="SKIP">SKIP Only</option>
-                <option value="UNANALYZED">Unanalyzed Only</option>
-              </Select>
+              {libraryMode && (
+                <>
+                  <Select
+                    className="form-input"
+                    value={decisionFilter}
+                    onChange={(e) => {
+                      setDecisionFilter(e.target.value as any);
+                      setPage(1);
+                    }}
+                    style={{ minWidth: '130px' }}
+                    title="Filter by match policy decision"
+                  >
+                    <option value="">All Decisions</option>
+                    <option value="MATCH">MATCH Only</option>
+                    <option value="REVIEW">REVIEW Only</option>
+                    <option value="SKIP">SKIP Only</option>
+                    <option value="UNANALYZED">Unanalyzed Only</option>
+                  </Select>
 
-              <Select
-                className="form-input"
-                value={staleFilter}
-                onChange={(e) => {
-                  setStaleFilter(e.target.value);
-                  setPage(1);
-                }}
-                style={{ minWidth: '120px' }}
-                title="Filter by analysis staleness"
-              >
-                <option value="">All Freshness</option>
-                <option value="stale">Stale Only</option>
-                <option value="fresh">Fresh Only</option>
-              </Select>
-
+                  <Select
+                    className="form-input"
+                    value={staleFilter}
+                    onChange={(e) => {
+                      setStaleFilter(e.target.value);
+                      setPage(1);
+                    }}
+                    style={{ minWidth: '120px' }}
+                    title="Filter by analysis staleness"
+                  >
+                    <option value="">All Freshness</option>
+                    <option value="stale">Stale Only</option>
+                    <option value="fresh">Fresh Only</option>
+                  </Select>
+                </>
+              )}
               <Select
                 className="form-input"
                 value={stateFilter}
@@ -582,7 +713,7 @@ export function JobInboxView({
                   decisionFilter ||
                   staleFilter
                     ? 'Try a broader search or clear the filters. Your saved jobs are unchanged.'
-                    : 'No saved jobs currently match these preferences. Find more jobs, add a link, or update your preferences in Profile. Your saved jobs are unchanged.'}
+                    : 'Only jobs with a completed, current MATCH analysis appear here. Analysis runs automatically; find more jobs or check your preferences. Your saved jobs remain available under More tools.'}
                 </p>
                 <Button className="btn btn-primary btn-sm" onClick={() => setIsAddModalOpen(true)}>
                   Add a job link
@@ -647,6 +778,13 @@ export function JobInboxView({
                               job.matchSummary?.decision || 'Analysis not run yet'
                             )}
                           </div>
+                          {job.matchSummary && !job.matchSummary.isStale && (
+                            <small>
+                              {job.matchSummary.analysisMode === 'DETERMINISTIC_ONLY'
+                                ? 'Rule-based analysis'
+                                : 'AI-assisted analysis'}
+                            </small>
+                          )}
                           {job.matchSummary && !job.matchSummary.isStale && (
                             <p className="job-fit-summary">
                               {job.matchSummary.hardBlockers?.[0] ||
@@ -757,6 +895,10 @@ export function JobInboxView({
         onClose={() => setIsAddModalOpen(false)}
         onJobCreated={(newJob) => {
           void currentLoader.current();
+          void jobApi
+            .refreshRecommendations()
+            .then(setRecommendations)
+            .catch((error) => setRecommendationError(error.message));
           onSelectJob(newJob.id);
         }}
       />

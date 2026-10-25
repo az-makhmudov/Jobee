@@ -214,6 +214,7 @@ export interface JobListQuery {
   search?: string;
   includeArchived?: boolean;
   relevantOnly?: boolean;
+  recommendationsOnly?: boolean;
   decision?: MatchDecision | 'UNANALYZED';
   minScore?: number;
   maxScore?: number;
@@ -453,4 +454,17 @@ export interface BatchAnalysisResultDto {
     score?: number;
     error?: string;
   }[];
+}
+
+export interface RecommendationStatusDto {
+  state: 'IDLE' | 'QUEUED' | 'ANALYZING' | 'FAILED';
+  pending: number;
+  ready: number;
+  excluded: number;
+  evaluated: number;
+  processed: number;
+  batchSize: number;
+  locations: string[];
+  levels: string[];
+  message: string;
 }

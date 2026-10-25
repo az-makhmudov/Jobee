@@ -12,3 +12,4 @@ export * from './ai/openai-ai-provider.js';
 export * from './matching-inputs.js';
 export * from './eligibility.js';
 export * from './job-relevance.js';
+export * from './recommendation-service.js';

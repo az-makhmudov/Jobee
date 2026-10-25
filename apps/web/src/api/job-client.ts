@@ -1,4 +1,5 @@
 import type {
+  RecommendationStatusDto,
   JobDto,
   JobSummaryDto,
   JobListQuery,
@@ -69,6 +70,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const jobApi = {
+  recommendationStatus: () => request<RecommendationStatusDto>('/jobs/recommendations'),
+  refreshRecommendations: (retry = false) =>
+    request<RecommendationStatusDto>('/jobs/recommendations', {
+      method: 'POST',
+      body: JSON.stringify({ retry }),
+    }),
   // Ingest job via pasted text
   ingestText: async (data: IngestJobTextRequest): Promise<IngestResult> => {
     return request<IngestResult>('/jobs/text', {
@@ -99,6 +106,8 @@ export const jobApi = {
     if (query?.includeArchived) params.append('includeArchived', 'true');
     if (query?.relevantOnly !== undefined)
       params.append('relevantOnly', String(query.relevantOnly));
+    if (query?.recommendationsOnly !== undefined)
+      params.append('recommendationsOnly', String(query.recommendationsOnly));
     if (query?.decision) params.append('decision', query.decision);
     if (query?.minScore !== undefined) params.append('minScore', String(query.minScore));
     if (query?.maxScore !== undefined) params.append('maxScore', String(query.maxScore));

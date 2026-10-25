@@ -1,3 +1,4 @@
+import type { RecommendationService } from '@job-agent/database/matching';
 import type { FastifyPluginAsync } from 'fastify';
 import type { JobService } from '../services/job-service.js';
 import type { MatchService } from '../services/match-service.js';
@@ -18,8 +19,25 @@ export function createJobRoutes(
   service: JobService,
   matchService?: MatchService,
   discoveryService?: JobDiscoveryService,
+  recommendations?: RecommendationService,
 ): FastifyPluginAsync {
   return async (app) => {
+    if (recommendations) {
+      app.get('/jobs/recommendations', async (req) => ({
+        status: 'ok',
+        data: await recommendations.status(requireCurrentUserId(req)),
+      }));
+      app.post('/jobs/recommendations', async (req) => {
+        const body = z
+          .object({ retry: z.boolean().optional() })
+          .strict()
+          .parse(req.body ?? {});
+        return {
+          status: 'ok',
+          data: await recommendations.request(requireCurrentUserId(req), body.retry),
+        };
+      });
+    }
     // --- On-Demand Public Discovery ---
     app.post('/jobs/discover', async (req) => {
       if (!discoveryService) throw AppError.internal('Discovery service is not initialized');
@@ -40,6 +58,7 @@ export function createJobRoutes(
         .strict()
         .parse(req.body ?? {});
       const result = await discoveryService.discoverForCandidate(userId, options);
+      await recommendations?.request(userId);
       return { status: 'ok', data: result, timestamp: new Date().toISOString() };
     });
 

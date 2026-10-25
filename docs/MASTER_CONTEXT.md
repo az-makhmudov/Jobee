@@ -49,7 +49,7 @@ Keep document upload, consent to external processing, acceptance of extracted in
 
 Explore is the default destination. Candidates search, filter and compare jobs with concise fit explanations, blockers, unknowns and source details. On desktop the detail sits beside the retained result list; on mobile candidates can return to their search context. Manual URLs/text remain supported when a discovery source is missing or inaccessible.
 
-AI interprets relevant evidence; deterministic gates enforce material restrictions. A weak professional fit, a confirmed blocker and missing information must have different explanations. Stale analyses cannot preserve automatic eligibility.
+Explore recommendations require a completed, current MATCH analysis before publication. New or changed compatible jobs are analyzed automatically in the background; unanalysed, stale, REVIEW and SKIP results remain outside recommendations. Saved target locations constrain recommendations even when relocation is allowed. Raw/imported and historical listings remain available in an explicitly labelled saved-job library. Analysis progress and retryable failures are visible; an empty recommendation list must not be filled with unsuitable roles. AI interprets permitted verified evidence, while deterministic gates enforce material restrictions. Missing eligibility remains unknown, and analysis never grants submission authority.
 
 ### 3. Prepare and apply
 

@@ -1,3 +1,4 @@
+import { seedUiMatches } from './ui-preview-matches.js';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { writeFile } from 'node:fs/promises';
 
@@ -94,6 +95,13 @@ async function run() {
     });
     jobIds.push(created.data.job.id);
   }
+  for (const id of jobIds)
+    await request(`/api/jobs/${id}`, 'PUT', {
+      city: 'Warsaw',
+      country: 'Poland',
+      locationText: 'Warsaw, Poland',
+      workplaceType: 'HYBRID',
+    });
   const apps = (await request('/api/applications')).data;
   for (let i = 0; i < jobIds.length; i++)
     if (!apps.some((a: { jobId: string }) => a.jobId === jobIds[i]))
@@ -201,6 +209,7 @@ async function run() {
   const packages = (await request('/api/application-packages')).data;
   if (!packages.some((pkg: { jobId: string }) => pkg.jobId === jobIds[0]))
     await request('/api/jobs/' + jobIds[0] + '/application-package', 'POST', {});
+  await seedUiMatches(process.env.DATABASE_URL!, session.user.id, jobIds);
   await writeFile(
     '/tmp/jobee-ui-preview-seed.json',
     JSON.stringify({ email, userId: session.user.id, jobIds }),

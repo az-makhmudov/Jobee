@@ -118,6 +118,8 @@ The browser smoke scenario covers supported-action availability and unsupported 
 
 The 2026-10-25 testing release applies `0023_current_job_extraction` through `0026_autopilot_policy`, bringing production to 27 applied entries. Freshly compare applied hashes before each authorized promotion, preserve backup/recovery, and promote API/worker together. The search/handoff correction itself adds no migration. Account deletion remains scheduled engineering work with the owner's seven-day cancellation specification; it does not block synthetic main-flow testing.
 
+Automatic Explore analysis uses the reserved `EXPLORE_MATCHING` queue in existing orchestration rows, independently of `ORCHESTRATOR_ENABLED` and `AUTOPILOT_ENABLED`. Deploy API and worker from the same recommendation-capable commit. One job is processed per claim/tick, with ten-job chunks and freshness reuse; unchanged failures require explicit retry. Gemini can be invoked by normal Explore usage, using permitted verified candidate context. Offline checks must still force `AI_PROVIDER=disabled` or an explicit fixture provider. Automatic analysis does not grant employer-submit permission. A worker outage leaves visible queued progress; inspect task status/age rather than enabling the entire periodic pipeline as a workaround.
+
 ## Storage and R2
 
 The shared storage abstraction supports local disk and S3-compatible object storage. R2 uses `S3_ENDPOINT`, bucket, `auto` region and scoped access credentials. Both backend services need compatible access to the same artifact namespace. Scope credentials to required bucket/object actions and keep public bucket access disabled.

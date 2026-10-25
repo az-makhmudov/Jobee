@@ -1,3 +1,4 @@
+import { RecommendationService } from '@job-agent/database/matching';
 import { AutopilotService } from './services/autopilot-service.js';
 import { createAutopilotRoutes } from './routes/autopilot-routes.js';
 import { pruneBrowserEvidence } from './services/browser-evidence-retention.js';
@@ -243,9 +244,13 @@ export function buildApp(options: AppOptions): FastifyInstance {
     discoveryService = new JobDiscoveryService(db, jobService, { logger });
   }
 
+  const recommendations =
+    db && matchService ? new RecommendationService(db, matchService) : undefined;
   if (jobService) {
-    app.register(createJobRoutes(jobService, matchService, discoveryService), { prefix: '/api' });
-    app.register(createJobRoutes(jobService, matchService, discoveryService));
+    app.register(createJobRoutes(jobService, matchService, discoveryService, recommendations), {
+      prefix: '/api',
+    });
+    app.register(createJobRoutes(jobService, matchService, discoveryService, recommendations));
   }
 
   // Initialize and register Application Studio & Human Approval routes

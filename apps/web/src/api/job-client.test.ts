@@ -19,3 +19,17 @@ it.each([true, false])(
     expect(url.searchParams.get('relevantOnly')).toBe(String(relevantOnly));
   },
 );
+
+it('serializes the strict recommendation flag without treating saved-library requests as recommendations', async () => {
+  const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        status: 'ok',
+        data: { items: [], total: 0, page: 1, limit: 10, totalPages: 0 },
+      }),
+    ),
+  );
+  await jobApi.getJobs({ recommendationsOnly: true });
+  expect(String(fetchMock.mock.calls[0]![0])).toContain('recommendationsOnly=true');
+  fetchMock.mockRestore();
+});

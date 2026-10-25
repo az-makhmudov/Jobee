@@ -36,6 +36,8 @@ Salary gates require comparable, explicit currencies and pay periods. Do not inv
 
 Shared matching across API, batches, daily search and worker must use current material inputs. Changed candidate/job/policy data invalidates old preliminary eligibility. Preserve historical analysis and its provenance. A current MATCH, score or AI recommendation is **never submission consent**.
 
+Default Explore publication requires a fresh MATCH decision plus current deterministic restrictions and positive preferred-location compatibility. Relocation willingness does not widen the recommendation geography. Unknown location/eligibility is not declared false; it may prevent recommendation publication without preventing manual library access. REVIEW, SKIP, absent and stale analyses are excluded. Automatic recommendation analysis is separate from application preparation/permission and Autopilot. Failed queue work requires explicit retry for unchanged inputs.
+
 ## Current defaults and limits
 
 Code, not older prose, determines current effective behavior. The following was checked against the policy schema/service, request schemas, configuration and submission transaction.

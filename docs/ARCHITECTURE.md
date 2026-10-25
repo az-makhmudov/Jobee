@@ -167,3 +167,11 @@ Calendar consent redirects to the configured web origin with a recoverable succe
 - Converge one-click and scheduled triggers only after one provider workflow is proven. Existing reviewed flows remain usable until replacement acceptance passes.
 
 Operational procedures are in [operations](OPERATIONS.md); normative security constraints and known assurance gaps are in [policies](POLICIES.md).
+
+### Automatic Explore recommendations
+
+`RecommendationService` in the shared database matching library uses existing `orchestration_runs` rows with the reserved `EXPLORE_MATCHING` task type. The API requests work on Explore entry/discovery; the independent worker consumes it even when the periodic orchestrator and application Autopilot are disabled. No API implementation is imported by the worker and no new schema is required.
+
+A user-row lock coalesces requests. Each run snapshots the candidate/posting fingerprint and up to ten pending compatible jobs; the worker claims one job with skip-locked row locking, checks input freshness and fences completion to its claim timestamp. Completed chunks continue automatically while pending jobs remain. Current analyses are reused; unchanged failed work waits for deliberate retry. Stale queued work is cancelled and new inputs can be queued. This task cannot prepare materials, create application permission or dispatch an employer form.
+
+The recommendation selector applies location/seniority and hard restrictions before pagination, then requires a current MATCH result. City targets remain binding when relocation is allowed; country qualifiers cannot broaden a city target. An explicit Remote target is separate from work authorization. The client additionally withholds missing/stale/non-MATCH cards. The raw library retains existing ingestion/history access behind explicit disclosure. UI-only match fixtures are isolated synthetic records with fixture provenance, not provider evaluations.

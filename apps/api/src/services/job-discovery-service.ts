@@ -1,4 +1,4 @@
-import { relevanceIssues } from '@job-agent/database/matching';
+import { relevanceIssues, matchesPreferredLocation } from '@job-agent/database/matching';
 import { JobNormalizerService } from './job-normalizer-service.js';
 import type { Database } from '@job-agent/database';
 import { jobPreferences, candidateProfiles, jobSearchSettings, jobs } from '@job-agent/database';
@@ -181,7 +181,11 @@ export class JobDiscoveryService {
             location: item.location,
             descriptionText: item.description,
           });
-          if (relevanceIssues(normalized, prefs ?? null, profile ?? null).length) continue;
+          if (
+            relevanceIssues(normalized, prefs ?? null, profile ?? null).length ||
+            !matchesPreferredLocation(normalized, prefs ?? null)
+          )
+            continue;
           try {
             const fullText = `Title: ${item.title}\nCompany: ${item.company}\nLocation: ${item.location || 'Unknown'}\n${item.remote ? 'Work arrangement: Remote\n' : ''}${item.employmentType ? `Employment: ${item.employmentType}\n` : ''}${item.salary ? `Salary: ${item.salary}\n` : ''}\nJob Description:\n${item.description}`;
             const result = await this.jobService.ingestText(userId, {

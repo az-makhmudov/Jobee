@@ -1,6 +1,7 @@
 import {
   currentMatchingInputs,
   relevanceIssues,
+  matchesPreferredLocation,
   HardPolicyEngine,
 } from '@job-agent/database/matching';
 import { eq, desc, and, or, ilike, count, sql, inArray } from 'drizzle-orm';
@@ -522,13 +523,38 @@ export class JobService {
     // Filter by match intelligence if requested
     const filteredJobs = allMatchingJobs.filter((r) => {
       if (
-        query.relevantOnly &&
+        query.recommendationsOnly &&
+        (['ARCHIVED', 'INVALID', 'DUPLICATE'].includes(r.state) ||
+          r.isDuplicate ||
+          (r.expirationDate && r.expirationDate < new Date()))
+      )
+        return false;
+      if (
+        (query.relevantOnly || query.recommendationsOnly) &&
         relevanceIssues(r, context.preferences, context.candidateProfile).length
       )
         return false;
-      if (query.relevantOnly && hardPolicy.evaluate(r, context).hasBlockers) return false;
+      if (
+        (query.relevantOnly || query.recommendationsOnly) &&
+        hardPolicy.evaluate(r, context).hasBlockers
+      )
+        return false;
       const match = latestAnalysisMap.get(r.id);
-      if (query.relevantOnly && match && !match.isStale && match.decision === 'SKIP') return false;
+      if (
+        query.recommendationsOnly &&
+        (!matchesPreferredLocation(r, context.preferences) ||
+          !match ||
+          match.isStale ||
+          match.decision !== 'MATCH')
+      )
+        return false;
+      if (
+        (query.relevantOnly || query.recommendationsOnly) &&
+        match &&
+        !match.isStale &&
+        match.decision === 'SKIP'
+      )
+        return false;
 
       if (query.decision) {
         if (query.decision === 'UNANALYZED') {

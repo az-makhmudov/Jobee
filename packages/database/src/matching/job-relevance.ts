@@ -13,6 +13,68 @@ const place = (value: string) => {
     )[text] ?? normalizeCountry(text)
   );
 };
+const countries = new Set([
+  'poland',
+  'germany',
+  'united kingdom',
+  'france',
+  'united states',
+  'switzerland',
+  'netherlands',
+  'canada',
+  'australia',
+  'spain',
+  'italy',
+  'portugal',
+  'ireland',
+  'austria',
+  'belgium',
+  'czechia',
+  'czech republic',
+  'slovakia',
+  'ukraine',
+  'lithuania',
+  'latvia',
+  'estonia',
+  'sweden',
+  'norway',
+  'denmark',
+  'finland',
+  'uzbekistan',
+  'kazakhstan',
+  'kyrgyzstan',
+  'tajikistan',
+  'turkmenistan',
+]);
+/** Recommendation geography requires an actual target match; willingness to relocate is separate. */
+export function matchesPreferredLocation(
+  job: Pick<Job, 'city' | 'region' | 'country' | 'locationText'> &
+    Partial<Pick<Job, 'workplaceType'>>,
+  preferences: JobPreferences | null,
+): boolean {
+  const locations = (preferences?.preferredLocations ?? [])
+    .flatMap((value) => value.split(','))
+    .map(place)
+    .filter(Boolean);
+  if (!locations.length) return true;
+  const cities = locations.filter((value) => !countries.has(value) && value !== 'remote');
+  const countryTargets = locations.filter((value) => countries.has(value));
+  if (locations.includes('remote') && job.workplaceType === 'REMOTE') {
+    return !countryTargets.length || countryTargets.includes(place(job.country ?? ''));
+  }
+  const known = [job.city, job.region, job.country]
+    .filter((value): value is string => !!value)
+    .map(place);
+  const text = (job.locationText ?? '').split(/[,;/|]/).map(place);
+  const target = cities.length ? cities : locations;
+  const matches = target.some((value) => known.includes(value) || text.includes(value));
+  return (
+    matches &&
+    (!cities.length ||
+      !countryTargets.length ||
+      countryTargets.some((value) => value === place(job.country ?? '') || text.includes(value)))
+  );
+}
 const levelName = (value: string) => {
   const level = value.trim().toUpperCase();
   if (['JUNIOR', 'ENTRY'].includes(level)) return 'ENTRY';
@@ -53,14 +115,9 @@ export function relevanceIssues(
   const level = jobSeniority(job);
   if (levels.length && level !== 'UNKNOWN' && !levels.includes(level)) issues.push('seniority');
   const locations = preferences?.preferredLocations.filter((x) => x.trim()) ?? [];
-  if (locations.length && preferences?.willingToRelocate !== true) {
+  if (locations.length) {
     const known = [job.city, job.region, job.country].filter((x): x is string => !!x).map(place);
-    const text = normalized(job.locationText ?? '');
-    const matches = locations.some(
-      (value) =>
-        known.includes(place(value)) ||
-        text.split(/[,;/|]/).some((part) => place(part) === place(value)),
-    );
+    const matches = matchesPreferredLocation(job, preferences);
     // A country-only posting cannot disprove a city preference within that country.
     const countryPreference = locations.some((value) => place(value) === place(job.country ?? ''));
     const explicitCityMismatch =
