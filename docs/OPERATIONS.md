@@ -116,7 +116,7 @@ For human testing, set target roles, preferred locations and junior/internship l
 
 The browser smoke scenario covers supported-action availability and unsupported handoff without clicking any external link or submitting to an employer. The separate deterministic API/worker fixture verifies preparation, submission and confirmation. For real submission testing, obtain the exact named vacancy/action approval first. Source coverage remains the configured public feeds/company boards; empty relevant results do not establish broad Poland-market coverage.
 
-The separately recorded production checkpoint has 23 applied migrations, while this local branch has 27. Before an authorized promotion, freshly compare applied hashes and review `0023_current_job_extraction` through `0026_autopilot_policy`, preserve backup/recovery, and promote API/worker together. This testing checkpoint adds no migration. Account deletion remains scheduled engineering work with the owner's seven-day cancellation specification; it does not block synthetic main-flow testing.
+The 2026-10-25 testing release applies `0023_current_job_extraction` through `0026_autopilot_policy`, bringing production to 27 applied entries. Freshly compare applied hashes before each authorized promotion, preserve backup/recovery, and promote API/worker together. The search/handoff correction itself adds no migration. Account deletion remains scheduled engineering work with the owner's seven-day cancellation specification; it does not block synthetic main-flow testing.
 
 ## Storage and R2
 
@@ -132,7 +132,9 @@ Local disk on an ephemeral container is not durable shared storage. Do not solve
 
 The [IaC configuration](../.railway/railway.ts) defines `jobee-api` and `jobee-worker` using [Dockerfile](../Dockerfile). API serves REST/auth plus built SPA on one port. Worker runs a separate entry point against shared database/storage. The Node 24 image installs Chromium and runs as non-root.
 
-Production API startup runs database migrations before accepting traffic. A restart or image promotion may therefore change schema; treat it as a production action. The checked-in topology does not prove current platform dashboard values or deployed SHA.
+Production API startup runs database migrations before accepting traffic. The rotated runtime account is not the owner of existing tables: pre-apply reviewed ALTER migrations through the protected migration account, then grant runtime DML access to newly created tables. Keep the migration credential out of API/worker configuration. A restart or image promotion may change schema; treat it as a production action. The checked-in topology does not prove current platform dashboard values or deployed SHA.
+
+The testing release sets the public `WEB_ORIGIN` and `BETTER_AUTH_URL`, keeps deliberate preparation/submission available, and sets `ORCHESTRATOR_ENABLED=false` and `AUTOPILOT_ENABLED=false` on both services. This prevents the worker’s periodic pipeline from invoking AI while human testing is being established. Existing secrets and integration grants are preserved. The release is pinned to `f3202ea` from `codex/jobee-2-foundation`; that branch was pushed without merging `main`. Future promotions must select the intended commit explicitly until a separately authorized integration into `main`. Daily discovery/preparation additionally depend on saved candidate opt-ins; none were enabled at this release preflight.
 
 For an explicitly authorized release:
 

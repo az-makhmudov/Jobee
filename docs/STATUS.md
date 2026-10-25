@@ -1,6 +1,8 @@
 # Jobee — current status
 
-Updated 2026-10-25. Active checkpoint: **JOB-P2-T02 / JOB-P3-T01 / JOB-P1-T02 main-feature testing**. Preceding source HEAD: `1e445d2` on `codex/jobee-2-foundation`. This checkpoint prioritizes relevant discovery and Quick Apply testing; account deletion follows that priority. Production rollout remains undecided; no push/deployment is authorized.
+Updated 2026-10-25. Active checkpoint: **JOB-P2-T02 / JOB-P3-T01 testing release**. Approved release source: `f3202ea` on `codex/jobee-2-foundation`. The owner explicitly approved push, Railway API/worker deployment and pending additive migrations on 2026-10-25. Real employer submissions, calendar mutations and paid AI test calls remain excluded.
+
+**Deployed and verified.** API `395e7949-cc0f-4ace-9546-337bd4c2d071` and worker `ccce67dd-4ac1-43f7-bc4a-c9f938fdbd77` both run `f3202ea`. The feature branch is pushed; `main` was not merged. Production has 27 matching migration hashes. An encrypted pre-migration custom backup, verified restore manifest/encryption round trip and rollback configuration are retained outside Git; a full production-data restore was not performed. Original record IDs and integration-token contents are unchanged. Public auth/Calendar origins are configured; scheduled orchestration and Autopilot are off for testing, with deliberate Quick Apply enabled.
 
 ## Current behavior
 
@@ -33,10 +35,11 @@ An earlier browser fixture selected only Entry while expecting internships; its 
 
 ## Live evidence and remaining scope
 
-- The owner uses the Railway production app and reports Gmail/Calendar connected. The separate local database has no such connections. No mailbox content, real calendar events or production records were changed; this checkout does not establish deployed identity or live integration health.
+- 2026-10-25 testing release verified both source identities and deployment variable snapshots (API 30 bindings, worker 19), healthy/ready 200 responses and the released frontend bundle. Disposable ordinary-user checks passed sign-in, preferences, junior/Poland filtering, tenant denial, private document round trip, 10/day metrics, forbidden user AI configuration and blocked automation-generated Apply permission. Synthetic Calendar refusal returned to the public origin and its signed state rejected replay. Two synthetic users and one owned object were removed; original identity/token digests match the preflight. Worker startup/database connection are confirmed, with no application errors in bounded logs; PostgreSQL's future SSL-mode compatibility warning remains a follow-up. No real employer submission, paid AI request, mailbox read or Google event mutation occurred.
+- The owner reports Gmail/Calendar connected. Existing token records were preserved; release checks did not read mailbox contents or validate real-provider event behavior.
 - Honeywell vacancy 159335 was read publicly on 2026-10-25: project-management internship in Warsaw, hybrid, on Oracle Recruiting. Oracle is outside current submission adapters; retain manual handoff. No application was started/submitted, and supplying a URL does not authorize submission.
 - Owner decisions: Poland-first launch for all job seekers, emphasis on international students; private, non-open-source repository; Autopilot defaults off. Current repository visibility is owner-declared, not independently revalidated by the unsigned-in GitHub CLI. Historical privacy/security review remains relevant.
 - Remaining engineering/acceptance: self-service account deletion; owner review of the simplified UI; human relevance/student usability; measured Gemini quality/cost under an approved budget; real provider acceptance; retention/privacy and operational recovery review. Do not claim these from fixtures.
-- Push/merge, deployment/production migration, paid usage, real employer submissions and calendar mutations still require separate explicit authorization under [AGENTS.md](../AGENTS.md).
+- This testing release had explicit push/deployment/migration approval. Further releases, merge into `main`, paid provider validation, real employer submissions and calendar mutations require their own explicit scope under [AGENTS.md](../AGENTS.md).
 
 Continue from the reviewed local checkpoint and [remaining roadmap](ROADMAP.md); preserve the owner's candidate data and connected accounts.
