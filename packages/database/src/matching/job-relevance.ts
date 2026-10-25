@@ -29,7 +29,7 @@ export function preferredLevels(
   if (/\b(junior|entry.level)\b/i.test(profile?.headline ?? '')) return ['INTERNSHIP', 'ENTRY'];
   return [];
 }
-export function jobSeniority(job: Job): string {
+export function jobSeniority(job: Pick<Job, 'title' | 'seniority'>): string {
   if (/\b(intern|internship|trainee)\b/i.test(job.title)) return 'INTERNSHIP';
   if (/\b(junior|entry.level|graduate)\b/i.test(job.title)) return 'ENTRY';
   if (/\b(senior|sr\.?)\b/i.test(job.title)) return 'SENIOR';
@@ -44,7 +44,7 @@ export function jobSeniority(job: Job): string {
 }
 /** Explicit compatibility only. Unknown location/level is not fabricated or treated as eligibility. */
 export function relevanceIssues(
-  job: Job,
+  job: Pick<Job, 'title' | 'seniority' | 'city' | 'region' | 'country' | 'locationText'>,
   preferences: JobPreferences | null,
   profile: CandidateProfile | null,
 ): string[] {

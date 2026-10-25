@@ -66,7 +66,7 @@ Local file storage is process/filesystem dependent. Ensure API and worker see th
 
 ## Safe database verification and migration
 
-Migration source: [journal](../packages/database/drizzle/meta/_journal.json), [SQL directory](../packages/database/drizzle/), [migrator](../packages/database/src/migrator.ts). There are 25 entries through `0024_salary_pay_period`. Compare applied `drizzle.__drizzle_migrations` counts/timestamps/hashes with committed SQL/journal, not just a table count.
+Migration source: [journal](../packages/database/drizzle/meta/_journal.json), [SQL directory](../packages/database/drizzle/), [migrator](../packages/database/src/migrator.ts). There are 27 entries through `0026_autopilot_policy`. Compare applied `drizzle.__drizzle_migrations` counts/timestamps/hashes with committed SQL/journal, not just a table count.
 
 `npm run db:check` performs a connectivity probe, not migration or data-integrity certification. `npm run db:migrate` applies pending SQL and, outside production, may seed the legacy primary user. It is a write action even if no new schema is expected. Never run it against an unverified URL as a documentation check.
 
@@ -107,6 +107,16 @@ Build shared packages before browser servers start; avoid package rebuilds durin
 Inspect standalone verification scripts before use. Some perform public network requests, connect production health endpoints, generate AI requests or create fixture data. A script's name is not proof it is offline. `scripts/evaluate-real-job-discovery.ts` writes transient evidence to ignored `output/acceptance/real-job-discovery.md`; it must not regenerate a canonical document. Review generated content before sharing. `scripts/run-real-user-acceptance.ts` includes historical attestation and production/public checks and is not an offline unit gate.
 
 Autopilot requires additive migration `0026_autopilot_policy` before API/worker rollout. `AUTOPILOT_ENABLED=false` is the default; keep both processes consistent. Enabling the environment switch does not accept a candidate policy, and this local task does not authorize production enablement. The API owns policy checks and durable preparation; the separate worker owns browser execution. Monitor stale scheduling leases (15 minutes), partial runs, pending preparation requests and attention notifications. Manual/scheduled retries must retain prior attempts; do not reset dispatch markers to recover uncertainty. Queue reservations count every SUBMIT run created in the current UTC day, including failures; previews/preparation use their own budgets. Orchestration metrics report those same submission reservations.
+
+### Main-feature testing checkpoint
+
+Prioritize Profile → Explore → job details → Apply → Applications. On an explicitly isolated local database, use disabled AI, local storage and synthetic candidates. Run the existing one-click API/worker fixtures and browser suite before promoting a build. Public-feed retrieval, paid Gemini generation and employer submission are separate live checks; offline success does not certify those services.
+
+For human testing, set target roles, preferred locations and junior/internship levels in Profile, then Find more jobs in Explore. Known location/seniority conflicts are filtered before spending the discovery result limit. Compare the descriptions and unknowns, open a supported Greenhouse/Lever/Ashby hosted form and inspect the job-scoped Apply permission. Other destinations, including Oracle, show Apply on employer website; no automatic submission is promised. Confirm application progress in Applications and resolve any missing verified facts. An uncertain result requires reconciliation before another attempt.
+
+The browser smoke scenario covers supported-action availability and unsupported handoff without clicking any external link or submitting to an employer. The separate deterministic API/worker fixture verifies preparation, submission and confirmation. For real submission testing, obtain the exact named vacancy/action approval first. Source coverage remains the configured public feeds/company boards; empty relevant results do not establish broad Poland-market coverage.
+
+The separately recorded production checkpoint has 23 applied migrations, while this local branch has 27. Before an authorized promotion, freshly compare applied hashes and review `0023_current_job_extraction` through `0026_autopilot_policy`, preserve backup/recovery, and promote API/worker together. This testing checkpoint adds no migration. Account deletion remains scheduled engineering work with the owner's seven-day cancellation specification; it does not block synthetic main-flow testing.
 
 ## Storage and R2
 

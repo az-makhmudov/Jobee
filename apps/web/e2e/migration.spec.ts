@@ -1275,3 +1275,56 @@ test('Explore explains fit and unresolved eligibility beside the selected role',
     animations: 'disabled',
   });
 });
+
+test('Explore offers Quick Apply for supported forms and an honest employer handoff for other forms', async ({
+  page,
+}) => {
+  const created: string[] = [];
+  const marker = `Apply smoke ${crypto.randomUUID()}`;
+  try {
+    for (const [suffix, url, automatic] of [
+      [
+        'supported',
+        `https://boards.greenhouse.io/fixture/jobs/${encodeURIComponent(marker)}`,
+        true,
+      ],
+      ['manual', `https://employer.example.test/vacancy/${encodeURIComponent(marker)}`, false],
+    ] as const) {
+      const response = await page.request.post('/api/jobs/text', {
+        data: {
+          title: `${marker} ${suffix}`,
+          company: 'Synthetic test employer',
+          url,
+          text: 'Junior frontend developer. Build accessible web applications with React and JavaScript. Location: Warsaw, Poland. Paid entry-level role.',
+        },
+      });
+      expect(response.ok()).toBeTruthy();
+      const id = (await response.json()).data.job.id;
+      created.push(id);
+      await page.goto('/');
+      await page.getByLabel('Search jobs', { exact: true }).fill(`${marker} ${suffix}`);
+      await page.getByRole('button', { name: 'Search', exact: true }).click();
+      await page.locator(`[data-job-id="${id}"]`).click();
+      if (automatic) {
+        await expect(
+          page.getByRole('button', { name: 'Apply with Jobee', exact: true }),
+        ).toBeEnabled();
+        await expect(page.getByText(/you authorize one application/)).toBeVisible();
+      } else {
+        await expect(page.getByRole('link', { name: 'Apply on employer website' })).toHaveAttribute(
+          'href',
+          url,
+        );
+        await expect(
+          page.getByRole('button', { name: 'Apply with Jobee', exact: true }),
+        ).toHaveCount(0);
+      }
+    }
+  } finally {
+    // Archive only these disposable smoke-test records; no real employer interaction.
+    for (const id of created)
+      await page.request.post(`/api/jobs/${id}/archive`, {
+        data: { reason: 'Synthetic smoke test complete' },
+      });
+  }
+});

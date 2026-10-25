@@ -91,3 +91,36 @@ it('keeps apply disabled after status load failure and allows a read-only refres
     ),
   );
 });
+
+it('offers an immediate manual handoff for Oracle without authorizing an automated attempt', async () => {
+  const url =
+    'https://ibqbjb.fa.ocs.oraclecloud.com/hcmUI/CandidateExperience/en/sites/Honeywell/job/159335';
+  render(<ApplyWithJobee jobId="oracle-job" employerUrl={url} />);
+  const link = await screen.findByRole('link', { name: 'Apply on employer website' });
+  expect(link.getAttribute('href')).toBe(url);
+  expect(link.getAttribute('rel')).toContain('noopener');
+  expect(screen.queryByRole('button', { name: 'Apply with Jobee' })).toBeNull();
+  expect(jobSearchApi.apply).not.toHaveBeenCalled();
+});
+it('preserves an existing attempt and its uncertainty controls even on a manual destination', async () => {
+  vi.mocked(jobSearchApi.intentForJob).mockResolvedValue({
+    ...intent,
+    status: 'UNKNOWN_RESULT',
+    message: 'Verify the employer result.',
+    canCancel: false,
+  });
+  render(<ApplyWithJobee jobId="job" employerUrl="https://employer.example.test/apply" />);
+  await screen.findByText('Submission confirmation needed');
+  expect(screen.queryByRole('link', { name: 'Apply on employer website' })).toBeNull();
+  expect(screen.getByRole('link', { name: 'Open employer website' })).toBeTruthy();
+});
+
+it('withholds the manual handoff until existing-attempt lookup succeeds', async () => {
+  vi.mocked(jobSearchApi.intentForJob).mockRejectedValueOnce(new Error('Status unavailable'));
+  render(<ApplyWithJobee jobId="job" employerUrl="https://employer.example.test/apply" />);
+  await screen.findByText('Status unavailable');
+  expect(screen.queryByRole('link', { name: 'Apply on employer website' })).toBeNull();
+  expect(jobSearchApi.apply).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Refresh application status' }));
+  await screen.findByRole('link', { name: 'Apply on employer website' });
+});

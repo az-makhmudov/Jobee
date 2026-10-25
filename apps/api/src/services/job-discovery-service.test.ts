@@ -70,6 +70,36 @@ describe('Public discovery traversal', () => {
     expect(saved[0]?.lastCheckedDate).toBeTruthy();
     expect(saved[0]?.workplaceType).toBe('REMOTE');
   });
+  it('finds a compatible junior role after foreign and senior results without spending its result limit', async () => {
+    await db
+      .update(jobPreferences)
+      .set({
+        preferredLocations: ['Poland'],
+        seniorityLevels: ['ENTRY'],
+        willingToRelocate: false,
+      })
+      .where(eq(jobPreferences.userId, userId));
+    const postings = [
+      { title: 'Junior Project Manager', location: { name: 'Berlin, Germany' } },
+      { title: 'Senior Project Manager', location: { name: 'Warsaw, Poland' } },
+      { title: 'Junior Project Manager', location: { name: 'Warsaw, Poland' } },
+    ].map((item, i) => ({ ...rows(3)[i], ...item }));
+    const fetchFn = vi.fn(
+      async () => new Response(JSON.stringify({ jobs: postings })),
+    ) as typeof fetch;
+    const service = new JobDiscoveryService(db, new JobService(db), { fetchFn });
+    const result = await service.discoverForCandidate(userId, {
+      sources: ['GREENHOUSE'],
+      companies: ['fixture'],
+      limit: 1,
+    });
+    expect(result.newJobsIngested).toBe(1);
+    const saved = await db.select().from(jobs).where(eq(jobs.userId, userId));
+    expect(saved).toHaveLength(1);
+    expect(saved[0]!.title).toBe('Junior Project Manager');
+    expect(saved[0]!.country).toBe('Poland');
+    expect(saved[0]!.sourceExternalId).toBe('3');
+  });
   it('refreshes checked provenance and changed text without replacing IDs or manual corrections', async () => {
     let description = 'Requirements:\n• Must have TypeScript experience.';
     const fetchFn = vi.fn(

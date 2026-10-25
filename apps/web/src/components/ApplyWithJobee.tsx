@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import type { ApplicationIntentDto } from '@job-agent/shared';
+import { inferHostedAtsProvider, type ApplicationIntentDto } from '@job-agent/shared';
 import { jobSearchApi } from '../api/job-search-client.js';
 import { Button, Card } from '../ui/Primitives.js';
 
@@ -26,6 +26,10 @@ export function ApplyWithJobee({
   existingOnly?: boolean;
   employerUrl?: string | null;
 }) {
+  const manualOnly = Boolean(
+    employerUrl && !['GREENHOUSE', 'LEVER', 'ASHBY'].includes(inferHostedAtsProvider(employerUrl)),
+  );
+  const safeEmployerUrl = employerUrl && /^https?:\/\//i.test(employerUrl) ? employerUrl : null;
   const [intent, setIntent] = useState<ApplicationIntentDto | null>(null);
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
@@ -91,7 +95,26 @@ export function ApplyWithJobee({
   if (existingOnly && !intent && !error) return null;
   return (
     <Card className="student-stack">
-      {!intent ? (
+      {!intent && manualOnly && !loaded ? (
+        <p role="status">Checking application status…</p>
+      ) : !intent && manualOnly ? (
+        <>
+          {safeEmployerUrl && (
+            <a
+              className="btn btn-primary"
+              href={safeEmployerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Apply on employer website
+            </a>
+          )}
+          <p>
+            Jobee cannot submit this employer form automatically yet. Apply on the employer website,
+            then track it in Applications.
+          </p>
+        </>
+      ) : !intent ? (
         <>
           <Button
             className="btn-primary"

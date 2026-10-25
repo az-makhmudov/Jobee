@@ -57,82 +57,103 @@ export class SmartProfileImportService {
     sourceType: ProfileImportSourceType = 'CV',
     options?: { replaceMasterCv?: boolean },
   ): Promise<ProfileImportSessionDto> {
-    // 1. Upload to storage
-    const storageResult = await this.storage.saveFile(fileBuffer, fileMeta);
+    let storedKey: string | undefined;
+    const session = await this.db
+      .transaction(async (tx) => {
+        // 1. Upload to storage
+        await tx.execute(sql`SELECT id FROM users WHERE id=${userId} FOR UPDATE`);
+        const saved = await tx
+          .select({ id: candidateDocuments.id })
+          .from(candidateDocuments)
+          .where(eq(candidateDocuments.userId, userId))
+          .limit(10);
+        if (saved.length >= 10)
+          throw AppError.badRequest(
+            'You can save up to 10 documents. Delete a document before adding another.',
+          );
+        const storageResult = await this.storage.saveFile(fileBuffer, fileMeta);
+        storedKey = storageResult.storageKey;
 
-    // 2. Check for existing active Master CV
-    const [existingMaster] = await this.db
-      .select({ id: candidateDocuments.id })
-      .from(candidateDocuments)
-      .where(
-        and(
-          eq(candidateDocuments.userId, userId),
-          eq(candidateDocuments.isMaster, true),
-          eq(candidateDocuments.isActive, true),
-        ),
-      )
-      .limit(1);
+        // 2. Check for existing active Master CV
+        const [existingMaster] = await tx
+          .select({ id: candidateDocuments.id })
+          .from(candidateDocuments)
+          .where(
+            and(
+              eq(candidateDocuments.userId, userId),
+              eq(candidateDocuments.isMaster, true),
+              eq(candidateDocuments.isActive, true),
+            ),
+          )
+          .limit(1);
 
-    let isMaster = false;
-    let documentType: 'MASTER_CV' | 'CV' | 'OTHER' = 'OTHER';
+        let isMaster = false;
+        let documentType: 'MASTER_CV' | 'CV' | 'OTHER' = 'OTHER';
 
-    if (sourceType === 'CV') {
-      if (existingMaster) {
-        if (options?.replaceMasterCv === true) {
-          // Explicit opt-in to replace master CV: demote previous master
-          await this.db
-            .update(candidateDocuments)
-            .set({ isMaster: false, updatedAt: new Date() })
-            .where(eq(candidateDocuments.id, existingMaster.id));
-          isMaster = true;
-          documentType = 'MASTER_CV';
-        } else {
-          // Preserve existing master CV: store this as supporting CV
+        if (sourceType === 'CV') {
+          if (existingMaster) {
+            if (options?.replaceMasterCv === true) {
+              // Explicit opt-in to replace master CV: demote previous master
+              await tx
+                .update(candidateDocuments)
+                .set({ isMaster: false, updatedAt: new Date() })
+                .where(eq(candidateDocuments.id, existingMaster.id));
+              isMaster = true;
+              documentType = 'MASTER_CV';
+            } else {
+              // Preserve existing master CV: store this as supporting CV
+              isMaster = false;
+              documentType = 'CV';
+            }
+          } else {
+            // No existing master CV: this becomes the master CV
+            isMaster = true;
+            documentType = 'MASTER_CV';
+          }
+        } else if (sourceType === 'LINKEDIN_PDF') {
           isMaster = false;
-          documentType = 'CV';
+          documentType = 'OTHER';
         }
-      } else {
-        // No existing master CV: this becomes the master CV
-        isMaster = true;
-        documentType = 'MASTER_CV';
-      }
-    } else if (sourceType === 'LINKEDIN_PDF') {
-      isMaster = false;
-      documentType = 'OTHER';
-    }
 
-    // Register in Document Vault as a candidate document
-    const [docRow] = await this.db
-      .insert(candidateDocuments)
-      .values({
-        userId,
-        documentType,
-        displayName: `${sourceType === 'LINKEDIN_PDF' ? 'LinkedIn Export' : isMaster ? 'Master CV' : 'CV'} - ${fileMeta.originalFilename}`,
-        originalFilename: fileMeta.originalFilename,
-        mimeType: fileMeta.mimeType,
-        sizeBytes: storageResult.sizeBytes,
-        storageKey: storageResult.storageKey,
-        sha256Checksum: storageResult.sha256Checksum,
-        version: '1.0',
-        isActive: true,
-        isMaster,
-      })
-      .returning();
+        // Register in Document Vault as a candidate document
+        const [docRow] = await tx
+          .insert(candidateDocuments)
+          .values({
+            userId,
+            documentType,
+            displayName: `${sourceType === 'LINKEDIN_PDF' ? 'LinkedIn Export' : isMaster ? 'Master CV' : 'CV'} - ${fileMeta.originalFilename}`,
+            originalFilename: fileMeta.originalFilename,
+            mimeType: fileMeta.mimeType,
+            sizeBytes: storageResult.sizeBytes,
+            storageKey: storageResult.storageKey,
+            sha256Checksum: storageResult.sha256Checksum,
+            version: '1.0',
+            isActive: true,
+            isMaster,
+          })
+          .returning();
 
-    // 3. Create session record
-    const [session] = await this.db
-      .insert(profileImportSessions)
-      .values({
-        userId,
-        sourceType,
-        status: 'PENDING',
-        originalFilename: fileMeta.originalFilename,
-        mimeType: fileMeta.mimeType,
-        storageKey: storageResult.storageKey,
-        documentId: docRow?.id || null,
-        aiConsentGiven: false,
+        // 3. Create session record
+        const [session] = await tx
+          .insert(profileImportSessions)
+          .values({
+            userId,
+            sourceType,
+            status: 'PENDING',
+            originalFilename: fileMeta.originalFilename,
+            mimeType: fileMeta.mimeType,
+            storageKey: storageResult.storageKey,
+            documentId: docRow?.id || null,
+            aiConsentGiven: false,
+          })
+          .returning();
+
+        return session!;
       })
-      .returning();
+      .catch(async (error) => {
+        if (storedKey) await this.storage.deleteFile(storedKey).catch(() => {});
+        throw error;
+      });
 
     return this.mapSessionDto(session!, []);
   }

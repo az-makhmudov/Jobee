@@ -1,3 +1,5 @@
+import { relevanceIssues } from '@job-agent/database/matching';
+import { JobNormalizerService } from './job-normalizer-service.js';
 import type { Database } from '@job-agent/database';
 import { jobPreferences, candidateProfiles, jobSearchSettings, jobs } from '@job-agent/database';
 import { eq, and, isNull, lt, or } from 'drizzle-orm';
@@ -151,6 +153,7 @@ export class JobDiscoveryService {
           );
         }
       }
+      const normalizer = new JobNormalizerService();
       let added = 0;
       let examined = 0;
       // Round-robin and count new jobs, not duplicate hits, toward the requested limit.
@@ -169,6 +172,16 @@ export class JobDiscoveryService {
             prefs?.excludedCompanies.some((c) => c.toLowerCase() === item.company.toLowerCase())
           )
             continue;
+          // Reject known preference conflicts before they consume the discovery limit.
+          // Unknown metadata stays unknown; public listings are never eligibility evidence.
+          const normalized = normalizer.normalize({
+            provider: q.source,
+            title: item.title,
+            company: item.company,
+            location: item.location,
+            descriptionText: item.description,
+          });
+          if (relevanceIssues(normalized, prefs ?? null, profile ?? null).length) continue;
           try {
             const fullText = `Title: ${item.title}\nCompany: ${item.company}\nLocation: ${item.location || 'Unknown'}\n${item.remote ? 'Work arrangement: Remote\n' : ''}${item.employmentType ? `Employment: ${item.employmentType}\n` : ''}${item.salary ? `Salary: ${item.salary}\n` : ''}\nJob Description:\n${item.description}`;
             const result = await this.jobService.ingestText(userId, {

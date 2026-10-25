@@ -11,6 +11,7 @@ import {
   assertSafeTestUser,
   assertDailyApplicationLimit,
 } from '@job-agent/database';
+import { SmartProfileImportService } from '../apps/api/src/services/import/smart-profile-import-service.js';
 import { CandidateService } from '../apps/api/src/services/candidate-service.js';
 import { PilotInvitationService } from '../apps/api/src/services/auth/pilot-invitation-service.js';
 import { LocalStorageProvider } from '@job-agent/shared/storage';
@@ -103,6 +104,25 @@ it('serializes concurrent uploads at ten and removes the rejected file', async (
     );
   for (let i = 0; i < 9; i++) await upload();
   const outcomes = await Promise.allSettled([upload(), upload()]);
+  expect(outcomes.filter((x) => x.status === 'fulfilled')).toHaveLength(1);
+  expect(
+    await db.select().from(candidateDocuments).where(eq(candidateDocuments.userId, userId)),
+  ).toHaveLength(10);
+  expect(await fs.readdir(dir)).toHaveLength(10);
+});
+
+it('shares the ten-document cap across concurrent profile imports and vault uploads', async () => {
+  const storage = new LocalStorageProvider({ baseDir: dir });
+  const candidate = new CandidateService(db, storage);
+  const imports = new SmartProfileImportService(db, storage, candidate);
+  const file = Buffer.from('Synthetic import document');
+  const meta = { originalFilename: 'fixture.txt', mimeType: 'text/plain' };
+  for (let i = 0; i < 9; i++)
+    await candidate.uploadDocument(userId, file, meta, { documentType: 'CV' });
+  const outcomes = await Promise.allSettled([
+    imports.createSession(userId, file, meta),
+    candidate.uploadDocument(userId, file, meta, { documentType: 'CV' }),
+  ]);
   expect(outcomes.filter((x) => x.status === 'fulfilled')).toHaveLength(1);
   expect(
     await db.select().from(candidateDocuments).where(eq(candidateDocuments.userId, userId)),
