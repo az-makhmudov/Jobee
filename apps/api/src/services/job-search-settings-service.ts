@@ -4,14 +4,14 @@ import { DEFAULT_SEARCH_SETTINGS, AppError, type JobSearchSettings } from '@job-
 export const searchSettingsSchema = z
   .object({
     sources: z
-      .array(z.enum(['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY']))
+      .array(z.enum(['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY', 'SMARTRECRUITERS']))
       .min(1)
-      .max(4),
+      .max(5),
     boards: z
       .array(
         z
           .object({
-            source: z.enum(['GREENHOUSE', 'LEVER', 'ASHBY']),
+            source: z.enum(['GREENHOUSE', 'LEVER', 'ASHBY', 'SMARTRECRUITERS']),
             slug: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/),
           })
           .strict(),
@@ -31,7 +31,32 @@ export class JobSearchSettingsService {
       .select()
       .from(jobSearchSettings)
       .where(eq(jobSearchSettings.userId, userId));
-    return { ...DEFAULT_SEARCH_SETTINGS, ...row?.settings };
+    const effective = { ...DEFAULT_SEARCH_SETTINGS, ...row?.settings };
+    // Upgrade only the exact retired built-in catalog. Preserve explicitly customized sources/boards.
+    const legacyBoards = [
+      'GREENHOUSE:revolut',
+      'GREENHOUSE:canonical',
+      'GREENHOUSE:gitlab',
+      'GREENHOUSE:stripe',
+      'LEVER:spotify',
+    ];
+    const legacySources = ['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY'];
+    const same = (a: string[], b: string[]) =>
+      JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
+    if (
+      same(effective.sources, legacySources) &&
+      same(
+        effective.boards.map((board) => `${board.source}:${board.slug}`),
+        legacyBoards,
+      )
+    ) {
+      return {
+        ...effective,
+        sources: DEFAULT_SEARCH_SETTINGS.sources,
+        boards: DEFAULT_SEARCH_SETTINGS.boards,
+      };
+    }
+    return effective;
   }
   async save(userId: string, input: unknown) {
     const settings = searchSettingsSchema.parse(input);

@@ -122,7 +122,8 @@ it('ignores an older response after a filter changes and still shows jobs if opt
 it('reports partial source failures with the imported result rather than claiming full discovery success', async () => {
   vi.mocked(jobApi.discoverJobs).mockResolvedValue({
     newJobsIngested: 1,
-    totalDiscovered: 5,
+    totalDiscovered: 1653,
+    postingsExamined: 200,
     duplicatesSkipped: 2,
     sourcesSummary: [
       {
@@ -139,6 +140,8 @@ it('reports partial source failures with the imported result rather than claimin
   fireEvent.click(screen.getByRole('button', { name: 'Find jobs' }));
   await screen.findByText('GREENHOUSE: Source unavailable');
   expect(screen.getByRole('status').textContent).toContain('1 new job');
+  expect(screen.getByRole('status').textContent).toContain('200 checked from 1653 available');
+  expect(screen.getByRole('status').textContent).not.toContain('1653 scanned');
   expect(screen.getByRole('status').textContent).toContain('Results may be incomplete');
 });
 it('shows a retryable load failure without presenting it as an empty collection', async () => {

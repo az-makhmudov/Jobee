@@ -46,8 +46,8 @@ export function createJobRoutes(
         .object({
           limit: z.number().int().min(1).max(50).optional(),
           sources: z
-            .array(z.enum(['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY']))
-            .max(4)
+            .array(z.enum(['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY', 'SMARTRECRUITERS']))
+            .max(5)
             .optional(),
           companies: z
             .array(z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/))

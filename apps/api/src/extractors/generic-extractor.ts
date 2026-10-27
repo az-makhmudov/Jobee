@@ -69,6 +69,14 @@ export class GenericExtractor implements JobExtractor {
 
       return {
         provider: 'GENERIC',
+        ...(descText.trim().length < 100
+          ? {
+              needsManualText: true,
+              warnings: [
+                'The public page does not contain a complete vacancy description. Paste the job text.',
+              ],
+            }
+          : {}),
         title,
         company,
         location,
@@ -97,6 +105,14 @@ export class GenericExtractor implements JobExtractor {
 
     return {
       provider: 'GENERIC',
+      ...(descText.trim().length < 100
+        ? {
+            needsManualText: true,
+            warnings: [
+              'The public page requires JavaScript or contains no complete vacancy. Paste the job text.',
+            ],
+          }
+        : {}),
       title: ogTitle,
       company,
       descriptionText: descText,

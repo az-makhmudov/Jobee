@@ -1,6 +1,6 @@
 import { Icon } from '../ui/Primitives.js';
 import { Button, Input, ModalSurface, Textarea } from '../ui/Primitives.js';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { jobApi } from '../api/job-client.js';
 import type { JobDto } from '@job-agent/shared';
 
@@ -25,8 +25,22 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
   // Common state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [incompleteImport, setIncompleteImport] = useState<JobDto | null>(null);
   const [duplicateNotice, setDuplicateNotice] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setIncompleteImport(null);
+      setTab('url');
+      setUrl('');
+      setText('');
+      setTitle('');
+      setCompany('');
+      setSourceNotes('');
+      setError(null);
+      setDuplicateNotice(null);
+    }
+  }, [isOpen]);
   if (!isOpen) return null;
 
   const handleUrlSubmit = async (e: React.FormEvent) => {
@@ -41,7 +55,16 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
     setDuplicateNotice(null);
 
     try {
+      setIncompleteImport(null);
       const res = await jobApi.ingestUrl({ url: url.trim() });
+      if (res.job.description.trim().length < 100) {
+        setIncompleteImport(res.job);
+        setTab('text');
+        setError(
+          'This page did not expose the vacancy details. Paste the complete job description below to finish this import.',
+        );
+        return;
+      }
       if (res.isDuplicate) {
         setDuplicateNotice(
           res.message || 'Job with identical URL or content already exists in Job Inbox.',
@@ -60,8 +83,12 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
 
   const handleTextSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim() || text.trim().length < 20) {
-      setError('Please paste a job description with at least 20 characters');
+    if (!text.trim() || text.trim().length < (incompleteImport ? 100 : 20)) {
+      setError(
+        incompleteImport
+          ? 'Paste the complete job description with at least 100 characters.'
+          : 'Please paste a job description with at least 20 characters',
+      );
       return;
     }
 
@@ -70,6 +97,17 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
     setDuplicateNotice(null);
 
     try {
+      if (incompleteImport) {
+        const job = await jobApi.updateJob(incompleteImport.id, {
+          description: text.trim(),
+          ...(title.trim() ? { title: title.trim() } : {}),
+          ...(company.trim() ? { company: company.trim() } : {}),
+        });
+        setIncompleteImport(null);
+        onJobCreated(job);
+        onClose();
+        return;
+      }
       const res = await jobApi.ingestText({
         text: text.trim(),
         title: title.trim() || undefined,
@@ -94,7 +132,7 @@ export function AddJobModal({ isOpen, onClose, onJobCreated }: Props) {
   };
 
   return (
-    <ModalSurface className="modal-backdrop" onClick={onClose}>
+    <ModalSurface className="modal-backdrop" onClick={loading ? undefined : onClose}>
       <div
         className="modal-dialog"
         onClick={(e) => e.stopPropagation()}

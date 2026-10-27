@@ -247,7 +247,11 @@ export class JobService {
       const directExtractor = this.extractorRegistry.getExtractor(targetUrl, '');
       if (directExtractor.canHandle(targetUrl, '')) {
         const rawFallback = await directExtractor.extract(targetUrl, '');
-        if (rawFallback.needsManualText) {
+        if (
+          rawFallback.needsManualText &&
+          rawFallback.provider === 'LINKEDIN' &&
+          ['linkedin.com', 'www.linkedin.com'].includes(new URL(targetUrl).hostname)
+        ) {
           return this.handleManualTextFallback(userId, targetUrl, rawFallback);
         }
       }
@@ -959,6 +963,51 @@ export class JobService {
       updatedAt: new Date(),
     };
 
+    if (
+      updates.description !== undefined &&
+      existing.description.trim().length < 100 &&
+      updates.description.trim().length >= 100 &&
+      ['INGESTED', 'NEEDS_REVIEW'].includes(existing.state)
+    ) {
+      // Explicit user-pasted text completes a page-shell import on the same owned record.
+      const raw = this.extractorRegistry
+        .getManualExtractor()
+        .extract(updates.description, { title: updates.title, company: updates.company });
+      const normalized = this.normalizerService.normalize(raw);
+      const extracted: Partial<NewJob> = {
+        locationText: normalized.locationText,
+        city: normalized.city,
+        region: normalized.region,
+        country: normalized.country,
+        workplaceType: normalized.workplaceType,
+        employmentType: normalized.employmentType,
+        seniority: normalized.seniority,
+      };
+      if (raw.title && raw.title !== 'Untitled Position') extracted.title = normalized.title;
+      if (raw.company) extracted.company = normalized.company;
+      const completedFields: string[] = [];
+      for (const [key, value] of Object.entries(extracted)) {
+        if (
+          value !== null &&
+          value !== 'UNKNOWN' &&
+          !(key in updates) &&
+          !existing.manualEditFields.includes(key)
+        ) {
+          Object.assign(updateData, { [key]: value });
+          completedFields.push(key);
+        }
+      }
+      updateData.state = 'INGESTED';
+      updateData.contentHash = this.normalizerService.computeContentHash(
+        updateData.title ?? existing.title,
+        updateData.company ?? existing.company,
+        updateData.locationText ?? existing.locationText,
+        updates.description,
+      );
+      updateData.manualEditFields = Array.from(
+        new Set([...mergedManualFields, ...completedFields]),
+      );
+    }
     if (updates.description !== undefined)
       updateData.descriptionHtml = this.plainDescriptionHtml(updates.description);
     await this.db.transaction(async (tx) => {
@@ -968,8 +1017,8 @@ export class JobService {
         .where(and(eq(jobs.id, id), eq(jobs.userId, userId)));
       if (updates.description !== undefined) {
         const raw = this.extractorRegistry.getManualExtractor().extract(updates.description, {
-          title: updates.title ?? existing.title,
-          company: updates.company ?? existing.company,
+          title: updateData.title ?? existing.title,
+          company: updateData.company ?? existing.company,
         });
         await this.replaceCurrentExtraction(tx, userId, id, raw, null);
       }
@@ -1142,7 +1191,7 @@ export class JobService {
         title: raw.title || 'Imported Job (Needs Description)',
         company: raw.company || 'Unknown Company',
         description: raw.descriptionText,
-        descriptionHtml: `<p>${raw.descriptionText}</p>`,
+        descriptionHtml: this.plainDescriptionHtml(raw.descriptionText),
         originalUrl: targetUrl,
         canonicalUrl,
         provider: raw.provider,

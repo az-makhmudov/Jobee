@@ -13,6 +13,8 @@ import {
 } from '@job-agent/database';
 import { JobDiscoveryService } from './job-discovery-service.js';
 import { JobService } from './job-service.js';
+import { HttpRetrievalService } from './http-retrieval-service.js';
+import { JobSearchSettingsService } from './job-search-settings-service.js';
 import { DEFAULT_SEARCH_SETTINGS } from '@job-agent/shared';
 const db = getDb(process.env.DATABASE_URL);
 let userId: string;
@@ -276,4 +278,205 @@ describe('Public discovery traversal', () => {
     const result = await service.discoverForCandidate(userId, { sources: ['ASHBY'] });
     expect(result.newJobsIngested).toBe(0);
   });
+});
+
+describe('Poland discovery and recovery regressions', () => {
+  it('reads full SmartRecruiters descriptions only for compatible Warsaw entry roles', async () => {
+    await db
+      .update(jobPreferences)
+      .set({
+        targetTitles: ['Junior Project Manager'],
+        preferredLocations: ['Warsaw'],
+        seniorityLevels: ['ENTRY', 'INTERNSHIP'],
+        willingToRelocate: true,
+      })
+      .where(eq(jobPreferences.userId, userId));
+    await db.insert(jobSearchSettings).values({
+      userId,
+      settings: {
+        ...DEFAULT_SEARCH_SETTINGS,
+        sources: ['SMARTRECRUITERS'],
+        boards: [{ source: 'SMARTRECRUITERS', slug: 'fixture' }],
+      },
+    });
+    const fetchFn = vi.fn(async (url: string | URL | Request) => {
+      const value = String(url);
+      if (value.includes('/postings?'))
+        return new Response(
+          JSON.stringify({
+            totalFound: 4,
+            content: [
+              {
+                id: '1',
+                name: 'Senior Project Manager',
+                location: { city: 'Warsaw', country: 'pl' },
+              },
+              {
+                id: '2',
+                name: 'Project Management Intern',
+                location: { city: 'Berlin', country: 'de' },
+              },
+              {
+                id: '3',
+                name: 'Płatny staż - Project Management',
+                location: { city: 'Warszawa', country: 'pl' },
+              },
+              {
+                id: '4',
+                name: 'Project Coordinator',
+                experienceLevel: { id: 'mid_senior_level' },
+                location: { city: 'Warsaw', country: 'pl' },
+              },
+            ],
+          }),
+        );
+      expect(value).toBe('https://api.smartrecruiters.com/v1/companies/fixture/postings/3');
+      return new Response(
+        JSON.stringify({
+          id: '3',
+          name: 'Płatny staż - Project Management',
+          company: { name: 'Synthetic employer' },
+          location: { fullLocation: 'Warszawa, Poland', hybrid: true },
+          postingUrl: 'https://jobs.smartrecruiters.com/fixture/3-project-management',
+          jobAd: {
+            sections: {
+              jobDescription: {
+                title: 'Responsibilities',
+                text: '<p>Assist with project delivery, scheduling and stakeholder reporting in the Warsaw team. This is an explicitly synthetic internship fixture.</p>',
+              },
+              qualifications: {
+                title: 'Requirements',
+                text: '<p>Must have project coordination skills.</p>',
+              },
+            },
+          },
+        }),
+      );
+    }) as typeof fetch;
+    const result = await new JobDiscoveryService(db, new JobService(db), {
+      fetchFn,
+    }).discoverForCandidate(userId);
+    expect(result.newJobsIngested).toBe(1);
+    expect(result.postingsExamined).toBe(4);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(String(vi.mocked(fetchFn).mock.calls[0]?.[0])).toContain('country=pl');
+    const saved = (await db.select().from(jobs).where(eq(jobs.userId, userId)))[0]!;
+    expect(saved.provider).toBe('SMARTRECRUITERS');
+    expect(saved.city).toBe('Warszawa');
+    expect(saved.seniority).toBe('INTERNSHIP');
+    expect(saved.workplaceType).toBe('HYBRID');
+    expect(saved.description).toContain('Must have project coordination skills.');
+    expect(saved.applicationUrl).toBe(
+      'https://jobs.smartrecruiters.com/fixture/3-project-management',
+    );
+  });
+  it('resumes within a partially checked page rather than repeating the same first 200 rows', async () => {
+    const data = Array.from({ length: 300 }, (_, i) => ({
+      title: i === 250 ? 'Project Manager' : 'Surgeon',
+      company_name: 'Synthetic employer',
+      url: `https://example.test/${i}`,
+      description: 'Synthetic vacancy description for deterministic traversal verification.',
+      location: 'Warsaw',
+    }));
+    const fetchFn = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            data,
+            links: { next: 'https://www.arbeitnow.com/api/job-board-api?page=2' },
+          }),
+        ),
+    ) as typeof fetch;
+    const service = new JobDiscoveryService(db, new JobService(db), { fetchFn });
+    const first = await service.discoverForCandidate(userId, { sources: ['ARBEITNOW'], limit: 1 });
+    expect(first.postingsExamined).toBe(200);
+    expect(first.totalDiscovered).toBe(300);
+    expect(first.newJobsIngested).toBe(0);
+    const second = await service.discoverForCandidate(userId, { sources: ['ARBEITNOW'], limit: 1 });
+    expect(second.newJobsIngested).toBe(1);
+    expect(second.postingsExamined).toBe(51);
+    const [state] = await db
+      .select()
+      .from(jobSearchSettings)
+      .where(eq(jobSearchSettings.userId, userId));
+    expect(state!.cursors['ARBEITNOW:feed:row']).toBe(251);
+  });
+  it('upgrades the exact retired built-in catalog and preserves custom boards and workflow opt-ins', async () => {
+    const legacy = {
+      ...DEFAULT_SEARCH_SETTINGS,
+      sources: [
+        'ARBEITNOW',
+        'GREENHOUSE',
+        'LEVER',
+        'ASHBY',
+      ] as typeof DEFAULT_SEARCH_SETTINGS.sources,
+      boards: [
+        { source: 'GREENHOUSE' as const, slug: 'revolut' },
+        { source: 'GREENHOUSE' as const, slug: 'canonical' },
+        { source: 'GREENHOUSE' as const, slug: 'gitlab' },
+        { source: 'GREENHOUSE' as const, slug: 'stripe' },
+        { source: 'LEVER' as const, slug: 'spotify' },
+      ],
+      dailyDiscovery: false,
+      dailyPreparation: false,
+      dailyDigest: false,
+    };
+    await db.insert(jobSearchSettings).values({ userId, settings: legacy });
+    const service = new JobSearchSettingsService(db);
+    const upgraded = await service.get(userId);
+    expect(upgraded.sources).toContain('SMARTRECRUITERS');
+    expect(upgraded.boards).toContainEqual({ source: 'SMARTRECRUITERS', slug: 'BoschGroup' });
+    expect(upgraded.dailyDigest).toBe(false);
+    expect(upgraded.dailyDiscovery).toBe(false);
+    await db
+      .update(jobSearchSettings)
+      .set({ settings: { ...legacy, boards: [{ source: 'GREENHOUSE', slug: 'custom' }] } })
+      .where(eq(jobSearchSettings.userId, userId));
+    const custom = await service.get(userId);
+    expect(custom.sources).not.toContain('SMARTRECRUITERS');
+    expect(custom.boards).toEqual([{ source: 'GREENHOUSE', slug: 'custom' }]);
+  });
+  it('completes an owned page-shell import without replacing its record, URL or history', async () => {
+    const service = new JobService(db);
+    const { job } = await service.ingestText(userId, {
+      title: 'Sonnedix Careers',
+      company: 'Unknown Company',
+      url: 'https://example.test/vacancy?id=fixture',
+      text: 'Please enable JavaScript to view this page.',
+    });
+    const completed = await service.updateJob(userId, job.id, {
+      description:
+        'Title: Project Management Intern\nCompany: Synthetic employer\nLocation: Warsaw, Poland\nResponsibilities:\nAssist with project scheduling and stakeholder reports. This deterministic fixture contains no candidate facts.\nRequirements:\n• Must have project coordination skills.',
+    });
+    expect(completed.id).toBe(job.id);
+    expect(completed.originalUrl).toBe(job.originalUrl);
+    expect(completed.title).toBe('Project Management Intern');
+    expect(completed.city).toBe('Warsaw');
+    expect(completed.seniority).toBe('INTERNSHIP');
+    expect(completed.requirements?.length).toBeGreaterThan(0);
+    expect(await db.select().from(jobs).where(eq(jobs.userId, userId))).toHaveLength(1);
+    await expect(
+      service.updateJob(crypto.randomUUID(), job.id, { description: 'Not owned' }),
+    ).rejects.toThrow();
+  });
+});
+
+it('stores short generic fallback text as escaped content, not executable markup', async () => {
+  const retrieval = new HttpRetrievalService();
+  const url = 'https://example.test/synthetic-vacancy';
+  vi.spyOn(retrieval, 'fetchPublicPage').mockResolvedValue({
+    url,
+    finalUrl: url,
+    contentType: 'text/html',
+    statusCode: 200,
+    content:
+      '<html><head><title>Careers</title></head><body>&lt;img src=x onerror=alert(1)&gt;</body></html>',
+  });
+  const result = await new JobService(db, { retrievalService: retrieval }).ingestUrl(userId, {
+    url,
+  });
+  expect(result.job.state).toBe('NEEDS_REVIEW');
+  expect(result.job.description).toContain('<img');
+  expect(result.job.descriptionHtml).not.toContain('<img');
+  expect(result.job.descriptionHtml).toContain('&lt;img');
 });

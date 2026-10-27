@@ -61,7 +61,16 @@ export const jobListQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
   state: z.enum(['NEW', 'INGESTED', 'NEEDS_REVIEW', 'INVALID', 'DUPLICATE', 'ARCHIVED']).optional(),
   provider: z
-    .enum(['GREENHOUSE', 'LEVER', 'ASHBY', 'LINKEDIN', 'ARBEITNOW', 'GENERIC', 'MANUAL'])
+    .enum([
+      'GREENHOUSE',
+      'LEVER',
+      'ASHBY',
+      'LINKEDIN',
+      'ARBEITNOW',
+      'SMARTRECRUITERS',
+      'GENERIC',
+      'MANUAL',
+    ])
     .optional(),
   workplaceType: z.enum(['REMOTE', 'HYBRID', 'ONSITE', 'UNKNOWN']).optional(),
   employmentType: z

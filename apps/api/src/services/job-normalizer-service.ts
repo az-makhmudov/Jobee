@@ -136,10 +136,20 @@ export class JobNormalizerService {
    * Normalizes seniority from title / explicit metadata. Conservative.
    */
   public normalizeSeniority(title: string, rawSeniority?: string | null): SeniorityLevel {
-    const combined = `${title} ${rawSeniority || ''}`.toLowerCase();
+    const combined = `${title} ${rawSeniority || ''}`
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '')
+      .replace(/ł/g, 'l')
+      .toLowerCase();
 
-    if (/\b(?:intern|internship|trainee)\b/i.test(combined)) return 'INTERNSHIP';
-    if (/\b(?:entry|graduate|associate|junior|jr\.?)\b/i.test(combined)) return 'JUNIOR';
+    if (
+      /\b(?:intern|internship|trainee|staz|stazysta|stazystka|praktykant|praktykantka)\b/i.test(
+        combined,
+      )
+    )
+      return 'INTERNSHIP';
+    if (/\b(?:entry|graduate|associate|junior|jr\.?|mlodszy|mlodsza)\b/i.test(combined))
+      return 'JUNIOR';
     if (/\b(?:vp|vice president|chief|cto|cfo|ceo|cpo|executive)\b/i.test(combined)) {
       return 'EXECUTIVE';
     }
@@ -148,7 +158,7 @@ export class JobNormalizerService {
       if (/\bmanager\b/i.test(combined)) return 'MANAGER';
       return 'LEAD';
     }
-    if (/\b(?:senior|sr\.?|lead engineer)\b/i.test(combined)) return 'SENIOR';
+    if (/\b(?:senior|sr\.?|lead engineer|starszy|starsza)\b/i.test(combined)) return 'SENIOR';
     if (/\b(?:mid|intermediate)\b/i.test(combined)) return 'MID';
 
     return 'UNKNOWN';

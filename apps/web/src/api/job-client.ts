@@ -184,6 +184,7 @@ export const jobApi = {
       errors: string[];
     }>;
     totalDiscovered: number;
+    postingsExamined?: number;
     newJobsIngested: number;
     duplicatesSkipped: number;
   }> => {

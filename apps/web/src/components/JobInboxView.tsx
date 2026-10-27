@@ -267,8 +267,12 @@ export function JobInboxView({
     setError(null);
     try {
       const res = await jobApi.discoverJobs({ limit: 10 });
+      const checked =
+        res.postingsExamined === undefined
+          ? `${res.totalDiscovered} available`
+          : `${res.postingsExamined} checked from ${res.totalDiscovered} available`;
       setBatchNotice(
-        `Discovery complete: ${res.newJobsIngested} new job(s) ingested from public sources (${res.duplicatesSkipped} duplicates skipped, ${res.totalDiscovered} scanned).`,
+        `Discovery complete: ${res.newJobsIngested} new job(s) ingested from public sources (${res.duplicatesSkipped} duplicates skipped, ${checked}).`,
       );
       setRecommendations(await jobApi.refreshRecommendations());
       setDiscoveryWarnings(
@@ -658,6 +662,7 @@ export function JobInboxView({
                 <option value="LEVER">Lever</option>
                 <option value="ASHBY">Ashby</option>
                 <option value="LINKEDIN">LinkedIn</option>
+                <option value="SMARTRECRUITERS">SmartRecruiters</option>
                 <option value="ARBEITNOW">Arbeitnow (Public Feed)</option>
                 <option value="GENERIC">Generic</option>
                 <option value="MANUAL">Pasted / Manual</option>

@@ -92,9 +92,15 @@ export function preferredLevels(
   return [];
 }
 export function jobSeniority(job: Pick<Job, 'title' | 'seniority'>): string {
-  if (/\b(intern|internship|trainee)\b/i.test(job.title)) return 'INTERNSHIP';
-  if (/\b(junior|entry.level|graduate)\b/i.test(job.title)) return 'ENTRY';
-  if (/\b(senior|sr\.?)\b/i.test(job.title)) return 'SENIOR';
+  if (
+    /\b(intern|internship|trainee|staz|stazysta|stazystka|praktykant|praktykantka)\b/i.test(
+      normalized(job.title),
+    )
+  )
+    return 'INTERNSHIP';
+  if (/\b(junior|entry.level|graduate|mlodszy|mlodsza)\b/i.test(normalized(job.title)))
+    return 'ENTRY';
+  if (/\b(senior|sr\.?|starszy|starsza)\b/i.test(normalized(job.title))) return 'SENIOR';
   if (/\b(director|head of)\b/i.test(job.title)) return 'DIRECTOR';
   if (
     /\bprincipal\b|\b(?:staff|lead) (?:engineer|developer|architect|scientist|designer|software|data)\b/i.test(

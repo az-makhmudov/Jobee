@@ -331,3 +331,12 @@ Requirements:
     });
   });
 });
+
+it('flags JavaScript shells as incomplete instead of treating a careers page title as a vacancy', () => {
+  const extracted = new GenericExtractor().extract(
+    'https://example.test/vacancy-details?id=synthetic',
+    '<html><head><title>Sonnedix Careers</title></head><body><noscript>Please enable JavaScript to view this page.</noscript></body></html>',
+  );
+  expect(extracted.needsManualText).toBe(true);
+  expect(extracted.warnings?.[0]).toContain('Paste the job text');
+});

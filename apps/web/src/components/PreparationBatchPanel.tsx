@@ -111,9 +111,16 @@ export function PreparationBatchPanel({
         .filter(Boolean)
         .map((line) => {
           const [source, slug, ...extra] = line.split(':');
-          if (extra.length || !slug || !['greenhouse', 'lever', 'ashby'].includes(source ?? ''))
+          if (
+            extra.length ||
+            !slug ||
+            !['greenhouse', 'lever', 'ashby', 'smartrecruiters'].includes(source ?? '')
+          )
             throw new Error('Use one company board per line, for example lever:company-name.');
-          return { source: source!.toUpperCase() as 'GREENHOUSE' | 'LEVER' | 'ASHBY', slug };
+          return {
+            source: source!.toUpperCase() as 'GREENHOUSE' | 'LEVER' | 'ASHBY' | 'SMARTRECRUITERS',
+            slug,
+          };
         });
       const saved = await jobSearchApi.saveSettings({ ...settings, boards: parsed });
       setSettings(saved);
@@ -174,23 +181,25 @@ export function PreparationBatchPanel({
             />
           </label>
           <div className="account-actions">
-            {(['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY'] as const).map((source) => (
-              <label key={source}>
-                <Input
-                  type="checkbox"
-                  checked={settings.sources.includes(source)}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      sources: e.target.checked
-                        ? [...settings.sources, source]
-                        : settings.sources.filter((s) => s !== source),
-                    })
-                  }
-                />{' '}
-                {source === 'ARBEITNOW' ? 'Arbeitnow public feed' : source.toLowerCase()}
-              </label>
-            ))}
+            {(['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY', 'SMARTRECRUITERS'] as const).map(
+              (source) => (
+                <label key={source}>
+                  <Input
+                    type="checkbox"
+                    checked={settings.sources.includes(source)}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        sources: e.target.checked
+                          ? [...settings.sources, source]
+                          : settings.sources.filter((s) => s !== source),
+                      })
+                    }
+                  />{' '}
+                  {source === 'ARBEITNOW' ? 'Arbeitnow public feed' : source.toLowerCase()}
+                </label>
+              ),
+            )}
           </div>
           <label className="form-label">
             Maximum new preparations per day

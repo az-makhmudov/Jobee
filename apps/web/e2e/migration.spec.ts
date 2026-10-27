@@ -628,6 +628,41 @@ test('Jobs add, edit and archive dialogs retain cancellation and job detail tabs
   await page.getByRole('button', { name: 'Add a job link', exact: true }).click();
   await expect(page.getByRole('dialog').getByLabel('Job Posting Public URL')).toBeVisible();
   await page.keyboard.press('Escape');
+  const sourceUrl = `https://example.test/import-recovery/${crypto.randomUUID()}`;
+  const shell = await page.request.post('/api/jobs/text', {
+    headers: { Origin: webOrigin },
+    data: {
+      title: 'Synthetic Careers Shell',
+      company: 'Fixture employer',
+      url: sourceUrl,
+      text: 'Please enable JavaScript to view this vacancy.',
+    },
+  });
+  expect(shell.ok()).toBeTruthy();
+  const shellBody = await shell.json();
+  const ownedJobId = shellBody.data.job.id;
+  await page.route('**/api/jobs/url', (route) => route.fulfill({ status: 201, json: shellBody }));
+  await page.getByRole('button', { name: 'Add a job link', exact: true }).click();
+  await page.getByLabel('Job Posting Public URL').fill(sourceUrl);
+  await page.getByRole('button', { name: 'Import Job', exact: true }).click();
+  await expect(page.getByRole('dialog')).toContainText('did not expose the vacancy details');
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBeTruthy();
+  await page.screenshot({ path: 'output/playwright/import-recovery-mobile.png', fullPage: true });
+  const description =
+    'Title: Recovered Project Intern\nCompany: Fixture employer\nLocation: Warsaw, Poland\nResponsibilities:\nSupport project scheduling and reporting for this synthetic local browser fixture.\nRequirements:\n• Must have project coordination skills.';
+  await page.getByLabel('Pasted Job Description *').fill(description);
+  await page.getByRole('button', { name: 'Save Job', exact: true }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const recovered = (await (await page.request.get(`/api/jobs/${ownedJobId}`)).json()).data;
+  expect(recovered.id).toBe(ownedJobId);
+  expect(recovered.originalUrl).toBe(sourceUrl);
+  expect(recovered.title).toBe('Recovered Project Intern');
+  expect(recovered.city).toBe('Warsaw');
+  await page.unroute('**/api/jobs/url');
+  await page.setViewportSize({ width: 1440, height: 1080 });
   await page
     .locator('.job-card')
     .filter({ has: page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }) })

@@ -1,4 +1,9 @@
-import { relevanceIssues, matchesPreferredLocation } from '@job-agent/database/matching';
+import { z } from 'zod';
+import {
+  relevanceIssues,
+  matchesPreferredLocation,
+  preferredLevels,
+} from '@job-agent/database/matching';
 import { JobNormalizerService } from './job-normalizer-service.js';
 import type { Database } from '@job-agent/database';
 import { jobPreferences, candidateProfiles, jobSearchSettings, jobs } from '@job-agent/database';
@@ -12,6 +17,11 @@ import {
   type SearchBoard,
   stripHtmlToText,
 } from '@job-agent/shared';
+import {
+  matchesDiscoveryRole,
+  discoveryCountry,
+  matchesDiscoveryExperience,
+} from './discovery-role-matching.js';
 import { JobSearchSettingsService } from './job-search-settings-service.js';
 export interface DiscoveryOptions {
   limit?: number;
@@ -29,6 +39,7 @@ export interface DiscoveryResult {
 export interface CombinedDiscoverySummary {
   sourcesSummary: DiscoveryResult[];
   totalDiscovered: number;
+  postingsExamined: number;
   newJobsIngested: number;
   duplicatesSkipped: number;
 }
@@ -43,9 +54,39 @@ export interface PublicPosting {
   board?: string;
   postedAt?: string;
   employmentType?: string;
+  experienceLevel?: string;
+  workplaceType?: 'REMOTE' | 'HYBRID';
   salary?: string;
 }
 const plain = (value: unknown) => stripHtmlToText(String(value ?? ''));
+const smartPostingSchema = z.object({
+  id: z.union([z.string(), z.number()]).transform(String),
+  name: z.string().min(1),
+  company: z.object({ name: z.string().optional() }).optional(),
+  location: z
+    .object({
+      fullLocation: z.string().optional(),
+      city: z.string().optional(),
+      region: z.string().optional(),
+      country: z.string().optional(),
+      remote: z.boolean().optional(),
+      hybrid: z.boolean().optional(),
+    })
+    .optional(),
+  typeOfEmployment: z.object({ label: z.string().optional() }).optional(),
+  experienceLevel: z.object({ id: z.string().optional() }).optional(),
+});
+const smartListSchema = z.object({
+  totalFound: z.number().int().nonnegative(),
+  content: z.array(smartPostingSchema).max(100),
+});
+const smartDetailSchema = smartPostingSchema.extend({
+  postingUrl: z.string().url().optional(),
+  jobAd: z.object({
+    sections: z.record(z.object({ title: z.string().optional(), text: z.string().optional() })),
+  }),
+});
+
 /** Public listing retrieval only. Discovery never authorizes employer submissions. */
 export class JobDiscoveryService {
   private readonly logger: Logger;
@@ -98,7 +139,15 @@ export class JobDiscoveryService {
       ]
         .map((k) => k.trim().toLowerCase())
         .filter((k) => k.length > 2);
-      if (!keywords.length && profile?.headline) keywords.push(profile.headline.toLowerCase());
+      if (!keywords.length && profile?.headline)
+        keywords.push(
+          ...profile.headline
+            .toLowerCase()
+            .split(/[|;/]/)
+            .map((part) => part.trim())
+            .filter(Boolean),
+        );
+      const levels = preferredLevels(prefs ?? null, profile ?? null);
       const excluded = (prefs?.excludedKeywords ?? []).map((k) => k.toLowerCase());
       const companies = options.companies?.map((slug) => ({ source: 'GREENHOUSE' as const, slug }));
       const boards = (companies ?? settings.boards).filter((b) => sources.includes(b.source));
@@ -120,7 +169,15 @@ export class JobDiscoveryService {
         offset: number;
         summary: DiscoveryResult;
       }> = [];
-      for (const feed of feeds) {
+      const country = discoveryCountry(prefs?.preferredLocations ?? []);
+      const feedKey = (feed: (typeof feeds)[number]) =>
+        `${feed.source}:${feed.board?.slug ?? 'feed'}${feed.source === 'SMARTRECRUITERS' ? `:${country ?? 'all'}` : ''}`;
+      const fetched = await Promise.allSettled(
+        feeds.map((feed) =>
+          this.fetchPostings(feed.source, feed.board?.slug, cursors[feedKey(feed)] ?? 0, country),
+        ),
+      );
+      for (const [feedIndex, feed] of feeds.entries()) {
         const result = summaries.get(feed.source) ?? {
           source: feed.source,
           totalFound: 0,
@@ -129,20 +186,17 @@ export class JobDiscoveryService {
           errors: [],
         };
         summaries.set(feed.source, result);
-        const key = `${feed.source}:${feed.board?.slug ?? 'feed'}`;
+        const key = feedKey(feed);
         try {
-          const offset = cursors[key] ?? 0;
-          const { items, nextOffset } = await this.fetchPostings(
-            feed.source,
-            feed.board?.slug,
-            offset,
-          );
+          const resultOfFetch = fetched[feedIndex]!;
+          if (resultOfFetch.status === 'rejected') throw new Error('Public feed unavailable');
+          const { items, nextOffset } = resultOfFetch.value;
           result.totalFound += items.length;
           queues.push({
             source: feed.source,
             key,
             items,
-            index: 0,
+            index: Math.min(cursors[`${key}:row`] ?? 0, items.length),
             total: items.length,
             offset: nextOffset,
             summary: result,
@@ -156,18 +210,35 @@ export class JobDiscoveryService {
       const normalizer = new JobNormalizerService();
       let added = 0;
       let examined = 0;
+      let detailRequests = 0;
+      const deadline = Date.now() + 20_000;
       // Round-robin and count new jobs, not duplicate hits, toward the requested limit.
-      while (added < limit && examined < 200 && queues.some((q) => q.index < q.total)) {
+      while (
+        added < limit &&
+        examined < 200 &&
+        Date.now() < deadline &&
+        queues.some(
+          (q) => q.index < q.total && (q.source !== 'SMARTRECRUITERS' || detailRequests < 15),
+        )
+      ) {
         for (const q of queues) {
-          if (added >= limit || examined >= 200 || q.index >= q.total) continue;
-          const item = q.items[q.index++]!;
+          if (
+            added >= limit ||
+            examined >= 200 ||
+            q.index >= q.total ||
+            Date.now() >= deadline ||
+            (q.source === 'SMARTRECRUITERS' && detailRequests >= 15)
+          )
+            continue;
+          let item = q.items[q.index++]!;
           examined++;
           const text = `${item.title} ${item.employmentType ?? ''}`.toLowerCase();
           if (
             !item.title ||
             !item.url ||
-            !item.description ||
-            (keywords.length && !keywords.some((k) => text.includes(k))) ||
+            (q.source !== 'SMARTRECRUITERS' && !item.description) ||
+            !matchesDiscoveryExperience(item.experienceLevel, levels) ||
+            !matchesDiscoveryRole(item.title, keywords) ||
             excluded.some((k) => text.includes(k)) ||
             prefs?.excludedCompanies.some((c) => c.toLowerCase() === item.company.toLowerCase())
           )
@@ -180,6 +251,7 @@ export class JobDiscoveryService {
             company: item.company,
             location: item.location,
             descriptionText: item.description,
+            workplaceType: item.workplaceType ?? (item.remote ? 'REMOTE' : undefined),
           });
           if (
             relevanceIssues(normalized, prefs ?? null, profile ?? null).length ||
@@ -187,7 +259,33 @@ export class JobDiscoveryService {
           )
             continue;
           try {
-            const fullText = `Title: ${item.title}\nCompany: ${item.company}\nLocation: ${item.location || 'Unknown'}\n${item.remote ? 'Work arrangement: Remote\n' : ''}${item.employmentType ? `Employment: ${item.employmentType}\n` : ''}${item.salary ? `Salary: ${item.salary}\n` : ''}\nJob Description:\n${item.description}`;
+            if (q.source === 'SMARTRECRUITERS') {
+              detailRequests++;
+              item = await this.fetchSmartRecruitersDetail(
+                item,
+                Math.min(8000, Math.max(1, deadline - Date.now())),
+              );
+              const detailed = normalizer.normalize({
+                provider: q.source,
+                title: item.title,
+                company: item.company,
+                location: item.location,
+                descriptionText: item.description,
+                workplaceType: item.workplaceType ?? (item.remote ? 'REMOTE' : undefined),
+              });
+              if (
+                excluded.some((word) => item.title.toLowerCase().includes(word)) ||
+                prefs?.excludedCompanies.some(
+                  (company) => company.toLowerCase() === item.company.toLowerCase(),
+                ) ||
+                !matchesDiscoveryExperience(item.experienceLevel, levels) ||
+                !matchesDiscoveryRole(item.title, keywords) ||
+                relevanceIssues(detailed, prefs ?? null, profile ?? null).length ||
+                !matchesPreferredLocation(detailed, prefs ?? null)
+              )
+                continue;
+            }
+            const fullText = `Title: ${item.title}\nCompany: ${item.company}\nLocation: ${item.location || 'Unknown'}\n${item.workplaceType || item.remote ? `Work arrangement: ${item.workplaceType ?? 'REMOTE'}\n` : ''}${item.employmentType ? `Employment: ${item.employmentType}\n` : ''}${item.salary ? `Salary: ${item.salary}\n` : ''}\nJob Description:\n${item.description}`;
             const result = await this.jobService.ingestText(userId, {
               title: item.title,
               company: item.company,
@@ -228,13 +326,15 @@ export class JobDiscoveryService {
         }
       }
       // Full-board offsets advance by examined rows. Paged APIs advance only after the current page is fully examined.
-      for (const q of queues)
-        cursors[q.key] =
-          q.source === 'LEVER' || q.source === 'ARBEITNOW'
-            ? q.index === q.total
-              ? q.offset
-              : (cursors[q.key] ?? 0)
-            : (q.offset + q.index) % Math.max(1, q.total);
+      for (const q of queues) {
+        const paged = ['LEVER', 'ARBEITNOW', 'SMARTRECRUITERS'].includes(q.source);
+        cursors[q.key] = paged
+          ? q.index === q.total
+            ? q.offset
+            : (cursors[q.key] ?? 0)
+          : (q.offset + q.index) % Math.max(1, q.total);
+        cursors[`${q.key}:row`] = paged && q.index < q.total ? q.index : 0;
+      }
       await this.db
         .update(jobSearchSettings)
         .set({ cursors })
@@ -242,6 +342,7 @@ export class JobDiscoveryService {
       const results = [...summaries.values()];
       return {
         sourcesSummary: results,
+        postingsExamined: examined,
         totalDiscovered: results.reduce((n, r) => n + r.totalFound, 0),
         newJobsIngested: added,
         duplicatesSkipped: results.reduce((n, r) => n + r.duplicatesSkipped, 0),
@@ -258,10 +359,66 @@ export class JobDiscoveryService {
         );
     }
   }
+  private async fetchSmartRecruitersDetail(
+    posting: PublicPosting,
+    timeoutMs: number,
+  ): Promise<PublicPosting> {
+    if (
+      !/^[a-zA-Z0-9_-]{1,80}$/.test(posting.board ?? '') ||
+      !/^[a-zA-Z0-9-]{1,80}$/.test(posting.externalId ?? '')
+    )
+      throw new Error('Invalid public posting identifier');
+    const response = await this.fetchFn(
+      `https://api.smartrecruiters.com/v1/companies/${posting.board}/postings/${posting.externalId}`,
+      {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(timeoutMs),
+        redirect: 'error',
+      },
+    );
+    if (!response.ok) throw new Error('Posting detail unavailable');
+    const detail = smartDetailSchema.parse(await response.json());
+    if (String(detail.id) !== posting.externalId || !detail.name || !detail.jobAd?.sections)
+      throw new Error('Incomplete posting detail');
+    const sections = detail.jobAd.sections;
+    const description = [
+      'companyDescription',
+      'jobDescription',
+      'qualifications',
+      'additionalInformation',
+    ]
+      .map((key) =>
+        sections[key]?.text ? `${sections[key].title ?? key}\n${plain(sections[key].text)}` : '',
+      )
+      .filter(Boolean)
+      .join('\n\n');
+    if (description.length < 100) throw new Error('Incomplete posting detail');
+    const url = new URL(detail.postingUrl ?? posting.url);
+    if (url.protocol !== 'https:' || url.hostname !== 'jobs.smartrecruiters.com')
+      throw new Error('Unexpected posting link');
+    return {
+      ...posting,
+      title: String(detail.name),
+      company: detail.company?.name ?? posting.company,
+      url: url.href,
+      description,
+      location: detail.location?.fullLocation ?? posting.location,
+      remote: detail.location?.remote,
+      workplaceType:
+        detail.location?.remote === true
+          ? 'REMOTE'
+          : detail.location?.hybrid === true
+            ? 'HYBRID'
+            : undefined,
+      employmentType: detail.typeOfEmployment?.label ?? posting.employmentType,
+      experienceLevel: detail.experienceLevel?.id ?? posting.experienceLevel,
+    };
+  }
   async fetchPostings(
     source: DiscoverySource,
     board: string | undefined,
     offset: number,
+    country?: string,
   ): Promise<{ items: PublicPosting[]; nextOffset: number }> {
     if (board && !/^[a-zA-Z0-9_-]{1,80}$/.test(board))
       throw AppError.badRequest('Invalid company board.');
@@ -272,7 +429,10 @@ export class JobDiscoveryService {
       url = `https://boards-api.greenhouse.io/v1/boards/${board}/jobs?content=true`;
     else if (source === 'LEVER')
       url = `https://api.lever.co/v0/postings/${board}?mode=json&skip=${offset}&limit=100`;
-    else url = `https://api.ashbyhq.com/posting-api/job-board/${board}?includeCompensation=true`;
+    else if (source === 'SMARTRECRUITERS') {
+      if (!board) throw AppError.badRequest('Choose a company board.');
+      url = `https://api.smartrecruiters.com/v1/companies/${board}/postings?limit=100&offset=${offset}${country ? `&country=${country}` : ''}`;
+    } else url = `https://api.ashbyhq.com/posting-api/job-board/${board}?includeCompensation=true`;
     const response = await this.fetchFn(url, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(8000),
@@ -283,6 +443,33 @@ export class JobDiscoveryService {
       throw new Error(`Feed HTTP ${response.status}`);
     }
     const body = (await response.json()) as any;
+    if (source === 'SMARTRECRUITERS') {
+      if (!Array.isArray(body.content)) throw new Error('Invalid public feed');
+      const listing = smartListSchema.parse(body);
+      const items: PublicPosting[] = listing.content.map((row) => ({
+        title: String(row.name),
+        company: String(row.company?.name ?? board),
+        url: `https://jobs.smartrecruiters.com/${board}/${encodeURIComponent(String(row.id))}`,
+        description: '',
+        location:
+          row.location?.fullLocation ??
+          [
+            row.location?.city,
+            row.location?.region,
+            row.location?.country === 'pl' ? 'Poland' : row.location?.country,
+          ]
+            .filter(Boolean)
+            .join(', '),
+        externalId: String(row.id),
+        board,
+        employmentType: row.typeOfEmployment?.label,
+        experienceLevel: row.experienceLevel?.id,
+      }));
+      return {
+        items,
+        nextOffset: offset + items.length < listing.totalFound ? offset + items.length : 0,
+      };
+    }
     const rows = (source === 'LEVER' ? body : source === 'ARBEITNOW' ? body.data : body.jobs) ?? [];
     if (!Array.isArray(rows)) throw new Error('Invalid public feed');
     const items: PublicPosting[] = rows

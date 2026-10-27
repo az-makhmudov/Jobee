@@ -1,4 +1,4 @@
-export type DiscoverySource = 'ARBEITNOW' | 'GREENHOUSE' | 'LEVER' | 'ASHBY';
+export type DiscoverySource = 'ARBEITNOW' | 'GREENHOUSE' | 'LEVER' | 'ASHBY' | 'SMARTRECRUITERS';
 export interface SearchBoard {
   source: Exclude<DiscoverySource, 'ARBEITNOW'>;
   slug: string;
@@ -13,9 +13,10 @@ export interface JobSearchSettings {
   dailyLimit: number;
 }
 export const DEFAULT_SEARCH_SETTINGS: JobSearchSettings = {
-  sources: ['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY'],
+  sources: ['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY', 'SMARTRECRUITERS'],
   boards: [
-    { source: 'GREENHOUSE', slug: 'revolut' },
+    { source: 'SMARTRECRUITERS', slug: 'BoschGroup' },
+    { source: 'SMARTRECRUITERS', slug: 'NielsenIQ' },
     { source: 'GREENHOUSE', slug: 'canonical' },
     { source: 'GREENHOUSE', slug: 'gitlab' },
     { source: 'GREENHOUSE', slug: 'stripe' },

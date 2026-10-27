@@ -139,3 +139,11 @@ describe('JobNormalizerService Unit Tests', () => {
     });
   });
 });
+
+it.each([
+  ['Płatny staż - Project Management', 'INTERNSHIP'],
+  ['Młodszy specjalista ds. operacji', 'JUNIOR'],
+  ['Starszy specjalista ds. operacji', 'SENIOR'],
+])('recognizes explicit Polish seniority: %s', (title, expected) => {
+  expect(new JobNormalizerService().normalizeSeniority(title)).toBe(expected);
+});
