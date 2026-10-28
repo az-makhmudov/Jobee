@@ -1,6 +1,6 @@
 # Jobee — master context
 
-Updated 2026-10-25. Product source of truth; [status](STATUS.md) records implementation evidence, and [roadmap](ROADMAP.md) records unfinished acceptance. This document describes the intended product and identifies where the core promise is still being completed.
+Updated 2026-10-28. Product source of truth; [status](STATUS.md) records implementation evidence, and [roadmap](ROADMAP.md) records unfinished acceptance. This document describes the intended product and identifies where the core promise is still being completed.
 
 ## Purpose and users
 
@@ -49,7 +49,7 @@ Keep document upload, consent to external processing, acceptance of extracted in
 
 Explore is the default destination. Candidates search, filter and compare jobs with concise fit explanations, blockers, unknowns and source details. On desktop the detail sits beside the retained result list; on mobile candidates can return to their search context. Manual URLs/text remain supported when a discovery source is missing or inaccessible.
 
-Explore recommendations require a completed, current MATCH analysis before publication. MATCH means strong professional fit: unpublished salary and unresolved eligibility may remain clearly labelled unknowns. They do not become satisfied facts, and application/Autopilot checks remain separate. New or changed compatible jobs are analyzed automatically in the background; unanalysed, stale, REVIEW and SKIP results remain outside recommendations. Saved target locations constrain recommendations even when relocation is allowed. Raw/imported and historical listings remain available in an explicitly labelled saved-job library. Analysis progress and retryable failures are visible; an empty recommendation list must not be filled with unsuitable roles. AI interprets permitted verified evidence, while deterministic gates enforce material restrictions. Missing eligibility remains unknown, and analysis never grants submission authority.
+Explore recommendations require a completed, current MATCH analysis before publication. MATCH admission prioritizes target title/position, seniority, language and location. Salary, visa, employment/workplace details and other qualifications inform the detailed fit and application checks; they do not independently hide a primary fit. Explicit company/keyword exclusions remain binding, and known insufficient mandatory language is excluded. Missing language evidence stays visibly unconfirmed. Unconfirmed details do not become satisfied facts, and application/Autopilot checks remain separate. New or changed compatible jobs are analyzed automatically in the background; unanalysed, stale, REVIEW and SKIP results remain outside recommendations. Saved target locations constrain recommendations even when relocation is allowed. Raw/imported and historical listings remain available in an explicitly labelled saved-job library. Analysis progress and retryable failures are visible; an empty recommendation list must not be filled with unsuitable roles. AI interprets permitted verified evidence, while deterministic gates enforce material restrictions. Missing eligibility remains unknown, and analysis never grants submission authority.
 
 ### 3. Prepare and apply
 

@@ -1449,3 +1449,36 @@ test('strong profile recommendations keep unknown salary and eligibility visible
     );
   }
 });
+
+test('secondary application blockers remain visible without hiding a recommended role', async ({
+  page,
+}) => {
+  const seeded = JSON.parse(await readFile('/tmp/jobee-ui-preview-seed.json', 'utf8'));
+  await seedUiMatches(
+    process.env.UI_TEST_DATABASE_URL!,
+    seeded.userId,
+    seeded.jobIds,
+    true,
+    [],
+    'Posted salary is below your preference',
+  );
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/');
+    const card = page.locator('.job-card').filter({
+      has: page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
+    });
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('Before applying: Posted salary is below your preference');
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBeTruthy();
+    await page.screenshot({
+      path: `output/playwright/primary-criteria-${width}.png`,
+      fullPage: true,
+    });
+    await card.getByRole('button', { name: 'View job', exact: true }).click();
+    await expect(page.locator('.job-fit-overview')).toContainText('Before applying:');
+    await expect(page.locator('.job-fit-overview')).not.toContainText('Applied');
+  }
+});

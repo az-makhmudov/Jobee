@@ -522,7 +522,10 @@ export class ApplicationIntentService {
         }
         if (
           intent.autopilotGrant &&
-          (analysis.decision !== 'MATCH' || analysis.overallScore < intent.autopilotGrant.minScore)
+          (analysis.decision !== 'MATCH' ||
+            analysis.confidenceScore < 60 ||
+            analysis.reasonCodes.includes('APPLICATION_SCORE_BELOW_THRESHOLD') ||
+            analysis.overallScore < intent.autopilotGrant.minScore)
         ) {
           await this.pause(
             intent,

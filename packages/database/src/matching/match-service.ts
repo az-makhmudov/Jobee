@@ -162,7 +162,9 @@ export class MatchService {
     const sensitiveIds = new Set(
       requirements
         .filter((req) =>
-          ['WORK_AUTHORIZATION', 'LOCATION', 'EDUCATION', 'CERTIFICATION'].includes(req.category),
+          ['WORK_AUTHORIZATION', 'LOCATION', 'EDUCATION', 'CERTIFICATION', 'LANGUAGE'].includes(
+            req.category,
+          ),
         )
         .map((req) => req.id),
     );

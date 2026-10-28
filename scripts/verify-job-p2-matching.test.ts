@@ -8,6 +8,7 @@ import {
   jobPreferences,
   applicationPolicy,
   candidateSkills,
+  candidateLanguages,
   jobRequirements,
   jobMatchAnalyses,
   orchestrationRuns,
@@ -139,10 +140,11 @@ describe('Grounded matching across Explore and scheduled execution (JOB-P2-T02)'
     expect(changed!.hardBlockers[0]).toContain('excluded');
     expect((await db.select().from(jobs).where(eq(jobs.id, jobId)))[0]!.state).toBe('INGESTED');
   });
-  it('blocks an explicit work-mode conflict even when relocation is allowed', async () => {
+  it('retains an explicit work-mode application block without hiding a primary role fit', async () => {
     await updateJob({ workplaceType: 'ONSITE' });
     const analysis = await analyze();
-    expect(analysis.decision).toBe('SKIP');
+    expect(analysis.decision).toBe('MATCH');
+    expect(analysis.autoApplyEligible).toBe(false);
     expect(analysis.reasonCodes).toContain('WORK_MODE_NOT_ALLOWED');
   });
   it.each([null, 'Canada'])(
@@ -174,7 +176,7 @@ describe('Grounded matching across Explore and scheduled execution (JOB-P2-T02)'
     });
     await updateJob({ workplaceType: 'ONSITE', city: null, locationText: 'Germany' });
     const analysis = await analyze();
-    expect(analysis.decision).toBe('MATCH');
+    expect(analysis.decision).toBe('REVIEW');
     expect(analysis.reasonCodes).not.toContain('LOCATION_NOT_ALLOWED');
   });
   it('does not infer citizenship from country authorization', async () => {
@@ -199,7 +201,8 @@ describe('Grounded matching across Explore and scheduled execution (JOB-P2-T02)'
     expect((await analyze()).hardBlockers).toEqual([]);
     await updateJob({ currency: 'EUR' });
     const blocked = await analyze();
-    expect(blocked.decision).toBe('SKIP');
+    expect(blocked.decision).toBe('MATCH');
+    expect(blocked.autoApplyEligible).toBe(false);
     expect(blocked.reasonCodes).toContain('SALARY_BELOW_MINIMUM');
   });
   it('distinguishes unconfirmed internship eligibility from a confirmed blocker', async () => {
@@ -211,7 +214,8 @@ describe('Grounded matching across Explore and scheduled execution (JOB-P2-T02)'
     expect(unresolved.reasonCodes).toContain('POLICY_INFORMATION_MISSING');
     await updatePreferences({ internshipEligible: false });
     const blocked = await analyze();
-    expect(blocked.decision).toBe('SKIP');
+    expect(blocked.decision).toBe('MATCH');
+    expect(blocked.autoApplyEligible).toBe(false);
     expect(blocked.reasonCodes).toContain('INTERNSHIP_NOT_ALLOWED');
   });
   it('rejects invented AI evidence and free-form candidate claims without overriding eligibility uncertainty', async () => {
@@ -335,7 +339,7 @@ describe('Release matching guard benchmark (30 synthetic vacancies)', () => {
       ...(condition === 'work mode conflict' ? { workplaceType: 'ONSITE' } : {}),
     });
     const result = await analyze();
-    expect(result.decision).toBe(condition === 'work mode conflict' ? 'SKIP' : 'MATCH');
+    expect(result.decision).toBe('MATCH');
     if (condition !== 'ready') expect(result.autoApplyEligible).toBe(false);
   });
 });
@@ -450,4 +454,134 @@ it('keeps an explicit unknown work-rights requirement unconfirmed while recommen
   );
   expect(unresolved?.status).toBe('UNKNOWN');
   expect(analysis.unknowns.join(' ')).toMatch(/authorization|eligibility/);
+});
+
+it('recommends primary role fit despite secondary salary and sponsorship conflicts, keeping application blocks', async () => {
+  await updatePreferences({
+    minSalary: 80000,
+    currency: 'EUR',
+    salaryPayPeriod: 'YEAR',
+    needsSponsorship: true,
+    workAuthorizationCountries: [],
+  });
+  await updateJob({
+    maxSalary: 30000,
+    currency: 'EUR',
+    payPeriod: 'YEAR',
+    description: 'No visa sponsorship. ' + 'Build TypeScript services. '.repeat(30),
+  });
+  const result = await analyze();
+  expect(result.decision).toBe('MATCH');
+  expect(result.autoApplyEligible).toBe(false);
+  expect(result.reasonCodes).toContain('SALARY_BELOW_MINIMUM');
+  expect(result.reasonCodes).toContain('SPONSORSHIP_CONFLICT');
+  expect(result.hardBlockers.length).toBeGreaterThan(0);
+  expect(
+    (await jobService.getJobs(userId, { recommendationsOnly: true })).items.map((j) => j.id),
+  ).toContain(jobId);
+});
+it('does not use secondary mandatory skills or detailed score as recommendation admission', async () => {
+  await db.insert(jobRequirements).values(
+    ['Kubernetes', 'Rust', 'Golang', 'Terraform'].map((name) => ({
+      userId,
+      jobId,
+      rawText: `Must have ${name} skills`,
+      category: 'SKILL',
+      requirementStrength: 'MANDATORY',
+    })),
+  );
+  const result = await analyze();
+  expect(result.decision).toBe('MATCH');
+  expect(result.autoApplyEligible).toBe(false);
+  expect(result.reasonCodes).toContain('UNMET_MANDATORY_REQUIREMENTS');
+  expect(result.overallScore).toBeLessThan(70);
+  expect(result.reasonCodes).toContain('APPLICATION_SCORE_BELOW_THRESHOLD');
+  expect(
+    result.evaluations.find((e) => e.requirement?.rawText.includes('Kubernetes'))?.status,
+  ).not.toBe('MET');
+});
+it('uses explicit mandatory language evidence as a primary criterion without guessing unknown fluency', async () => {
+  await db.insert(jobRequirements).values({
+    userId,
+    jobId,
+    rawText: 'Must speak German at C2 level',
+    category: 'LANGUAGE',
+    requirementStrength: 'MANDATORY',
+  });
+  const result = await analyze();
+  expect(result.decision).toBe('MATCH'); // No language evidence is UNKNOWN, not an invented negative.
+  expect(result.autoApplyEligible).toBe(false);
+  expect(result.evaluations.find((e) => e.requirement?.category === 'LANGUAGE')?.status).toBe(
+    'UNKNOWN',
+  );
+  expect(result.unknowns.join(' ')).toMatch(/language|German/i);
+});
+
+it('excludes a role when a verified mandatory language level is insufficient', async () => {
+  await db.insert(candidateLanguages).values({
+    userId,
+    language: 'German',
+    cefrLevel: 'A1',
+    verificationStatus: 'VERIFIED',
+    allowAiUse: true,
+  });
+  await db.insert(jobRequirements).values({
+    userId,
+    jobId,
+    rawText: 'Must speak German at C2 level',
+    category: 'LANGUAGE',
+    requirementStrength: 'MANDATORY',
+  });
+  const result = await analyze();
+  expect(result.decision).toBe('SKIP');
+  expect(result.autoApplyEligible).toBe(false);
+  expect(result.evaluations.find((e) => e.requirement?.category === 'LANGUAGE')?.status).toBe(
+    'NOT_MET',
+  );
+});
+
+it('does not let AI turn an unrelated verified language into an invented language conflict', async () => {
+  const [language] = await db
+    .insert(candidateLanguages)
+    .values({
+      userId,
+      language: 'English',
+      cefrLevel: 'C1',
+      verificationStatus: 'VERIFIED',
+      allowAiUse: true,
+    })
+    .returning();
+  await db.insert(jobRequirements).values({
+    userId,
+    jobId,
+    rawText: 'Must speak German at C2 level',
+    category: 'LANGUAGE',
+    requirementStrength: 'MANDATORY',
+  });
+  const provider: AiProvider = {
+    name: 'fixture',
+    isAvailable: () => true,
+    analyzeMatch: vi.fn(async (context) => ({
+      evaluations: context.requirements.map((requirement) => ({
+        requirementId: requirement.id,
+        status: 'NOT_MET' as const,
+        evidenceIds: [`candidate_language:${language!.id}`],
+        confidence: 100,
+        reason: 'Invented German limitation from English record',
+      })),
+      roleFitScore: 100,
+      skillsFitScore: 100,
+      strengths: [],
+      gaps: [],
+      semanticSummary: 'Synthetic fixture',
+      provider: 'fixture',
+      model: 'offline',
+    })),
+  };
+  const analysis = await new MatchService(db, provider).analyzeJob(jobId, userId, { force: true });
+  expect(analysis.decision).toBe('MATCH');
+  expect(analysis.evaluations.find((e) => e.requirement?.category === 'LANGUAGE')?.status).toBe(
+    'UNKNOWN',
+  );
+  expect(analysis.autoApplyEligible).toBe(false);
 });

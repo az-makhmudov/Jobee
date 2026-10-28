@@ -182,6 +182,24 @@ afterEach(async () => {
 });
 
 describe('One-click preparation and provider execution (JOB-P3-T01 / JOB-P5-T01)', () => {
+  it('keeps a secondary salary conflict in recommendations while pausing application execution', async () => {
+    await db
+      .update(jobPreferences)
+      .set({ minSalary: 100000, currency: 'EUR', salaryPayPeriod: 'YEAR' })
+      .where(eq(jobPreferences.userId, userId));
+    await db
+      .update(jobs)
+      .set({ maxSalary: 30000, currency: 'EUR', payPeriod: 'YEAR' })
+      .where(eq(jobs.id, jobId));
+    const analysis = await new MatchService(db, new DisabledAiProvider()).analyzeJob(jobId, userId);
+    expect(analysis.decision).toBe('MATCH');
+    expect(analysis.reasonCodes).toContain('SALARY_BELOW_MINIMUM');
+    const intent = await create();
+    await intents.processPending();
+    const state = await intents.get(userId, intent.id);
+    expect(state.status).toBe('NEEDS_USER_ACTION');
+    expect(state.runId).toBeNull();
+  });
   it('can recommend profile fit with unknown salary without authorizing application execution', async () => {
     await db
       .update(jobPreferences)

@@ -81,7 +81,7 @@ export function JobInboxView({
         jobApi.getJobs({
           page,
           limit: 10,
-          relevantOnly: !libraryMode,
+          relevantOnly: false,
           recommendationsOnly: !libraryMode,
           search: submittedSearch || undefined,
           workplaceType: workplaceFilter || undefined,
@@ -106,6 +106,7 @@ export function JobInboxView({
             ),
       );
       listLoadFailed.current = false;
+      if (jobsRes.total > 0 && page > jobsRes.totalPages) setPage(Math.max(1, jobsRes.totalPages));
       setTotalPages(jobsRes.totalPages);
       setTotalItems(jobsRes.total);
       setMetrics(metricsRes);
@@ -194,6 +195,32 @@ export function JobInboxView({
       clearTimeout(timer);
     };
   }, [libraryMode, recommendations, recommendationError]);
+
+  useEffect(() => {
+    if (libraryMode) return;
+    let active = true;
+    let lastRefresh = 0;
+    const refreshOnReturn = () => {
+      if (document.visibilityState === 'hidden' || Date.now() - lastRefresh < 2000) return;
+      lastRefresh = Date.now();
+      void currentLoader.current();
+      void jobApi
+        .recommendationStatus()
+        .then((value) => {
+          if (active) setRecommendations(value);
+        })
+        .catch(() => {
+          /* Existing list errors retain their own retry action. */
+        });
+    };
+    window.addEventListener('focus', refreshOnReturn);
+    document.addEventListener('visibilitychange', refreshOnReturn);
+    return () => {
+      active = false;
+      window.removeEventListener('focus', refreshOnReturn);
+      document.removeEventListener('visibilitychange', refreshOnReturn);
+    };
+  }, [libraryMode]);
 
   const retryRecommendations = async () => {
     setRecommendationError('');
@@ -718,7 +745,9 @@ export function JobInboxView({
                   providerFilter ||
                   decisionFilter ||
                   staleFilter
-                    ? 'Try a broader search or clear the filters. Your saved jobs are unchanged.'
+                    ? recommendations?.ready
+                      ? `${recommendations.ready} recommended ${recommendations.ready === 1 ? 'job is' : 'jobs are'} available. Clear the filters to see all matching roles.`
+                      : 'Try a broader search or clear the filters. Your saved jobs are unchanged.'
                     : 'Only jobs with a completed, current MATCH analysis appear here. Analysis runs automatically; find more jobs or check your preferences. Your saved jobs remain available under More tools.'}
                 </p>
                 <Button className="btn btn-primary btn-sm" onClick={() => setIsAddModalOpen(true)}>
@@ -793,8 +822,9 @@ export function JobInboxView({
                           )}
                           {job.matchSummary && !job.matchSummary.isStale && (
                             <p className="job-fit-summary">
-                              {job.matchSummary.hardBlockers?.[0] ||
-                                job.matchSummary.summaryExplanation}
+                              {job.matchSummary.summaryExplanation}
+                              {!!job.matchSummary.hardBlockers?.length &&
+                                ` Before applying: ${job.matchSummary.hardBlockers[0]}`}
                               {!job.matchSummary.hardBlockers?.length &&
                               job.matchSummary.unknowns?.[0]
                                 ? ` Details to confirm: ${job.matchSummary.unknowns[0]}${job.matchSummary.unknowns.length > 1 ? ` · ${job.matchSummary.unknowns.length - 1} more to confirm` : ''}`

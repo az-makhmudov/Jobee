@@ -1,4 +1,10 @@
-import { matchesPreferredLocation, preferredLevels, jobSeniority } from './job-relevance.js';
+import { hasRecommendationBlockers } from './hard-policy-engine.js';
+import {
+  relevanceIssues,
+  matchesPreferredLocation,
+  preferredLevels,
+  jobSeniority,
+} from './job-relevance.js';
 import { comparableCompensation, hasCountryAuthorization } from './eligibility.js';
 import { Job } from '../schema/index.js';
 import {
@@ -100,7 +106,7 @@ export class MatchingScoringEngine {
     }
 
     // 6. Calculate Dimension: LANGUAGE_FIT
-    const langFit = this.calculateLanguageFit(context, evaluations);
+    const langFit = this.calculateLanguageFit(evaluations);
     dimensions.push(langFit);
 
     // 7. Calculate Dimension: COMPENSATION_FIT
@@ -116,6 +122,9 @@ export class MatchingScoringEngine {
     if (authFit.status === 'UNKNOWN') {
       unknowns.push('Candidate visa / work authorization requirements are unconfigured');
     }
+
+    for (const evaluation of evaluations.filter((item) => item.status === 'UNKNOWN'))
+      if (!unknowns.includes(evaluation.reason)) unknowns.push(evaluation.reason);
 
     // Model narratives are not candidate facts. Explanations are derived from grounded evaluations.
     // Evaluate mandatory requirements penalty
@@ -242,59 +251,58 @@ export class MatchingScoringEngine {
     const autoApplyMinScore = policy?.autoApplyMinScore ?? 90;
 
     // Recommendation fit is independent of application authorization and Autopilot admission.
-    const recommendationMinScore = Math.max(70, minScoreForReview);
+
     if (hardPolicy.missingSensitiveInfo)
       reasonCodes.push(DecisionReasonCodes.POLICY_INFORMATION_MISSING);
-    let decision: MatchDecision = 'REVIEW';
-
-    if (hardPolicy.hasBlockers) {
+    const languageConflict = evaluations.some(
+      (evaluation) =>
+        evaluation.category === 'LANGUAGE' &&
+        evaluation.contributesToBlocker &&
+        evaluation.status === 'NOT_MET' &&
+        evaluation.evidenceIds.some((id) =>
+          context.languages.some(
+            (language) =>
+              language.verificationStatus === 'VERIFIED' &&
+              (id === language.id || id === `candidate_language:${language.id}`),
+          ),
+        ),
+    );
+    if (languageConflict) reasonCodes.push(DecisionReasonCodes.LANGUAGE_REQUIREMENT_NOT_MET);
+    const primaryConflict =
+      hasRecommendationBlockers(hardPolicy) ||
+      languageConflict ||
+      relevanceIssues(job, context.preferences, context.candidateProfile).length > 0;
+    let decision: MatchDecision;
+    if (primaryConflict || (roleFit.score !== null && roleFit.score < 50)) {
       decision = 'SKIP';
-    } else if (unmetMandatory.length > 0) {
+    } else if (roleFit.score === null || !matchesPreferredLocation(job, context.preferences)) {
       decision = 'REVIEW';
-    } else if (confidenceScore < 60) {
-      decision = 'REVIEW';
-      reasonCodes.push(DecisionReasonCodes.LOW_CONFIDENCE);
-    } else if (overallScore >= recommendationMinScore) {
+    } else {
       decision = 'MATCH';
       reasonCodes.push(DecisionReasonCodes.MATCH_THRESHOLD_MET);
-    } else if (overallScore >= minScoreForReview) {
-      decision = 'REVIEW';
-      reasonCodes.push(DecisionReasonCodes.REVIEW_THRESHOLD_MET);
-    } else {
-      decision = 'SKIP';
-      reasonCodes.push(DecisionReasonCodes.LOW_MATCH_SCORE);
     }
+    // Detailed score/confidence and all application blockers remain independent of recommendation admission.
+    if (confidenceScore < 60) reasonCodes.push(DecisionReasonCodes.LOW_CONFIDENCE);
+    if (overallScore < Math.max(70, minScoreForReview))
+      reasonCodes.push(DecisionReasonCodes.APPLICATION_SCORE_BELOW_THRESHOLD);
 
     // Auto-apply preliminary eligibility
     const autoApplyEnabled = policy?.autoApplyEnabled ?? false;
     const autoApplyEligible =
       autoApplyEnabled &&
       decision === 'MATCH' &&
-      overallScore >= autoApplyMinScore &&
+      overallScore >= Math.max(70, minScoreForReview, autoApplyMinScore) &&
       confidenceScore >= 70 &&
       !hardPolicy.hasBlockers &&
       !hardPolicy.missingSensitiveInfo &&
       applicationUnmet.length === 0;
 
-    // Summary Explanation
-    let summaryExplanation = '';
-    if (decision === 'MATCH') {
-      summaryExplanation = `Profile match (${overallScore}%): Professional fit meets your recommendation threshold.${hardPolicy.missingSensitiveInfo ? ' Salary or eligibility details still need confirmation before applying.' : ''}`;
-    } else if (decision === 'SKIP') {
-      if (hardPolicy.hasBlockers) {
-        summaryExplanation = `Excluded by policy: ${hardPolicy.blockers[0]}`;
-      } else {
-        summaryExplanation = `Fit below threshold (${overallScore}%): Score is below configured consideration limit of ${minScoreForReview}%.`;
-      }
-    } else {
-      summaryExplanation = `Human review required (${overallScore}%): ${
-        hardPolicy.missingSensitiveInfo
-          ? 'Requires clarification of candidate preferences/sensitive policies.'
-          : unmetMandatory.length > 0
-            ? `${unmetMandatory.length} mandatory requirement(s) need verification.`
-            : 'Candidate qualifications match partially; manual review recommended.'
-      }`;
-    }
+    const summaryExplanation =
+      decision === 'MATCH'
+        ? `Recommended by role, level and location, with language evidence assessed separately. Detailed profile fit: ${overallScore}%. Salary, eligibility and other application requirements are assessed separately.`
+        : decision === 'SKIP'
+          ? 'Outside your target role, level, language, location or explicit exclusions.'
+          : 'Target role or location needs confirmation before this job can be recommended.';
 
     // Determine CareerFitCategory
     let careerFitCategory: CareerFitCategory;
@@ -351,7 +359,10 @@ export class MatchingScoringEngine {
     context: CandidateMatchingContext,
     aiResult?: AiMatchResult | null,
   ): DimensionScoreResult {
-    const targetTitles = context.preferences?.targetTitles || [];
+    const targetTitles = [
+      ...(context.preferences?.targetTitles ?? []),
+      ...(context.preferences?.adjacentRoles ?? []),
+    ];
     if (targetTitles.length === 0) {
       return {
         dimension: 'ROLE_FIT',
@@ -591,39 +602,29 @@ export class MatchingScoringEngine {
     };
   }
 
-  private calculateLanguageFit(
-    context: CandidateMatchingContext,
-    evaluations: DeterministicEvaluationResult[],
-  ): DimensionScoreResult {
-    const langEvals = evaluations.filter((e) =>
-      e.evidenceIds.some((id) => id.startsWith('candidate_language:')),
+  private calculateLanguageFit(evaluations: DeterministicEvaluationResult[]): DimensionScoreResult {
+    const langEvals = evaluations.filter(
+      (e) =>
+        e.category === 'LANGUAGE' ||
+        e.evidenceIds.some((id) => id.startsWith('candidate_language:')),
     );
 
     if (langEvals.length > 0) {
       const allMet = langEvals.every((e) => e.status === 'MET');
+      const allUnknown = langEvals.every((e) => e.status === 'UNKNOWN');
       return {
         dimension: 'LANGUAGE_FIT',
-        score: allMet ? 100 : 50,
+        score: allUnknown
+          ? null
+          : allMet
+            ? 100
+            : langEvals.some((e) => e.status === 'NOT_MET')
+              ? 0
+              : 70,
         weight: DIMENSION_DEFAULT_WEIGHTS.LANGUAGE_FIT,
-        status: 'SCORED',
+        status: allUnknown ? 'UNKNOWN' : 'SCORED',
         reason: `${langEvals.length} job language requirement(s) evaluated against candidate fluencies`,
       };
-    }
-
-    if (context.languages.length > 0) {
-      const nonRejectedLangs = context.languages.filter((l) => l.verificationStatus !== 'REJECTED');
-      const hasVerified = nonRejectedLangs.some((l) => l.verificationStatus === 'VERIFIED');
-      if (nonRejectedLangs.length > 0) {
-        return {
-          dimension: 'LANGUAGE_FIT',
-          score: hasVerified ? 100 : 70,
-          weight: DIMENSION_DEFAULT_WEIGHTS.LANGUAGE_FIT,
-          status: 'SCORED',
-          reason: hasVerified
-            ? 'Standard language competencies confirmed in Candidate Brain'
-            : 'Language proficiencies listed in Candidate Brain (verification required)',
-        };
-      }
     }
 
     return {

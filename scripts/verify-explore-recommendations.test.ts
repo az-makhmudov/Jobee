@@ -235,3 +235,18 @@ it('clears an old queue failure once a current analysis has resolved the pending
   expect((await service.status(userId)).state).toBe('IDLE');
   expect((await service.status(userId)).ready).toBe(1);
 });
+
+it('queues and publishes primary matches even when a secondary salary policy blocks applying', async () => {
+  await db
+    .update(jobPreferences)
+    .set({ minSalary: 100000, currency: 'PLN', salaryPayPeriod: 'YEAR' })
+    .where(eq(jobPreferences.userId, userId));
+  await db
+    .update(jobs)
+    .set({ maxSalary: 50000, currency: 'PLN', payPeriod: 'YEAR' })
+    .where(eq(jobs.id, jobId));
+  await service.request(userId);
+  expect((await service.status(userId)).pending).toBe(1);
+  await service.processOne(userId);
+  expect((await recommended()).items.map((job) => job.id)).toEqual([jobId]);
+});

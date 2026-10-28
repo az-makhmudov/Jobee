@@ -1027,8 +1027,8 @@ describe('Matching Intelligence Unit Tests (JOB-P2-T02)', () => {
 
       // Auto-apply must be strictly false
       expect(result.autoApplyEligible).toBe(false);
-      // Decision must be REVIEW
-      expect(result.decision).toBe('REVIEW');
+      // Primary fit can recommend; mandatory uncertainty still prevents application.
+      expect(result.decision).toBe('MATCH');
       // Career fit category must NOT be STRONG_MATCH or GOOD_MATCH
       expect(result.careerFitCategory).not.toBe('STRONG_MATCH');
       expect(result.careerFitCategory).not.toBe('GOOD_MATCH');

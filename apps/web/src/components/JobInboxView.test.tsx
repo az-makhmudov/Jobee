@@ -236,3 +236,52 @@ it('shows a current profile MATCH with an explicit unknown-details label', async
   await screen.findByText('Strong profile fit');
   expect(screen.getByText(/Details to confirm: Salary was not published/)).toBeTruthy();
 });
+
+it('reloads completed recommendations on return to a tab without starting new discovery', async () => {
+  render(<JobInboxView {...props} />);
+  await screen.findByText('Current role');
+  vi.mocked(jobApi.getJobs).mockResolvedValue(result('New completed role'));
+  vi.mocked(jobApi.recommendationStatus).mockResolvedValue({
+    state: 'IDLE',
+    ready: 1,
+    pending: 0,
+    excluded: 0,
+    evaluated: 1,
+    processed: 0,
+    batchSize: 0,
+    locations: ['Warsaw'],
+    levels: ['ENTRY'],
+    message: 'Ready',
+  });
+  fireEvent(window, new Event('focus'));
+  await screen.findByText('New completed role');
+  expect(jobApi.discoverJobs).not.toHaveBeenCalled();
+});
+
+it('recovers the first page when the recommendation set shrinks on a later page', async () => {
+  vi.mocked(jobApi.getJobs).mockImplementation(async (query) =>
+    query?.page === 2
+      ? { ...result('Unused'), items: [], total: 1, totalPages: 1, page: 2 }
+      : { ...result('Remaining recommendation'), total: 1, totalPages: 2 },
+  );
+  render(<JobInboxView {...props} />);
+  await screen.findByText('Remaining recommendation');
+  fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+  await waitFor(() =>
+    expect(jobApi.getJobs).toHaveBeenLastCalledWith(expect.objectContaining({ page: 1 })),
+  );
+  expect(screen.getByText('Remaining recommendation')).toBeTruthy();
+});
+it('explains that active filters hide recommendations that are available', async () => {
+  vi.mocked(jobApi.getJobs).mockImplementation(async (query) =>
+    query?.workplaceType
+      ? { ...result('Unused'), items: [], total: 0, totalPages: 0 }
+      : result('Current role'),
+  );
+  render(<JobInboxView {...props} />);
+  await screen.findByText('Current role');
+  fireEvent.change(screen.getByLabelText('Workplace'), { target: { value: 'REMOTE' } });
+  await screen.findByText(
+    '1 recommended job is available. Clear the filters to see all matching roles.',
+  );
+});

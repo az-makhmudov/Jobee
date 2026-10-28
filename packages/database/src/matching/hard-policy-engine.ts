@@ -227,3 +227,15 @@ export class HardPolicyEngine {
     };
   }
 }
+
+/** Recommendation admission uses primary fit and explicit exclusions; application policy stays intact. */
+export function hasRecommendationBlockers(result: HardPolicyResult): boolean {
+  return result.reasonCodes.some((code) =>
+    [
+      'SENIORITY_NOT_ALLOWED',
+      'LOCATION_NOT_ALLOWED',
+      'EXCLUDED_COMPANY',
+      'EXCLUDED_KEYWORD',
+    ].includes(code),
+  );
+}

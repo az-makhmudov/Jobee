@@ -6,7 +6,7 @@ import { jobs, orchestrationRuns, users } from '../schema/index.js';
 import { AppError, type RecommendationStatusDto } from '@job-agent/shared';
 import { currentMatchingInputs, matchingFingerprint } from './matching-inputs.js';
 import { relevanceIssues, matchesPreferredLocation, preferredLevels } from './job-relevance.js';
-import { HardPolicyEngine } from './hard-policy-engine.js';
+import { HardPolicyEngine, hasRecommendationBlockers } from './hard-policy-engine.js';
 
 export const RECOMMENDATION_TASK = 'EXPLORE_MATCHING';
 const work = z.object({
@@ -38,7 +38,7 @@ export class RecommendationService {
         (!job.expirationDate || job.expirationDate > new Date()) &&
         !relevanceIssues(job, inputs.context.preferences, inputs.context.candidateProfile).length &&
         matchesPreferredLocation(job, inputs.context.preferences) &&
-        !policy.evaluate(job, inputs.context).hasBlockers,
+        !hasRecommendationBlockers(policy.evaluate(job, inputs.context)),
     );
     const pending = eligible.filter(
       (job) => !inputs.analysesByJob.get(job.id) || inputs.analysesByJob.get(job.id)!.isStale,

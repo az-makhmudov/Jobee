@@ -23,6 +23,7 @@ export async function seedUiMatches(
   jobIds: string[],
   resetQueue = false,
   unknowns: string[] = [],
+  salaryBlocker = '',
 ) {
   assertSafeTestDatabase(databaseUrl);
   assertSafeTestUser(userId);
@@ -61,9 +62,12 @@ export async function seedUiMatches(
         confidenceScore: 90,
         decision: 'MATCH',
         unknowns,
-        reasonCodes: unknowns.length
-          ? ['MATCH_THRESHOLD_MET', 'POLICY_INFORMATION_MISSING']
-          : ['MATCH_THRESHOLD_MET'],
+        hardBlockers: salaryBlocker ? [salaryBlocker] : [],
+        reasonCodes: [
+          'MATCH_THRESHOLD_MET',
+          ...(unknowns.length ? ['POLICY_INFORMATION_MISSING'] : []),
+          ...(salaryBlocker ? ['SALARY_BELOW_MINIMUM'] : []),
+        ],
         analysisMode: 'DETERMINISTIC_ONLY',
         summaryExplanation: 'Synthetic UI-only match fixture; not a live AI evaluation.',
         autoApplyEligible: false,

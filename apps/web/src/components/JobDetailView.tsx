@@ -366,7 +366,7 @@ export function JobDetailView({
             <p>{analysis.summaryExplanation}</p>
             {!!analysis.hardBlockers.length && (
               <p>
-                <strong>Blocked:</strong> {analysis.hardBlockers[0]}
+                <strong>Before applying:</strong> {analysis.hardBlockers[0]}
               </p>
             )}
             {!!analysis.unknowns.length && (

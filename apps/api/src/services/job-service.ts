@@ -3,6 +3,7 @@ import {
   relevanceIssues,
   matchesPreferredLocation,
   HardPolicyEngine,
+  hasRecommendationBlockers,
 } from '@job-agent/database/matching';
 import { eq, desc, and, or, ilike, count, sql, inArray } from 'drizzle-orm';
 import type { Database } from '@job-agent/database';
@@ -546,7 +547,9 @@ export class JobService {
         return false;
       if (
         (query.relevantOnly || query.recommendationsOnly) &&
-        hardPolicy.evaluate(r, context).hasBlockers
+        (query.recommendationsOnly
+          ? hasRecommendationBlockers(hardPolicy.evaluate(r, context))
+          : hardPolicy.evaluate(r, context).hasBlockers)
       )
         return false;
       const match = latestAnalysisMap.get(r.id);

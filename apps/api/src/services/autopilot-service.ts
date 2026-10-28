@@ -314,6 +314,7 @@ export class AutopilotService {
         const analysis = await this.match.analyzeJob(job.id, userId);
         if (
           analysis.decision !== 'MATCH' ||
+          analysis.confidenceScore < 60 ||
           analysis.overallScore < claim.grant.minScore ||
           analysis.hardBlockers.length ||
           analysis.reasonCodes.some((c) =>
@@ -321,6 +322,7 @@ export class AutopilotService {
               'POLICY_INFORMATION_MISSING',
               'UNKNOWN_SENSITIVE_FACTS',
               'UNMET_MANDATORY_REQUIREMENTS',
+              'APPLICATION_SCORE_BELOW_THRESHOLD',
             ].includes(c),
           )
         ) {
