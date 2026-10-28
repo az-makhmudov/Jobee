@@ -1,6 +1,6 @@
 # Jobee — remaining roadmap
 
-Updated 2026-10-26. This is a delta roadmap over the current implementation, not a rebuild. Scope and acceptance live here; current verification/checkpoints live in [status](STATUS.md). Product vision lives in [master context](MASTER_CONTEXT.md).
+Updated 2026-10-28. This is a delta roadmap over the current implementation, not a rebuild. Scope and acceptance live here; current verification/checkpoints live in [status](STATUS.md). Product vision lives in [master context](MASTER_CONTEXT.md).
 
 ## Completed foundation
 
@@ -10,7 +10,7 @@ JOB-DOC-CONSOLIDATION-01 consolidates current documentation; it is not a feature
 
 ## Owner feedback and launch decisions
 
-The owner confirms a simple Profile → relevant Explore → job details → one-click Apply → Applications path, managed Gemini only, a 10/day platform application cap (admin-designated tester/admin exemptions), 10 saved documents per account, private repository and initial Poland launch for all job seekers with emphasis on international students. Autopilot remains default-off. The owner approved the Railway testing release of `f3202ea` and the recommendation correction `7723620`, now deployed to API and worker; broader rollout remains undecided. These are product decisions, not live account-action authority.
+The owner confirms a simple Profile → relevant Explore → job details → one-click Apply → Applications path, managed Gemini only, a 10/day platform application cap (admin-designated tester/admin exemptions), 10 saved documents per account, private repository and initial Poland launch for all job seekers with emphasis on international students. Autopilot remains default-off. The owner approved Railway testing release `f3202ea`, recommendation correction `7723620` and discovery correction `7c59937`, now deployed to API and worker; broader rollout remains undecided. These are product decisions, not live account-action authority.
 
 JOB-P2-T02 / JOB-P3-T02 / JOB-P4-T02 local corrections address profile-compatible Explore, seniority blockers, progressive tools, managed AI, quotas/document admission and Calendar OAuth return. The owner additionally requires automatic analysis before publication and only fresh MATCH jobs in Explore; JOB-P2-T02 now covers the dedicated background queue, strict target geography and explicit saved-library access. A separately approved single synthetic-job production check confirmed Gemini fallback availability and correct withholding of REVIEW; human relevance/usability, broader grounding quality and measured cost remain open. **JOB-P1-T02 remaining engineering:** self-service account deletion with scoped storage cleanup and session/token revocation. The owner selected a seven-day cancellation window followed by deletion of all Jobee-held account data; export is optional. External employer/Google records are outside that deletion. Implementation follows the prioritized search/Quick Apply testing checkpoint; the document cap is not an account-deletion feature.
 
@@ -57,7 +57,7 @@ These are remaining outcomes within the milestones above, not extra micro-task s
 | AI quality/cost          | Validate configured model availability, grounding behavior, actual provider usage/cost and latency; no unsupported cost/savings claims                                                                   |
 | Privacy/public readiness | Review candidate/account/evidence retention, deletion/export, public-history exposure and jurisdictional obligations; no implied compliance certification                                                |
 | Operations               | Production backup/PITR/object-store recovery, same-commit API/worker promotion, monitoring and rollback under owner approval; synthetic PostgreSQL restore and local migration replay now pass           |
-| Source coverage          | Expand beyond the locally validated Poland employer catalog after real relevance testing; unsupported LinkedIn automation and universal ATS support remain non-goals                                     |
+| Source coverage          | Expand beyond the production-verified Poland employer catalog after real relevance testing; unsupported LinkedIn automation and universal ATS support remain non-goals                                   |
 | Accessibility            | Keyboard/focus, narrow viewport/zoom, themes, status/error semantics and formal audit as appropriate                                                                                                     |
 
 Current deployed health, credentials, scopes and account configuration require fresh operational verification before release; historical setup is not an open request to recreate services. Additional university/local feeds or dedicated Indeed support remain research conditioned on demand and permitted access, not committed launch requirements.
