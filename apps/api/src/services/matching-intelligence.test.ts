@@ -852,7 +852,7 @@ describe('Matching Intelligence Unit Tests (JOB-P2-T02)', () => {
       expect(result.reasonCodes).toContain('EXCLUDED_COMPANY');
     });
 
-    it('forces REVIEW decision when unknown sensitive facts exist even if score is high', () => {
+    it('recommends professional fit with unknown sensitive facts while blocking auto apply', () => {
       const candidate = createMockCandidateContext();
       const job = createMockJob();
 
@@ -867,9 +867,10 @@ describe('Matching Intelligence Unit Tests (JOB-P2-T02)', () => {
 
       const result = scoringEngine.calculate(job, candidate, hardPolicyResult, [], null);
 
-      expect(result.decision).toBe('REVIEW');
+      expect(result.decision).toBe('MATCH');
       expect(result.autoApplyEligible).toBe(false);
       expect(result.reasonCodes).toContain('POLICY_INFORMATION_MISSING');
+      expect(result.unknowns).toContain('Visa / sponsorship status not confirmed');
     });
 
     it('re-weights dimensions when dimension status is UNKNOWN rather than scoring as 0', () => {

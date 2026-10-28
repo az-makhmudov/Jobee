@@ -1,4 +1,4 @@
-import { relevanceIssues } from './job-relevance.js';
+import { relevanceIssues, matchesPreferredLocation } from './job-relevance.js';
 import {
   comparableCompensation,
   hasCountryAuthorization,
@@ -110,9 +110,7 @@ export class HardPolicyEngine {
           .toLowerCase()
           .trim();
       if (jobLocText.length > 0) {
-        const matchesPreferred = prefs.preferredLocations.some((loc) =>
-          jobLocText.includes(loc.toLowerCase().trim()),
-        );
+        const matchesPreferred = matchesPreferredLocation(job, prefs);
 
         if (!matchesPreferred) {
           if (!job.city && prefs.willingToRelocate !== true) {

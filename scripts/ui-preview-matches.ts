@@ -22,6 +22,7 @@ export async function seedUiMatches(
   userId: string,
   jobIds: string[],
   resetQueue = false,
+  unknowns: string[] = [],
 ) {
   assertSafeTestDatabase(databaseUrl);
   assertSafeTestUser(userId);
@@ -59,6 +60,10 @@ export async function seedUiMatches(
         overallScore: 80,
         confidenceScore: 90,
         decision: 'MATCH',
+        unknowns,
+        reasonCodes: unknowns.length
+          ? ['MATCH_THRESHOLD_MET', 'POLICY_INFORMATION_MISSING']
+          : ['MATCH_THRESHOLD_MET'],
         analysisMode: 'DETERMINISTIC_ONLY',
         summaryExplanation: 'Synthetic UI-only match fixture; not a live AI evaluation.',
         autoApplyEligible: false,

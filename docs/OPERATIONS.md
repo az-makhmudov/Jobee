@@ -64,6 +64,12 @@ npm run dev:worker
 
 Local file storage is process/filesystem dependent. Ensure API and worker see the same root when sharing artifacts, or use the S3-compatible provider. Do not place user files under tracked source paths. Development mail behavior can expose verification/reset links to local logs; treat those logs as sensitive.
 
+## Optional additional job search
+
+The [SerpApi Google Jobs API](https://serpapi.com/google-jobs-api) requires a provider account/key. The local adapter is fixture-tested only; no provider account or live search check is established. It can retain returned publisher links such as LinkedIn; indexed coverage varies and is not a direct LinkedIn, Indeed or Glassdoor integration. Public employer feeds remain available independently.
+
+To configure after access and any charges are explicitly approved: store `SERPAPI_API_KEY` privately in the backend environment, set `SERPAPI_ENABLED=true`, and deploy API/worker with consistent configuration. Keep it false until then; a key alone never enables requests. `SERPAPI_MAX_REQUESTS_PER_DISCOVERY` defaults to 1 and permits 1–3 requests per discovery. This is a per-run ceiling, not a monthly spending cap; set provider-account usage limits before activation. Only target-role and target-location queries are sent, with no CV/contact/evidence payload. The source is hidden when unconfigured. Existing custom source opt-outs remain intact; use More tools to select the source after activation if needed. Normal Find jobs/daily discovery may consume the configured allowance. Live provider acceptance and actual platform coverage require a separately authorized check; no paid check is included in the current correction.
+
 ## Safe database verification and migration
 
 Migration source: [journal](../packages/database/drizzle/meta/_journal.json), [SQL directory](../packages/database/drizzle/), [migrator](../packages/database/src/migrator.ts). There are 27 entries through `0026_autopilot_policy`. Compare applied `drizzle.__drizzle_migrations` counts/timestamps/hashes with committed SQL/journal, not just a table count.

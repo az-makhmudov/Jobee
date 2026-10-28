@@ -286,3 +286,12 @@ describe('validateEnv', () => {
     expect(customValidConfig.AI_MODEL).toBe('gemini-3.5-flash-lite');
   });
 });
+
+it('requires explicit operator enablement and bounds optional job-search provider requests', () => {
+  expect(validateEnv({ SERPAPI_API_KEY: 'synthetic-key' }).SERPAPI_ENABLED).toBe(false);
+  expect(() => validateEnv({ SERPAPI_ENABLED: 'true' })).toThrow('SERPAPI_API_KEY');
+  expect(() => validateEnv({ SERPAPI_MAX_REQUESTS_PER_DISCOVERY: '4' })).toThrow();
+  expect(
+    validateEnv({ SERPAPI_ENABLED: 'true', SERPAPI_API_KEY: 'synthetic-key' }).SERPAPI_ENABLED,
+  ).toBe(true);
+});

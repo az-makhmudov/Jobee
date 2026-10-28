@@ -5,6 +5,7 @@ import { CandidateMatchingContext } from './matching-context-builder.js';
 
 export interface DeterministicEvaluationResult {
   requirementId: string;
+  category?: string;
   status: RequirementEvaluationStatus;
   evidenceIds: string[];
   evidenceItems: CandidateEvidenceItemDto[];

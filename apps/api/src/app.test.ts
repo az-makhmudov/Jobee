@@ -5,6 +5,8 @@ import { AppError } from '@job-agent/shared';
 
 const testConfig: AppConfig = {
   NODE_ENV: 'test',
+  SERPAPI_ENABLED: false,
+  SERPAPI_MAX_REQUESTS_PER_DISCOVERY: 1,
   AUTOPILOT_ENABLED: false,
   BATCH_PREPARATION_ENABLED: true,
   SELECTED_SUBMISSIONS_ENABLED: true,

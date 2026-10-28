@@ -1,3 +1,5 @@
+import { getConfig } from '@job-agent/config';
+import { GoogleJobsReader } from './google-jobs-reader.js';
 import { z } from 'zod';
 import {
   relevanceIssues,
@@ -57,6 +59,7 @@ export interface PublicPosting {
   experienceLevel?: string;
   workplaceType?: 'REMOTE' | 'HYBRID';
   salary?: string;
+  sourceMetadata?: Record<string, unknown>;
 }
 const plain = (value: unknown) => stripHtmlToText(String(value ?? ''));
 const smartPostingSchema = z.object({
@@ -91,19 +94,35 @@ const smartDetailSchema = smartPostingSchema.extend({
 export class JobDiscoveryService {
   private readonly logger: Logger;
   private readonly fetchFn: typeof fetch;
+  private readonly search: { enabled: boolean; apiKey?: string; maxRequests: number };
   constructor(
     private readonly db: Database,
     private readonly jobService: JobService,
-    options?: { logger?: Logger; fetchFn?: typeof fetch },
+    options?: {
+      logger?: Logger;
+      fetchFn?: typeof fetch;
+      search?: { enabled: boolean; apiKey?: string; maxRequests: number };
+    },
   ) {
     this.logger = options?.logger ?? createLogger({ service: 'job-discovery' });
     this.fetchFn = options?.fetchFn ?? fetch;
+    const config = getConfig();
+    this.search = options?.search ?? {
+      enabled: config.SERPAPI_ENABLED,
+      apiKey: config.SERPAPI_API_KEY,
+      maxRequests: config.SERPAPI_MAX_REQUESTS_PER_DISCOVERY,
+    };
   }
   async discoverForCandidate(
     userId: string,
     options: DiscoveryOptions = {},
   ): Promise<CombinedDiscoverySummary> {
-    const settings = await new JobSearchSettingsService(this.db).get(userId);
+    const settings = await new JobSearchSettingsService(
+      this.db,
+      this.search.enabled && !!this.search.apiKey,
+    ).get(userId);
+    if (options.sources?.includes('GOOGLE_JOBS') && (!this.search.enabled || !this.search.apiKey))
+      throw AppError.badRequest('This additional search source is not available.');
     await this.db.insert(jobSearchSettings).values({ userId, settings }).onConflictDoNothing();
     const [lease] = await this.db
       .update(jobSearchSettings)
@@ -153,12 +172,31 @@ export class JobDiscoveryService {
       const boards = (companies ?? settings.boards).filter((b) => sources.includes(b.source));
       // Bounded rotation means one large board cannot permanently starve another.
       const boardStart = (cursors._board ?? 0) % Math.max(1, boards.length);
-      const rotated = boards.slice(boardStart).concat(boards.slice(0, boardStart)).slice(0, 5);
+      const rotated = boards.slice(boardStart).concat(boards.slice(0, boardStart)).slice(0, 10);
       cursors._board = (boardStart + rotated.length) % Math.max(1, boards.length);
-      const feeds: Array<{ source: DiscoverySource; board?: SearchBoard }> = [
+      const feeds: Array<{
+        source: DiscoverySource;
+        board?: SearchBoard;
+        query?: string;
+        location?: string;
+      }> = [
         ...(sources.includes('ARBEITNOW') ? [{ source: 'ARBEITNOW' as const }] : []),
         ...rotated.map((board) => ({ source: board.source, board })),
       ];
+      if (
+        sources.includes('GOOGLE_JOBS') &&
+        keywords.length &&
+        (prefs?.preferredLocations.length ?? 0) > 0
+      ) {
+        const start = cursors._searchQuery ?? 0;
+        for (let i = 0; i < Math.min(this.search.maxRequests, keywords.length); i++)
+          feeds.push({
+            source: 'GOOGLE_JOBS',
+            query: keywords[(start + i) % keywords.length]!,
+            location: prefs!.preferredLocations[0]!,
+          });
+        cursors._searchQuery = (start + this.search.maxRequests) % keywords.length;
+      }
       const summaries = new Map<string, DiscoveryResult>();
       const queues: Array<{
         source: DiscoverySource;
@@ -171,10 +209,16 @@ export class JobDiscoveryService {
       }> = [];
       const country = discoveryCountry(prefs?.preferredLocations ?? []);
       const feedKey = (feed: (typeof feeds)[number]) =>
-        `${feed.source}:${feed.board?.slug ?? 'feed'}${feed.source === 'SMARTRECRUITERS' ? `:${country ?? 'all'}` : ''}`;
+        `${feed.source}:${feed.board?.slug ?? 'feed'}${feed.source === 'SMARTRECRUITERS' ? `:${country ?? 'all'}` : feed.source === 'GOOGLE_JOBS' ? `:${feed.query}` : ''}`;
       const fetched = await Promise.allSettled(
         feeds.map((feed) =>
-          this.fetchPostings(feed.source, feed.board?.slug, cursors[feedKey(feed)] ?? 0, country),
+          this.fetchPostings(
+            feed.source,
+            feed.board?.slug,
+            cursors[feedKey(feed)] ?? 0,
+            country,
+            feed.query ? { query: feed.query, location: feed.location! } : undefined,
+          ),
         ),
       );
       for (const [feedIndex, feed] of feeds.entries()) {
@@ -215,7 +259,7 @@ export class JobDiscoveryService {
       // Round-robin and count new jobs, not duplicate hits, toward the requested limit.
       while (
         added < limit &&
-        examined < 200 &&
+        examined < 1000 &&
         Date.now() < deadline &&
         queues.some(
           (q) => q.index < q.total && (q.source !== 'SMARTRECRUITERS' || detailRequests < 15),
@@ -224,7 +268,7 @@ export class JobDiscoveryService {
         for (const q of queues) {
           if (
             added >= limit ||
-            examined >= 200 ||
+            examined >= 1000 ||
             q.index >= q.total ||
             Date.now() >= deadline ||
             (q.source === 'SMARTRECRUITERS' && detailRequests >= 15)
@@ -252,6 +296,12 @@ export class JobDiscoveryService {
             location: item.location,
             descriptionText: item.description,
             workplaceType: item.workplaceType ?? (item.remote ? 'REMOTE' : undefined),
+            seniority:
+              item.experienceLevel === 'internship'
+                ? 'INTERNSHIP'
+                : item.experienceLevel === 'entry_level'
+                  ? 'ENTRY'
+                  : undefined,
           });
           if (
             relevanceIssues(normalized, prefs ?? null, profile ?? null).length ||
@@ -272,6 +322,12 @@ export class JobDiscoveryService {
                 location: item.location,
                 descriptionText: item.description,
                 workplaceType: item.workplaceType ?? (item.remote ? 'REMOTE' : undefined),
+                seniority:
+                  item.experienceLevel === 'internship'
+                    ? 'INTERNSHIP'
+                    : item.experienceLevel === 'entry_level'
+                      ? 'ENTRY'
+                      : undefined,
               });
               if (
                 excluded.some((word) => item.title.toLowerCase().includes(word)) ||
@@ -285,28 +341,36 @@ export class JobDiscoveryService {
               )
                 continue;
             }
-            const fullText = `Title: ${item.title}\nCompany: ${item.company}\nLocation: ${item.location || 'Unknown'}\n${item.workplaceType || item.remote ? `Work arrangement: ${item.workplaceType ?? 'REMOTE'}\n` : ''}${item.employmentType ? `Employment: ${item.employmentType}\n` : ''}${item.salary ? `Salary: ${item.salary}\n` : ''}\nJob Description:\n${item.description}`;
+            const fullText = `Title: ${item.title}\nCompany: ${item.company}\nLocation: ${item.location || 'Unknown'}\n${item.workplaceType || item.remote ? `Work arrangement: ${item.workplaceType ?? 'REMOTE'}\n` : ''}${item.employmentType ? `Employment: ${item.employmentType}\n` : ''}${item.experienceLevel === 'internship' ? 'Seniority: INTERNSHIP\n' : item.experienceLevel === 'entry_level' ? 'Seniority: ENTRY\n' : ''}${item.salary ? `Salary: ${item.salary}\n` : ''}\nJob Description:\n${item.description}`;
             const result = await this.jobService.ingestText(userId, {
               title: item.title,
               company: item.company,
               url: item.url,
               text: fullText,
               provider: q.source,
+              sourceMetadata: item.sourceMetadata,
             });
             if (result.isDuplicate) q.summary.duplicatesSkipped++;
             else {
               q.summary.newJobsIngested++;
               added++;
             }
+            const sameProvider = result.job.provider === q.source;
             await this.db
               .update(jobs)
               .set({
                 lastCheckedDate: new Date(),
                 updatedAt: new Date(result.job.updatedAt),
-                sourceExternalId: item.externalId ?? null,
-                sourceCompanyId: item.board ?? null,
-                applicationUrl: item.url,
-                ...(item.remote && !result.job.manualEditFields.includes('workplaceType')
+                ...(sameProvider
+                  ? {
+                      sourceExternalId: item.externalId ?? null,
+                      sourceCompanyId: item.board ?? null,
+                      applicationUrl: item.url,
+                    }
+                  : {}),
+                ...(sameProvider &&
+                item.remote &&
+                !result.job.manualEditFields.includes('workplaceType')
                   ? { workplaceType: 'REMOTE' }
                   : {}),
               })
@@ -419,7 +483,18 @@ export class JobDiscoveryService {
     board: string | undefined,
     offset: number,
     country?: string,
+    search?: { query: string; location: string },
   ): Promise<{ items: PublicPosting[]; nextOffset: number }> {
+    if (source === 'GOOGLE_JOBS') {
+      if (!search) return { items: [], nextOffset: 0 };
+      const items = await new GoogleJobsReader(this.fetchFn, this.search).read(
+        search.query,
+        search.location,
+        country,
+      );
+      const start = offset % Math.max(1, items.length);
+      return { items: items.slice(start).concat(items.slice(0, start)), nextOffset: start };
+    }
     if (board && !/^[a-zA-Z0-9_-]{1,80}$/.test(board))
       throw AppError.badRequest('Invalid company board.');
     let url: string;

@@ -1,10 +1,12 @@
-export type DiscoverySource = 'ARBEITNOW' | 'GREENHOUSE' | 'LEVER' | 'ASHBY' | 'SMARTRECRUITERS';
+export type DiscoverySource =
+  'ARBEITNOW' | 'GREENHOUSE' | 'LEVER' | 'ASHBY' | 'SMARTRECRUITERS' | 'GOOGLE_JOBS';
 export interface SearchBoard {
-  source: Exclude<DiscoverySource, 'ARBEITNOW'>;
+  source: Exclude<DiscoverySource, 'ARBEITNOW' | 'GOOGLE_JOBS'>;
   slug: string;
 }
 export interface JobSearchSettings {
   sources: DiscoverySource[];
+  availableSources?: DiscoverySource[];
   boards: SearchBoard[];
   selectedCvId: string | null;
   dailyDiscovery: boolean;
@@ -17,6 +19,14 @@ export const DEFAULT_SEARCH_SETTINGS: JobSearchSettings = {
   boards: [
     { source: 'SMARTRECRUITERS', slug: 'BoschGroup' },
     { source: 'SMARTRECRUITERS', slug: 'NielsenIQ' },
+    { source: 'SMARTRECRUITERS', slug: 'ColliersInternationalEMEA' },
+    { source: 'SMARTRECRUITERS', slug: 'AECOM2' },
+    { source: 'SMARTRECRUITERS', slug: 'InPost' },
+    { source: 'SMARTRECRUITERS', slug: 'JACOBSDOUWEEGBERTS' },
+    { source: 'SMARTRECRUITERS', slug: 'SGS' },
+    { source: 'SMARTRECRUITERS', slug: 'Sportradar' },
+    { source: 'SMARTRECRUITERS', slug: 'Devoteam' },
+    { source: 'SMARTRECRUITERS', slug: 'AccorHotel' },
     { source: 'GREENHOUSE', slug: 'canonical' },
     { source: 'GREENHOUSE', slug: 'gitlab' },
     { source: 'GREENHOUSE', slug: 'stripe' },

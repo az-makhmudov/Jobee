@@ -86,7 +86,7 @@ export function preferredLevels(
   profile: CandidateProfile | null,
 ): string[] {
   const levels = preferences?.seniorityLevels.map(levelName) ?? [];
-  if (levels.length) return levels;
+  if (levels.length) return [...new Set(levels)];
   if (['STUDENT', 'ENTRY'].includes(profile?.careerStage ?? '')) return ['INTERNSHIP', 'ENTRY'];
   if (/\b(junior|entry.level)\b/i.test(profile?.headline ?? '')) return ['INTERNSHIP', 'ENTRY'];
   return [];

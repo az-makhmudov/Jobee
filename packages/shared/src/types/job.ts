@@ -7,6 +7,7 @@ export type JobProvider =
   | 'LINKEDIN'
   | 'ARBEITNOW'
   | 'SMARTRECRUITERS'
+  | 'GOOGLE_JOBS'
   | 'GENERIC'
   | 'MANUAL';
 
@@ -314,7 +315,7 @@ export type DimensionStatus = 'SCORED' | 'UNKNOWN' | 'NOT_APPLICABLE';
 
 export type MatchAnalysisMode = 'DETERMINISTIC_ONLY' | 'AI_ENRICHED';
 
-export const MATCH_ALGORITHM_VERSION = '2.1.0';
+export const MATCH_ALGORITHM_VERSION = '2.2.0';
 
 export const DIMENSION_DEFAULT_WEIGHTS: Record<DimensionType, number> = {
   ROLE_FIT: 25,

@@ -34,6 +34,7 @@ export function PreparationBatchPanel({
   onOpenPackage: (id: string) => void;
 }) {
   const [settings, setSettings] = useState<JobSearchSettings>(DEFAULT_SEARCH_SETTINGS);
+  const [availableSources, setAvailableSources] = useState(DEFAULT_SEARCH_SETTINGS.sources);
   const [documents, setDocuments] = useState<CandidateDocumentDto[]>([]);
   const [batches, setBatches] = useState<PreparationBatchDto[]>([]);
   const [error, setError] = useState(''),
@@ -55,6 +56,7 @@ export function PreparationBatchPanel({
       .then(([saved, docs, data]) => {
         if (active) {
           setSettings(saved);
+          setAvailableSources(saved.availableSources ?? DEFAULT_SEARCH_SETTINGS.sources);
           setDocuments(docs);
           setBatches(data);
           setBoards(saved.boards.map((b) => `${b.source.toLowerCase()}:${b.slug}`).join('\n'));
@@ -181,25 +183,27 @@ export function PreparationBatchPanel({
             />
           </label>
           <div className="account-actions">
-            {(['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY', 'SMARTRECRUITERS'] as const).map(
-              (source) => (
-                <label key={source}>
-                  <Input
-                    type="checkbox"
-                    checked={settings.sources.includes(source)}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        sources: e.target.checked
-                          ? [...settings.sources, source]
-                          : settings.sources.filter((s) => s !== source),
-                      })
-                    }
-                  />{' '}
-                  {source === 'ARBEITNOW' ? 'Arbeitnow public feed' : source.toLowerCase()}
-                </label>
-              ),
-            )}
+            {availableSources.map((source) => (
+              <label key={source}>
+                <Input
+                  type="checkbox"
+                  checked={settings.sources.includes(source)}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      sources: e.target.checked
+                        ? [...settings.sources, source]
+                        : settings.sources.filter((s) => s !== source),
+                    })
+                  }
+                />{' '}
+                {source === 'ARBEITNOW'
+                  ? 'Arbeitnow public feed'
+                  : source === 'GOOGLE_JOBS'
+                    ? 'Google Jobs'
+                    : source.toLowerCase()}
+              </label>
+            ))}
           </div>
           <label className="form-label">
             Maximum new preparations per day

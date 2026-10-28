@@ -23,6 +23,7 @@ const env = {
   OWNER_EMAIL: 'alex.morgan@example.test',
   INVITE_ONLY_REGISTRATION: 'false',
   AI_PROVIDER: 'disabled',
+  SERPAPI_ENABLED: 'false',
   ORCHESTRATOR_ENABLED: 'false',
   STORAGE_BACKEND: 'local',
   LOG_LEVEL: 'error',

@@ -150,7 +150,7 @@ describe('Grounded matching across Explore and scheduled execution (JOB-P2-T02)'
     async (country) => {
       await updateJob({ country });
       const analysis = await analyze();
-      expect(analysis.decision).toBe('REVIEW');
+      expect(analysis.decision).toBe('MATCH');
       expect(analysis.autoApplyEligible).toBe(false);
       expect(analysis.hardBlockers).toEqual([]);
       expect(analysis.unknowns.join(' ')).toMatch(/authorization/);
@@ -174,7 +174,7 @@ describe('Grounded matching across Explore and scheduled execution (JOB-P2-T02)'
     });
     await updateJob({ workplaceType: 'ONSITE', city: null, locationText: 'Germany' });
     const analysis = await analyze();
-    expect(analysis.decision).toBe('REVIEW');
+    expect(analysis.decision).toBe('MATCH');
     expect(analysis.reasonCodes).not.toContain('LOCATION_NOT_ALLOWED');
   });
   it('does not infer citizenship from country authorization', async () => {
@@ -182,7 +182,7 @@ describe('Grounded matching across Explore and scheduled execution (JOB-P2-T02)'
       description: 'Must be a US citizen. ' + 'Build TypeScript services. '.repeat(30),
     });
     const analysis = await analyze();
-    expect(analysis.decision).toBe('REVIEW');
+    expect(analysis.decision).toBe('MATCH');
     expect(analysis.autoApplyEligible).toBe(false);
     expect(analysis.unknowns.join(' ')).toMatch(/Citizenship/);
   });
@@ -191,7 +191,7 @@ describe('Grounded matching across Explore and scheduled execution (JOB-P2-T02)'
     await updateJob({ maxSalary: 40, currency: 'EUR', payPeriod: 'HOUR' });
     const unknown = await analyze();
     expect(unknown.hardBlockers).toEqual([]);
-    expect(unknown.decision).toBe('REVIEW');
+    expect(unknown.decision).toBe('MATCH');
     expect(unknown.autoApplyEligible).toBe(false);
     await updatePreferences({ salaryPayPeriod: 'YEAR' });
     expect((await analyze()).hardBlockers).toEqual([]);
@@ -205,7 +205,10 @@ describe('Grounded matching across Explore and scheduled execution (JOB-P2-T02)'
   it('distinguishes unconfirmed internship eligibility from a confirmed blocker', async () => {
     await updatePreferences({ employmentTypes: ['internship'], internshipEligible: null });
     await updateJob({ employmentType: 'INTERNSHIP' });
-    expect((await analyze()).decision).toBe('REVIEW');
+    const unresolved = await analyze();
+    expect(unresolved.decision).toBe('MATCH');
+    expect(unresolved.autoApplyEligible).toBe(false);
+    expect(unresolved.reasonCodes).toContain('POLICY_INFORMATION_MISSING');
     await updatePreferences({ internshipEligible: false });
     const blocked = await analyze();
     expect(blocked.decision).toBe('SKIP');
@@ -247,7 +250,7 @@ describe('Grounded matching across Explore and scheduled execution (JOB-P2-T02)'
     const analysis = await new MatchService(db, provider).analyzeJob(jobId, userId, {
       force: true,
     });
-    expect(analysis.decision).toBe('REVIEW');
+    expect(analysis.decision).toBe('MATCH');
     expect(analysis.autoApplyEligible).toBe(false);
     expect(analysis.strengths.join(' ')).not.toContain('PhD');
     expect(analysis.evaluations.flatMap((e) => e.evidenceIds)).not.toContain('invented-id');
@@ -332,9 +335,7 @@ describe('Release matching guard benchmark (30 synthetic vacancies)', () => {
       ...(condition === 'work mode conflict' ? { workplaceType: 'ONSITE' } : {}),
     });
     const result = await analyze();
-    expect(result.decision).toBe(
-      condition === 'ready' ? 'MATCH' : condition === 'unknown jurisdiction' ? 'REVIEW' : 'SKIP',
-    );
+    expect(result.decision).toBe(condition === 'work mode conflict' ? 'SKIP' : 'MATCH');
     if (condition !== 'ready') expect(result.autoApplyEligible).toBe(false);
   });
 });
@@ -387,4 +388,66 @@ it('treats Junior/Entry and Intern/Internship as equivalent without promoting se
   expect((await jobService.getJobs(userId, { relevantOnly: true })).total).toBe(1);
   await updateJob({ title: 'Intern - Project Management Support', seniority: 'INTERNSHIP' });
   expect((await jobService.getJobs(userId, { relevantOnly: true })).total).toBe(1);
+});
+
+it('publishes a strong profile fit below the Autopilot threshold with unknown salary labelled and automatic application disabled', async () => {
+  await db
+    .update(applicationPolicy)
+    .set({ autoApplyMinScore: 85, minScoreForReview: 70 })
+    .where(eq(applicationPolicy.userId, userId));
+  await updatePreferences({ minSalary: 80000, currency: 'EUR', salaryPayPeriod: null });
+  const analysis = await analyze();
+  expect(analysis.overallScore).toBeGreaterThanOrEqual(70);
+  expect(analysis.overallScore).toBeLessThan(85);
+  expect(analysis.decision).toBe('MATCH');
+  expect(analysis.autoApplyEligible).toBe(false);
+  expect(analysis.reasonCodes).toContain('POLICY_INFORMATION_MISSING');
+  expect(analysis.unknowns.join(' ')).toMatch(/Salary|salary|compensation/);
+  const recommendations = await jobService.getJobs(userId, { recommendationsOnly: true });
+  expect(recommendations.items.map((job) => job.id)).toEqual([jobId]);
+  expect(recommendations.items[0]!.matchSummary!.unknowns!.length).toBeGreaterThan(0);
+});
+it('scores Warsaw and Warszawa as the same target and Entry/Junior as the same level', async () => {
+  await updatePreferences({
+    targetTitles: ['Junior Project Manager'],
+    preferredLocations: ['Warsaw'],
+    seniorityLevels: ['ENTRY'],
+    workModes: ['hybrid'],
+    willingToRelocate: false,
+    workAuthorizationCountries: ['PL'],
+    employmentTypes: ['full-time'],
+  });
+  await updateJob({
+    title: 'Junior Project Management Coordinator',
+    seniority: 'JUNIOR',
+    city: 'Warszawa',
+    country: 'Poland',
+    locationText: 'Warszawa, Poland',
+    workplaceType: 'HYBRID',
+  });
+  const analysis = await analyze();
+  expect(analysis.hardBlockers).toEqual([]);
+  expect(analysis.warnings.join(' ')).not.toContain('outside preferred');
+  expect(analysis.dimensions?.find((dim) => dim.dimension === 'LOCATION_FIT')?.score).toBe(100);
+  expect(analysis.dimensions?.find((dim) => dim.dimension === 'ROLE_FIT')?.score).toBe(100);
+});
+
+it('keeps an explicit unknown work-rights requirement unconfirmed while recommending professional fit', async () => {
+  await updateJob({ country: null });
+  await db.insert(jobRequirements).values({
+    userId,
+    jobId,
+    rawText: 'Must be legally authorized to work in the hiring country.',
+    category: 'WORK_AUTHORIZATION',
+    requirementStrength: 'MANDATORY',
+  });
+  const analysis = await analyze();
+  expect(analysis.decision).toBe('MATCH');
+  expect(analysis.autoApplyEligible).toBe(false);
+  expect(analysis.reasonCodes).toContain('UNMET_MANDATORY_REQUIREMENTS');
+  const unresolved = analysis.evaluations.find(
+    (e) => e.requirement?.category === 'WORK_AUTHORIZATION',
+  );
+  expect(unresolved?.status).toBe('UNKNOWN');
+  expect(analysis.unknowns.join(' ')).toMatch(/authorization|eligibility/);
 });

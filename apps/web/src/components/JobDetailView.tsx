@@ -371,7 +371,10 @@ export function JobDetailView({
             )}
             {!!analysis.unknowns.length && (
               <p>
-                <strong>Unconfirmed:</strong> {analysis.unknowns[0]}
+                <strong>Unconfirmed:</strong> {analysis.unknowns.slice(0, 3).join(' · ')}
+                {analysis.unknowns.length > 3
+                  ? ` · ${analysis.unknowns.length - 3} more details in the full analysis`
+                  : ''}
               </p>
             )}
           </>

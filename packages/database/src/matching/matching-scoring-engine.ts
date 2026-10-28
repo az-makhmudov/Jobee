@@ -1,3 +1,4 @@
+import { matchesPreferredLocation, preferredLevels, jobSeniority } from './job-relevance.js';
 import { comparableCompensation, hasCountryAuthorization } from './eligibility.js';
 import { Job } from '../schema/index.js';
 import {
@@ -118,10 +119,24 @@ export class MatchingScoringEngine {
 
     // Model narratives are not candidate facts. Explanations are derived from grounded evaluations.
     // Evaluate mandatory requirements penalty
-    const unmetMandatory = evaluations.filter((e) => e.contributesToBlocker && e.status !== 'MET');
-    if (unmetMandatory.length > 0) {
+    const applicationUnmet = evaluations.filter(
+      (e) => e.contributesToBlocker && e.status !== 'MET',
+    );
+    const uncertainEligibility = applicationUnmet.filter(
+      (evaluation) =>
+        evaluation.status === 'UNKNOWN' &&
+        ['WORK_AUTHORIZATION', 'LOCATION'].includes(evaluation.category ?? ''),
+    );
+    const unmetMandatory = applicationUnmet.filter(
+      (evaluation) => !uncertainEligibility.includes(evaluation),
+    );
+    if (uncertainEligibility.length)
+      unknowns.push(
+        `${uncertainEligibility.length} application eligibility requirement(s) still need confirmation`,
+      );
+    if (applicationUnmet.length > 0) {
       reasonCodes.push(DecisionReasonCodes.UNMET_MANDATORY_REQUIREMENTS);
-      gaps.push(`${unmetMandatory.length} mandatory requirement(s) are unmet or unconfirmed`);
+      gaps.push(`${applicationUnmet.length} application requirement(s) are unmet or unconfirmed`);
     }
 
     // Compute Overall Composite Score
@@ -153,74 +168,6 @@ export class MatchingScoringEngine {
       gaps.push(
         `Role title '${job.title}' does not align with candidate target or adjacent roles (${roleFit.score}%)`,
       );
-    }
-
-    // Compute Confidence Score
-    const confidenceScore = this.calculateConfidenceScore(
-      job,
-      context,
-      dimensions,
-      evaluations,
-      Boolean(aiResult),
-    );
-
-    // Policy Decision Logic
-    const policy = context.policy;
-    const minScoreForReview = policy?.minScoreForReview ?? 70;
-    const autoApplyMinScore = policy?.autoApplyMinScore ?? 90;
-
-    let decision: MatchDecision = 'REVIEW';
-
-    if (hardPolicy.hasBlockers) {
-      decision = 'SKIP';
-    } else if (hardPolicy.missingSensitiveInfo) {
-      decision = 'REVIEW';
-      reasonCodes.push(DecisionReasonCodes.POLICY_INFORMATION_MISSING);
-    } else if (unmetMandatory.length > 0) {
-      decision = 'REVIEW';
-    } else if (confidenceScore < 60) {
-      decision = 'REVIEW';
-      reasonCodes.push(DecisionReasonCodes.LOW_CONFIDENCE);
-    } else if (overallScore >= autoApplyMinScore) {
-      decision = 'MATCH';
-      reasonCodes.push(DecisionReasonCodes.MATCH_THRESHOLD_MET);
-    } else if (overallScore >= minScoreForReview) {
-      decision = 'REVIEW';
-      reasonCodes.push(DecisionReasonCodes.REVIEW_THRESHOLD_MET);
-    } else {
-      decision = 'SKIP';
-      reasonCodes.push(DecisionReasonCodes.LOW_MATCH_SCORE);
-    }
-
-    // Auto-apply preliminary eligibility
-    const autoApplyEnabled = policy?.autoApplyEnabled ?? false;
-    const autoApplyEligible =
-      autoApplyEnabled &&
-      decision === 'MATCH' &&
-      overallScore >= autoApplyMinScore &&
-      confidenceScore >= 70 &&
-      !hardPolicy.hasBlockers &&
-      !hardPolicy.missingSensitiveInfo &&
-      unmetMandatory.length === 0;
-
-    // Summary Explanation
-    let summaryExplanation = '';
-    if (decision === 'MATCH') {
-      summaryExplanation = `Strong match (${overallScore}%): Candidate profile aligns well with role requirements and preferences.`;
-    } else if (decision === 'SKIP') {
-      if (hardPolicy.hasBlockers) {
-        summaryExplanation = `Excluded by policy: ${hardPolicy.blockers[0]}`;
-      } else {
-        summaryExplanation = `Fit below threshold (${overallScore}%): Score is below configured consideration limit of ${minScoreForReview}%.`;
-      }
-    } else {
-      summaryExplanation = `Human review required (${overallScore}%): ${
-        hardPolicy.missingSensitiveInfo
-          ? 'Requires clarification of candidate preferences/sensitive policies.'
-          : unmetMandatory.length > 0
-            ? `${unmetMandatory.length} mandatory requirement(s) need verification.`
-            : 'Candidate qualifications match partially; manual review recommended.'
-      }`;
     }
 
     // Evaluate transferable capabilities overlap with job requirements
@@ -280,12 +227,80 @@ export class MatchingScoringEngine {
       warnings.push(`Learned ranking adjustment applied: ${learnedAdjustmentReason}`);
     }
 
+    // Compute Confidence Score
+    const confidenceScore = this.calculateConfidenceScore(
+      job,
+      context,
+      dimensions,
+      evaluations,
+      Boolean(aiResult),
+    );
+
+    // Policy Decision Logic
+    const policy = context.policy;
+    const minScoreForReview = policy?.minScoreForReview ?? 70;
+    const autoApplyMinScore = policy?.autoApplyMinScore ?? 90;
+
+    // Recommendation fit is independent of application authorization and Autopilot admission.
+    const recommendationMinScore = Math.max(70, minScoreForReview);
+    if (hardPolicy.missingSensitiveInfo)
+      reasonCodes.push(DecisionReasonCodes.POLICY_INFORMATION_MISSING);
+    let decision: MatchDecision = 'REVIEW';
+
+    if (hardPolicy.hasBlockers) {
+      decision = 'SKIP';
+    } else if (unmetMandatory.length > 0) {
+      decision = 'REVIEW';
+    } else if (confidenceScore < 60) {
+      decision = 'REVIEW';
+      reasonCodes.push(DecisionReasonCodes.LOW_CONFIDENCE);
+    } else if (overallScore >= recommendationMinScore) {
+      decision = 'MATCH';
+      reasonCodes.push(DecisionReasonCodes.MATCH_THRESHOLD_MET);
+    } else if (overallScore >= minScoreForReview) {
+      decision = 'REVIEW';
+      reasonCodes.push(DecisionReasonCodes.REVIEW_THRESHOLD_MET);
+    } else {
+      decision = 'SKIP';
+      reasonCodes.push(DecisionReasonCodes.LOW_MATCH_SCORE);
+    }
+
+    // Auto-apply preliminary eligibility
+    const autoApplyEnabled = policy?.autoApplyEnabled ?? false;
+    const autoApplyEligible =
+      autoApplyEnabled &&
+      decision === 'MATCH' &&
+      overallScore >= autoApplyMinScore &&
+      confidenceScore >= 70 &&
+      !hardPolicy.hasBlockers &&
+      !hardPolicy.missingSensitiveInfo &&
+      applicationUnmet.length === 0;
+
+    // Summary Explanation
+    let summaryExplanation = '';
+    if (decision === 'MATCH') {
+      summaryExplanation = `Profile match (${overallScore}%): Professional fit meets your recommendation threshold.${hardPolicy.missingSensitiveInfo ? ' Salary or eligibility details still need confirmation before applying.' : ''}`;
+    } else if (decision === 'SKIP') {
+      if (hardPolicy.hasBlockers) {
+        summaryExplanation = `Excluded by policy: ${hardPolicy.blockers[0]}`;
+      } else {
+        summaryExplanation = `Fit below threshold (${overallScore}%): Score is below configured consideration limit of ${minScoreForReview}%.`;
+      }
+    } else {
+      summaryExplanation = `Human review required (${overallScore}%): ${
+        hardPolicy.missingSensitiveInfo
+          ? 'Requires clarification of candidate preferences/sensitive policies.'
+          : unmetMandatory.length > 0
+            ? `${unmetMandatory.length} mandatory requirement(s) need verification.`
+            : 'Candidate qualifications match partially; manual review recommended.'
+      }`;
+    }
+
     // Determine CareerFitCategory
     let careerFitCategory: CareerFitCategory;
     if (hardPolicy.hasBlockers) {
       careerFitCategory = 'NOT_CURRENTLY_ELIGIBLE';
     } else if (
-      hardPolicy.missingSensitiveInfo ||
       confidenceScore < 50 ||
       unmetMandatory.some(
         (e) => e.status === 'UNKNOWN' || (e.status === 'NOT_MET' && !e.evidenceIds.length),
@@ -326,7 +341,7 @@ export class MatchingScoringEngine {
       transferableSkills,
       learnedRankingAdjustment,
       learnedAdjustmentReason,
-      reasonCodes,
+      reasonCodes: [...new Set(reasonCodes)],
       summaryExplanation,
     };
   }
@@ -370,11 +385,9 @@ export class MatchingScoringEngine {
     }
 
     // Seniority alignment
-    const preferredSeniority = context.preferences?.seniorityLevels || [];
+    const preferredSeniority = preferredLevels(context.preferences, context.candidateProfile);
     if (preferredSeniority.length > 0 && job.seniority !== 'UNKNOWN') {
-      const hasSeniorityMatch = preferredSeniority.some(
-        (s) => s.toUpperCase() === job.seniority.toUpperCase(),
-      );
+      const hasSeniorityMatch = preferredSeniority.includes(jobSeniority(job));
       if (!hasSeniorityMatch && bestScore > 0) {
         bestScore = Math.max(30, bestScore - 20);
       }
@@ -547,9 +560,7 @@ export class MatchingScoringEngine {
       };
     }
 
-    const jobLoc =
-      `${job.city || ''} ${job.region || ''} ${job.country || ''} ${job.locationText || ''}`.toLowerCase();
-    const matchesPref = prefs.preferredLocations.some((loc) => jobLoc.includes(loc.toLowerCase()));
+    const matchesPref = prefs.preferredLocations.length > 0 && matchesPreferredLocation(job, prefs);
 
     if (matchesPref) {
       return {
@@ -765,10 +776,31 @@ export class MatchingScoringEngine {
   }
 
   private tokenize(text: string): string[] {
+    const modifiers = new Set([
+      'junior',
+      'senior',
+      'entry',
+      'intern',
+      'internship',
+      'trainee',
+      'graduate',
+      'staz',
+      'stazysta',
+    ]);
+    const synonyms: Record<string, string> = {
+      manager: 'management',
+      managing: 'management',
+      coordination: 'coordinator',
+      operations: 'operation',
+    };
     return text
+      .normalize('NFD')
+      .replace(/\p{M}/gu, '')
       .toLowerCase()
+      .replace(/ł/g, 'l')
       .replace(/[^\w\s]/g, ' ')
       .split(/\s+/)
-      .filter((w) => w.length >= 3);
+      .filter((word) => word.length >= 3 && !modifiers.has(word))
+      .map((word) => synonyms[word] ?? word);
   }
 }

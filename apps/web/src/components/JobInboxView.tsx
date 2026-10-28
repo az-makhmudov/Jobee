@@ -662,6 +662,7 @@ export function JobInboxView({
                 <option value="LEVER">Lever</option>
                 <option value="ASHBY">Ashby</option>
                 <option value="LINKEDIN">LinkedIn</option>
+                <option value="GOOGLE_JOBS">Google Jobs</option>
                 <option value="SMARTRECRUITERS">SmartRecruiters</option>
                 <option value="ARBEITNOW">Arbeitnow (Public Feed)</option>
                 <option value="GENERIC">Generic</option>
@@ -796,7 +797,7 @@ export function JobInboxView({
                                 job.matchSummary.summaryExplanation}
                               {!job.matchSummary.hardBlockers?.length &&
                               job.matchSummary.unknowns?.[0]
-                                ? ` ${job.matchSummary.unknowns[0]}`
+                                ? ` Details to confirm: ${job.matchSummary.unknowns[0]}${job.matchSummary.unknowns.length > 1 ? ` · ${job.matchSummary.unknowns.length - 1} more to confirm` : ''}`
                                 : ''}
                             </p>
                           )}

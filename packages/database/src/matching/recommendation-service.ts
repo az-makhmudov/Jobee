@@ -5,7 +5,7 @@ import type { Database } from '../client.js';
 import { jobs, orchestrationRuns, users } from '../schema/index.js';
 import { AppError, type RecommendationStatusDto } from '@job-agent/shared';
 import { currentMatchingInputs, matchingFingerprint } from './matching-inputs.js';
-import { relevanceIssues, matchesPreferredLocation } from './job-relevance.js';
+import { relevanceIssues, matchesPreferredLocation, preferredLevels } from './job-relevance.js';
 import { HardPolicyEngine } from './hard-policy-engine.js';
 
 export const RECOMMENDATION_TASK = 'EXPLORE_MATCHING';
@@ -109,7 +109,10 @@ export class RecommendationService {
       processed: active && parsed.success ? parsed.data.processed : 0,
       batchSize: active && parsed.success ? parsed.data.jobIds.length : 0,
       locations: snapshot.inputs.context.preferences?.preferredLocations ?? [],
-      levels: snapshot.inputs.context.preferences?.seniorityLevels ?? [],
+      levels: preferredLevels(
+        snapshot.inputs.context.preferences,
+        snapshot.inputs.context.candidateProfile,
+      ),
       message: failed
         ? 'Some job analyses could not finish. Retry analysis to continue.'
         : active

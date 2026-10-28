@@ -1418,3 +1418,34 @@ test('Explore automatically queues analysis and publishes a new job only after a
     });
   }
 });
+
+test('strong profile recommendations keep unknown salary and eligibility visible on desktop and mobile', async ({
+  page,
+}) => {
+  const seeded = JSON.parse(await readFile('/tmp/jobee-ui-preview-seed.json', 'utf8'));
+  await seedUiMatches(process.env.UI_TEST_DATABASE_URL!, seeded.userId, seeded.jobIds, true, [
+    'Salary has not been published',
+    'Work authorization still needs confirmation',
+  ]);
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto('/');
+    const card = page.locator('.job-card').filter({
+      has: page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
+    });
+    await expect(card).toBeVisible();
+    await expect(card).toContainText('Details to confirm: Salary has not been published');
+    await expect(card).not.toContainText('Applied');
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    ).toBeTruthy();
+    await page.screenshot({
+      path: `output/playwright/profile-match-unknowns-${width}.png`,
+      fullPage: true,
+    });
+    await card.getByRole('button', { name: 'View job', exact: true }).click();
+    await expect(page.locator('.job-fit-overview')).toContainText(
+      'Work authorization still needs confirmation',
+    );
+  }
+});

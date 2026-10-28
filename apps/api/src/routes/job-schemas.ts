@@ -68,6 +68,7 @@ export const jobListQuerySchema = z.object({
       'LINKEDIN',
       'ARBEITNOW',
       'SMARTRECRUITERS',
+      'GOOGLE_JOBS',
       'GENERIC',
       'MANUAL',
     ])

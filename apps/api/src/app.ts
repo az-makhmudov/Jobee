@@ -241,7 +241,14 @@ export function buildApp(options: AppOptions): FastifyInstance {
   }
 
   if (!discoveryService && db && jobService) {
-    discoveryService = new JobDiscoveryService(db, jobService, { logger });
+    discoveryService = new JobDiscoveryService(db, jobService, {
+      logger,
+      search: {
+        enabled: config.SERPAPI_ENABLED,
+        apiKey: config.SERPAPI_API_KEY,
+        maxRequests: config.SERPAPI_MAX_REQUESTS_PER_DISCOVERY,
+      },
+    });
   }
 
   const recommendations =
@@ -313,7 +320,10 @@ export function buildApp(options: AppOptions): FastifyInstance {
           )
         : null;
     if (autopilot) app.register(createAutopilotRoutes(autopilot), { prefix: '/api' });
-    const searchSettings = new JobSearchSettingsService(db);
+    const searchSettings = new JobSearchSettingsService(
+      db,
+      config.SERPAPI_ENABLED && !!config.SERPAPI_API_KEY,
+    );
     if (config.BATCH_PREPARATION_ENABLED)
       app.register(
         createPreparationBatchRoutes(batches, searchSettings, config.SELECTED_SUBMISSIONS_ENABLED),

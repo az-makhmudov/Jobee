@@ -222,3 +222,17 @@ it('shows automatic-analysis failures and retries only when requested', async ()
   fireEvent.click(screen.getByRole('button', { name: 'Retry automatic analysis' }));
   await waitFor(() => expect(jobApi.refreshRecommendations).toHaveBeenLastCalledWith(true));
 });
+
+it('shows a current profile MATCH with an explicit unknown-details label', async () => {
+  const matched = role('Strong profile fit');
+  matched.matchSummary = {
+    ...matched.matchSummary!,
+    summaryExplanation:
+      'Profile match (84%): Professional fit meets your recommendation threshold.',
+    unknowns: ['Salary was not published'],
+  };
+  vi.mocked(jobApi.getJobs).mockResolvedValue({ ...result('unused'), items: [matched] });
+  render(<JobInboxView {...props} />);
+  await screen.findByText('Strong profile fit');
+  expect(screen.getByText(/Details to confirm: Salary was not published/)).toBeTruthy();
+});

@@ -74,7 +74,10 @@ export class JobService {
   // --- Ingestion: Pasted Text ---
   public async ingestText(
     userId: string,
-    req: IngestJobTextRequest & { provider?: JobProvider },
+    req: IngestJobTextRequest & {
+      provider?: JobProvider;
+      sourceMetadata?: Record<string, unknown>;
+    },
   ): Promise<{ job: JobDto; isDuplicate: boolean; message?: string }> {
     if (!req.text || req.text.trim().length < 20) {
       throw AppError.badRequest('Pasted job text must be at least 20 characters');
@@ -89,6 +92,7 @@ export class JobService {
       url: req.url,
     });
 
+    if (req.sourceMetadata) raw.rawMetadata = req.sourceMetadata;
     const norm = this.normalizerService.normalize(raw);
 
     // Deduplication check
@@ -110,6 +114,7 @@ export class JobService {
         rawCompany: raw.company || null,
         rawLocation: raw.location || null,
         rawDescription: raw.descriptionText,
+        rawMetadata: raw.rawMetadata ?? null,
         contentHash: norm.contentHash,
         ingestionStatus: 'DUPLICATE',
         parserVersion: '1.0.0',
@@ -176,6 +181,7 @@ export class JobService {
         rawCompany: raw.company || null,
         rawLocation: raw.location || null,
         rawDescription: raw.descriptionText,
+        rawMetadata: raw.rawMetadata ?? null,
         rawPayload: null, // Raw HTML payload discarded; plain text and metadata retained
         contentHash: norm.contentHash,
         ingestionStatus: 'COMPLETED',

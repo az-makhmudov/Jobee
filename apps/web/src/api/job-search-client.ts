@@ -48,8 +48,11 @@ export const jobSearchApi = {
       termsVersion: APPLICATION_INTENT_TERMS,
     }),
   settings: () => request<JobSearchSettings>('/job-search/settings'),
-  saveSettings: (settings: JobSearchSettings) =>
-    request<JobSearchSettings>('/job-search/settings', settings, 'PUT'),
+  saveSettings: (settings: JobSearchSettings) => {
+    const { availableSources, ...saved } = settings;
+    void availableSources;
+    return request<JobSearchSettings>('/job-search/settings', saved, 'PUT');
+  },
   batches: () => request<PreparationBatchDto[]>('/preparation-batches'),
   create: (jobIds: string[], selectedCvId: string | null) =>
     request<PreparationBatchDto>('/preparation-batches', { jobIds, selectedCvId }),

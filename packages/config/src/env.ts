@@ -244,6 +244,12 @@ export const envSchema = z
           },
         )
         .default('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef'),
+      SERPAPI_ENABLED: z
+        .enum(['true', 'false'])
+        .default('false')
+        .transform((value) => value === 'true'),
+      SERPAPI_API_KEY: z.string().trim().optional(),
+      SERPAPI_MAX_REQUESTS_PER_DISCOVERY: z.coerce.number().int().min(1).max(3).default(1),
       GMAIL_CLIENT_ID: z.string().optional(),
       GMAIL_CLIENT_SECRET: z.string().optional(),
       GMAIL_REDIRECT_URI: z
@@ -312,6 +318,12 @@ export const envSchema = z
     }),
   )
   .superRefine((data, ctx) => {
+    if (data.SERPAPI_ENABLED && !data.SERPAPI_API_KEY)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['SERPAPI_API_KEY'],
+        message: 'SERPAPI_API_KEY is required when SERPAPI_ENABLED=true',
+      });
     if (data.NODE_ENV === 'production') {
       if (data.OWNER_EMAIL === 'owner@example.test')
         ctx.addIssue({

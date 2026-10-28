@@ -182,6 +182,28 @@ afterEach(async () => {
 });
 
 describe('One-click preparation and provider execution (JOB-P3-T01 / JOB-P5-T01)', () => {
+  it('can recommend profile fit with unknown salary without authorizing application execution', async () => {
+    await db
+      .update(jobPreferences)
+      .set({ minSalary: 80000, currency: 'EUR', salaryPayPeriod: null })
+      .where(eq(jobPreferences.userId, userId));
+    const analysis = await new MatchService(db, new DisabledAiProvider()).analyzeJob(jobId, userId);
+    expect(analysis.decision).toBe('MATCH');
+    expect(analysis.autoApplyEligible).toBe(false);
+    expect(analysis.reasonCodes).toContain('POLICY_INFORMATION_MISSING');
+    const intent = await create();
+    await intents.processPending();
+    const state = await intents.get(userId, intent.id);
+    expect(state.status).toBe('NEEDS_USER_ACTION');
+    expect(state.runId).toBeNull();
+    expect(
+      await db
+        .select()
+        .from(browserApplicationRuns)
+        .where(eq(browserApplicationRuns.userId, userId)),
+    ).toHaveLength(0);
+  });
+
   it('persists owned permission and application before generation, deduplicates concurrent clicks, and survives service replacement', async () => {
     const [a, b] = await Promise.all([create(), create()]);
     expect(a.id).toBe(b.id);
@@ -832,6 +854,24 @@ describe('Applications convergence and bounded Autopilot (JOB-P3-T02 / JOB-P5-T0
     await expect(
       BrowserWorkerService.createBrowserRun(userId, intent.applicationId, { mode: 'SUBMIT' }),
     ).rejects.toThrow('cryptographic');
+  });
+  it('does not turn a high-scoring recommendation with unknown salary into an Autopilot attempt', async () => {
+    await db
+      .update(jobPreferences)
+      .set({ minSalary: 80000, currency: 'EUR', salaryPayPeriod: null })
+      .where(eq(jobPreferences.userId, userId));
+    const service = await autopilot();
+    const result = await service.run(userId);
+    expect(result.prepared).toBe(0);
+    expect(
+      await db.select().from(applicationIntents).where(eq(applicationIntents.userId, userId)),
+    ).toHaveLength(0);
+    expect(
+      await db
+        .select()
+        .from(browserApplicationRuns)
+        .where(eq(browserApplicationRuns.userId, userId)),
+    ).toHaveLength(0);
   });
   it('persists the accepted version and uses the same preparation and fixture worker pipeline', async () => {
     const service = await autopilot();

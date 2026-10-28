@@ -170,7 +170,12 @@ export class MatchService {
       aiResult.evaluations = aiResult.evaluations.filter(
         (evaluation) => !sensitiveIds.has(evaluation.requirementId),
       );
-    const finalEvaluations = this.mergeEvaluations(deterministicEvals, aiResult, context);
+    const categories = new Map(
+      requirements.map((requirement) => [requirement.id, requirement.category]),
+    );
+    const finalEvaluations = this.mergeEvaluations(deterministicEvals, aiResult, context).map(
+      (evaluation) => ({ ...evaluation, category: categories.get(evaluation.requirementId) }),
+    );
 
     // 4. Calculate dimensions, overall score, confidence, decision
     const scoringResult = this.scoringEngine.calculate(

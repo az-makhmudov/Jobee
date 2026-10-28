@@ -16,10 +16,15 @@ export class ManualTextExtractor {
     let extractedCompany = extra.company;
     let extractedLocation: string | undefined;
     let workplaceRaw: string | undefined;
+    let seniorityRaw: string | undefined;
     let commitmentRaw: string | undefined;
 
     // Look for explicit prefix labels
     for (const line of lines) {
+      seniorityRaw ??= line
+        .match(/^seniority:\s*(.+)$/i)?.[1]
+        ?.trim()
+        .toUpperCase();
       workplaceRaw ??= line.match(/^(?:work arrangement|workplace):\s*(.+)$/i)?.[1]?.trim();
       commitmentRaw ??= line.match(/^(?:employment|employment type):\s*(.+)$/i)?.[1]?.trim();
       if (!extractedTitle) {
@@ -143,6 +148,19 @@ export class ManualTextExtractor {
 
     return {
       provider: 'MANUAL',
+      ...([
+        'INTERNSHIP',
+        'ENTRY',
+        'JUNIOR',
+        'MID',
+        'SENIOR',
+        'LEAD',
+        'DIRECTOR',
+        'MANAGER',
+        'EXECUTIVE',
+      ].includes(seniorityRaw ?? '')
+        ? { seniority: seniorityRaw as NonNullable<RawExtractedJob['seniority']> }
+        : {}),
       rawMetadata: { workplaceRaw, commitmentRaw },
       title: extractedTitle || 'Pasted Job',
       company: extractedCompany || 'Unknown Company',

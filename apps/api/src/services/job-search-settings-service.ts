@@ -1,12 +1,15 @@
+import { getConfig } from '@job-agent/config';
 import { z } from 'zod';
 import { eq, jobSearchSettings, candidateDocuments, type Database, and } from '@job-agent/database';
 import { DEFAULT_SEARCH_SETTINGS, AppError, type JobSearchSettings } from '@job-agent/shared';
 export const searchSettingsSchema = z
   .object({
     sources: z
-      .array(z.enum(['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY', 'SMARTRECRUITERS']))
+      .array(
+        z.enum(['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY', 'SMARTRECRUITERS', 'GOOGLE_JOBS']),
+      )
       .min(1)
-      .max(5),
+      .max(6),
     boards: z
       .array(
         z
@@ -25,7 +28,11 @@ export const searchSettingsSchema = z
   })
   .strict();
 export class JobSearchSettingsService {
-  constructor(private readonly db: Database) {}
+  constructor(
+    private readonly db: Database,
+    private readonly searchProviderAvailable = getConfig().SERPAPI_ENABLED &&
+      !!getConfig().SERPAPI_API_KEY,
+  ) {}
   async get(userId: string): Promise<JobSearchSettings> {
     const [row] = await this.db
       .select()
@@ -40,26 +47,47 @@ export class JobSearchSettingsService {
       'GREENHOUSE:stripe',
       'LEVER:spotify',
     ];
+    const previousBoards = [
+      'SMARTRECRUITERS:BoschGroup',
+      'SMARTRECRUITERS:NielsenIQ',
+      'GREENHOUSE:canonical',
+      'GREENHOUSE:gitlab',
+      'GREENHOUSE:stripe',
+      'LEVER:spotify',
+    ];
+    const previousSources = ['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY', 'SMARTRECRUITERS'];
     const legacySources = ['ARBEITNOW', 'GREENHOUSE', 'LEVER', 'ASHBY'];
     const same = (a: string[], b: string[]) =>
       JSON.stringify([...a].sort()) === JSON.stringify([...b].sort());
-    if (
-      same(effective.sources, legacySources) &&
-      same(
-        effective.boards.map((board) => `${board.source}:${board.slug}`),
-        legacyBoards,
-      )
-    ) {
-      return {
-        ...effective,
-        sources: DEFAULT_SEARCH_SETTINGS.sources,
-        boards: DEFAULT_SEARCH_SETTINGS.boards,
-      };
-    }
-    return effective;
+    const boards = effective.boards.map((board) => `${board.source}:${board.slug}`);
+    const upgraded =
+      (same(effective.sources, legacySources) && same(boards, legacyBoards)) ||
+      (same(effective.sources, previousSources) && same(boards, previousBoards));
+    const settings = upgraded
+      ? {
+          ...effective,
+          sources: DEFAULT_SEARCH_SETTINGS.sources,
+          boards: DEFAULT_SEARCH_SETTINGS.boards,
+        }
+      : effective;
+    const sources = settings.sources.filter(
+      (source) => source !== 'GOOGLE_JOBS' || this.searchProviderAvailable,
+    );
+    if (this.searchProviderAvailable && (upgraded || !row) && !sources.includes('GOOGLE_JOBS'))
+      sources.push('GOOGLE_JOBS');
+    return {
+      ...settings,
+      sources,
+      availableSources: [
+        ...DEFAULT_SEARCH_SETTINGS.sources,
+        ...(this.searchProviderAvailable ? ['GOOGLE_JOBS' as const] : []),
+      ],
+    };
   }
   async save(userId: string, input: unknown) {
     const settings = searchSettingsSchema.parse(input);
+    if (settings.sources.includes('GOOGLE_JOBS') && !this.searchProviderAvailable)
+      throw AppError.badRequest('This additional search source is not available.');
     if (settings.dailyPreparation && !settings.dailyDiscovery)
       throw AppError.badRequest('Enable daily discovery before daily preparation.');
     if (settings.selectedCvId) {

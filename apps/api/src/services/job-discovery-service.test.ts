@@ -370,9 +370,9 @@ describe('Poland discovery and recovery regressions', () => {
       'https://jobs.smartrecruiters.com/fixture/3-project-management',
     );
   });
-  it('resumes within a partially checked page rather than repeating the same first 200 rows', async () => {
-    const data = Array.from({ length: 300 }, (_, i) => ({
-      title: i === 250 ? 'Project Manager' : 'Surgeon',
+  it('resumes within a partially checked page rather than repeating the same first 1000 rows', async () => {
+    const data = Array.from({ length: 1500 }, (_, i) => ({
+      title: i === 1250 ? 'Project Manager' : 'Surgeon',
       company_name: 'Synthetic employer',
       url: `https://example.test/${i}`,
       description: 'Synthetic vacancy description for deterministic traversal verification.',
@@ -389,17 +389,17 @@ describe('Poland discovery and recovery regressions', () => {
     ) as typeof fetch;
     const service = new JobDiscoveryService(db, new JobService(db), { fetchFn });
     const first = await service.discoverForCandidate(userId, { sources: ['ARBEITNOW'], limit: 1 });
-    expect(first.postingsExamined).toBe(200);
-    expect(first.totalDiscovered).toBe(300);
+    expect(first.postingsExamined).toBe(1000);
+    expect(first.totalDiscovered).toBe(1500);
     expect(first.newJobsIngested).toBe(0);
     const second = await service.discoverForCandidate(userId, { sources: ['ARBEITNOW'], limit: 1 });
     expect(second.newJobsIngested).toBe(1);
-    expect(second.postingsExamined).toBe(51);
+    expect(second.postingsExamined).toBe(251);
     const [state] = await db
       .select()
       .from(jobSearchSettings)
       .where(eq(jobSearchSettings.userId, userId));
-    expect(state!.cursors['ARBEITNOW:feed:row']).toBe(251);
+    expect(state!.cursors['ARBEITNOW:feed:row']).toBe(1251);
   });
   it('upgrades the exact retired built-in catalog and preserves custom boards and workflow opt-ins', async () => {
     const legacy = {
@@ -479,4 +479,102 @@ it('stores short generic fallback text as escaped content, not executable markup
   expect(result.job.description).toContain('<img');
   expect(result.job.descriptionHtml).not.toContain('<img');
   expect(result.job.descriptionHtml).toContain('&lt;img');
+});
+
+it('uses optional indexed search only when enabled and preserves the originating publisher', async () => {
+  const fetchFn = vi.fn(
+    async () =>
+      new Response(
+        JSON.stringify({
+          jobs_results: [
+            {
+              title: 'Junior Project Coordinator',
+              company_name: 'Indexed fixture',
+              location: 'Warsaw, Poland',
+              description:
+                'Coordinate project scheduling and stakeholder reports for this deterministic fixture. No candidate facts are included in this public-source test.',
+              job_id: 'indexed-fixture',
+              via: 'LinkedIn',
+              apply_options: [
+                { title: 'LinkedIn', link: 'https://www.linkedin.com/jobs/view/12345' },
+              ],
+            },
+          ],
+        }),
+      ),
+  ) as typeof fetch;
+  const service = new JobDiscoveryService(db, new JobService(db), {
+    fetchFn,
+    search: { enabled: true, apiKey: 'fixture-key', maxRequests: 1 },
+  });
+  const result = await service.discoverForCandidate(userId, { sources: ['GOOGLE_JOBS'] });
+  // Role/location search must be explicit; a missing location is never broadened silently.
+  expect(fetchFn).not.toHaveBeenCalled();
+  expect(result.newJobsIngested).toBe(0);
+  await db
+    .update(jobPreferences)
+    .set({ preferredLocations: ['Warsaw'] })
+    .where(eq(jobPreferences.userId, userId));
+  const found = await service.discoverForCandidate(userId, { sources: ['GOOGLE_JOBS'] });
+  expect(found.newJobsIngested).toBe(1);
+  expect(fetchFn).toHaveBeenCalledOnce();
+  const list = await new JobService(db).getJobs(userId);
+  const detail = await new JobService(db).getJobById(userId, list.items[0]!.id);
+  expect(detail.provider).toBe('GOOGLE_JOBS');
+  expect(detail.sources?.[0]?.rawMetadata?.via).toBe('LinkedIn');
+});
+it('preserves first-party provider identifiers when indexed search finds the same destination', async () => {
+  await db
+    .update(jobPreferences)
+    .set({ preferredLocations: ['Warsaw'] })
+    .where(eq(jobPreferences.userId, userId));
+  const jobService = new JobService(db);
+  const url = 'https://jobs.lever.co/fixture/original-id';
+  const original = await jobService.ingestText(userId, {
+    title: 'Project Manager',
+    company: 'Fixture employer',
+    url,
+    text: 'Title: Project Manager\nCompany: Fixture employer\nLocation: Warsaw, Poland\nA deterministic first-party vacancy for project coordination, stakeholder reporting and delivery planning.',
+    provider: 'LEVER',
+  });
+  await db
+    .update(jobs)
+    .set({ sourceExternalId: 'original-id', sourceCompanyId: 'fixture' })
+    .where(eq(jobs.id, original.job.id));
+  const fetchFn = vi.fn(
+    async () =>
+      new Response(
+        JSON.stringify({
+          jobs_results: [
+            {
+              title: 'Project Manager',
+              company_name: 'Fixture employer',
+              location: 'Warsaw, Poland',
+              description:
+                'A deterministic indexed description of the same vacancy for project coordination, stakeholder reporting and delivery planning.',
+              job_id: 'different-index-id',
+              via: 'Lever',
+              apply_options: [{ title: 'Lever', link: url }],
+            },
+          ],
+        }),
+      ),
+  ) as typeof fetch;
+  const result = await new JobDiscoveryService(db, jobService, {
+    fetchFn,
+    search: { enabled: true, apiKey: 'fixture-key', maxRequests: 1 },
+  }).discoverForCandidate(userId, { sources: ['GOOGLE_JOBS'] });
+  expect(result.duplicatesSkipped).toBe(1);
+  const [saved] = await db.select().from(jobs).where(eq(jobs.id, original.job.id));
+  expect(saved!.provider).toBe('LEVER');
+  expect(saved!.sourceExternalId).toBe('original-id');
+  expect(saved!.sourceCompanyId).toBe('fixture');
+});
+it('does not advertise or call an unconfigured search provider', async () => {
+  const settings = new JobSearchSettingsService(db, false);
+  const visible = await settings.get(userId);
+  expect(visible.availableSources).not.toContain('GOOGLE_JOBS');
+  await expect(
+    settings.save(userId, { ...DEFAULT_SEARCH_SETTINGS, sources: ['GOOGLE_JOBS'] }),
+  ).rejects.toThrow('not available');
 });
