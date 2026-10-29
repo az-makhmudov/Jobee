@@ -4,6 +4,7 @@ import { jobApi } from '../api/job-client.js';
 import { PreparationBatchPanel } from './PreparationBatchPanel.js';
 import { AddJobModal } from './AddJobModal.js';
 import { CareerFitBadge } from './CareerFitBadge.js';
+import { ExploreLoadingState } from './ExploreLoadingState.js';
 import type {
   RecommendationStatusDto,
   JobSummaryDto,
@@ -33,7 +34,7 @@ export function JobInboxView({
   const requestVersion = useRef(0);
   const listLoad = useRef<Promise<void>>(Promise.resolve());
   const listLoadFailed = useRef(false);
-  const currentLoader = useRef<() => Promise<void>>(async () => {});
+  const currentLoader = useRef<(quiet?: boolean) => Promise<void>>(async () => {});
   const detailRef = useRef<HTMLElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const previousSelection = useRef<string | null>(null);
@@ -45,6 +46,7 @@ export function JobInboxView({
   const [jobs, setJobs] = useState<JobSummaryDto[]>([]);
   const [metrics, setMetrics] = useState<JobDashboardMetricsDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [preparingResults, setPreparingResults] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [analyzingJobId, setAnalyzingJobId] = useState<string | null>(null);
   const [batchAnalyzing, setBatchAnalyzing] = useState(false);
@@ -72,65 +74,69 @@ export function JobInboxView({
   // Modal
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const loadData = useCallback(async () => {
-    const version = ++requestVersion.current;
-    setLoading(true);
-    setError(null);
-    try {
-      const [jobsRes, metricsRes] = await Promise.all([
-        jobApi.getJobs({
-          page,
-          limit: 10,
-          relevantOnly: false,
-          recommendationsOnly: !libraryMode,
-          search: submittedSearch || undefined,
-          workplaceType: workplaceFilter || undefined,
-          employmentType: employmentFilter || undefined,
-          state: (stateFilter as JobState) || undefined,
-          provider: (providerFilter as JobProvider) || undefined,
-          includeArchived: stateFilter === 'ARCHIVED',
-          decision: decisionFilter || undefined,
-          isStale: staleFilter === 'stale' ? true : staleFilter === 'fresh' ? false : undefined,
-          sortBy,
-          sortOrder,
-        }),
-        jobApi.getMetrics().catch(() => null),
-      ]);
+  const loadData = useCallback(
+    async (quiet = false) => {
+      const version = ++requestVersion.current;
+      if (!quiet) setLoading(true);
+      setError(null);
+      try {
+        const [jobsRes, metricsRes] = await Promise.all([
+          jobApi.getJobs({
+            page,
+            limit: 10,
+            relevantOnly: false,
+            recommendationsOnly: !libraryMode,
+            search: submittedSearch || undefined,
+            workplaceType: workplaceFilter || undefined,
+            employmentType: employmentFilter || undefined,
+            state: (stateFilter as JobState) || undefined,
+            provider: (providerFilter as JobProvider) || undefined,
+            includeArchived: stateFilter === 'ARCHIVED',
+            decision: decisionFilter || undefined,
+            isStale: staleFilter === 'stale' ? true : staleFilter === 'fresh' ? false : undefined,
+            sortBy,
+            sortOrder,
+          }),
+          jobApi.getMetrics().catch(() => null),
+        ]);
 
-      if (version !== requestVersion.current) return;
-      setJobs(
-        libraryMode
-          ? jobsRes.items
-          : jobsRes.items.filter(
-              (job) => job.matchSummary?.decision === 'MATCH' && !job.matchSummary.isStale,
-            ),
-      );
-      listLoadFailed.current = false;
-      if (jobsRes.total > 0 && page > jobsRes.totalPages) setPage(Math.max(1, jobsRes.totalPages));
-      setTotalPages(jobsRes.totalPages);
-      setTotalItems(jobsRes.total);
-      setMetrics(metricsRes);
-    } catch (err) {
-      if (version === requestVersion.current) {
-        listLoadFailed.current = true;
-        setError(err instanceof Error ? err.message : 'Failed to load jobs');
+        if (version !== requestVersion.current) return;
+        setJobs(
+          libraryMode
+            ? jobsRes.items
+            : jobsRes.items.filter(
+                (job) => job.matchSummary?.decision === 'MATCH' && !job.matchSummary.isStale,
+              ),
+        );
+        listLoadFailed.current = false;
+        if (jobsRes.total > 0 && page > jobsRes.totalPages)
+          setPage(Math.max(1, jobsRes.totalPages));
+        setTotalPages(jobsRes.totalPages);
+        setTotalItems(jobsRes.total);
+        setMetrics(metricsRes);
+      } catch (err) {
+        if (version === requestVersion.current) {
+          listLoadFailed.current = true;
+          setError(err instanceof Error ? err.message : 'Failed to load jobs');
+        }
+      } finally {
+        if (version === requestVersion.current) setLoading(false);
       }
-    } finally {
-      if (version === requestVersion.current) setLoading(false);
-    }
-  }, [
-    libraryMode,
-    page,
-    submittedSearch,
-    workplaceFilter,
-    employmentFilter,
-    stateFilter,
-    providerFilter,
-    decisionFilter,
-    staleFilter,
-    sortBy,
-    sortOrder,
-  ]);
+    },
+    [
+      libraryMode,
+      page,
+      submittedSearch,
+      workplaceFilter,
+      employmentFilter,
+      stateFilter,
+      providerFilter,
+      decisionFilter,
+      staleFilter,
+      sortBy,
+      sortOrder,
+    ],
+  );
 
   currentLoader.current = loadData;
 
@@ -144,17 +150,13 @@ export function JobInboxView({
   useEffect(() => {
     if (libraryMode) return;
     let active = true;
+    setPreparingResults(true);
+    setRecommendations(null);
     setRecommendationError('');
     void jobApi
       .refreshRecommendations()
-      .then(async (value) => {
-        if (active) {
-          setRecommendations(value);
-          if (value.state === 'IDLE' && value.ready > 0 && !value.pending) {
-            await listLoad.current;
-            if (active && !listLoadFailed.current) void currentLoader.current();
-          }
-        }
+      .then((value) => {
+        if (active) setRecommendations(value);
       })
       .catch((error) => {
         if (active) setRecommendationError(error.message);
@@ -163,6 +165,30 @@ export function JobInboxView({
       active = false;
     };
   }, [libraryMode, refreshKey]);
+
+  // Publish one settled list after preparation, rather than replacing it on every status tick.
+  useEffect(() => {
+    if (libraryMode || !preparingResults || discovering) return;
+    if (recommendationError) {
+      setPreparingResults(false);
+      return;
+    }
+    if (
+      !recommendations ||
+      (recommendations.state !== 'FAILED' &&
+        (recommendations.state !== 'IDLE' || recommendations.pending > 0))
+    )
+      return;
+    let active = true;
+    void listLoad.current.then(async () => {
+      if (!active) return;
+      if (!listLoadFailed.current) await currentLoader.current(true);
+      if (active) setPreparingResults(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [libraryMode, preparingResults, discovering, recommendationError, recommendations]);
 
   useEffect(() => {
     if (
@@ -174,27 +200,33 @@ export function JobInboxView({
     )
       return;
     let active = true;
-    const timer = setTimeout(() => {
-      void jobApi
-        .recommendationStatus()
-        .then(async (value) => {
-          if (!active) return;
-          if (value.state === 'IDLE' && value.pending)
-            value = await jobApi.refreshRecommendations();
-          if (active) {
-            setRecommendations(value);
-            await currentLoader.current();
-          }
-        })
-        .catch((error) => {
-          if (active) setRecommendationError(error.message);
-        });
-    }, 3000);
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      let settled = false;
+      try {
+        let value = await jobApi.recommendationStatus();
+        if (!active) return;
+        if (value.state === 'IDLE' && value.pending) value = await jobApi.refreshRecommendations();
+        if (!active) return;
+        settled = value.state === 'FAILED' || (value.state === 'IDLE' && !value.pending);
+        setRecommendations(value);
+        if (!preparingResults && settled) await currentLoader.current(true);
+      } catch (error) {
+        settled = true;
+        if (active)
+          setRecommendationError(
+            error instanceof Error ? error.message : 'Could not check analysis progress.',
+          );
+      } finally {
+        if (active && !settled) timer = setTimeout(() => void poll(), 3000);
+      }
+    };
+    timer = setTimeout(() => void poll(), 3000);
     return () => {
       active = false;
       clearTimeout(timer);
     };
-  }, [libraryMode, recommendations, recommendationError]);
+  }, [libraryMode, recommendations, recommendationError, preparingResults]);
 
   useEffect(() => {
     if (libraryMode) return;
@@ -203,7 +235,7 @@ export function JobInboxView({
     const refreshOnReturn = () => {
       if (document.visibilityState === 'hidden' || Date.now() - lastRefresh < 2000) return;
       lastRefresh = Date.now();
-      void currentLoader.current();
+      void currentLoader.current(true);
       void jobApi
         .recommendationStatus()
         .then((value) => {
@@ -223,6 +255,8 @@ export function JobInboxView({
   }, [libraryMode]);
 
   const retryRecommendations = async () => {
+    setPreparingResults(true);
+    setRecommendations(null);
     setRecommendationError('');
     try {
       setRecommendations(await jobApi.refreshRecommendations(true));
@@ -288,6 +322,9 @@ export function JobInboxView({
   };
 
   const handleDiscoverJobs = async () => {
+    setPreparingResults(true);
+    setRecommendations(null);
+    setRecommendationError('');
     setDiscovering(true);
     setDiscoveryWarnings([]);
     setBatchNotice(null);
@@ -307,8 +344,8 @@ export function JobInboxView({
           source.errors.map((message) => `${source.source}: ${message}`),
         ),
       );
-      await currentLoader.current();
     } catch (err) {
+      setPreparingResults(false);
       setError(err instanceof Error ? err.message : 'Failed to discover jobs from public sources');
     } finally {
       setDiscovering(false);
@@ -348,28 +385,31 @@ export function JobInboxView({
         </div>
       </div>
 
-      {!libraryMode && (
-        <Card
-          role={recommendationError || recommendations?.state === 'FAILED' ? 'alert' : undefined}
-        >
-          <p>
-            {recommendationError || recommendations?.message || 'Preparing your recommendations…'}
-          </p>
-          {recommendations && (
+      {!libraryMode &&
+        (!preparingResults || recommendationError || recommendations?.state === 'FAILED') && (
+          <Card
+            role={recommendationError || recommendations?.state === 'FAILED' ? 'alert' : undefined}
+          >
             <p>
-              {recommendations.evaluated} analyzed · {recommendations.ready} matches ·{' '}
-              {recommendations.pending} awaiting analysis
-              {recommendations.locations.length ? ` · ${recommendations.locations.join(', ')}` : ''}
-              {recommendations.levels.length
-                ? ` · ${recommendations.levels.map((level) => ({ ENTRY: 'Junior', JUNIOR: 'Junior', INTERNSHIP: 'Internship' })[level.toUpperCase()] ?? level).join(', ')}`
-                : ''}
+              {recommendationError || recommendations?.message || 'Preparing your recommendations…'}
             </p>
-          )}
-          {(recommendationError || recommendations?.state === 'FAILED') && (
-            <Button onClick={() => void retryRecommendations()}>Retry automatic analysis</Button>
-          )}
-        </Card>
-      )}
+            {recommendations && (
+              <p>
+                {recommendations.evaluated} analyzed · {recommendations.ready} matches ·{' '}
+                {recommendations.pending} awaiting analysis
+                {recommendations.locations.length
+                  ? ` · ${recommendations.locations.join(', ')}`
+                  : ''}
+                {recommendations.levels.length
+                  ? ` · ${recommendations.levels.map((level) => ({ ENTRY: 'Junior', JUNIOR: 'Junior', INTERNSHIP: 'Internship' })[level.toUpperCase()] ?? level).join(', ')}`
+                  : ''}
+              </p>
+            )}
+            {(recommendationError || recommendations?.state === 'FAILED') && (
+              <Button onClick={() => void retryRecommendations()}>Retry automatic analysis</Button>
+            )}
+          </Card>
+        )}
       {libraryMode && (
         <Card>
           <p>
@@ -459,7 +499,11 @@ export function JobInboxView({
               'Analyze new jobs'
             )}
           </Button>
-          <Button className="btn btn-secondary btn-sm" onClick={loadData} disabled={loading}>
+          <Button
+            className="btn btn-secondary btn-sm"
+            onClick={() => void loadData()}
+            disabled={loading}
+          >
             <Icon name="sync" /> Refresh
           </Button>
         </div>
@@ -711,7 +755,8 @@ export function JobInboxView({
           role="alert"
         >
           {error}
-          <Button className="btn btn-secondary btn-sm" onClick={loadData}>
+          {!!jobs.length && <p>Previously loaded jobs are still shown.</p>}
+          <Button className="btn btn-secondary btn-sm" onClick={() => void loadData()}>
             Retry loading jobs
           </Button>
         </Card>
@@ -722,12 +767,19 @@ export function JobInboxView({
           {/* Jobs List Table */}
           <Card
             className="job-results-container"
+            aria-busy={loading || (!libraryMode && preparingResults)}
             style={{ padding: 0, border: 0, background: 'transparent' }}
           >
-            {error ? null : loading ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                Loading job postings...
-              </div>
+            {error && !jobs.length ? null : (!libraryMode &&
+                preparingResults &&
+                !recommendationError &&
+                recommendations?.state !== 'FAILED') ||
+              (loading && !jobs.length) ? (
+              <ExploreLoadingState
+                library={libraryMode}
+                discovering={discovering}
+                recommendations={libraryMode ? null : recommendations}
+              />
             ) : jobs.length === 0 ? (
               <div style={{ padding: '3.5rem', textAlign: 'center' }}>
                 <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem' }}>No jobs found</h3>
@@ -930,7 +982,9 @@ export function JobInboxView({
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onJobCreated={(newJob) => {
-          void currentLoader.current();
+          setPreparingResults(true);
+          setRecommendations(null);
+          void currentLoader.current(true);
           void jobApi
             .refreshRecommendations()
             .then(setRecommendations)

@@ -3,3 +3,35 @@
 .batch-item {padding:16px;border:1px solid var(--surface-border);border-radius:16px;display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap;}
 .job-selection {display:flex;align-items:center;gap:8px;color:var(--text-secondary);margin-bottom:12px;}
 .batch-item p {margin:8px 0;}
+
+.explore-loading {
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 20px;
+  text-align: center;
+}
+.explore-loading p {
+  color: var(--text-secondary);
+}
+.explore-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-default);
+  border-top-color: var(--text-primary);
+  border-radius: 50%;
+  animation: explore-loading-spin 1s linear infinite;
+}
+@keyframes explore-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .explore-loading-spinner {
+    animation: none;
+  }
+}

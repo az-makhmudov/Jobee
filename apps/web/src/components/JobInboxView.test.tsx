@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { JobPaginationResult, JobSummaryDto } from '@job-agent/shared';
 import { JobInboxView } from './JobInboxView.js';
 import { jobApi } from '../api/job-client.js';
@@ -284,4 +284,106 @@ it('explains that active filters hide recommendations that are available', async
   await screen.findByText(
     '1 recommended job is available. Clear the filters to see all matching roles.',
   );
+});
+
+it('shows one preparation module until analysis settles, then publishes analyzed jobs and stops polling', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  const queued = {
+    state: 'ANALYZING' as const,
+    ready: 1,
+    pending: 1,
+    excluded: 0,
+    evaluated: 1,
+    processed: 0,
+    batchSize: 1,
+    locations: ['Warsaw'],
+    levels: ['ENTRY'],
+    message: 'Analyzing',
+  };
+  vi.mocked(jobApi.refreshRecommendations).mockResolvedValue(queued);
+  vi.mocked(jobApi.recommendationStatus)
+    .mockResolvedValueOnce(queued)
+    .mockResolvedValue({ ...queued, state: 'IDLE', pending: 0 });
+  try {
+    render(<JobInboxView {...props} />);
+    await screen.findByRole('heading', { name: 'Analyzing jobs for your profile' });
+    expect(screen.queryByText('Current role')).toBeNull();
+    const calls = vi.mocked(jobApi.getJobs).mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+    expect(vi.mocked(jobApi.getJobs).mock.calls.length).toBe(calls);
+    expect(screen.queryByText('Current role')).toBeNull();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3100);
+    });
+    await screen.findByText('Current role');
+    expect(screen.queryByRole('heading', { name: 'Analyzing jobs for your profile' })).toBeNull();
+    const settled = vi.mocked(jobApi.getJobs).mock.calls.length;
+    const statuses = vi.mocked(jobApi.recommendationStatus).mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15000);
+    });
+    expect(jobApi.getJobs).toHaveBeenCalledTimes(settled);
+    expect(jobApi.recommendationStatus).toHaveBeenCalledTimes(statuses);
+  } finally {
+    cleanup();
+    vi.useRealTimers();
+  }
+});
+it('keeps the same job card and selected detail visible during a slow background focus refresh', async () => {
+  render(
+    <JobInboxView
+      {...props}
+      selectedJobId="Current role"
+      detail={<div>Selected details stay here</div>}
+    />,
+  );
+  await screen.findByText('Current role');
+  const card = screen.getByText('Current role').closest('.job-card');
+  let finish!: (value: JobPaginationResult<JobSummaryDto>) => void;
+  vi.mocked(jobApi.getJobs).mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  vi.mocked(jobApi.recommendationStatus).mockResolvedValue({
+    state: 'IDLE',
+    ready: 1,
+    pending: 0,
+    excluded: 0,
+    evaluated: 1,
+    processed: 0,
+    batchSize: 0,
+    locations: [],
+    levels: [],
+    message: 'Ready',
+  });
+  fireEvent(window, new Event('focus'));
+  await waitFor(() => expect(finish).toBeDefined());
+  expect(screen.getByText('Current role').closest('.job-card')).toBe(card);
+  expect(screen.getByText('Selected details stay here')).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Loading your jobs' })).toBeNull();
+  finish(result('Current role'));
+  await waitFor(() => expect(screen.getByText('Current role').closest('.job-card')).toBe(card));
+});
+it('exits preparation on analysis failure and allows retry without an endless loader', async () => {
+  const failed = {
+    state: 'FAILED' as const,
+    ready: 1,
+    pending: 1,
+    excluded: 0,
+    evaluated: 1,
+    processed: 0,
+    batchSize: 1,
+    locations: [],
+    levels: [],
+    message: 'Analysis unavailable',
+  };
+  vi.mocked(jobApi.refreshRecommendations).mockResolvedValue(failed);
+  render(<JobInboxView {...props} />);
+  await screen.findByText('Current role');
+  expect(screen.getByRole('button', { name: 'Retry automatic analysis' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Analyzing jobs for your profile' })).toBeNull();
 });

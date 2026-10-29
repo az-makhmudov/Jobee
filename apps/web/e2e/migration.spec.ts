@@ -663,6 +663,9 @@ test('Jobs add, edit and archive dialogs retain cancellation and job detail tabs
   expect(recovered.city).toBe('Warsaw');
   await page.unroute('**/api/jobs/url');
   await page.setViewportSize({ width: 1440, height: 1080 });
+  // This case inspects saved/imported records; the fixture worker is deliberately not running.
+  await showDetails(page, 'More tools');
+  await page.getByLabel('Show all saved jobs', { exact: true }).check();
   await page
     .locator('.job-card')
     .filter({ has: page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }) })
@@ -1396,9 +1399,7 @@ test('Explore automatically queues analysis and publishes a new job only after a
     await page.getByRole('button', { name: 'Search', exact: true }).click();
     await expect(page.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
     await expect(
-      page.getByText('Checking jobs against your profile. Only completed matches appear below.', {
-        exact: true,
-      }),
+      page.getByRole('heading', { name: 'Analyzing jobs for your profile', exact: true }),
     ).toBeVisible();
     // Actual queue processor with an explicitly synthetic local evaluator; no AI/provider requests.
     const processor = new RecommendationService(client.db, {
@@ -1480,5 +1481,81 @@ test('secondary application blockers remain visible without hiding a recommended
     await card.getByRole('button', { name: 'View job', exact: true }).click();
     await expect(page.locator('.job-fit-overview')).toContainText('Before applying:');
     await expect(page.locator('.job-fit-overview')).not.toContainText('Applied');
+  }
+});
+
+test('Explore prepares once, then leaves analyzed results and selected details stable', async ({
+  page,
+}) => {
+  test.setTimeout(60000);
+  let complete = false,
+    statusReads = 0,
+    jobReads = 0;
+  await page.route('**/api/jobs/recommendations', async (route) => {
+    statusReads++;
+    await route.fulfill({
+      json: {
+        status: 'ok',
+        data: {
+          state: complete ? 'IDLE' : 'ANALYZING',
+          ready: 3,
+          pending: complete ? 0 : 1,
+          excluded: 0,
+          evaluated: 3,
+          processed: 0,
+          batchSize: 1,
+          locations: ['Warsaw'],
+          levels: ['ENTRY'],
+          message: 'Synthetic progress fixture',
+        },
+      },
+    });
+  });
+  await page.route('**/api/jobs?*', async (route) => {
+    jobReads++;
+    await route.continue();
+  });
+  for (const width of [1440, 390]) {
+    complete = false;
+    statusReads = 0;
+    jobReads = 0;
+    await page.setViewportSize({ width, height: 844 });
+    await page.emulateMedia({
+      colorScheme: width === 390 ? 'dark' : 'light',
+      reducedMotion: 'reduce',
+    });
+    await page.goto('/');
+    await expect(
+      page.getByRole('heading', { name: 'Analyzing jobs for your profile', exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('.job-card')).toHaveCount(0);
+    await expect.poll(() => statusReads).toBeGreaterThan(1);
+    const initialJobReads = jobReads;
+    const initialStatusReads = statusReads;
+    // Development StrictMode may issue two initial reads; progress must not issue more.
+    await expect.poll(() => statusReads).toBeGreaterThan(initialStatusReads);
+    expect(jobReads).toBe(initialJobReads);
+    await page.screenshot({
+      path: `output/playwright/explore-loading-${width}.png`,
+      fullPage: true,
+    });
+    complete = true;
+    const card = page.locator('.job-card').filter({
+      has: page.getByRole('heading', { name: 'Frontend Developer Intern', exact: true }),
+    });
+    await expect(card).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.explore-loading')).toHaveCount(0);
+    await card.getByRole('button', { name: 'View job', exact: true }).click();
+    await expect(page.locator('.job-fit-overview')).toBeVisible();
+    // Mobile intentionally replaces the list with detail; desktop retains both panes.
+    const stableContent = width === 390 ? page.locator('.job-fit-overview') : card;
+    const handle = await stableContent.elementHandle();
+    const jobsAtReady = jobReads,
+      statusAtReady = statusReads;
+    await page.waitForTimeout(7000); // Regression: several old refresh cycles must not replace this DOM node.
+    expect(jobReads).toBe(jobsAtReady);
+    expect(statusReads).toBe(statusAtReady);
+    expect(await handle!.evaluate((element) => element.isConnected)).toBeTruthy();
+    await page.screenshot({ path: `output/playwright/explore-ready-${width}.png`, fullPage: true });
   }
 });

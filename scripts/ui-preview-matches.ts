@@ -4,6 +4,7 @@ import {
   assertSafeTestUser,
   jobs,
   users,
+  candidateProfiles,
   jobMatchAnalyses,
   orchestrationRuns,
   eq,
@@ -15,6 +16,7 @@ import {
   matchingFingerprint,
   RECOMMENDATION_TASK,
 } from '@job-agent/database/matching';
+import { notInArray } from 'drizzle-orm';
 import { MATCH_ALGORITHM_VERSION } from '@job-agent/shared';
 /** Explicit UI fixtures only. Never call this for real accounts or provider validation. */
 export async function seedUiMatches(
@@ -32,7 +34,24 @@ export async function seedUiMatches(
     const [user] = await client.db.select().from(users).where(eq(users.id, userId));
     if (user?.email !== 'alex.morgan@example.test')
       throw new Error('Synthetic preview account required');
-    if (resetQueue)
+    const fixtureJobs = await client.db
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.userId, userId), inArray(jobs.id, jobIds)));
+    if (!fixtureJobs.length || fixtureJobs.length !== new Set(jobIds).size)
+      throw new Error('Owned preview job IDs required');
+    if (resetQueue) {
+      const [profile] = await client.db
+        .select()
+        .from(candidateProfiles)
+        .where(eq(candidateProfiles.userId, userId));
+      if (!profile?.summary?.startsWith('Synthetic preview profile.'))
+        throw new Error('Marked synthetic preview profile required');
+      // Archive only leftover jobs owned by this disposable preview fixture, preserving original IDs/history.
+      await client.db
+        .update(jobs)
+        .set({ state: 'ARCHIVED' })
+        .where(and(eq(jobs.userId, userId), notInArray(jobs.id, jobIds)));
       await client.db
         .update(orchestrationRuns)
         .set({ status: 'CANCELLED', completedAt: new Date(), updatedAt: new Date() })
@@ -43,10 +62,7 @@ export async function seedUiMatches(
             inArray(orchestrationRuns.status, ['PENDING', 'RUNNING']),
           ),
         );
-    const fixtureJobs = await client.db
-      .select()
-      .from(jobs)
-      .where(and(eq(jobs.userId, userId), inArray(jobs.id, jobIds)));
+    }
     const inputs = await currentMatchingInputs(client.db, userId, fixtureJobs);
     for (const job of fixtureJobs)
       await client.db.insert(jobMatchAnalyses).values({
