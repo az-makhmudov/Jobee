@@ -288,7 +288,7 @@ export function JobDetailView({
                   {job.employmentType.replaceAll('_', ' ').toLowerCase()}
                 </span>
               )}
-              {job.seniority !== 'UNKNOWN' && (
+              {job.seniority !== 'UNKNOWN' && job.seniority !== (job.employmentType as string) && (
                 <span className="nav-tag">{job.seniority.toLowerCase()}</span>
               )}
               {(job.minSalary || job.maxSalary) && (

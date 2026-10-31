@@ -35,6 +35,23 @@ import { MatchingScoringEngine } from './matching-scoring-engine.js';
 import { AiProvider, AiMatchContext, AiMatchResult } from './ai/types.js';
 
 export class MatchService {
+  async applicationIssues(jobId: string, userId: string) {
+    const [job] = await this.db
+      .select()
+      .from(jobs)
+      .where(and(eq(jobs.id, jobId), eq(jobs.userId, userId)));
+    if (!job) throw AppError.notFound('Job not found');
+    const context = await new MatchingContextBuilder(this.db).buildContext(userId);
+    return (
+      new HardPolicyEngine().evaluate(job, context).applicationIssues ?? [
+        {
+          code: 'POLICY_UNAVAILABLE',
+          severity: 'ACTION_REQUIRED' as const,
+          message: 'Application policy needs review.',
+        },
+      ]
+    );
+  }
   private readonly contextBuilder: MatchingContextBuilder;
   private readonly evidenceResolver: CandidateEvidenceResolver;
   private readonly hardPolicyEngine: HardPolicyEngine;

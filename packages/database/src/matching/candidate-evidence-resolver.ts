@@ -1,3 +1,4 @@
+import { languageRequirementGroups } from './language-requirement.js';
 import { hasCountryAuthorization, forbidsSponsorship } from './eligibility.js';
 import { Job, JobRequirement } from '../schema/index.js';
 import { RequirementEvaluationStatus, CandidateEvidenceItemDto } from '@job-agent/shared';
@@ -273,7 +274,59 @@ export class CandidateEvidenceResolver {
     context: CandidateMatchingContext,
     isMandatory: boolean,
   ): DeterministicEvaluationResult {
-    const rawLower = req.rawText.toLowerCase();
+    const groups = languageRequirementGroups(req.rawText);
+    if (!groups)
+      return {
+        requirementId: req.id,
+        status: 'UNKNOWN',
+        evidenceIds: [],
+        evidenceItems: [],
+        reason: 'Language requirement wording needs confirmation',
+        confidence: 40,
+        contributesToBlocker: isMandatory,
+      };
+    if (groups.length > 1 || groups[0]!.length > 1) {
+      const outcomes = groups.map((alternatives) => {
+        const results = alternatives.map((language) =>
+          this.evaluateLanguageRequirement(
+            {
+              ...req,
+              rawText: `${language} ${
+                req.rawText
+                  .split(/\b(?:and|oraz)\b/i)
+                  .find((part) => part.toLowerCase().includes(language))
+                  ?.match(/\b([A-C][1-2])\b/i)?.[1] ?? ''
+              }`,
+            },
+            context,
+            isMandatory,
+          ),
+        );
+        return (
+          results.find((r) => r.status === 'MET') ??
+          results.find((r) => r.status === 'PARTIAL') ??
+          results.find((r) => r.status === 'UNKNOWN') ??
+          results[0]!
+        );
+      });
+      const status = outcomes.some((r) => r.status === 'NOT_MET')
+        ? 'NOT_MET'
+        : outcomes.every((r) => r.status === 'MET')
+          ? 'MET'
+          : outcomes.some((r) => r.status === 'UNKNOWN')
+            ? 'UNKNOWN'
+            : 'PARTIAL';
+      return {
+        requirementId: req.id,
+        status,
+        evidenceIds: [...new Set(outcomes.flatMap((r) => r.evidenceIds))],
+        evidenceItems: outcomes.flatMap((r) => r.evidenceItems),
+        reason: outcomes.map((r) => r.reason).join('; '),
+        confidence: Math.min(...outcomes.map((r) => r.confidence)),
+        contributesToBlocker: isMandatory && status !== 'MET',
+      };
+    }
+    const rawLower = groups[0]![0]!;
 
     for (const lang of context.languages) {
       if (lang.verificationStatus === 'REJECTED') continue;

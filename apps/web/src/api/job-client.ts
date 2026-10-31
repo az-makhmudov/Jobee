@@ -99,6 +99,7 @@ export const jobApi = {
     if (query?.limit) params.append('limit', String(query.limit));
     if (query?.state) params.append('state', query.state);
     if (query?.provider) params.append('provider', query.provider);
+    if (query?.applicationMethod) params.append('applicationMethod', query.applicationMethod);
     if (query?.workplaceType) params.append('workplaceType', query.workplaceType);
     if (query?.employmentType) params.append('employmentType', query.employmentType);
     if (query?.company) params.append('company', query.company);

@@ -57,6 +57,7 @@ export const updateJobSchema = z.object({
 });
 
 export const jobListQuerySchema = z.object({
+  applicationMethod: z.enum(['JOBEE', 'EMPLOYER_SITE']).optional(),
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
   state: z.enum(['NEW', 'INGESTED', 'NEEDS_REVIEW', 'INVALID', 'DUPLICATE', 'ARCHIVED']).optional(),

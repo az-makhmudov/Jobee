@@ -62,7 +62,14 @@ export class JobSearchSettingsService {
     const boards = effective.boards.map((board) => `${board.source}:${board.slug}`);
     const upgraded =
       (same(effective.sources, legacySources) && same(boards, legacyBoards)) ||
-      (same(effective.sources, previousSources) && same(boards, previousBoards));
+      (same(effective.sources, previousSources) && same(boards, previousBoards)) ||
+      (same(effective.sources, previousSources) &&
+        same(
+          boards,
+          DEFAULT_SEARCH_SETTINGS.boards
+            .filter((board) => !['flexport', 'penumbrainc', 'SKELAR'].includes(board.slug))
+            .map((board) => `${board.source}:${board.slug}`),
+        ));
     const settings = upgraded
       ? {
           ...effective,

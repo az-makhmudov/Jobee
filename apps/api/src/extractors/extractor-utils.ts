@@ -223,9 +223,7 @@ export function extractRequirementsFromSectionsOrText(
       const reqs = extractRequirementsFromList(sec.content, sec.title);
       sectionReqs.push(...reqs);
     }
-    if (sectionReqs.length > 0) {
-      return sectionReqs;
-    }
+    return sectionReqs;
   }
 
   // Fallback if no sections or no requirements extracted from sections

@@ -112,7 +112,7 @@ export class ManualTextExtractor {
 
     for (const line of lines) {
       const isHeader =
-        /^(?:about\s+(?:the\s+)?(?:role|company|team|us)|(?:key\s+|core\s+)?responsibilities|requirements|(?:key\s+|required\s+|preferred\s+|minimum\s+|basic\s+)?qualifications|nice\s+to\s+have|what\s+you(?:'ll)?\s+do|benefits|what\s+we\s+offer):?$/i.test(
+        /^(?:about\s+(?:the\s+)?(?:role|company|team|us)|(?:key\s+|core\s+)?responsibilities|requirements|(?:key\s+|required\s+|preferred\s+|minimum\s+|basic\s+)?qualifications|nice\s+to\s+have|what\s+you(?:'ll)?\s+do|benefits|what\s+we\s+offer|additional information|company description|job description|kwalifikacje|wymagania|nasze oczekiwania|opis firmy|opis oferty pracy|to oferujemy|oferujemy|dodatkowe informacje):?$/i.test(
           line,
         );
 
@@ -120,15 +120,32 @@ export class ManualTextExtractor {
         if (currentSection) sections.push(currentSection);
         const lower = line.toLowerCase();
         let type: RawExtractedSection['type'] = 'OTHER';
-        if (lower.includes('responsibilit') || lower.includes('what you')) {
+        if (
+          lower.includes('responsibilit') ||
+          lower.includes('what you') ||
+          ['opis oferty pracy', 'job description'].includes(lower)
+        ) {
           type = 'RESPONSIBILITIES';
         } else if (lower.includes('preferred') || lower.includes('nice to have')) {
           type = 'PREFERRED_QUALIFICATIONS';
-        } else if (lower.includes('require') || lower.includes('qualificat')) {
+        } else if (
+          lower.includes('require') ||
+          lower.includes('qualificat') ||
+          ['kwalifikacje', 'wymagania', 'nasze oczekiwania'].includes(lower)
+        ) {
           type = 'QUALIFICATIONS';
-        } else if (lower.includes('benefit') || lower.includes('offer')) {
+        } else if (
+          lower.includes('benefit') ||
+          lower.includes('offer') ||
+          ['to oferujemy', 'oferujemy', 'dodatkowe informacje', 'additional information'].includes(
+            lower,
+          )
+        ) {
           type = 'BENEFITS';
-        } else if (lower.includes('about')) {
+        } else if (
+          lower.includes('about') ||
+          ['opis firmy', 'company description'].includes(lower)
+        ) {
           type = 'ABOUT_COMPANY';
         }
 

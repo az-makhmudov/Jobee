@@ -58,6 +58,7 @@ export function JobInboxView({
   const [search, setSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [workplaceFilter, setWorkplaceFilter] = useState<WorkplaceType | ''>('');
+  const [applicationMethod, setApplicationMethod] = useState<'JOBEE' | 'EMPLOYER_SITE' | ''>('');
   const [employmentFilter, setEmploymentFilter] = useState<EmploymentType | ''>('');
   const [stateFilter, setStateFilter] = useState<JobState | ''>('');
   const [providerFilter, setProviderFilter] = useState<JobProvider | ''>('');
@@ -89,6 +90,7 @@ export function JobInboxView({
             search: submittedSearch || undefined,
             workplaceType: workplaceFilter || undefined,
             employmentType: employmentFilter || undefined,
+            applicationMethod: applicationMethod || undefined,
             state: (stateFilter as JobState) || undefined,
             provider: (providerFilter as JobProvider) || undefined,
             includeArchived: stateFilter === 'ARCHIVED',
@@ -129,6 +131,7 @@ export function JobInboxView({
       submittedSearch,
       workplaceFilter,
       employmentFilter,
+      applicationMethod,
       stateFilter,
       providerFilter,
       decisionFilter,
@@ -650,6 +653,7 @@ export function JobInboxView({
               setSubmittedSearch('');
               setWorkplaceFilter('');
               setEmploymentFilter('');
+              setApplicationMethod('');
               setStateFilter('');
               setProviderFilter('');
               setDecisionFilter('');
@@ -662,12 +666,26 @@ export function JobInboxView({
           <details className="advanced-details">
             <summary>
               More filters
-              {decisionFilter || staleFilter || stateFilter || providerFilter ? ' · active' : ''}
+              {applicationMethod || decisionFilter || staleFilter || stateFilter || providerFilter
+                ? ' · active'
+                : ''}
             </summary>
             <div
               style={{ flex: '0 0 auto', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}
               className="layout-group"
             >
+              <Select
+                aria-label="Application method"
+                value={applicationMethod}
+                onChange={(event) => {
+                  setApplicationMethod(event.target.value as 'JOBEE' | 'EMPLOYER_SITE' | '');
+                  setPage(1);
+                }}
+              >
+                <option value="">All application methods</option>
+                <option value="JOBEE">Apply with Jobee</option>
+                <option value="EMPLOYER_SITE">Employer website</option>
+              </Select>
               {libraryMode && (
                 <>
                   <Select
@@ -793,6 +811,7 @@ export function JobInboxView({
                   {submittedSearch ||
                   workplaceFilter ||
                   employmentFilter ||
+                  applicationMethod ||
                   stateFilter ||
                   providerFilter ||
                   decisionFilter ||
@@ -842,6 +861,13 @@ export function JobInboxView({
                               ? 'Employment type not specified'
                               : job.employmentType.replaceAll('_', ' ').toLowerCase()}
                           </p>
+                          {job.applicationCapability && (
+                            <p>
+                              {job.applicationCapability.method === 'JOBEE'
+                                ? 'Apply with Jobee'
+                                : 'Apply on employer website'}
+                            </p>
+                          )}
                           {(job.minSalary != null || job.maxSalary != null) && (
                             <p>
                               {job.currency || 'Currency unspecified'}{' '}

@@ -1559,3 +1559,51 @@ test('Explore prepares once, then leaves analyzed results and selected details s
     await page.screenshot({ path: `output/playwright/explore-ready-${width}.png`, fullPage: true });
   }
 });
+
+test('application method filters the actual destination before pagination and restores all methods', async ({
+  page,
+}) => {
+  const marker = `Junior Frontend Developer ${crypto.randomUUID()}`;
+  const seeded = JSON.parse(await readFile('/tmp/jobee-ui-preview-seed.json', 'utf8'));
+  const ids: string[] = [];
+  try {
+    for (const url of [
+      `https://boards.greenhouse.io/fixture/jobs/${crypto.randomUUID()}`,
+      `https://employer.example.test/${crypto.randomUUID()}`,
+    ]) {
+      const response = await page.request.post('/api/jobs/text', {
+        data: {
+          title: marker,
+          company: `Synthetic capability fixture ${ids.length}`,
+          url,
+          text: 'Location: Warsaw, Poland\nJunior frontend developer building accessible applications. Synthetic local fixture only.',
+        },
+      });
+      expect(response.ok()).toBeTruthy();
+      ids.push((await response.json()).data.job.id);
+    }
+    await seedUiMatches(process.env.UI_TEST_DATABASE_URL!, seeded.userId, ids);
+    await page.goto('/');
+    await page.getByLabel('Search jobs', { exact: true }).fill(marker);
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect(page.locator('.job-card')).toHaveCount(2);
+    await showDetails(page, 'More filters');
+    await page.getByLabel('Application method', { exact: true }).selectOption('JOBEE');
+    await expect(page.locator('.job-card')).toHaveCount(1);
+    await expect(page.locator('.job-card')).toContainText('Apply with Jobee');
+    const result = await page.request.get(
+      `/api/jobs?applicationMethod=JOBEE&limit=1&search=${encodeURIComponent(marker)}`,
+    );
+    expect((await result.json()).data.total).toBe(1);
+    await page.getByLabel('Application method', { exact: true }).selectOption('EMPLOYER_SITE');
+    await expect(page.locator('.job-card')).toHaveCount(1);
+    await expect(page.locator('.job-card')).toContainText('Apply on employer website');
+    await page.getByLabel('Application method', { exact: true }).selectOption('');
+    await expect(page.locator('.job-card')).toHaveCount(2);
+  } finally {
+    for (const id of ids)
+      await page.request.post(`/api/jobs/${id}/archive`, {
+        data: { reason: 'Synthetic capability test complete' },
+      });
+  }
+});

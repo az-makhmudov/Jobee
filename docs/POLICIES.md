@@ -72,6 +72,8 @@ Preparation, preview, downloading, matching, saved-answer approval, daily discov
 
 ### One-click Apply
 
+For deliberate manual intents, nonessential missing listing data (including unpublished salary) is an auditable warning, not permission denial. Confirmed policy conflicts, material eligibility uncertainty, required form answers and job-specific consent still pause execution. Autopilot retains its stricter missing-information gate; warning admission never supplies a missing answer or expands an existing grant.
+
 Current local behavior persists an owned application and intent before generation. Visible terms `jobee-apply-v1` authorize one job/destination for at most one hour; a repeated click cannot renew the permission or duplicate an attempt. Resume is a new deliberate grant using current inputs, and never bypasses required per-question consent. Material preparation uses the existing immutable artifacts and signed manifest service. The worker validates the intent and signed proof at claim and immediately before dispatch; only unchanged verified routine answer sources may expand the form manifest automatically. Unused answer-library edits do not invalidate another application.
 
 Cancellation and final dispatch reservation share an owner lock. Before reservation, revocation blocks submission even if filling has begun. Status and cancellation remain available when rollout switches pause new preparation/submissions. After reservation, the interface reports that dispatch cannot be recalled; interruption remains uncertain until provider observation or explicit reconciliation. Failed generation is not silently retried. Fixture provider confirmation establishes local behavior only.

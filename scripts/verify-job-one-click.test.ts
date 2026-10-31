@@ -200,7 +200,7 @@ describe('One-click preparation and provider execution (JOB-P3-T01 / JOB-P5-T01)
     expect(state.status).toBe('NEEDS_USER_ACTION');
     expect(state.runId).toBeNull();
   });
-  it('can recommend profile fit with unknown salary without authorizing application execution', async () => {
+  it('continues user-authorized preparation with unknown salary while Autopilot remains ineligible', async () => {
     await db
       .update(jobPreferences)
       .set({ minSalary: 80000, currency: 'EUR', salaryPayPeriod: null })
@@ -212,14 +212,21 @@ describe('One-click preparation and provider execution (JOB-P3-T01 / JOB-P5-T01)
     const intent = await create();
     await intents.processPending();
     const state = await intents.get(userId, intent.id);
-    expect(state.status).toBe('NEEDS_USER_ACTION');
+    expect(state.status).toBe('PREPARING');
+    expect(state.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'COMPENSATION_UNCONFIRMED', severity: 'WARNING' }),
+      ]),
+    );
     expect(state.runId).toBeNull();
-    expect(
-      await db
-        .select()
-        .from(browserApplicationRuns)
-        .where(eq(browserApplicationRuns.userId, userId)),
-    ).toHaveLength(0);
+    await prepare();
+    const ready = await intents.get(userId, intent.id);
+    expect(ready.runId).toBeTruthy();
+    const result = await executePendingBrowserRun(db, ready.runId!, {
+      controller: controller(),
+      storage,
+    });
+    expect(result.status).toBe('SUCCESS');
   });
 
   it('persists owned permission and application before generation, deduplicates concurrent clicks, and survives service replacement', async () => {
@@ -595,9 +602,10 @@ describe('One-click preparation and provider execution (JOB-P3-T01 / JOB-P5-T01)
       .update(jobs)
       .set({ applicationUrl: 'https://employer.example.test/apply' })
       .where(eq(jobs.id, jobId));
-    const intent = await create();
-    await prepare();
-    expect((await intents.get(userId, intent.id)).message).toContain('manual');
+    await expect(create()).rejects.toThrow('manual');
+    expect(
+      await db.select().from(applicationIntents).where(eq(applicationIntents.userId, userId)),
+    ).toHaveLength(0);
     await db
       .update(jobs)
       .set({ applicationUrl: 'https://boards.greenhouse.io/fixture/jobs/1' })
@@ -606,7 +614,7 @@ describe('One-click preparation and provider execution (JOB-P3-T01 / JOB-P5-T01)
       .update(jobPreferences)
       .set({ excludedCompanies: ['Fixture Company'] })
       .where(eq(jobPreferences.userId, userId));
-    await intents.resume(userId, intent.id);
+    const intent = await create();
     await prepare();
     expect((await intents.get(userId, intent.id)).message).toContain('blocker');
   });

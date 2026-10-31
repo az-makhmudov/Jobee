@@ -4,6 +4,7 @@ import {
   users,
   jobs,
   jobRequirements,
+  jobSources,
   jobMatchAnalyses,
   jobRequirementEvaluations,
   jobPreferences,
@@ -369,6 +370,30 @@ describe('Poland discovery and recovery regressions', () => {
     expect(saved.applicationUrl).toBe(
       'https://jobs.smartrecruiters.com/fixture/3-project-management',
     );
+  });
+  it('repairs unchanged legacy descriptions once while retaining IDs, manual edits and source history', async () => {
+    const service = new JobService(db);
+    const { job } = await service.ingestText(userId, {
+      title: 'Manually chosen title',
+      company: 'Fixture',
+      text: 'Title: Project Intern\nQualifications\n• English required\nAdditional Information\n• Private medical care',
+    });
+    await db
+      .update(jobs)
+      .set({ manualEditFields: ['title'] })
+      .where(eq(jobs.id, job.id));
+    await db.update(jobSources).set({ parserVersion: '1.0.0' }).where(eq(jobSources.jobId, job.id));
+    await db
+      .insert(jobRequirements)
+      .values({ userId, jobId: job.id, rawText: 'Private medical care', category: 'OTHER' });
+    await service.ensureCurrentParser(userId);
+    const current = await service.getJobById(userId, job.id);
+    expect(current.id).toBe(job.id);
+    expect(current.title).toBe('Manually chosen title');
+    expect(current.requirements?.map((r) => r.rawText)).not.toContain('Private medical care');
+    expect(current.sources).toHaveLength(2);
+    await service.ensureCurrentParser(userId);
+    expect((await service.getJobById(userId, job.id)).sources).toHaveLength(2);
   });
   it('resumes within a partially checked page rather than repeating the same first 1000 rows', async () => {
     const data = Array.from({ length: 1500 }, (_, i) => ({

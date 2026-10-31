@@ -200,7 +200,15 @@ export interface SubmissionAuthorizationTicketDto {
 export function inferHostedAtsProvider(url: string): AtsProviderType {
   let host: string;
   try {
-    host = new URL(url).hostname.toLowerCase();
+    const target = new URL(url);
+    if (
+      target.protocol !== 'https:' ||
+      target.username ||
+      target.password ||
+      (target.port && target.port !== '443')
+    )
+      return AtsProviderType.OTHER;
+    host = target.hostname.toLowerCase();
   } catch {
     return AtsProviderType.OTHER;
   }
@@ -209,4 +217,21 @@ export function inferHostedAtsProvider(url: string): AtsProviderType {
   if (host === 'jobs.lever.co' || host === 'jobs.eu.lever.co') return AtsProviderType.LEVER;
   if (host === 'jobs.ashbyhq.com') return AtsProviderType.ASHBY;
   return AtsProviderType.OTHER;
+}
+
+export interface ApplicationCapability {
+  provider: AtsProviderType;
+  method: 'JOBEE' | 'EMPLOYER_SITE';
+  explanation: string;
+}
+export function assessApplicationCapability(url: string): ApplicationCapability {
+  const provider = inferHostedAtsProvider(url);
+  const supported = provider !== AtsProviderType.OTHER && provider !== AtsProviderType.UNKNOWN;
+  return {
+    provider,
+    method: supported ? 'JOBEE' : 'EMPLOYER_SITE',
+    explanation: supported
+      ? 'Jobee can attempt this hosted form; required questions and form support are checked before submission.'
+      : 'Complete this application on the employer website.',
+  };
 }

@@ -32,6 +32,7 @@ export function createJobRoutes(
           .object({ retry: z.boolean().optional() })
           .strict()
           .parse(req.body ?? {});
+        await service.ensureCurrentParser(requireCurrentUserId(req));
         return {
           status: 'ok',
           data: await recommendations.request(requireCurrentUserId(req), body.retry),

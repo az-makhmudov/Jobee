@@ -19,6 +19,7 @@ import {
 import {
   APPLICATION_INTENT_TERMS,
   AppError,
+  assessApplicationCapability,
   BrowserRunMode,
   type ApplicationIntentDto,
   type AutopilotGrant,
@@ -137,6 +138,19 @@ export class ApplicationIntentService {
           throw AppError.badRequest(
             'An application attempt already exists. Check its progress in Applications.',
           );
+      }
+      if (
+        assessApplicationCapability(
+          same?.app.applicationUrl ||
+            job.applicationUrl ||
+            job.originalUrl ||
+            job.canonicalUrl ||
+            '',
+        ).method !== 'JOBEE'
+      ) {
+        throw AppError.badRequest(
+          'This provider requires manual application on the employer website.',
+        );
       }
       const docs = await tx
         .select()
@@ -289,6 +303,14 @@ export class ApplicationIntentService {
         !intent.dispatchStartedAt &&
         !['SUCCEEDED', 'UNKNOWN_RESULT'].includes(status),
       canResume: safeRetry && ['NEEDS_USER_ACTION', 'FAILED', 'CANCELLED'].includes(status),
+      warnings: (
+        [...intent.events].reverse().find((event) => event.type === 'APPLICATION_READINESS')
+          ?.issues ?? []
+      ).filter((issue) => issue.severity === 'WARNING'),
+      actionRequired: (
+        [...intent.events].reverse().find((event) => event.type === 'APPLICATION_READINESS')
+          ?.issues ?? []
+      ).filter((issue) => issue.severity !== 'WARNING'),
       events: intent.events.map(({ type, at, runId }) => ({
         type,
         at,
@@ -464,11 +486,7 @@ export class ApplicationIntentService {
     for (const intent of pending) {
       try {
         await assertApplicationIntent(this.db, intent.userId, intent.applicationId, intent.id);
-        if (
-          !['GREENHOUSE', 'LEVER', 'ASHBY'].includes(
-            BrowserWorkerService.inferAtsProvider(intent.targetUrl),
-          )
-        ) {
+        if (assessApplicationCapability(intent.targetUrl).method !== 'JOBEE') {
           await this.pause(
             intent,
             'This provider requires manual application on the employer website.',
@@ -502,14 +520,23 @@ export class ApplicationIntentService {
           }
         }
         const analysis = await this.match.analyzeJob(intent.jobId, intent.userId);
+        const applicationIssues = await this.match.applicationIssues(intent.jobId, intent.userId);
+        const previousIssues = [...intent.events]
+          .reverse()
+          .find((event) => event.type === 'APPLICATION_READINESS')?.issues;
+        if (JSON.stringify(previousIssues) !== JSON.stringify(applicationIssues)) {
+          await this.db
+            .update(applicationIntents)
+            .set({
+              events: sql`${applicationIntents.events} || ${JSON.stringify([{ type: 'APPLICATION_READINESS', at: new Date().toISOString(), issues: applicationIssues }])}::jsonb`,
+            })
+            .where(eq(applicationIntents.id, intent.id));
+        }
         if (
+          applicationIssues.some((issue) => issue.severity !== 'WARNING') ||
           analysis.hardBlockers.length ||
           analysis.reasonCodes.some((code) =>
-            [
-              'POLICY_INFORMATION_MISSING',
-              'UNKNOWN_SENSITIVE_FACTS',
-              'UNMET_MANDATORY_REQUIREMENTS',
-            ].includes(code),
+            ['UNKNOWN_SENSITIVE_FACTS', 'UNMET_MANDATORY_REQUIREMENTS'].includes(code),
           )
         ) {
           await this.pause(
@@ -522,7 +549,8 @@ export class ApplicationIntentService {
         }
         if (
           intent.autopilotGrant &&
-          (analysis.decision !== 'MATCH' ||
+          (analysis.reasonCodes.includes('POLICY_INFORMATION_MISSING') ||
+            analysis.decision !== 'MATCH' ||
             analysis.confidenceScore < 60 ||
             analysis.reasonCodes.includes('APPLICATION_SCORE_BELOW_THRESHOLD') ||
             analysis.overallScore < intent.autopilotGrant.minScore)

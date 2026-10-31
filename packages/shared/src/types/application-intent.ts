@@ -29,5 +29,13 @@ export interface ApplicationIntentDto {
   expiresAt: string;
   canCancel: boolean;
   canResume: boolean;
-  events: Array<{ type: string; at: string; runId?: string }>;
+  warnings?: ApplicationIssue[];
+  actionRequired?: ApplicationIssue[];
+  events: Array<{ type: string; at: string; runId?: string; issues?: ApplicationIssue[] }>;
+}
+
+export interface ApplicationIssue {
+  code: string;
+  severity: 'WARNING' | 'ACTION_REQUIRED' | 'BLOCKER';
+  message: string;
 }

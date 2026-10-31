@@ -1,3 +1,4 @@
+import type { ApplicationCapability } from './browser-worker.js';
 export type JobState = 'NEW' | 'INGESTED' | 'NEEDS_REVIEW' | 'INVALID' | 'DUPLICATE' | 'ARCHIVED';
 
 export type JobProvider =
@@ -141,6 +142,7 @@ export interface JobEventDto {
 }
 
 export interface JobDto {
+  applicationCapability?: ApplicationCapability;
   id: string;
   userId: string;
   state: JobState;
@@ -186,6 +188,7 @@ export interface JobDto {
 }
 
 export interface JobSummaryDto {
+  applicationCapability?: ApplicationCapability;
   id: string;
   state: JobState;
   title: string;
@@ -212,6 +215,7 @@ export interface JobSummaryDto {
 }
 
 export interface JobListQuery {
+  applicationMethod?: 'JOBEE' | 'EMPLOYER_SITE';
   page?: number;
   limit?: number;
   state?: JobState;
@@ -315,7 +319,7 @@ export type DimensionStatus = 'SCORED' | 'UNKNOWN' | 'NOT_APPLICABLE';
 
 export type MatchAnalysisMode = 'DETERMINISTIC_ONLY' | 'AI_ENRICHED';
 
-export const MATCH_ALGORITHM_VERSION = '2.3.0';
+export const MATCH_ALGORITHM_VERSION = '2.4.0';
 
 export const DIMENSION_DEFAULT_WEIGHTS: Record<DimensionType, number> = {
   ROLE_FIT: 25,

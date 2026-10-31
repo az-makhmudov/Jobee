@@ -1,3 +1,4 @@
+import type { RawExtractedSection } from '../extractors/types.js';
 import { getConfig } from '@job-agent/config';
 import { GoogleJobsReader } from './google-jobs-reader.js';
 import { z } from 'zod';
@@ -58,6 +59,7 @@ export interface PublicPosting {
   employmentType?: string;
   experienceLevel?: string;
   workplaceType?: 'REMOTE' | 'HYBRID';
+  sections?: RawExtractedSection[];
   salary?: string;
   sourceMetadata?: Record<string, unknown>;
 }
@@ -84,6 +86,17 @@ const smartListSchema = z.object({
   content: z.array(smartPostingSchema).max(100),
 });
 const smartDetailSchema = smartPostingSchema.extend({
+  compensation: z
+    .object({
+      min: z.number().nonnegative().optional(),
+      max: z.number().nonnegative().optional(),
+      currency: z
+        .string()
+        .regex(/^[A-Z]{3}$/)
+        .optional(),
+      period: z.string().optional(),
+    })
+    .optional(),
   postingUrl: z.string().url().optional(),
   jobAd: z.object({
     sections: z.record(z.object({ title: z.string().optional(), text: z.string().optional() })),
@@ -348,7 +361,7 @@ export class JobDiscoveryService {
               url: item.url,
               text: fullText,
               provider: q.source,
-              sourceMetadata: item.sourceMetadata,
+              sourceMetadata: { ...item.sourceMetadata, structuredSections: item.sections },
             });
             if (result.isDuplicate) q.summary.duplicatesSkipped++;
             else {
@@ -383,6 +396,7 @@ export class JobDiscoveryService {
                 text: fullText,
                 provider: q.source,
                 remote: item.remote,
+                sourceMetadata: { ...item.sourceMetadata, structuredSections: item.sections },
               });
           } catch {
             q.summary.errors.push(`Could not import a listing from ${q.key}.`);
@@ -466,6 +480,19 @@ export class JobDiscoveryService {
       company: detail.company?.name ?? posting.company,
       url: url.href,
       description,
+      sourceMetadata: { ...posting.sourceMetadata, compensation: detail.compensation },
+      sections: Object.entries(sections).map(([key, value]) => ({
+        type:
+          key === 'qualifications'
+            ? 'QUALIFICATIONS'
+            : key === 'companyDescription'
+              ? 'ABOUT_COMPANY'
+              : key === 'jobDescription'
+                ? 'RESPONSIBILITIES'
+                : 'BENEFITS',
+        title: value.title ?? key,
+        content: plain(value.text),
+      })),
       location: detail.location?.fullLocation ?? posting.location,
       remote: detail.location?.remote,
       workplaceType:

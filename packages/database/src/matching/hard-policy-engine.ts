@@ -6,10 +6,11 @@ import {
   requiresCitizenshipOrClearance,
 } from './eligibility.js';
 import { Job } from '../schema/index.js';
-import { DecisionReasonCodes, DecisionReasonCode } from '@job-agent/shared';
+import { DecisionReasonCodes, DecisionReasonCode, type ApplicationIssue } from '@job-agent/shared';
 import { CandidateMatchingContext } from './matching-context-builder.js';
 
 export interface HardPolicyResult {
+  applicationIssues?: ApplicationIssue[];
   hasBlockers: boolean;
   blockers: string[];
   warnings: string[];
@@ -24,12 +25,22 @@ export class HardPolicyEngine {
     const warnings: string[] = [];
     const missingInformation: string[] = [];
     const reasonCodes: DecisionReasonCode[] = [];
+    const applicationIssues: ApplicationIssue[] = [];
+    const information = (
+      message: string,
+      code = 'ELIGIBILITY_UNCONFIRMED',
+      severity: ApplicationIssue['severity'] = 'ACTION_REQUIRED',
+    ) => {
+      missingInformation.push(message);
+      applicationIssues.push({ code, severity, message });
+    };
     let missingSensitiveInfo = false;
 
     const prefs = context.preferences;
     if (!prefs) {
-      missingInformation.push('No candidate job preferences configured');
+      information('No candidate job preferences configured');
       return {
+        applicationIssues,
         hasBlockers: false,
         blockers,
         warnings,
@@ -114,9 +125,7 @@ export class HardPolicyEngine {
 
         if (!matchesPreferred) {
           if (!job.city && prefs.willingToRelocate !== true) {
-            missingInformation.push(
-              'Job city is unspecified; preferred-location compatibility is unconfirmed',
-            );
+            information('Job city is unspecified; preferred-location compatibility is unconfirmed');
             missingSensitiveInfo = true;
           } else if (prefs.willingToRelocate === true) {
             warnings.push(
@@ -132,7 +141,7 @@ export class HardPolicyEngine {
             warnings.push(
               `Location '${job.locationText ?? 'unspecified'}' is outside preferred locations; relocation preference is unconfigured`,
             );
-            missingInformation.push('Candidate relocation preference is unconfigured');
+            information('Candidate relocation preference is unconfigured');
             missingSensitiveInfo = true;
           }
         }
@@ -153,11 +162,11 @@ export class HardPolicyEngine {
     }
 
     if (job.workplaceType === 'UNKNOWN' && allowedWorkModes.length) {
-      missingInformation.push('Job workplace arrangement is unspecified');
+      information('Job workplace arrangement is unspecified', 'WORKPLACE_UNSPECIFIED', 'WARNING');
       missingSensitiveInfo = true;
     }
     if (job.employmentType === 'UNKNOWN' && allowedEmpTypes.length) {
-      missingInformation.push('Job employment type is unspecified');
+      information('Job employment type is unspecified', 'EMPLOYMENT_UNSPECIFIED', 'WARNING');
       missingSensitiveInfo = true;
     }
     if (job.employmentType === 'INTERNSHIP') {
@@ -165,7 +174,7 @@ export class HardPolicyEngine {
         blockers.push('Candidate has confirmed they are not eligible for internships');
         reasonCodes.push(DecisionReasonCodes.INTERNSHIP_NOT_ALLOWED);
       } else if (prefs.internshipEligible !== true) {
-        missingInformation.push('Candidate internship eligibility is unconfirmed');
+        information('Candidate internship eligibility is unconfirmed');
         missingSensitiveInfo = true;
       }
     }
@@ -173,8 +182,10 @@ export class HardPolicyEngine {
     // Compare only explicit, matching units and currencies; never convert or assume annual pay.
     if (prefs.minSalary != null) {
       if (!comparableCompensation(job, prefs) || (job.minSalary == null && job.maxSalary == null)) {
-        missingInformation.push(
+        information(
           'Salary cannot be compared without explicit matching currency and pay period',
+          'COMPENSATION_UNCONFIRMED',
+          'WARNING',
         );
         missingSensitiveInfo = true;
       } else if (job.maxSalary != null && job.maxSalary < prefs.minSalary) {
@@ -189,7 +200,7 @@ export class HardPolicyEngine {
 
     // Work location is not citizenship or permission to work. Remote never implies worldwide authorization.
     if (!hasCountryAuthorization(job.country, prefs)) {
-      missingInformation.push(
+      information(
         job.country
           ? `Work authorization for '${job.country}' is unconfirmed`
           : 'Job hiring jurisdiction and country-specific work authorization are unconfirmed',
@@ -197,14 +208,12 @@ export class HardPolicyEngine {
       missingSensitiveInfo = true;
     }
     if (requiresCitizenshipOrClearance(textToSearch)) {
-      missingInformation.push(
-        'Citizenship or clearance requirements need explicit verified evidence',
-      );
+      information('Citizenship or clearance requirements need explicit verified evidence');
       missingSensitiveInfo = true;
     }
     if (prefs.needsSponsorship === true && forbidsSponsorship(textToSearch)) {
       if (hasCountryAuthorization(job.country, prefs)) {
-        missingInformation.push('Confirm sponsorship needs for this hiring jurisdiction');
+        information('Confirm sponsorship needs for this hiring jurisdiction');
         missingSensitiveInfo = true;
       } else {
         blockers.push(
@@ -213,11 +222,19 @@ export class HardPolicyEngine {
         reasonCodes.push(DecisionReasonCodes.SPONSORSHIP_CONFLICT);
       }
     } else if (prefs.needsSponsorship == null && /sponsor|visa/i.test(textToSearch)) {
-      missingInformation.push('Candidate sponsorship requirement is unconfigured');
+      information('Candidate sponsorship requirement is unconfigured');
       missingSensitiveInfo = true;
     }
 
     return {
+      applicationIssues: [
+        ...applicationIssues,
+        ...blockers.map((message) => ({
+          code: 'CONFIRMED_POLICY_CONFLICT',
+          severity: 'BLOCKER' as const,
+          message,
+        })),
+      ],
       hasBlockers: blockers.length > 0,
       blockers,
       warnings,

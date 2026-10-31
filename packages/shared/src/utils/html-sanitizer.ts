@@ -64,7 +64,14 @@ export function stripHtmlToText(html: string): string {
     .replace(/&#39;/gi, "'")
     .replace(/&mdash;/gi, '—')
     .replace(/&ndash;/gi, '–')
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)));
+    .replace(/&#(x[0-9a-f]+|[0-9]+);/gi, (_, value: string) => {
+      const code = value.toLowerCase().startsWith('x')
+        ? parseInt(value.slice(1), 16)
+        : parseInt(value, 10);
+      return code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff)
+        ? String.fromCodePoint(code)
+        : '\uFFFD';
+    });
 
   // Normalize whitespace: collapse multiple horizontal spaces, limit consecutive newlines to 2
   text = text

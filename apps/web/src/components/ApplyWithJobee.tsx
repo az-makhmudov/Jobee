@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { inferHostedAtsProvider, type ApplicationIntentDto } from '@job-agent/shared';
+import { assessApplicationCapability, type ApplicationIntentDto } from '@job-agent/shared';
 import { jobSearchApi } from '../api/job-search-client.js';
 import { Button, Card } from '../ui/Primitives.js';
 
@@ -27,7 +27,7 @@ export function ApplyWithJobee({
   employerUrl?: string | null;
 }) {
   const manualOnly = Boolean(
-    employerUrl && !['GREENHOUSE', 'LEVER', 'ASHBY'].includes(inferHostedAtsProvider(employerUrl)),
+    employerUrl && assessApplicationCapability(employerUrl).method === 'EMPLOYER_SITE',
   );
   const safeEmployerUrl = employerUrl && /^https?:\/\//i.test(employerUrl) ? employerUrl : null;
   const [intent, setIntent] = useState<ApplicationIntentDto | null>(null);
@@ -180,6 +180,9 @@ export function ApplyWithJobee({
           )}
         </>
       )}
+      {intent?.warnings?.map((issue) => (
+        <p key={issue.code}>{issue.message}</p>
+      ))}
       {error && (
         <div role="alert">
           <p>{error}</p>

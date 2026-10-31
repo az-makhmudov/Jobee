@@ -1,3 +1,6 @@
+import { z } from 'zod';
+import { extractRequirementsFromSectionsOrText } from '../extractors/extractor-utils.js';
+import type { RawExtractedSection } from '../extractors/types.js';
 import {
   currentMatchingInputs,
   relevanceIssues,
@@ -19,6 +22,7 @@ import {
 } from '@job-agent/database';
 import {
   AppError,
+  assessApplicationCapability,
   type JobDto,
   type JobSummaryDto,
   type JobMatchSummaryDto,
@@ -46,6 +50,48 @@ import { JobNormalizerService } from './job-normalizer-service.js';
 import type { RawExtractedJob } from '../extractors/types.js';
 
 type JobTransaction = Parameters<Parameters<Database['transaction']>[0]>[0];
+
+function applySourceMetadata(raw: RawExtractedJob, metadata?: Record<string, unknown>) {
+  if (metadata) raw.rawMetadata = { ...raw.rawMetadata, ...metadata };
+  const structuredSections = metadata?.structuredSections as RawExtractedSection[] | undefined;
+  if (
+    Array.isArray(structuredSections) &&
+    structuredSections.every(
+      (section) => typeof section.content === 'string' && typeof section.title === 'string',
+    )
+  ) {
+    raw.sections = structuredSections;
+    raw.requirements = extractRequirementsFromSectionsOrText(structuredSections, '');
+  }
+  const compensation = z
+    .object({
+      min: z.number().nonnegative().optional(),
+      max: z.number().nonnegative().optional(),
+      currency: z
+        .string()
+        .regex(/^[A-Z]{3}$/)
+        .optional(),
+      period: z.enum(['YEARLY', 'MONTHLY', 'HOURLY', 'WEEKLY', 'DAILY']).optional(),
+    })
+    .safeParse(metadata?.compensation);
+  if (compensation.success) {
+    const value = compensation.data;
+    raw.minSalary = value.min;
+    raw.maxSalary = value.max;
+    raw.currency = value.currency;
+    raw.payPeriod = value.period
+      ? (
+          {
+            YEARLY: 'YEAR',
+            MONTHLY: 'MONTH',
+            HOURLY: 'HOUR',
+            WEEKLY: 'WEEK',
+            DAILY: 'DAY',
+          } as const
+        )[value.period]
+      : undefined;
+  }
+}
 
 export class JobService {
   private readonly retrievalService: HttpRetrievalService;
@@ -93,7 +139,7 @@ export class JobService {
       url: req.url,
     });
 
-    if (req.sourceMetadata) raw.rawMetadata = req.sourceMetadata;
+    applySourceMetadata(raw, req.sourceMetadata);
     const norm = this.normalizerService.normalize(raw);
 
     // Deduplication check
@@ -118,7 +164,7 @@ export class JobService {
         rawMetadata: raw.rawMetadata ?? null,
         contentHash: norm.contentHash,
         ingestionStatus: 'DUPLICATE',
-        parserVersion: '1.0.0',
+        parserVersion: '1.1.0',
         retrievedAt: new Date(),
       });
 
@@ -186,7 +232,7 @@ export class JobService {
         rawPayload: null, // Raw HTML payload discarded; plain text and metadata retained
         contentHash: norm.contentHash,
         ingestionStatus: 'COMPLETED',
-        parserVersion: '1.0.0',
+        parserVersion: '1.1.0',
         retrievedAt: new Date(),
       })
       .returning();
@@ -304,7 +350,7 @@ export class JobService {
         rawPayload: null, // Raw HTML discarded
         contentHash: norm.contentHash,
         ingestionStatus: 'DUPLICATE',
-        parserVersion: '1.0.0',
+        parserVersion: '1.1.0',
         retrievedAt: new Date(),
       });
 
@@ -378,7 +424,7 @@ export class JobService {
         rawPayload: null, // Raw HTML discarded upon successful extraction
         contentHash: norm.contentHash,
         ingestionStatus: 'COMPLETED',
-        parserVersion: '1.0.0',
+        parserVersion: '1.1.0',
         retrievedAt: new Date(),
       })
       .returning();
@@ -471,11 +517,77 @@ export class JobService {
     return null;
   }
 
+  /** Lazy, owned parser upgrade; source and evaluation history remain immutable. */
+  public async ensureCurrentParser(userId: string): Promise<void> {
+    const owned = await this.db
+      .select()
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.userId, userId),
+          sql`${jobs.state} != 'ARCHIVED'`,
+          sql`COALESCE((SELECT src.parser_version FROM job_sources src WHERE src.job_id = ${jobs.id} AND src.user_id = ${userId} ORDER BY src.retrieved_at DESC LIMIT 1), '1.1.0') <> '1.1.0'`,
+        ),
+      );
+    for (const job of owned) {
+      await this.db.transaction(async (tx) => {
+        const [locked] = await tx
+          .select()
+          .from(jobs)
+          .where(and(eq(jobs.id, job.id), eq(jobs.userId, userId)))
+          .for('update');
+        if (!locked) return;
+        const [source] = await tx
+          .select()
+          .from(jobSources)
+          .where(and(eq(jobSources.jobId, job.id), eq(jobSources.userId, userId)))
+          .orderBy(desc(jobSources.retrievedAt))
+          .limit(1);
+        if (!source || source.parserVersion === '1.1.0') return;
+        const raw = this.extractorRegistry
+          .getManualExtractor()
+          .extract(locked.description, { title: locked.title, company: locked.company });
+        const [next] = await tx
+          .insert(jobSources)
+          .values({
+            jobId: job.id,
+            userId,
+            provider: source.provider,
+            ingestionMethod: source.ingestionMethod,
+            sourceUrl: source.sourceUrl,
+            canonicalUrl: source.canonicalUrl,
+            externalJobId: source.externalJobId,
+            rawTitle: locked.title,
+            rawCompany: locked.company,
+            rawLocation: locked.locationText,
+            rawDescription: locked.description,
+            rawMetadata: source.rawMetadata,
+            contentHash: this.normalizerService.normalize(raw).contentHash,
+            parserVersion: '1.1.0',
+          })
+          .returning();
+        await this.replaceCurrentExtraction(tx, userId, job.id, raw, next!.id);
+        await tx
+          .update(jobMatchAnalyses)
+          .set({ isStale: true, autoApplyEligible: false })
+          .where(and(eq(jobMatchAnalyses.jobId, job.id), eq(jobMatchAnalyses.userId, userId)));
+        await tx.insert(jobEvents).values({
+          jobId: job.id,
+          userId,
+          eventType: 'JOB_ANALYSIS_STALE',
+          changedFields: ['requirements', 'sections'],
+          metadata: { parserVersion: '1.1.0' },
+        });
+      });
+    }
+  }
+
   // --- Job Listing with Filtering & Pagination ---
   public async getJobs(
     userId: string,
     query: JobListQuery = {},
   ): Promise<JobPaginationResult<JobSummaryDto>> {
+    await this.ensureCurrentParser(userId);
     const page = Math.max(1, query.page || 1);
     const limit = Math.min(100, Math.max(1, query.limit || 20));
     const offset = (page - 1) * limit;
@@ -533,6 +645,12 @@ export class JobService {
     const hardPolicy = new HardPolicyEngine();
     // Filter by match intelligence if requested
     const filteredJobs = allMatchingJobs.filter((r) => {
+      if (
+        query.applicationMethod &&
+        assessApplicationCapability(r.applicationUrl || r.originalUrl || r.canonicalUrl || '')
+          .method !== query.applicationMethod
+      )
+        return false;
       if (
         query.recommendationsOnly &&
         (['ARCHIVED', 'INVALID', 'DUPLICATE'].includes(r.state) ||
@@ -658,6 +776,9 @@ export class JobService {
         : null;
 
       return {
+        applicationCapability: assessApplicationCapability(
+          r.applicationUrl || r.originalUrl || r.canonicalUrl || '',
+        ),
         id: r.id,
         state: r.state as JobState,
         title: r.title,
@@ -721,6 +842,9 @@ export class JobService {
     });
 
     return {
+      applicationCapability: assessApplicationCapability(
+        job.applicationUrl || job.originalUrl || job.canonicalUrl || '',
+      ),
       id: job.id,
       userId: job.userId,
       state: job.state as JobState,
@@ -819,9 +943,14 @@ export class JobService {
   public async refreshPublicPosting(
     userId: string,
     id: string,
-    request: IngestJobTextRequest & { provider: JobProvider; remote?: boolean },
+    request: IngestJobTextRequest & {
+      provider: JobProvider;
+      remote?: boolean;
+      sourceMetadata?: Record<string, unknown>;
+    },
   ): Promise<void> {
     const raw = this.extractorRegistry.getManualExtractor().extract(request.text, request);
+    applySourceMetadata(raw, request.sourceMetadata);
     const normalized = this.normalizerService.normalize(raw);
     await this.db.transaction(async (tx) => {
       const [existing] = await tx
@@ -982,6 +1111,7 @@ export class JobService {
       const raw = this.extractorRegistry
         .getManualExtractor()
         .extract(updates.description, { title: updates.title, company: updates.company });
+
       const normalized = this.normalizerService.normalize(raw);
       const extracted: Partial<NewJob> = {
         locationText: normalized.locationText,
@@ -1225,7 +1355,7 @@ export class JobService {
       rawPayload: null, // Raw HTML payload discarded
       contentHash,
       ingestionStatus: 'NEEDS_MANUAL_TEXT',
-      parserVersion: '1.0.0',
+      parserVersion: '1.1.0',
       errorMessage: raw.warnings ? raw.warnings.join('; ') : 'Authentication wall detected',
       retrievedAt: new Date(),
     });
