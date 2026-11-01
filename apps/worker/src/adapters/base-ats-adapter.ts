@@ -35,6 +35,8 @@ export abstract class BaseAtsAdapter {
     originalHtml: string,
   ): Promise<import('@job-agent/shared').SubmissionObservation> {
     const successSelectors: Record<string, string> = {
+      SMARTRECRUITERS:
+        '[data-test="application-confirmation"], [data-testid="application-success"], .application-confirmation',
       GREENHOUSE: '#application_confirmation, #application-confirmation, .application-confirmation',
       LEVER: '.application-confirmation, .application-success, .thanks',
       ASHBY:

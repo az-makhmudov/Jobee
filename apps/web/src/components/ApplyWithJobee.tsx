@@ -1,5 +1,9 @@
 import { useEffect, useState, useRef } from 'react';
-import { assessApplicationCapability, type ApplicationIntentDto } from '@job-agent/shared';
+import {
+  assessApplicationCapability,
+  type ApplicationCapability,
+  type ApplicationIntentDto,
+} from '@job-agent/shared';
 import { jobSearchApi } from '../api/job-search-client.js';
 import { Button, Card } from '../ui/Primitives.js';
 
@@ -19,15 +23,18 @@ export function ApplyWithJobee({
   onOpenApplication,
   existingOnly = false,
   employerUrl,
+  applicationCapability,
 }: {
   jobId: string;
   onOpenPackage?: (id: string) => void;
   onOpenApplication?: (id: string) => void;
   existingOnly?: boolean;
   employerUrl?: string | null;
+  applicationCapability?: ApplicationCapability;
 }) {
   const manualOnly = Boolean(
-    employerUrl && assessApplicationCapability(employerUrl).method === 'EMPLOYER_SITE',
+    (applicationCapability ?? (employerUrl ? assessApplicationCapability(employerUrl) : undefined))
+      ?.method === 'EMPLOYER_SITE',
   );
   const safeEmployerUrl = employerUrl && /^https?:\/\//i.test(employerUrl) ? employerUrl : null;
   const [intent, setIntent] = useState<ApplicationIntentDto | null>(null);

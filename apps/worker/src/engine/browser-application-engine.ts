@@ -1,3 +1,4 @@
+import { SmartRecruitersAdapter } from '../adapters/smartrecruiters-adapter.js';
 import type { BrowserController, BrowserPage } from '../browser/browser-controller.js';
 import { AtsAdapterRegistry } from '../adapters/ats-adapter-registry.js';
 import {
@@ -31,6 +32,8 @@ export interface ExecuteBrowserRunParams {
   mode?: BrowserRunMode;
   payload: ApplicationSubmissionPayload;
   skipDb?: boolean;
+  smartRecruitersEnabled?: boolean;
+  beforeStep?: () => Promise<void>;
   beforeSubmit?: () => Promise<void>;
   onFormExtracted?: (schema: AtsFormSchema) => Promise<void>;
 }
@@ -93,6 +96,7 @@ export class BrowserApplicationEngine {
     };
     let errorMessage: string | undefined;
     let submissionDispatched = false;
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
 
     // 1. Initial DB Persistence (if db available)
     if (this.db && !params.skipDb) {
@@ -156,236 +160,354 @@ export class BrowserApplicationEngine {
           'This application requires the employer website. The form or destination is unsupported.',
         );
 
-      // 4. Challenge Detection (Prime Invariant: Stop on Bot Challenges)
-      const challenge = await adapter.detectChallenge(page);
-      if (challenge.detected) {
-        logStep(
-          'CHALLENGE_DETECTION',
-          `Automated execution halted: ${challenge.type} detected`,
-          'WARNING',
-          challenge.message,
-          challenge.selector,
-        );
-        runStatus = BrowserRunStatus.STOPPED_CAPTCHA;
-        errorMessage = challenge.message ?? `Halted due to ${challenge.type}`;
-
-        await capture('challenge');
-
-        return await this.finalizeRun({
-          runId,
-          params,
-          atsProvider,
-          mode,
-          runStatus,
-          fieldsDetectedCount,
-          fieldsFilledCount,
-          unmatchedRequiredFields,
-          stepLogs,
-          screenshotPaths,
-          startedAt: now,
-          confirmationReference,
-          submissionObservation,
-          errorMessage,
-        });
-      }
-
-      // 5. Form Schema Extraction
-      if (
-        await page
-          .locator('input[type="password"], input[autocomplete="one-time-code"], input[name="otp"]')
-          .count()
-      ) {
-        throw new Error(
-          'The employer requires sign-in or identity verification. Continue on the employer website.',
-        );
-      }
-      logStep('FORM_EXTRACTION', 'Extracting form schema and interactive fields...');
-      const schema = await adapter.extractForm(page);
-      // Hosted forms can change. A required control omitted by an adapter cannot
-      // silently disappear from validation or be treated as a supported form.
-      const requiredControls = await page.$$(
-        'input[required], select[required], textarea[required], input[aria-required="true"], select[aria-required="true"], textarea[aria-required="true"]',
-      );
-      for (const control of requiredControls) {
-        if (!(await control.isVisible()) || (await control.getAttribute('type')) === 'hidden')
-          continue;
-        const id = await control.getAttribute('id'),
-          name = await control.getAttribute('name');
-        if (
-          !schema.fields.some((field) => (id && field.id === id) || (name && field.name === name))
-        )
+      const multiStep = adapter instanceof SmartRecruitersAdapter;
+      let providerSubmit: string | undefined;
+      let finalSchemaFingerprint: string | undefined;
+      const deadline = Date.now() + 120_000;
+      const checkStep = async () => {
+        if (!multiStep) return;
+        if (!params.smartRecruitersEnabled)
           throw new Error(
-            'The employer form has a required field this provider adapter does not support. Continue on the employer website.',
+            'SmartRecruiters applications are not enabled. Continue on the employer website.',
           );
-      }
-      fieldsDetectedCount = schema.fields.length;
-      if (!fieldsDetectedCount)
-        throw new Error('No supported application form was found. The listing may have closed.');
-      await params.onFormExtracted?.(schema);
-      logStep(
-        'FORM_EXTRACTION',
-        `Discovered ${fieldsDetectedCount} fields across form`,
-        'OK',
-        `Job Title: ${schema.jobTitle ?? 'N/A'}, Company: ${schema.company ?? 'N/A'}`,
-      );
+        if (Date.now() >= deadline)
+          throw new Error('Employer form time limit reached. Continue on the employer website.');
+        adapter.assertDestination(params.targetUrl, page!.url());
+        await params.beforeStep?.();
+      };
+      if (multiStep)
+        deadlineTimer = setTimeout(() => {
+          void page?.close().catch(() => {});
+        }, 120_000);
+      const visited = new Set<string>();
+      for (let step = 0; step < (multiStep ? 8 : 1); step++) {
+        await checkStep();
+        // 4. Challenge Detection (Prime Invariant: Stop on Bot Challenges)
+        const challenge = await adapter.detectChallenge(page);
+        if (challenge.detected) {
+          logStep(
+            'CHALLENGE_DETECTION',
+            `Automated execution halted: ${challenge.type} detected`,
+            'WARNING',
+            challenge.message,
+            challenge.selector,
+          );
+          runStatus = BrowserRunStatus.STOPPED_CAPTCHA;
+          errorMessage = challenge.message ?? `Halted due to ${challenge.type}`;
 
-      // 6. Field Value Matching & Zero-Hallucination Invariant Check
-      logStep('FIELD_MATCHING', 'Matching candidate verified facts to extracted fields...');
-      const fieldValuesToFill: Array<{ field: AtsFormField; value: string }> = [];
+          await capture('challenge');
 
-      for (const field of schema.fields) {
+          return await this.finalizeRun({
+            runId,
+            params,
+            atsProvider,
+            mode,
+            runStatus,
+            fieldsDetectedCount,
+            fieldsFilledCount,
+            unmatchedRequiredFields,
+            stepLogs,
+            screenshotPaths,
+            startedAt: now,
+            confirmationReference,
+            submissionObservation,
+            errorMessage,
+          });
+        }
+
+        // 5. Form Schema Extraction
         if (
-          field.type === AtsFormFieldType.FILE_RESUME ||
-          field.type === AtsFormFieldType.FILE_COVER_LETTER
+          await page
+            .locator(
+              'input[type="password"], input[autocomplete="one-time-code"], input[name="otp"]',
+            )
+            .count()
         ) {
-          const isLetter = field.type === AtsFormFieldType.FILE_COVER_LETTER;
-          const filePath = isLetter
-            ? params.payload.coverLetterFilePath
-            : params.payload.resumeFilePath;
-          const buffer = isLetter ? params.payload.coverLetterBuffer : params.payload.resumeBuffer;
-          const filename = isLetter
-            ? params.payload.coverLetterFileName
-            : params.payload.resumeFileName;
-          if (filePath || buffer)
-            fieldValuesToFill.push({
-              field,
-              value: filePath || filename || 'application-document.docx',
-            });
-          else if (field.required) unmatchedRequiredFields.push(field);
-          continue;
+          throw new Error(
+            'The employer requires sign-in or identity verification. Continue on the employer website.',
+          );
         }
-
-        const resolvedValue = adapter.resolveFieldValue(field, params.payload);
-        if (resolvedValue !== undefined && resolvedValue !== '') {
-          fieldValuesToFill.push({ field, value: resolvedValue });
-        } else if (field.required) {
-          unmatchedRequiredFields.push(field);
-        }
-      }
-
-      // 7. Human Review Invariant: Never guess missing required candidate fields
-      if (unmatchedRequiredFields.length > 0) {
-        const missingLabels = unmatchedRequiredFields.map((f) => f.label).join(', ');
-        logStep(
-          'INVARIANT_CHECK',
-          `Halted: Found ${unmatchedRequiredFields.length} required field(s) without verified candidate facts: [${missingLabels}]`,
-          'ERROR',
-          'Prime Invariant: AI must never invent candidate qualifications or answers.',
+        logStep('FORM_EXTRACTION', 'Extracting form schema and interactive fields...');
+        const schema = await adapter.extractForm(page);
+        // Hosted forms can change. A required control omitted by an adapter cannot
+        // silently disappear from validation or be treated as a supported form.
+        const requiredControls = await page.$$(
+          'input[required], select[required], textarea[required], input[aria-required="true"], select[aria-required="true"], textarea[aria-required="true"]',
         );
-        runStatus = BrowserRunStatus.STOPPED_MANUAL_REVIEW;
-        errorMessage = `Missing verified answers for required fields: ${missingLabels}`;
-
-        await capture('missing-fields');
-
-        return await this.finalizeRun({
-          runId,
-          params,
-          atsProvider,
-          mode,
-          runStatus,
-          fieldsDetectedCount,
-          fieldsFilledCount,
-          unmatchedRequiredFields,
-          stepLogs,
-          screenshotPaths,
-          startedAt: now,
-          confirmationReference,
-          submissionObservation,
-          errorMessage,
-        });
-      }
-
-      logStep(
-        'INVARIANT_CHECK',
-        `All ${fieldValuesToFill.length} applicable fields successfully matched with verified candidate facts.`,
-      );
-
-      // 8. Field Filling Execution
-      for (const item of fieldValuesToFill) {
-        const { field, value } = item;
-        try {
-          const loc = page.locator(field.selector).first();
-          if ((await loc.count()) === 0) {
-            logStep(
-              'FIELD_FILL',
-              `Skipping field '${field.label}' (${field.selector}): selector not found in DOM`,
-              'WARNING',
+        for (const control of requiredControls) {
+          if (!(await control.isVisible()) || (await control.getAttribute('type')) === 'hidden')
+            continue;
+          const id = await control.getAttribute('id'),
+            name = await control.getAttribute('name');
+          if (
+            !schema.fields.some((field) => (id && field.id === id) || (name && field.name === name))
+          )
+            throw new Error(
+              'The employer form has a required field this provider adapter does not support. Continue on the employer website.',
             );
-            if (field.required) unmatchedRequiredFields.push(field);
+        }
+        fieldsDetectedCount = schema.fields.length;
+        if (!fieldsDetectedCount && multiStep) {
+          const entry =
+            step === 0 &&
+            !new URL(page.url()).pathname.startsWith('/oneclick-ui/') &&
+            !/<form\b/i.test(await page.content())
+              ? await adapter.control(page, 'entry')
+              : undefined;
+          if (entry && !visited.has('ENTRY')) {
+            visited.add('ENTRY');
+            await checkStep();
+            await page.locator(entry).click();
+            await page.waitForTimeout(250);
             continue;
           }
+        }
+        if (!fieldsDetectedCount && !(multiStep && (await adapter.control(page, 'submit'))))
+          throw new Error('No supported application form was found. The listing may have closed.');
+        if (multiStep) {
+          const signature = JSON.stringify(
+            schema.fields.map((f) => [f.name, f.label, f.type, f.required, f.options]),
+          );
+          if (visited.has(signature))
+            throw new Error('Employer form repeated a step. Continue on the employer website.');
+          visited.add(signature);
+        }
+        await params.onFormExtracted?.(schema);
+        logStep(
+          'FORM_EXTRACTION',
+          `Discovered ${fieldsDetectedCount} fields across form`,
+          'OK',
+          `Job Title: ${schema.jobTitle ?? 'N/A'}, Company: ${schema.company ?? 'N/A'}`,
+        );
 
+        // 6. Field Value Matching & Zero-Hallucination Invariant Check
+        logStep('FIELD_MATCHING', 'Matching candidate verified facts to extracted fields...');
+        const fieldValuesToFill: Array<{ field: AtsFormField; value: string }> = [];
+
+        for (const field of schema.fields) {
           if (
             field.type === AtsFormFieldType.FILE_RESUME ||
             field.type === AtsFormFieldType.FILE_COVER_LETTER
           ) {
             const isLetter = field.type === AtsFormFieldType.FILE_COVER_LETTER;
+            const filePath = isLetter
+              ? params.payload.coverLetterFilePath
+              : params.payload.resumeFilePath;
             const buffer = isLetter
               ? params.payload.coverLetterBuffer
               : params.payload.resumeBuffer;
-            if (buffer)
-              await loc.setInputFiles({
-                name:
-                  (isLetter ? params.payload.coverLetterFileName : params.payload.resumeFileName) ||
-                  'application-document.docx',
-                mimeType:
-                  (isLetter ? params.payload.coverLetterMimeType : params.payload.resumeMimeType) ||
-                  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                buffer: Buffer.from(buffer, 'base64'),
+            const filename = isLetter
+              ? params.payload.coverLetterFileName
+              : params.payload.resumeFileName;
+            if (filePath || buffer)
+              fieldValuesToFill.push({
+                field,
+                value: filePath || filename || 'application-document.docx',
               });
-            else await loc.setInputFiles(value);
-            logStep(
-              'FIELD_FILL',
-              `Uploaded reviewed document to '${field.label}'`,
-              'OK',
-              undefined,
-              field.selector,
-            );
-          } else if (field.type === AtsFormFieldType.SELECT) {
-            await adapter.selectDropdownOption(loc, value, field.options);
-            logStep(
-              'FIELD_FILL',
-              `Selected option '${value}' for '${field.label}'`,
-              'OK',
-              undefined,
-              field.selector,
-            );
+            else if (field.required) unmatchedRequiredFields.push(field);
+            continue;
+          }
+
+          const resolvedValue = adapter.resolveFieldValue(field, params.payload);
+          if (
+            field.type === AtsFormFieldType.CHECKBOX &&
+            field.required &&
+            !['true', 'yes'].includes((resolvedValue ?? '').toLowerCase())
+          ) {
+            unmatchedRequiredFields.push(field);
+          } else if (resolvedValue !== undefined && resolvedValue !== '') {
+            fieldValuesToFill.push({ field, value: resolvedValue });
+          } else if (field.required) {
+            unmatchedRequiredFields.push(field);
           } else if (field.type === AtsFormFieldType.CHECKBOX) {
-            if (value.toLowerCase() === 'true' || value.toLowerCase() === 'yes') {
-              await loc.check();
+            fieldValuesToFill.push({ field, value: 'false' });
+          }
+        }
+
+        // 7. Human Review Invariant: Never guess missing required candidate fields
+        if (unmatchedRequiredFields.length > 0) {
+          const missingLabels = unmatchedRequiredFields.map((f) => f.label).join(', ');
+          logStep(
+            'INVARIANT_CHECK',
+            `Halted: Found ${unmatchedRequiredFields.length} required field(s) without verified candidate facts: [${missingLabels}]`,
+            'ERROR',
+            'Prime Invariant: AI must never invent candidate qualifications or answers.',
+          );
+          runStatus = BrowserRunStatus.STOPPED_MANUAL_REVIEW;
+          errorMessage = `Missing verified answers for required fields: ${missingLabels}`;
+
+          await capture('missing-fields');
+
+          return await this.finalizeRun({
+            runId,
+            params,
+            atsProvider,
+            mode,
+            runStatus,
+            fieldsDetectedCount,
+            fieldsFilledCount,
+            unmatchedRequiredFields,
+            stepLogs,
+            screenshotPaths,
+            startedAt: now,
+            confirmationReference,
+            submissionObservation,
+            errorMessage,
+          });
+        }
+
+        logStep(
+          'INVARIANT_CHECK',
+          `All ${fieldValuesToFill.length} applicable fields successfully matched with verified candidate facts.`,
+        );
+
+        // 8. Field Filling Execution
+        for (const item of fieldValuesToFill) {
+          await checkStep();
+          const { field, value } = item;
+          try {
+            const loc = page.locator(field.selector).first();
+            if ((await loc.count()) === 0) {
               logStep(
                 'FIELD_FILL',
-                `Checked box '${field.label}'`,
+                `Skipping field '${field.label}' (${field.selector}): selector not found in DOM`,
+                'WARNING',
+              );
+              if (field.required) unmatchedRequiredFields.push(field);
+              continue;
+            }
+
+            if (
+              field.type === AtsFormFieldType.FILE_RESUME ||
+              field.type === AtsFormFieldType.FILE_COVER_LETTER
+            ) {
+              const isLetter = field.type === AtsFormFieldType.FILE_COVER_LETTER;
+              const buffer = isLetter
+                ? params.payload.coverLetterBuffer
+                : params.payload.resumeBuffer;
+              if (buffer)
+                await loc.setInputFiles({
+                  name:
+                    (isLetter
+                      ? params.payload.coverLetterFileName
+                      : params.payload.resumeFileName) || 'application-document.docx',
+                  mimeType:
+                    (isLetter
+                      ? params.payload.coverLetterMimeType
+                      : params.payload.resumeMimeType) ||
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                  buffer: Buffer.from(buffer, 'base64'),
+                });
+              else await loc.setInputFiles(value);
+              logStep(
+                'FIELD_FILL',
+                `Uploaded reviewed document to '${field.label}'`,
+                'OK',
+                undefined,
+                field.selector,
+              );
+            } else if (field.type === AtsFormFieldType.SELECT) {
+              await adapter.selectDropdownOption(loc, value, field.options);
+              logStep(
+                'FIELD_FILL',
+                `Selected option '${value}' for '${field.label}'`,
+                'OK',
+                undefined,
+                field.selector,
+              );
+            } else if (field.type === AtsFormFieldType.CHECKBOX) {
+              if (value.toLowerCase() === 'true' || value.toLowerCase() === 'yes') {
+                await loc.check();
+                logStep(
+                  'FIELD_FILL',
+                  `Checked box '${field.label}'`,
+                  'OK',
+                  undefined,
+                  field.selector,
+                );
+              } else if (value.toLowerCase() === 'false' || value.toLowerCase() === 'no') {
+                await loc.uncheck();
+              } else throw new Error('Checkbox answer must be explicitly yes or no.');
+            } else {
+              await loc.fill(value);
+              logStep(
+                'FIELD_FILL',
+                `Filled field '${field.label}'`,
                 'OK',
                 undefined,
                 field.selector,
               );
             }
-          } else {
-            await loc.fill(value);
-            logStep('FIELD_FILL', `Filled field '${field.label}'`, 'OK', undefined, field.selector);
+            fieldsFilledCount++;
+          } catch (fillErr: any) {
+            if (field.required) unmatchedRequiredFields.push(field);
+            logStep(
+              'FIELD_FILL',
+              `Error filling field '${field.label}' (${field.selector}): ${fillErr.message}`,
+              'WARNING',
+            );
           }
-          fieldsFilledCount++;
-        } catch (fillErr: any) {
-          if (field.required) unmatchedRequiredFields.push(field);
-          logStep(
-            'FIELD_FILL',
-            `Error filling field '${field.label}' (${field.selector}): ${fillErr.message}`,
-            'WARNING',
-          );
         }
-      }
 
-      logStep(
-        'FILLING_COMPLETE',
-        `Filled ${fieldsFilledCount} of ${fieldsDetectedCount} detected fields.`,
-      );
-
-      if (unmatchedRequiredFields.length)
-        throw new Error(
-          'Required fields could not be filled. Review the employer form before applying.',
+        logStep(
+          'FILLING_COMPLETE',
+          `Filled ${fieldsFilledCount} of ${fieldsDetectedCount} detected fields.`,
         );
 
+        if (unmatchedRequiredFields.length)
+          throw new Error(
+            'Required fields could not be filled. Review the employer form before applying.',
+          );
+
+        if (multiStep) {
+          await checkStep();
+          const errors = page.locator(
+            '[aria-invalid="true"], .field-error, .error-message, .application-error',
+          );
+          for (let i = 0; i < Math.min(await errors.count(), 50); i++)
+            if (await errors.nth(i).isVisible())
+              throw new Error(
+                'Employer validation needs attention. Continue on the employer website.',
+              );
+          const refreshed = await adapter.extractForm(page);
+          if (JSON.stringify(refreshed.fields) !== JSON.stringify(schema.fields)) {
+            if (step === 7) throw new Error('Employer form exceeded eight steps.');
+            continue;
+          }
+          const next = await adapter.control(page, 'next');
+          providerSubmit = await adapter.control(page, 'submit');
+          if (next && providerSubmit)
+            throw new Error('Ambiguous employer form actions. Continue on the employer website.');
+          if (next) {
+            if (step === 7)
+              throw new Error(
+                'Employer form exceeded eight steps. Continue on the employer website.',
+              );
+            await checkStep();
+            await page.locator(next).click();
+            for (let wait = 0; wait < 20; wait++) {
+              await page.waitForTimeout(250);
+              adapter.assertDestination(params.targetUrl, page.url());
+              if (Date.now() >= deadline) throw new Error('Employer form time limit reached.');
+              const upcoming = await adapter.extractForm(page);
+              if (JSON.stringify(upcoming.fields) !== JSON.stringify(schema.fields)) break;
+              if ((await adapter.detectChallenge(page)).detected) break;
+            }
+            continue;
+          }
+          if (!providerSubmit)
+            throw new Error(
+              'No recognized final application action. Continue on the employer website.',
+            );
+        }
+        if (multiStep) finalSchemaFingerprint = JSON.stringify(schema.fields);
+        break;
+      }
+      await checkStep();
+      if (multiStep && !providerSubmit)
+        throw new Error(
+          'No recognized final application action within eight steps. Continue on the employer website.',
+        );
       // 9. Mode Execution
       if (mode === BrowserRunMode.DRY_RUN) {
         logStep(
@@ -410,13 +532,23 @@ export class BrowserApplicationEngine {
         logStep('SUBMISSION', 'SUBMIT mode active: Locating submit control...');
         const submitButton = page
           .locator(
-            'button[type="submit"], input[type="submit"], #submit_app, .template-btn-submit, #ashby-submit-btn',
+            providerSubmit ??
+              'button[type="submit"], input[type="submit"], #submit_app, .template-btn-submit, #ashby-submit-btn',
           )
           .first();
 
         if ((await submitButton.count()) > 0) {
           await capture('before-submit');
           await params.beforeSubmit?.();
+          if (multiStep) {
+            adapter.assertDestination(params.targetUrl, page.url());
+            if (
+              Date.now() >= deadline ||
+              (await adapter.control(page, 'submit')) !== providerSubmit ||
+              JSON.stringify((await adapter.extractForm(page)).fields) !== finalSchemaFingerprint
+            )
+              throw new Error('Employer final action changed or timed out.');
+          }
           logStep(
             'SUBMISSION_DISPATCHING',
             'Dispatching submission action to external provider...',
@@ -440,6 +572,7 @@ export class BrowserApplicationEngine {
             submissionDispatched = true;
             await submitButton.click();
             submissionObservation = await adapter.observeSubmission(page, originalHtml);
+            if (multiStep) adapter.assertDestination(params.targetUrl, page.url());
             logStep(
               'EMPLOYER_OBSERVATION',
               submissionObservation.signal,
@@ -597,6 +730,7 @@ export class BrowserApplicationEngine {
         errorMessage = error.message;
       }
     } finally {
+      if (deadlineTimer) clearTimeout(deadlineTimer);
       if (page) {
         try {
           await page.close();

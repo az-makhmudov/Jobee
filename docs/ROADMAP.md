@@ -1,6 +1,6 @@
 # Jobee — remaining roadmap
 
-Updated 2026-10-30. This is a delta roadmap over the current implementation, not a rebuild. Scope and acceptance live here; current verification/checkpoints live in [status](STATUS.md). Product vision lives in [master context](MASTER_CONTEXT.md).
+Updated 2026-11-01. This is a delta roadmap over the current implementation, not a rebuild. Scope and acceptance live here; current verification/checkpoints live in [status](STATUS.md). Product vision lives in [master context](MASTER_CONTEXT.md).
 
 ## Completed foundation
 
@@ -18,7 +18,7 @@ The owner supplied Honeywell vacancy 159335 (Oracle Recruiting), publicly inspec
 
 **JOB-P2-T02 remaining correctness, observed live on 2026-10-30:** preserve conjunction/alternative semantics in compound language requirements; evidence for one clause must not satisfy the entire requirement. Separate employer benefits from candidate requirements and prevent them from generating qualification unknowns. Clean duplicate normalized badges and literal HTML entities. Loading, filtered-empty recovery and idle-result stability passed live browser observation; recommendation correctness is not yet accepted. The four current recommendations use unsupported SmartRecruiters forms, so supported-provider coverage remains necessary for one-click testing.
 
-Stage 1 matching/manual-Apply corrections are now implemented locally and under final verification; production remains the previously approved release. Stage 2 under JOB-P5-T01 remains a dedicated SmartRecruiters public-form browser adapter: same-employer/posting navigation, up to eight steps/two minutes, uploads and actual question/consent resolution, provider-specific dispatch/confirmation, and challenge/login/OTP/unsupported-form handoff. Add `SMARTRECRUITERS_SUBMISSIONS_ENABLED=false` in configuration before advertising capability. No authenticated Application API integration, flag activation or live employer submission is implied. Deliver the verified Stage 1 release checkpoint first; preserve the same durable intent/material authorization engine for Stage 2.
+Stage 1 matching/manual-Apply corrections are locally verified and pushed as `ae2f8ae`; its approved release was cancelled after Railway never started the queued build. Both production services remain `91161fe`. Local Stage 2 under JOB-P5-T01 now adds a dedicated SmartRecruiters public-form browser adapter: same-employer/posting navigation, up to eight steps/two minutes, document uploads and actual question/consent resolution, provider-specific dispatch/confirmation, and challenge/login/OTP/unsupported-form handoff. `SMARTRECRUITERS_SUBMISSIONS_ENABLED=false` is validated configuration and governs API capability, intent creation, preparation and worker execution. Registered coverage is bounded to recognized controls; custom widgets and radio groups hand off. Local project/browser gates pass. Remaining acceptance: deploy an exact verified source under separate approval, enable the testing deployment as authorized by the owner on 2026-11-01, then separately authorize named live validation before claiming employer-confirmed coverage. No authenticated Application API integration, flag activation or live employer submission is implied. The existing durable intent/material authorization engine is retained.
 
 ## Dependency order
 

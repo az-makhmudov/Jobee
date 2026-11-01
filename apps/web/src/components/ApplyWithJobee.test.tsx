@@ -124,3 +124,18 @@ it('withholds the manual handoff until existing-attempt lookup succeeds', async 
   fireEvent.click(screen.getByRole('button', { name: 'Refresh application status' }));
   await screen.findByRole('link', { name: 'Apply on employer website' });
 });
+
+it('uses server-assessed SmartRecruiters capability without exposing rollout settings', async () => {
+  render(
+    <ApplyWithJobee
+      jobId="smart-job"
+      employerUrl="https://jobs.smartrecruiters.com/Example/123-role"
+      applicationCapability={{
+        provider: 'SMARTRECRUITERS',
+        method: 'JOBEE',
+        explanation: 'Runtime form inspection required.',
+      }}
+    />,
+  );
+  expect(await screen.findByRole('button', { name: /Apply with Jobee/i })).toBeTruthy();
+});

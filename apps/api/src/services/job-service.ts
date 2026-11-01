@@ -1,3 +1,4 @@
+import { getConfig } from '@job-agent/config';
 import { z } from 'zod';
 import { extractRequirementsFromSectionsOrText } from '../extractors/extractor-utils.js';
 import type { RawExtractedSection } from '../extractors/types.js';
@@ -22,7 +23,7 @@ import {
 } from '@job-agent/database';
 import {
   AppError,
-  assessApplicationCapability,
+  assessApplicationCapability as assessCapability,
   type JobDto,
   type JobSummaryDto,
   type JobMatchSummaryDto,
@@ -1373,4 +1374,8 @@ export class JobService {
         'Provider requires manual text. The URL was recorded; please paste the job description to finalize extraction.',
     };
   }
+}
+
+function assessApplicationCapability(url: string) {
+  return assessCapability(url, getConfig().SMARTRECRUITERS_SUBMISSIONS_ENABLED);
 }

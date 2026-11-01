@@ -1,3 +1,4 @@
+import { getConfig } from '@job-agent/config';
 import { assertDailyApplicationLimit } from './application-limits.js';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import {
@@ -13,6 +14,7 @@ import {
 import {
   AppError,
   inferHostedAtsProvider,
+  assessApplicationCapability,
   AtsProviderType,
   BrowserRunMode,
   BrowserRunStatus,
@@ -88,7 +90,10 @@ export class BrowserWorkerService {
 
     // Strict Backend Authorization Guard for SUBMIT mode
     if (mode === BrowserRunMode.SUBMIT) {
-      if (atsProvider === AtsProviderType.OTHER || atsProvider === AtsProviderType.UNKNOWN)
+      if (
+        assessApplicationCapability(targetUrl, getConfig().SMARTRECRUITERS_SUBMISSIONS_ENABLED)
+          .method !== 'JOBEE'
+      )
         throw AppError.badRequest('Use the employer website for this application method.');
       if (
         appRecord.application.appliedAt ||

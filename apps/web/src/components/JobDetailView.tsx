@@ -345,6 +345,7 @@ export function JobDetailView({
           onOpenPackage={onPrepareApplication}
           onOpenApplication={onViewApplicationInCrm}
           employerUrl={job.applicationUrl || job.originalUrl}
+          applicationCapability={job.applicationCapability}
           existingOnly={Boolean(
             crmApp &&
             (crmApp.appliedAt || !['READY_TO_APPLY', 'NEEDS_REVIEW'].includes(crmApp.status)),

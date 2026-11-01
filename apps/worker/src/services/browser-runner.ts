@@ -319,6 +319,41 @@ export async function executePendingBrowserRun(
         mode: run.mode as BrowserRunMode,
         payload,
         skipDb: false,
+        smartRecruitersEnabled: getConfig().SMARTRECRUITERS_SUBMISSIONS_ENABLED,
+        beforeStep: async () => {
+          if (
+            !getConfig().SMARTRECRUITERS_SUBMISSIONS_ENABLED ||
+            !getConfig().SELECTED_SUBMISSIONS_ENABLED
+          )
+            throw new Error('Application permission is unavailable.');
+          const snapshot = run.authorizationManifest as {
+            authorizationMode?: string;
+            intentId?: string;
+            manifestChecksum?: string;
+            authorizedAt?: number;
+          } | null;
+          if (!snapshot?.authorizedAt || Date.now() - snapshot.authorizedAt > 15 * 60_000)
+            throw new Error('Application authorization expired.');
+          const { manifest, appRecord } = await SubmissionAuthorizationService.buildManifest(
+            run.userId,
+            run.applicationId,
+            db,
+          );
+          if (
+            manifest.manifestChecksum !== snapshot.manifestChecksum ||
+            appRecord.application.appliedAt ||
+            appRecord.job.state === 'ARCHIVED' ||
+            (appRecord.job.expirationDate && appRecord.job.expirationDate < new Date())
+          )
+            throw new Error('Application materials or vacancy changed.');
+          if (snapshot.authorizationMode === 'INTENT' && snapshot.intentId)
+            await assertApplicationIntent(db, run.userId, run.applicationId, snapshot.intentId, {
+              runId: run.id,
+              checksum: snapshot.manifestChecksum,
+            });
+          else if (snapshot.authorizationMode !== 'TOKEN')
+            throw new Error('Application permission requires review.');
+        },
         onFormExtracted: async (schema) => {
           const snapshot = run.authorizationManifest as {
             authorizationMode?: string;

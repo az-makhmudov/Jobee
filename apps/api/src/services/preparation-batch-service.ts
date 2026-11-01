@@ -1,3 +1,4 @@
+import { getConfig } from '@job-agent/config';
 import { and, eq, inArray, desc, asc, sql, gte, lt } from 'drizzle-orm';
 import {
   type Database,
@@ -20,6 +21,7 @@ import {
 } from '@job-agent/database';
 import {
   AppError,
+  assessApplicationCapability,
   BrowserRunMode,
   type PreparationBatchDto,
   type PreparationStatus,
@@ -321,7 +323,11 @@ export class PreparationBatchService {
         const provider = BrowserWorkerService.inferAtsProvider(
           job.applicationUrl ?? job.originalUrl ?? '',
         );
-        const automatic = ['GREENHOUSE', 'LEVER', 'ASHBY'].includes(provider);
+        const automatic =
+          assessApplicationCapability(
+            job.applicationUrl ?? job.originalUrl ?? '',
+            getConfig().SMARTRECRUITERS_SUBMISSIONS_ENABLED,
+          ).method === 'JOBEE';
         const inputsCurrent =
           version && pkg
             ? version.inputFingerprint === (await fingerprint(job.id, version.baseDocumentId))

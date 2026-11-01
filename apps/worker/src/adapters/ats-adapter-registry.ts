@@ -1,3 +1,4 @@
+import { SmartRecruitersAdapter } from './smartrecruiters-adapter.js';
 import type { BaseAtsAdapter } from './base-ats-adapter.js';
 import { GreenhouseAdapter } from './greenhouse-adapter.js';
 import { LeverAdapter } from './lever-adapter.js';
@@ -29,6 +30,7 @@ export class AtsAdapterRegistry {
       new GreenhouseAdapter(),
       new LeverAdapter(),
       new AshbyAdapter(),
+      new SmartRecruitersAdapter(),
     ];
     this.genericAdapter = new GenericAtsAdapter();
   }

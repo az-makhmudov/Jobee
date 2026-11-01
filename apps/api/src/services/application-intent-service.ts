@@ -1,3 +1,4 @@
+import { getConfig } from '@job-agent/config';
 import { assertDailyApplicationLimit } from '@job-agent/database';
 import { and, eq, desc, inArray, sql } from 'drizzle-orm';
 import {
@@ -19,7 +20,7 @@ import {
 import {
   APPLICATION_INTENT_TERMS,
   AppError,
-  assessApplicationCapability,
+  assessApplicationCapability as assessCapability,
   BrowserRunMode,
   type ApplicationIntentDto,
   type AutopilotGrant,
@@ -635,4 +636,8 @@ export class ApplicationIntentService {
       }
     }
   }
+}
+
+function assessApplicationCapability(url: string) {
+  return assessCapability(url, getConfig().SMARTRECRUITERS_SUBMISSIONS_ENABLED);
 }

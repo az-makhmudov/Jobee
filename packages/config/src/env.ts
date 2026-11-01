@@ -267,6 +267,10 @@ export const envSchema = z
         .enum(['true', 'false'])
         .default('false')
         .transform((v) => v === 'true'),
+      SMARTRECRUITERS_SUBMISSIONS_ENABLED: z
+        .enum(['true', 'false'])
+        .default('false')
+        .transform((v) => v === 'true'),
       SELECTED_SUBMISSIONS_ENABLED: z
         .preprocess((v) => (v === undefined ? true : v === 'true' || v === true), z.boolean())
         .default(true),

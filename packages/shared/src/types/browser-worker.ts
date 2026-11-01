@@ -8,6 +8,7 @@ export const AtsProviderType = {
   GREENHOUSE: 'GREENHOUSE',
   LEVER: 'LEVER',
   ASHBY: 'ASHBY',
+  SMARTRECRUITERS: 'SMARTRECRUITERS',
   OTHER: 'OTHER',
   UNKNOWN: 'UNKNOWN',
 } as const;
@@ -215,6 +216,7 @@ export function inferHostedAtsProvider(url: string): AtsProviderType {
   if (host === 'boards.greenhouse.io' || host === 'job-boards.greenhouse.io')
     return AtsProviderType.GREENHOUSE;
   if (host === 'jobs.lever.co' || host === 'jobs.eu.lever.co') return AtsProviderType.LEVER;
+  if (host === 'jobs.smartrecruiters.com') return AtsProviderType.SMARTRECRUITERS;
   if (host === 'jobs.ashbyhq.com') return AtsProviderType.ASHBY;
   return AtsProviderType.OTHER;
 }
@@ -224,9 +226,15 @@ export interface ApplicationCapability {
   method: 'JOBEE' | 'EMPLOYER_SITE';
   explanation: string;
 }
-export function assessApplicationCapability(url: string): ApplicationCapability {
+export function assessApplicationCapability(
+  url: string,
+  smartRecruitersEnabled = false,
+): ApplicationCapability {
   const provider = inferHostedAtsProvider(url);
-  const supported = provider !== AtsProviderType.OTHER && provider !== AtsProviderType.UNKNOWN;
+  const supported =
+    provider !== AtsProviderType.OTHER &&
+    provider !== AtsProviderType.UNKNOWN &&
+    (provider !== AtsProviderType.SMARTRECRUITERS || smartRecruitersEnabled);
   return {
     provider,
     method: supported ? 'JOBEE' : 'EMPLOYER_SITE',
